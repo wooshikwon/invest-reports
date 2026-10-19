@@ -150,6 +150,12 @@
         items[items.length - 1].push(node);
       }
     }
+    // 번호 없이 번호 이슈 뒤에 오는 항목(검토했지만 비중을 낮춘 이슈)에는 다음 번호를 붙인다.
+    items.forEach(([h3], i) => {
+      if (i && /^\d+\.\s/.test(items[i - 1][0].textContent.trim()) && !/^\d+\.\s/.test(h3.textContent.trim())) {
+        h3.prepend(`${i + 1}. `);
+      }
+    });
     if (items.length > 1) slider(items, head, true);
   }
 
