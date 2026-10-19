@@ -128,15 +128,14 @@
     slider([[chart], [tree]], report.querySelector("h2"), false);
   }
 
-  // 절 안의 `###` 항목을 하나씩 넘기는 묶음으로 바꾼다. 항목은 `###` 제목부터 다음 `###`·`##` 앞까지이고,
-  // `stop`이 참인 제목(검토했지만 비중을 낮춘 이슈)부터는 묶음 밖에 남긴다.
-  function section(title, stop = () => false) {
+  // 절 안의 `###` 항목을 하나씩 넘기는 묶음으로 바꾼다. 항목은 `###` 제목부터 다음 `###`·`##` 앞까지다.
+  // 주요 이슈 해설에서는 템플릿이 검토했지만 비중을 낮춘 이슈를 번호 이슈 뒤에 두므로 그 항목이 마지막 슬라이드가 된다.
+  function section(title) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
     if (!head) return;
     const items = [];
     for (let node = head.nextElementSibling; node && node.tagName !== "H2"; node = node.nextElementSibling) {
       if (node.tagName === "H3") {
-        if (stop(node)) break;
         items.push([node]);
       } else if (items.length) {
         items[items.length - 1].push(node);
@@ -163,7 +162,7 @@
         const text = tag.textContent;
         tag.classList.add(text.includes("높음") ? "lv-high" : text.includes("보통") ? "lv-mid" : "lv-low");
       });
-      section("주요 이슈 해설", (h) => h.textContent.trim().startsWith("검토했지만"));
+      section("주요 이슈 해설");
       section("다가오는 이벤트");
       // Montecarlo처럼 글자가 작은 그림은 눌러서 원본 크기로 연다.
       report.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => {
