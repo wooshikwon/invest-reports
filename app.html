@@ -128,14 +128,15 @@
     fitHeight();
   }
 
-  // 요약의 Outlook 그림 자리에 Outlook과 Montecarlo를 넘기는 묶음을 둔다.
-  // Montecarlo는 원래 다가오는 이벤트 절에 있으므로 그 자리에서는 뺀다.
+  // 요약의 Outlook 그림 자리에 Outlook, 1Y + Predictions, Montecarlo 순서로 넘기는 묶음을 둔다.
+  // Montecarlo는 원래 다가오는 이벤트 절에 있으므로 그 자리에서는 뺀다. 1Y + Predictions가 없는 리포트는 두 장을 넘긴다.
   function figures() {
     const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
     const chart = pick("chart"), tree = pick("tree");
     if (!chart || !tree) return;
-    [chart, tree].forEach((img) => (img.closest("p") || img).remove());
-    slider([[chart], [tree]], report.querySelector("h2"), false);
+    const shown = [chart, pick("predict"), tree].filter(Boolean);
+    shown.forEach((img) => (img.closest("p") || img).remove());
+    slider(shown.map((img) => [img]), report.querySelector("h2"), false);
   }
 
   // 절 안의 `###` 항목을 하나씩 넘기는 묶음으로 바꾼다. 항목은 `###` 제목부터 다음 `###`·`##` 앞까지다.
