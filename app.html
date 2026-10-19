@@ -60,8 +60,8 @@
     fail("열 리포트가 지정되지 않았다.");
   } else {
     Promise.all([
-      fetch(`r/${key}/report.html`).then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); }),
-      fetch("r/index.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+      fetch(`r/${key}/report.html`, { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); }),
+      fetch("r/index.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
     ]).then(([body, listing]) => {
       const entry = listing[key];
       if (entry) {
