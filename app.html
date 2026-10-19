@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>투자 판단 리포트</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: var(--tg-theme-bg-color, #ffffff);
+    --text: var(--tg-theme-text-color, #1f2937);
+    --hint: var(--tg-theme-hint-color, #8b95a1);
+    --accent: var(--tg-theme-accent-text-color, #1e3a5f);
+    --line: color-mix(in srgb, var(--text) 14%, transparent);
+    --soft: var(--tg-theme-secondary-bg-color, #f3f4f6);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-tg]) { --bg: #17212b; --text: #e7edf3; --hint: #7d8b99; --accent: #8fb8e8; --soft: #232e3c; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font: 15px/1.7 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    word-break: keep-all; overflow-wrap: anywhere; -webkit-text-size-adjust: 100%;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 16px 16px 40px; }
+  header h1 { font-size: 19px; line-height: 1.4; margin: 4px 0 2px; color: var(--accent); }
+  h2 { font-size: 17px; color: var(--accent); margin: 28px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 15.5px; margin: 22px 0 6px; }
+  p { margin: 0 0 12px; }
+  ul { padding-left: 1.2em; margin: 0 0 12px; }
+  li { margin-bottom: 6px; }
+  strong { color: var(--accent); }
+  img { display: block; width: 100%; height: auto; margin: 12px 0; border-radius: 10px; background: #fff; cursor: zoom-in; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.55; margin: 8px 0 16px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+  th { color: var(--hint); font-weight: 600; font-size: 12.5px; }
+  table.events td.branch { width: 34%; font-weight: 600; }
+  table.events td.chance { width: 3.2em; text-align: right; font-weight: 700; color: var(--accent); white-space: nowrap; }
+  table.events tr.group td { background: var(--soft); font-weight: 700; color: var(--accent); padding-top: 10px; }
+  table.events .date { display: block; font-weight: 500; font-size: 12.5px; color: var(--hint); }
+  .status { color: var(--hint); text-align: center; padding: 48px 0; }
+</style>
+</head>
+<body>
+<main>
+  <header><h1 id="title">투자 판단 리포트</h1></header>
+  <article id="report"><p class="status">리포트를 불러오는 중이다.</p></article>
+</main>
+<script>
+  const tg = window.Telegram && window.Telegram.WebApp;
+  if (tg && tg.initData) {
+    document.documentElement.dataset.tg = "1";
+    tg.ready();
+  }
+  const query = new URLSearchParams(location.search);
+  const key = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || query.get("r") || "";
+  const report = document.getElementById("report");
+  const fail = (message) => { report.innerHTML = `<p class="status">${message}</p>`; };
+
+  if (!/^\d{8}-[a-z]+$/.test(key)) {
+    fail("열 리포트가 지정되지 않았다.");
+  } else {
+    Promise.all([
+      fetch(`r/${key}/report.html`).then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); }),
+      fetch("r/index.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+    ]).then(([body, listing]) => {
+      const entry = listing[key];
+      if (entry) {
+        document.getElementById("title").textContent = entry.title;
+        document.title = entry.title;
+      }
+      report.innerHTML = body;
+      // 흐름도처럼 글자가 작은 그림은 눌러서 원본 크기로 연다.
+      report.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => {
+        const url = new URL(img.getAttribute("src"), location.href).href;
+        if (tg && tg.initData) tg.openLink(url); else window.open(url, "_blank");
+      }));
+    }).catch(() => fail("리포트를 찾지 못했다."));
+  }
+</script>
+</body>
+</html>
