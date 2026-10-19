@@ -71,8 +71,8 @@
   const query = new URLSearchParams(location.search);
   const key = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || query.get("r") || "";
   const report = document.getElementById("report");
-  // 강조색은 지수마다 리포트 그림의 판단 색을 따른다(conviction_chart.py JUDGMENT_COLORS). 나스닥은 기본 파랑을 쓴다.
-  const ACCENT = { biotech: { light: "#7349A3", dark: "#B79BE0" } };
+  // 강조색은 지수마다 리포트 그림의 판단 색을 따른다(conviction_chart.py JUDGMENT_COLORS).
+  const ACCENT = { nasdaq: { light: "#3E7BAE", dark: "#94B8E0" }, biotech: { light: "#7349A3", dark: "#B79BE0" } };
   const accent = ACCENT[key.split("-")[1]];
   if (accent) {
     const dark = tg && tg.initData ? tg.colorScheme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
