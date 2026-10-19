@@ -128,8 +128,8 @@
     fitHeight();
   }
 
-  // 요약의 Outlook 그림 자리에 Outlook, 1Y + Predictions, Montecarlo 순서로 넘기는 묶음을 둔다.
-  // Montecarlo는 원래 다가오는 이벤트 절에 있으므로 그 자리에서는 뺀다. 1Y + Predictions가 없는 리포트는 두 장을 넘긴다.
+  // 요약의 Outlook 그림 자리에 Outlook, 6M + Predictions, Montecarlo 순서로 넘기는 묶음을 둔다.
+  // Montecarlo는 원래 다가오는 이벤트 절에 있으므로 그 자리에서는 뺀다. 6M + Predictions가 없는 리포트는 두 장을 넘긴다.
   function figures() {
     const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
     const chart = pick("chart"), tree = pick("tree");
