@@ -9,9 +9,8 @@
 공개본이 끝나는 자리와 공개본에 남으면 안 되는 말은 invest-report `report_pdf.py`의 값을 그대로 쓴다.
 PDF와 미니 앱이 같은 자리에서 자르므로, 공개 채널로 나가는 두 판본의 내용이 같다.
 
-`다음 주요 이벤트` 표는 날짜·이벤트 칸이 사안의 첫 행에만 차 있다. 휴대폰 폭에서 다섯 열을
-세우면 칸이 서너 글자로 접히므로, 날짜·이벤트를 한 줄의 묶음 행으로 올리고 그 아래에
-분기·확률·전개 예상 세 열만 둔다.
+`다음 주요 이벤트` 표는 분기·확률·전개 예상 세 열이다. 휴대폰 폭에서 분기 이름이 접히지 않게 열마다
+폭과 정렬을 정하는 이름표를 단다.
 """
 import argparse
 import html
@@ -27,7 +26,7 @@ EMBED_RE = re.compile(r"!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
 TABLE_RE = re.compile(r"<table>.*?</table>", re.DOTALL)
 ROW_RE = re.compile(r"<tr\b[^>]*>(.*?)</tr>", re.DOTALL)
 CELL_RE = re.compile(r"<t([hd])\b[^>]*>(.*?)</t\1>", re.DOTALL)
-EVENT_HEADER = ["날짜", "이벤트", "분기", "확률", "전개 예상"]
+EVENT_HEADER = ["분기", "확률", "전개 예상"]
 
 
 def report_pdf(vault: Path):
@@ -57,16 +56,14 @@ def cells(row: str) -> list[str]:
     return [body.strip() for _, body in CELL_RE.findall(row)]
 
 
-def group_events(table: str) -> str:
-    """다섯 열 이벤트 표를 사안 묶음 행과 분기·확률·전개 예상 세 열로 바꾼다. 다른 표는 그대로 둔다."""
+def mark_events(table: str) -> str:
+    """이벤트 표의 열에 이름표를 단다. 다른 표는 그대로 둔다."""
     rows = [cells(r) for r in ROW_RE.findall(table)]
     if not rows or rows[0] != EVENT_HEADER:
         return table
     out = ['<table class="events">', "<thead><tr><th>분기</th><th>확률</th><th>전개 예상</th></tr></thead>", "<tbody>"]
-    for date, event, branch, chance, outlook in rows[1:]:
-        if date or event:
-            out.append(f'<tr class="group"><td colspan="3"><span class="date">{date}</span>{event}</td></tr>')
-        out.append(f"<tr><td class=\"branch\">{branch}</td><td class=\"chance\">{chance}</td><td>{outlook}</td></tr>")
+    for branch, chance, outlook in rows[1:]:
+        out.append(f'<tr><td class="branch">{branch}</td><td class="chance">{chance}</td><td>{outlook}</td></tr>')
     out += ["</tbody>", "</table>"]
     return "\n".join(out)
 
@@ -86,7 +83,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     markdown = re.sub(r"^# .*\n", "", markdown, count=1, flags=re.MULTILINE)
     body = subprocess.run(["pandoc", "-f", "gfm", "-t", "html5"], input=markdown,
                           capture_output=True, text=True, check=True).stdout
-    body = TABLE_RE.sub(lambda m: group_events(m.group(0)), body)
+    body = TABLE_RE.sub(lambda m: mark_events(m.group(0)), body)
     (target / "report.html").write_text(body, encoding="utf-8")
 
     listing = out / "r" / "index.json"
