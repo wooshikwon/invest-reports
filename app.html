@@ -71,6 +71,13 @@
   const query = new URLSearchParams(location.search);
   const key = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || query.get("r") || "";
   const report = document.getElementById("report");
+  // 강조색은 지수마다 리포트 그림의 판단 색을 따른다(conviction_chart.py JUDGMENT_COLORS). 나스닥은 기본 파랑을 쓴다.
+  const ACCENT = { biotech: { light: "#7349A3", dark: "#B79BE0" } };
+  const accent = ACCENT[key.split("-")[1]];
+  if (accent) {
+    const dark = tg && tg.initData ? tg.colorScheme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.style.setProperty("--accent", dark ? accent.dark : accent.light);
+  }
   const fail = (message) => { report.innerHTML = `<p class="status">${message}</p>`; };
 
   // 요약의 Outlook 그림 자리에 Outlook과 Montecarlo를 좌우로 넘기는 캐러셀을 둔다.
