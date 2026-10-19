@@ -39,6 +39,15 @@
   table.events td.branch { width: 34%; font-weight: 600; }
   table.events td.chance { width: 3.2em; text-align: right; font-weight: 700; color: var(--accent); white-space: nowrap; }
   .status { color: var(--hint); text-align: center; padding: 48px 0; }
+  .carousel { margin: 12px 0 4px; }
+  .carousel .track { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory;
+                     scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .carousel .track::-webkit-scrollbar { display: none; }
+  .carousel .slide { flex: 0 0 100%; scroll-snap-align: center; }
+  .carousel .slide img { margin: 0; }
+  .carousel .dots { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
+  .carousel .dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
+  .carousel .dots span.on { background: var(--accent); }
 </style>
 </head>
 <body>
@@ -57,6 +66,32 @@
   const report = document.getElementById("report");
   const fail = (message) => { report.innerHTML = `<p class="status">${message}</p>`; };
 
+  // 요약의 Outlook 그림 자리에 Outlook과 Montecarlo를 좌우로 넘기는 캐러셀을 둔다.
+  // Montecarlo는 원래 다음 주요 이벤트 절에 있으므로 그 자리에서는 뺀다.
+  function carousel() {
+    const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
+    const chart = pick("chart"), tree = pick("tree");
+    if (!chart || !tree) return;
+    const box = document.createElement("div");
+    box.className = "carousel";
+    box.innerHTML = '<div class="track"></div><div class="dots"></div>';
+    const track = box.querySelector(".track"), dots = box.querySelector(".dots");
+    [chart, tree].forEach((img, i) => {
+      const slide = document.createElement("div");
+      slide.className = "slide";
+      (img.closest("p") || img).remove();
+      slide.appendChild(img);
+      track.appendChild(slide);
+      dots.appendChild(Object.assign(document.createElement("span"), { className: i ? "" : "on" }));
+    });
+    report.querySelector("h2").after(box);
+    track.addEventListener("scroll", () => {
+      const step = track.children[1].offsetLeft - track.children[0].offsetLeft;
+      const at = Math.round(track.scrollLeft / step);
+      [...dots.children].forEach((dot, i) => dot.classList.toggle("on", i === at));
+    }, { passive: true });
+  }
+
   if (!/^\d{8}-[a-z]+$/.test(key)) {
     fail("열 리포트가 지정되지 않았다.");
   } else {
@@ -70,7 +105,8 @@
         document.title = entry.title;
       }
       report.innerHTML = body;
-      // 흐름도처럼 글자가 작은 그림은 눌러서 원본 크기로 연다.
+      carousel();
+      // Montecarlo처럼 글자가 작은 그림은 눌러서 원본 크기로 연다.
       report.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => {
         const url = new URL(img.getAttribute("src"), location.href).href;
         if (tg && tg.initData) tg.openLink(url); else window.open(url, "_blank");
