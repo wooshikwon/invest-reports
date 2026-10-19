@@ -57,6 +57,16 @@
   .carousel .dots { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
   .carousel .dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
   .carousel .dots span.on { background: var(--accent); }
+  /* 오늘 판단 요약의 세 문단은 소제목만 보이고, 소제목을 누르면 문단이 펼쳐진다. */
+  details.fold { border-bottom: 1px solid var(--line); }
+  details.fold > summary { list-style: none; cursor: pointer; display: flex; align-items: flex-start; gap: 8px; }
+  details.fold > summary::-webkit-details-marker { display: none; }
+  details.fold > summary h3 { flex: 1; margin: 14px 0; }
+  details.fold > summary::after { content: ""; flex: none; width: 8px; height: 8px; margin: 21px 4px 0 0;
+                                  border-right: 2px solid var(--hint); border-bottom: 2px solid var(--hint);
+                                  transform: rotate(45deg); transition: transform .2s ease; }
+  details.fold[open] > summary::after { transform: rotate(-135deg); margin-top: 25px; }
+  details.fold > :not(summary) { margin-top: 0; }
   /* 주요 이슈 해설과 다가오는 이벤트는 항목 하나씩 넘기고, 넘기기가 멈추면 높이를 그 항목에 맞춘다. */
   .carousel.fit .track { align-items: flex-start; transition: height .2s ease; }
   .carousel.fit .slide h3:first-child { margin-top: 10px; }
@@ -144,6 +154,30 @@
     if (items.length > 1) slider(items, head, true);
   }
 
+  // 절 안의 `###` 소제목마다 소제목만 보이는 접기 상자를 만들고, 다음 `###`·`##` 앞까지의 문단을 그 안에 넣는다.
+  function fold(title) {
+    const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
+    if (!head) return;
+    const heads = [];
+    for (let node = head.nextElementSibling; node && node.tagName !== "H2"; node = node.nextElementSibling) {
+      if (node.tagName === "H3") heads.push(node);
+    }
+    heads.forEach((h3) => {
+      const box = document.createElement("details");
+      box.className = "fold";
+      const summary = document.createElement("summary");
+      h3.before(box);
+      let node = h3.nextElementSibling;
+      summary.appendChild(h3);
+      box.appendChild(summary);
+      while (node && node.tagName !== "H3" && node.tagName !== "H2") {
+        const next = node.nextElementSibling;
+        box.appendChild(node);
+        node = next;
+      }
+    });
+  }
+
   if (!/^\d{8}-[a-z]+$/.test(key)) {
     fail("열 리포트가 지정되지 않았다.");
   } else {
@@ -158,6 +192,7 @@
       }
       report.innerHTML = body;
       figures();
+      fold("오늘 판단 요약");
       report.querySelectorAll("h3 code").forEach((tag) => {
         const text = tag.textContent;
         tag.classList.add(text.includes("높음") ? "lv-high" : text.includes("보통") ? "lv-mid" : "lv-low");
