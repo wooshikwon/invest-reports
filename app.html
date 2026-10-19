@@ -74,7 +74,7 @@
   const fail = (message) => { report.innerHTML = `<p class="status">${message}</p>`; };
 
   // 요약의 Outlook 그림 자리에 Outlook과 Montecarlo를 좌우로 넘기는 캐러셀을 둔다.
-  // Montecarlo는 원래 다음 주요 이벤트 절에 있으므로 그 자리에서는 뺀다.
+  // Montecarlo는 원래 다가오는 이벤트 절에 있으므로 그 자리에서는 뺀다.
   function carousel() {
     const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
     const chart = pick("chart"), tree = pick("tree");
