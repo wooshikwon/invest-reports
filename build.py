@@ -13,6 +13,7 @@ PDF와 미니 앱이 같은 자리에서 자르므로, 공개 채널로 나가�
 폭과 정렬을 정하는 이름표를 단다.
 """
 import argparse
+import hashlib
 import html
 import json
 import re
@@ -36,7 +37,10 @@ def report_pdf(vault: Path):
 
 
 def public_markdown(text: str, vault: Path, out_dir: Path, base: str) -> str:
-    """공개본 마크다운. 그림은 `out_dir`로 복사하고 `app.html` 기준 상대 경로로 바꾼다."""
+    """공개본 마크다운. 그림은 `out_dir`로 복사하고 `app.html` 기준 상대 경로로 바꾼다.
+
+    경로 뒤에 그림 내용의 해시를 붙인다. 같은 이름으로 다시 그린 그림을 텔레그램이 캐시에서 꺼내지 않게 하기 위해서다.
+    """
     pdf = report_pdf(vault)
     text = re.sub(r"\A---\n.*?\n---\n", "", text, flags=re.DOTALL)
     text = pdf.PUBLIC_CUT_RE.split(text, maxsplit=1)[0]
@@ -47,7 +51,8 @@ def public_markdown(text: str, vault: Path, out_dir: Path, base: str) -> str:
     def embed(match: re.Match) -> str:
         source = vault / match.group(1).strip()
         shutil.copy2(source, out_dir / source.name)
-        return f"![]({base}/{source.name})"
+        version = hashlib.sha256(source.read_bytes()).hexdigest()[:10]
+        return f"![]({base}/{source.name}?v={version})"
 
     return EMBED_RE.sub(embed, text)
 
