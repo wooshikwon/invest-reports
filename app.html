@@ -160,6 +160,12 @@
     return box;
   }
 
+  // 절 제목을 화면 위로 옮긴다. 제목이 이미 화면 위에 있으면 화면을 움직이지 않는다.
+  function toTop(head) {
+    const gap = head.getBoundingClientRect().top - parseFloat(getComputedStyle(head).scrollMarginTop);
+    if (Math.abs(gap) > 2) head.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   // 요약의 Outlook 그림 자리에 Outlook, 6M + Predictions, Montecarlo 순서로 넘기는 묶음을 둔다.
   // Montecarlo는 원래 다가오는 이벤트 절에 있으므로 그 자리에서는 뺀다. 6M + Predictions가 없는 리포트는 두 장을 넘긴다.
   function figures() {
@@ -192,7 +198,7 @@
         h3.prepend(`${i + 1}. `);
       }
     });
-    const moved = () => head.scrollIntoView({ behavior: "smooth", block: "start" });
+    const moved = () => toTop(head);
     if (items.length > 1) slider(items, head, { fit: true, moved });
   }
 
@@ -279,11 +285,12 @@
     box.prepend(bar);
     [...strip.children].forEach((button, i) => button.addEventListener("click", () => {
       // 이 절이 리포트 끝이라 아래 내용이 화면보다 짧으면 절 제목이 위까지 오지 못하므로, 묶음에 그만큼 최소 높이를 준다.
-      box.style.minHeight = "";
+      // 최소 높이가 줄면 문서가 짧아져 화면이 위로 당겨지므로, 최소 높이는 커질 때만 바꾼다.
       const rect = box.getBoundingClientRect(), after = document.documentElement.scrollHeight - (rect.bottom + scrollY);
       const margin = parseFloat(getComputedStyle(head).scrollMarginTop);
-      box.style.minHeight = `${innerHeight - margin - (rect.top - head.getBoundingClientRect().top) - after}px`;
-      head.scrollIntoView({ behavior: "smooth", block: "start" });
+      const need = innerHeight - margin - (rect.top - head.getBoundingClientRect().top) - after;
+      box.style.minHeight = `${Math.max(need, parseFloat(box.style.minHeight) || 0)}px`;
+      toTop(head);
       box.go(i);
     }));
   }
