@@ -15,7 +15,7 @@ PDF와 미니 앱이 같은 자리에서 자르므로, 공개 채널로 나가�
 `다가오는 이벤트` 절에는 리포트 날짜 전 이틀 동안 발표된 이벤트도 넣는다. 표는 그 이벤트를 예측한 가장 최근
 리포트의 표를 쓰고, 그 뒤 사안 나무(`tree.json`)의 `resolved`에 적힌 실제 갈래 줄에 `hit` 이름표를 단다.
 이벤트 소제목마다 발표일을 `data-day`로 달고 제목에서는 날짜를 지운다. 미니 앱은 이 값으로 날짜 띠를 그리고
-같은 날 이벤트를 한 장에 모은다.
+같은 날 이벤트를 한 장에 모은다. 소제목에 장전·장중·장후가 없으면 사안 나무의 발표 시각(`announced`)으로 정한다.
 """
 import argparse
 import datetime as dt
@@ -40,6 +40,7 @@ EVENT_DAY_RE = re.compile(r"^(?:(\d{4})-)?(\d{1,2})[-/](\d{1,2})\([^)]*\)(?:~\S+
 LEVEL_RE = re.compile(r"\s*`중요도 [^`]*`")
 PAST_DAYS = 2  # 리포트 날짜 전 며칠 동안 발표된 이벤트를 넣는지
 LOOKBACK = 7  # 지난 이벤트의 표를 찾을 때 거슬러 보는 리포트 날짜 수
+REGULAR_OPEN, REGULAR_CLOSE = "09:30", "16:00"  # 뉴욕 정규장 시각. 발표 시각을 장전·장중·장후로 나눈다
 
 
 def report_pdf(vault: Path):
@@ -165,10 +166,38 @@ def past_events(vault: Path, index: str, date: dt.date) -> tuple[str, dict[str, 
     return "\n".join(blocks), branches
 
 
-def mark_days(body: str, date: dt.date, branches: dict[str, str]) -> str:
+def phase(announced: str) -> str:
+    """뉴욕 시각 `YYYY-MM-DD HH:MM`의 발표가 정규장 앞·안·뒤 가운데 어디인가."""
+    moment = announced[11:16]
+    return "장전" if moment < REGULAR_OPEN else "장중" if moment < REGULAR_CLOSE else "장후"
+
+
+def phases(vault: Path, index: str, date: dt.date) -> dict[tuple[str, str], str]:
+    """(발표일, 이벤트 이름)마다 장 구분. 이름이 빈 키에는 그날 발표가 모두 같은 장 구분일 때만 그 구분을 둔다.
+
+    리포트 날짜 앞뒤 `LOOKBACK`일의 사안 나무에서 발표 시각을 읽고, 같은 사안은 가장 늦은 나무의 시각을 쓴다.
+    """
+    found: dict[tuple[str, str], str] = {}
+    for offset in range(LOOKBACK, -LOOKBACK - 1, -1):
+        tree = report_path(vault, date + dt.timedelta(days=offset), index).with_name("tree.json")
+        if not tree.is_file():
+            continue
+        for issue in json.loads(tree.read_text(encoding="utf-8")).get("issues", []):
+            announced = issue.get("announced")
+            if announced:
+                found.setdefault((announced[:10], issue["name"]), phase(announced))
+    days: dict[str, set[str]] = {}
+    for (day, _), value in found.items():
+        days.setdefault(day, set()).add(value)
+    found.update({(day, ""): values.pop() for day, values in days.items() if len(values) == 1})
+    return found
+
+
+def mark_days(body: str, date: dt.date, branches: dict[str, str], timing: dict[tuple[str, str], str]) -> str:
     """`다가오는 이벤트` 절의 소제목에 발표일(`data-day`)을 달고 제목에서 날짜를 지운다.
 
-    발표 시간대는 제목 앞 `when` 이름표로 남긴다. 리포트 날짜 전 이벤트의 표에는 `judged`를, 실제 갈래 줄에는 `hit`을 단다.
+    발표 시간대는 제목 앞 `when` 이름표로 남긴다. 소제목에 시간대가 없으면 `timing`에서 찾는다.
+    리포트 날짜 전 이벤트의 표에는 `judged`를, 실제 갈래 줄에는 `hit`을 단다.
     """
     head = re.search(rf'<h2 id="[^"]*">{EVENTS_TITLE}</h2>', body)
     if not head:
@@ -183,6 +212,9 @@ def mark_days(body: str, date: dt.date, branches: dict[str, str]) -> str:
         if not parsed:
             raise SystemExit(f"발표일이 없는 이벤트 소제목: {inner}")
         day, when, rest = parsed
+        if not when:
+            name = html.unescape(re.sub(r"<[^>]+>", "", re.sub(r"<code>.*?</code>", "", rest))).strip()
+            when = timing.get((f"{day}", name)) or timing.get((f"{day}", ""), "")
         label = f'<span class="when">{when}</span>' if when else ""
         return f'<h3{attrs} data-day="{day}">{label}{rest}</h3>'
 
@@ -226,7 +258,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     body = subprocess.run(["pandoc", "-f", "gfm", "-t", "html5", "--wrap=none"], input=markdown,
                           capture_output=True, text=True, check=True).stdout
     body = TABLE_RE.sub(lambda m: mark_events(m.group(0)), body)
-    body = mark_days(body, day, branches)
+    body = mark_days(body, day, branches, phases(vault, index, day))
     (target / "report.html").write_text(body, encoding="utf-8")
 
     listing = out / "r" / "index.json"
