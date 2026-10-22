@@ -58,13 +58,9 @@
   .carousel .dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
   .carousel .dots span.on { background: var(--accent); }
   /* 오늘 판단 요약의 세 문단은 소제목만 보이고, 소제목을 누르면 문단이 펼쳐진다. */
-  details.fold > summary { list-style: none; cursor: pointer; display: flex; align-items: flex-start; gap: 8px; }
+  details.fold > summary { list-style: none; cursor: pointer; }
   details.fold > summary::-webkit-details-marker { display: none; }
-  details.fold > summary h3 { flex: 1; margin: 14px 0; }
-  details.fold > summary::after { content: ""; flex: none; width: 8px; height: 8px; margin: 21px 4px 0 0;
-                                  border-right: 2px solid var(--hint); border-bottom: 2px solid var(--hint);
-                                  transform: rotate(45deg); transition: transform .2s ease; }
-  details.fold[open] > summary::after { transform: rotate(-135deg); margin-top: 25px; }
+  details.fold > summary h3 { margin: 14px 0; }
   details.fold > :not(summary) { margin-top: 0; }
   /* 주요 이슈 해설과 다가오는 이벤트는 항목 하나씩 넘기고, 넘기기가 멈추면 높이를 그 항목에 맞춘다. */
   .carousel.fit .track { align-items: flex-start; transition: height .2s ease; }
