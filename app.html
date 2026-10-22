@@ -77,6 +77,7 @@
   .days button b { display: block; font-size: 14px; }
   .days button small { display: block; font-size: 11px; }
   .days button.on { color: #fff; }
+  h2.events { scroll-margin-top: 12px; }
   .carousel.events .slide { display: flow-root; }
   .carousel.events .slide h3 { margin: 30px 0 6px; }
   .carousel.events .slide > :first-child { margin-top: 18px; }
@@ -209,10 +210,11 @@
   // 다가오는 이벤트를 발표일마다 한 장으로 모아 넘기는 묶음으로 바꾸고, 위에 날짜 띠를 둔다.
   // 날짜 띠에는 리포트 날짜 전 2일부터 뒤 7일까지 이벤트가 있는 날짜와 리포트 날짜를 둔다. 발표일은
   // `build.py`가 소제목에 단 `data-day`를 쓰고, 범위 밖 이벤트는 지운다. 처음에는 리포트 날짜를 보여 주고,
-  // 그날 이벤트가 없으면 빈 안내 한 줄을 둔다. 날짜를 누르면 그 날짜로 넘어간다.
+  // 그날 이벤트가 없으면 빈 안내 한 줄을 둔다. 날짜를 누르면 그 날짜로 넘어가고, 절 제목이 화면 위에 오도록 화면을 옮긴다.
   function events(date) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "다가오는 이벤트");
     if (!head) return;
+    head.classList.add("events");
     const shift = (day, n) => new Date(Date.parse(day) + n * 864e5).toISOString().slice(0, 10);
     const first = shift(date, -2), last = shift(date, 7);
     const groups = new Map([[date, []]]);
@@ -252,7 +254,15 @@
     head.after(bar);
     const box = slider(days.map((day) => groups.get(day)), bar, { fit: true, start: days.indexOf(date), change, name: "events" });
     box.prepend(bar);
-    [...strip.children].forEach((button, i) => button.addEventListener("click", () => box.go(i)));
+    [...strip.children].forEach((button, i) => button.addEventListener("click", () => {
+      // 이 절이 리포트 끝이라 아래 내용이 화면보다 짧으면 절 제목이 위까지 오지 못하므로, 묶음에 그만큼 최소 높이를 준다.
+      box.style.minHeight = "";
+      const rect = box.getBoundingClientRect(), after = document.documentElement.scrollHeight - (rect.bottom + scrollY);
+      const margin = parseFloat(getComputedStyle(head).scrollMarginTop);
+      box.style.minHeight = `${innerHeight - margin - (rect.top - head.getBoundingClientRect().top) - after}px`;
+      head.scrollIntoView({ behavior: "smooth", block: "start" });
+      box.go(i);
+    }));
   }
 
   if (!/^\d{8}-[a-z]+$/.test(key)) {
