@@ -57,7 +57,7 @@
   .carousel .dots { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
   .carousel .dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
   .carousel .dots span.on { background: var(--accent); }
-  /* 오늘 판단 요약의 세 문단은 소제목만 보이고, 소제목을 누르면 문단이 펼쳐진다. */
+  /* 1개월 지수 방향 예측 절의 세 문단은 소제목만 보이고, 소제목을 누르면 문단이 펼쳐진다. */
   details.fold > summary { list-style: none; cursor: pointer; }
   details.fold > summary::-webkit-details-marker { display: none; }
   details.fold > summary h3 { margin: 14px 0; }
@@ -313,7 +313,7 @@
       }
       report.innerHTML = body;
       figures();
-      fold("오늘 판단 요약");
+      fold("1개월 지수 방향 예측");
       report.querySelectorAll("h3 code").forEach((tag) => {
         const text = tag.textContent;
         tag.classList.add(text.includes("높음") ? "lv-high" : text.includes("보통") ? "lv-mid" : "lv-low");
