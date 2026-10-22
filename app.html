@@ -77,7 +77,15 @@
   .days button b { display: block; font-size: 14px; }
   .days button small { display: block; font-size: 11px; }
   .days button.on { color: #fff; }
-  h2.events { scroll-margin-top: 12px; }
+  /* 날짜 위 점은 그날 이벤트의 중요도를 높음·보통·낮음 순서로 하나씩 찍는다. 5개를 넘으면 중요도마다 점 하나와 개수를 적는다. */
+  .days button i { display: flex; justify-content: center; align-items: center; gap: 2px; height: 8px; margin-bottom: 2px;
+                   font-style: normal; font-size: 8px; line-height: 1; color: var(--hint); }
+  .days button i span { width: 4px; height: 4px; border-radius: 50%; }
+  .days button i em { font-style: normal; margin: 0 2px 0 -1px; }
+  .days button i .lv-high { background: #d1495b; }
+  .days button i .lv-mid { background: #d98e04; }
+  .days button i .lv-low { background: #8b95a1; }
+  h2.events, h2.issues { scroll-margin-top: 12px; }
   .carousel.events .slide { display: flow-root; }
   .carousel.events .slide h3 { margin: 30px 0 6px; }
   .carousel.events .slide > :first-child { margin-top: 18px; }
@@ -118,8 +126,9 @@
   // 슬라이드마다 노드 목록을 받아 좌우로 넘기는 묶음을 만들고 `after` 뒤에 둔다. 묶음 상자를 돌려준다.
   // `fit`이면 넘기기가 멈춘 뒤 묶음 높이를 보고 있는 슬라이드에 맞춘다. `change`가 있으면 아래 점 대신
   // 보고 있는 슬라이드가 바뀔 때마다 그 번호로 `change`를 부르고, `start`번 슬라이드부터 보여 준다.
+  // `moved`가 있으면 넘기기가 멈춘 뒤 보고 있는 슬라이드가 바뀌었을 때 그 번호로 부른다.
   // 상자의 `go(i)`는 i번 슬라이드로 넘긴다.
-  function slider(slides, after, { fit = false, start = 0, change = null, name = "" } = {}) {
+  function slider(slides, after, { fit = false, start = 0, change = null, moved = null, name = "" } = {}) {
     const box = document.createElement("div");
     box.className = ["carousel", fit && "fit", name].filter(Boolean).join(" ");
     box.innerHTML = change ? '<div class="track"></div>' : '<div class="track"></div><div class="dots"></div>';
@@ -135,13 +144,16 @@
     const step = () => (slides.length > 1 ? track.children[1].offsetLeft - track.children[0].offsetLeft : 1);
     const current = () => Math.min(slides.length - 1, Math.max(0, Math.round(track.scrollLeft / step())));
     const fitHeight = () => { if (fit) track.style.height = `${track.children[current()].offsetHeight}px`; };
-    let timer, shown = start;
+    let timer, shown = start, settled = start;
     track.addEventListener("scroll", () => {
       const now = current();
       if (dots) [...dots.children].forEach((dot, i) => dot.classList.toggle("on", i === now));
       if (change && now !== shown) change((shown = now));
       clearTimeout(timer);
-      timer = setTimeout(fitHeight, 150);
+      timer = setTimeout(() => {
+        fitHeight();
+        if (moved && current() !== settled) moved((settled = current()));
+      }, 150);
     }, { passive: true });
     window.addEventListener("resize", fitHeight);
     box.go = (i) => track.scrollTo({ left: i * step(), behavior: "smooth" });
@@ -164,9 +176,11 @@
 
   // 절 안의 `###` 항목을 하나씩 넘기는 묶음으로 바꾼다. 항목은 `###` 제목부터 다음 `###`·`##` 앞까지다.
   // 주요 이슈 해설에서는 템플릿이 검토했지만 비중을 낮춘 이슈를 번호 이슈 뒤에 두므로 그 항목이 마지막 슬라이드가 된다.
+  // 넘기면 절 제목이 화면 위에 오도록 화면을 옮긴다.
   function section(title) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
     if (!head) return;
+    head.classList.add("issues");
     const items = [];
     for (let node = head.nextElementSibling; node && node.tagName !== "H2"; node = node.nextElementSibling) {
       if (node.tagName === "H3") {
@@ -181,7 +195,8 @@
         h3.prepend(`${i + 1}. `);
       }
     });
-    if (items.length > 1) slider(items, head, { fit: true });
+    const moved = () => head.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (items.length > 1) slider(items, head, { fit: true, moved });
   }
 
   // 절 안의 `###` 소제목마다 소제목만 보이는 접기 상자를 만들고, 다음 `###`·`##` 앞까지의 문단을 그 안에 넣는다.
@@ -234,6 +249,16 @@
     if (!groups.get(date).length) {
       groups.get(date).push(Object.assign(document.createElement("div"), { className: "empty", textContent: "오늘 예정된 이벤트가 없습니다" }));
     }
+    // 날짜 위 점: `build.py`가 소제목에 단 `data-level`을 중요도 순서로 센다.
+    const marks = (nodes) => {
+      const levels = nodes.filter((node) => node.tagName === "H3" && node.dataset.level).map((node) => node.dataset.level);
+      const order = ["high", "mid", "low"].filter((level) => levels.includes(level));
+      const dot = (level) => `<span class="lv-${level}"></span>`;
+      const inner = levels.length > 5
+        ? order.map((level) => dot(level) + `<em>${levels.filter((l) => l === level).length}</em>`).join("")
+        : order.flatMap((level) => levels.filter((l) => l === level).map(dot)).join("");
+      return `<i>${inner}</i>`;
+    };
     const bar = document.createElement("div");
     bar.className = "days";
     bar.innerHTML = '<div class="strip"></div>';
@@ -241,7 +266,7 @@
     days.forEach((day) => {
       const [, m, d] = day.split("-");
       const button = document.createElement("button");
-      button.innerHTML = `<b>${m}/${d}</b><small>${day === date ? "오늘" : "일월화수목금토"[new Date(day).getUTCDay()]}</small>`;
+      button.innerHTML = `${marks(groups.get(day))}<b>${m}/${d}</b><small>${day === date ? "오늘" : "일월화수목금토"[new Date(day).getUTCDay()]}</small>`;
       strip.appendChild(button);
     });
     let offset = 0;
