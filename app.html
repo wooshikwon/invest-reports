@@ -68,7 +68,26 @@
   /* 주요 이슈 해설과 다가오는 이벤트는 항목 하나씩 넘기고, 넘기기가 멈추면 높이를 그 항목에 맞춘다. */
   .carousel.fit .track { align-items: flex-start; transition: height .2s ease; }
   .carousel.fit .slide h3:first-child { margin-top: 10px; }
-  h3 .date { display: block; font-size: 13px; font-weight: 600; color: var(--hint); }
+  /* 다가오는 이벤트는 발표일마다 한 장이고, 위 날짜 띠에서 보고 있는 날짜만 흰색이다. 날짜 띠가 화면 폭을 넘으면
+     보고 있는 날짜가 화면 안에 들어오도록 띠를 옆으로 민다. */
+  .days { position: relative; overflow: hidden; }
+  .days .strip { display: flex; gap: 6px; width: max-content; transition: transform .2s ease; }
+  .days button { appearance: none; border: 0; background: none; font: inherit; flex: 0 0 auto; min-width: 50px;
+                 padding: 2px 4px; text-align: center; line-height: 1.25; color: var(--hint); cursor: pointer; }
+  .days button b { display: block; font-size: 14px; }
+  .days button small { display: block; font-size: 11px; }
+  .days button.on { color: #fff; }
+  .carousel.events .slide { display: flow-root; }
+  .carousel.events .slide h3 { margin: 30px 0 6px; }
+  .carousel.events .slide > :first-child { margin-top: 18px; }
+  .carousel.events table { margin: 0; }
+  h3 .when { display: block; font-size: 13px; font-weight: 600; color: var(--hint); }
+  /* 지난 이벤트의 표는 실제로 일어난 갈래 줄만 또렷하게 보이고 나머지 줄은 흐리다. */
+  table.judged tbody tr { opacity: .28; }
+  table.judged tbody tr.hit { opacity: 1; background: color-mix(in srgb, var(--accent) 13%, transparent);
+                              box-shadow: inset 3px 0 0 var(--accent); }
+  .empty { border: 1px dashed var(--line); border-radius: 12px; padding: 22px 14px; text-align: center;
+           color: var(--hint); font-size: 14px; }
 </style>
 </head>
 <body>
@@ -94,35 +113,40 @@
   if (accent) document.documentElement.style.setProperty("--accent", accent);
   const fail = (message) => { report.innerHTML = `<p class="status">${message}</p>`; };
 
-  // 슬라이드마다 노드 목록을 받아 좌우로 넘기는 묶음과 아래 점을 만들고 `after` 뒤에 둔다.
-  // `fit`이면 넘기기가 멈춘 뒤 묶음 높이를 보고 있는 슬라이드에 맞춘다.
-  function slider(slides, after, fit) {
+  // 슬라이드마다 노드 목록을 받아 좌우로 넘기는 묶음을 만들고 `after` 뒤에 둔다. 묶음 상자를 돌려준다.
+  // `fit`이면 넘기기가 멈춘 뒤 묶음 높이를 보고 있는 슬라이드에 맞춘다. `change`가 있으면 아래 점 대신
+  // 보고 있는 슬라이드가 바뀔 때마다 그 번호로 `change`를 부르고, `start`번 슬라이드부터 보여 준다.
+  // 상자의 `go(i)`는 i번 슬라이드로 넘긴다.
+  function slider(slides, after, { fit = false, start = 0, change = null, name = "" } = {}) {
     const box = document.createElement("div");
-    box.className = fit ? "carousel fit" : "carousel";
-    box.innerHTML = '<div class="track"></div><div class="dots"></div>';
+    box.className = ["carousel", fit && "fit", name].filter(Boolean).join(" ");
+    box.innerHTML = change ? '<div class="track"></div>' : '<div class="track"></div><div class="dots"></div>';
     const track = box.querySelector(".track"), dots = box.querySelector(".dots");
     slides.forEach((nodes, i) => {
       const slide = document.createElement("div");
       slide.className = "slide";
       nodes.forEach((node) => slide.appendChild(node));
       track.appendChild(slide);
-      dots.appendChild(Object.assign(document.createElement("span"), { className: i ? "" : "on" }));
+      if (dots) dots.appendChild(Object.assign(document.createElement("span"), { className: i ? "" : "on" }));
     });
     after.after(box);
-    const current = () => {
-      const step = track.children[1].offsetLeft - track.children[0].offsetLeft;
-      return Math.min(slides.length - 1, Math.max(0, Math.round(track.scrollLeft / step)));
-    };
+    const step = () => (slides.length > 1 ? track.children[1].offsetLeft - track.children[0].offsetLeft : 1);
+    const current = () => Math.min(slides.length - 1, Math.max(0, Math.round(track.scrollLeft / step())));
     const fitHeight = () => { if (fit) track.style.height = `${track.children[current()].offsetHeight}px`; };
-    let timer;
+    let timer, shown = start;
     track.addEventListener("scroll", () => {
       const now = current();
-      [...dots.children].forEach((dot, i) => dot.classList.toggle("on", i === now));
+      if (dots) [...dots.children].forEach((dot, i) => dot.classList.toggle("on", i === now));
+      if (change && now !== shown) change((shown = now));
       clearTimeout(timer);
       timer = setTimeout(fitHeight, 150);
     }, { passive: true });
     window.addEventListener("resize", fitHeight);
+    box.go = (i) => track.scrollTo({ left: i * step(), behavior: "smooth" });
+    track.scrollLeft = start * step();
+    if (change) change(start);
     fitHeight();
+    return box;
   }
 
   // 요약의 Outlook 그림 자리에 Outlook, 6M + Predictions, Montecarlo 순서로 넘기는 묶음을 둔다.
@@ -133,7 +157,7 @@
     if (!chart || !tree) return;
     const shown = [chart, pick("predict"), tree].filter(Boolean);
     shown.forEach((img) => (img.closest("p") || img).remove());
-    slider(shown.map((img) => [img]), report.querySelector("h2"), false);
+    slider(shown.map((img) => [img]), report.querySelector("h2"));
   }
 
   // 절 안의 `###` 항목을 하나씩 넘기는 묶음으로 바꾼다. 항목은 `###` 제목부터 다음 `###`·`##` 앞까지다.
@@ -155,7 +179,7 @@
         h3.prepend(`${i + 1}. `);
       }
     });
-    if (items.length > 1) slider(items, head, true);
+    if (items.length > 1) slider(items, head, { fit: true });
   }
 
   // 절 안의 `###` 소제목마다 소제목만 보이는 접기 상자를 만들고, 다음 `###`·`##` 앞까지의 문단을 그 안에 넣는다.
@@ -182,18 +206,53 @@
     });
   }
 
-  // 이벤트 소제목 앞의 날짜(`2026-10-21(수)`, `2026-10-21(수)~10-28(수)`)를 떼어 윗줄에 따로 보여 준다.
-  function dates(title) {
-    const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
+  // 다가오는 이벤트를 발표일마다 한 장으로 모아 넘기는 묶음으로 바꾸고, 위에 날짜 띠를 둔다.
+  // 날짜 띠에는 리포트 날짜 전 2일부터 뒤 7일까지 이벤트가 있는 날짜와 리포트 날짜를 둔다. 발표일은
+  // `build.py`가 소제목에 단 `data-day`를 쓰고, 범위 밖 이벤트는 지운다. 처음에는 리포트 날짜를 보여 주고,
+  // 그날 이벤트가 없으면 빈 안내 한 줄을 둔다. 날짜를 누르면 그 날짜로 넘어간다.
+  function events(date) {
+    const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "다가오는 이벤트");
     if (!head) return;
-    for (let node = head.nextElementSibling; node && node.tagName !== "H2"; node = node.nextElementSibling) {
-      const text = node.tagName === "H3" && node.firstChild;
-      if (!text || text.nodeType !== Node.TEXT_NODE) continue;
-      const day = text.textContent.match(/^\s*(\d{4}-\d{2}-\d{2}(?:\([^)]*\))?(?:~\d{2}-\d{2}(?:\([^)]*\))?)?)\s*/);
-      if (!day) continue;
-      text.textContent = text.textContent.slice(day[0].length);
-      node.prepend(Object.assign(document.createElement("span"), { className: "date", textContent: day[1] }));
+    const shift = (day, n) => new Date(Date.parse(day) + n * 864e5).toISOString().slice(0, 10);
+    const first = shift(date, -2), last = shift(date, 7);
+    const groups = new Map([[date, []]]);
+    // 첫 소제목 앞의 노드는 그대로 두고, 소제목부터 다음 소제목 앞까지는 그 소제목의 날짜 묶음에 넣는다.
+    let group;
+    for (let node = head.nextElementSibling; node && node.tagName !== "H2";) {
+      const next = node.nextElementSibling;
+      if (node.tagName === "H3") {
+        const day = node.dataset.day;
+        group = day >= first && day <= last ? groups.get(day) || groups.set(day, []).get(day) : null;
+      }
+      if (group) group.push(node); else if (group === null) node.remove();
+      node = next;
     }
+    const days = [...groups.keys()].sort();
+    if (!groups.get(date).length) {
+      groups.get(date).push(Object.assign(document.createElement("div"), { className: "empty", textContent: "오늘 예정된 이벤트가 없습니다" }));
+    }
+    const bar = document.createElement("div");
+    bar.className = "days";
+    bar.innerHTML = '<div class="strip"></div>';
+    const strip = bar.firstChild;
+    days.forEach((day) => {
+      const [, m, d] = day.split("-");
+      const button = document.createElement("button");
+      button.innerHTML = `<b>${m}/${d}</b><small>${day === date ? "오늘" : "일월화수목금토"[new Date(day).getUTCDay()]}</small>`;
+      strip.appendChild(button);
+    });
+    let offset = 0;
+    const change = (i) => {
+      [...strip.children].forEach((button, j) => button.classList.toggle("on", i === j));
+      const button = strip.children[i], width = bar.clientWidth;
+      if (button.offsetLeft + button.offsetWidth - offset > width) offset = button.offsetLeft + button.offsetWidth - width;
+      if (button.offsetLeft < offset) offset = button.offsetLeft;
+      strip.style.transform = `translateX(${-offset}px)`;
+    };
+    head.after(bar);
+    const box = slider(days.map((day) => groups.get(day)), bar, { fit: true, start: days.indexOf(date), change, name: "events" });
+    box.prepend(bar);
+    [...strip.children].forEach((button, i) => button.addEventListener("click", () => box.go(i)));
   }
 
   if (!/^\d{8}-[a-z]+$/.test(key)) {
@@ -216,8 +275,7 @@
         tag.classList.add(text.includes("높음") ? "lv-high" : text.includes("보통") ? "lv-mid" : "lv-low");
       });
       section("주요 이슈 해설");
-      dates("다가오는 이벤트");
-      section("다가오는 이벤트");
+      events(entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`);
       // Montecarlo처럼 글자가 작은 그림은 눌러서 원본 크기로 연다.
       report.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => {
         const url = new URL(img.getAttribute("src"), location.href).href;
