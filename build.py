@@ -17,7 +17,10 @@ PDF와 미니 앱이 같은 자리에서 자르므로, 공개 채널로 나가�
 실제 갈래 줄의 전개 예상 뒤에는 `resolved`의 실제 전개(`outcome`)를 화살표와 함께 붙인다.
 이벤트 소제목마다 발표일을 `data-day`로 달고 제목에서는 날짜를 지운다. 미니 앱은 이 값으로 날짜 띠를 그리고
 같은 날 이벤트를 한 장에 모은다. 소제목에 장전·장중·장후가 없으면 사안 나무의 발표 시각(`announced`)으로 정한다.
-중요도는 `data-level`로 달아 미니 앱이 날짜 띠에 점으로 그린다. 지난 이벤트는 제목의 중요도 표식을 빼되 이 값은 남긴다.
+중요도는 `data-level`로 달아 미니 앱이 날짜 띠에 점으로 그린다.
+
+`r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 처음 만든 시각(`written`, 서울 시각)을 적는다. 미니 앱은 제목 아래
+작은 글씨로 날짜 줄과 처음 만든 시각을 그린다. 같은 리포트를 다시 만들어도 처음 만든 시각은 그대로 둔다.
 """
 import argparse
 import datetime as dt
@@ -29,6 +32,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent
 EMBED_RE = re.compile(r"!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
@@ -44,6 +48,8 @@ LEVELS = {"높음": "high", "보통": "mid", "낮음": "low"}  # 소제목 중�
 PAST_DAYS = 2  # 리포트 날짜 전 며칠 동안 발표된 이벤트를 넣는지
 LOOKBACK = 7  # 지난 이벤트의 표를 찾을 때 거슬러 보는 리포트 날짜 수
 REGULAR_OPEN, REGULAR_CLOSE = "09:30", "16:00"  # 뉴욕 정규장 시각. 발표 시각을 장전·장중·장후로 나눈다
+# 리포트 제목 끝의 날짜 줄. `나스닥 투자 리포트 2026-10-22 (목)` 꼴이다.
+TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 
 
 def report_pdf(vault: Path):
@@ -137,36 +143,33 @@ def realized(vault: Path, index: str, name: str, day: dt.date, date: dt.date) ->
     return None
 
 
-def past_events(vault: Path, index: str, date: dt.date) -> tuple[str, dict[str, dict], dict[str, str]]:
-    """리포트 날짜 전 `PAST_DAYS`일 동안 발표된 이벤트의 마크다운과, 이벤트 이름마다 `resolved` 항목과 중요도.
+def past_events(vault: Path, index: str, date: dt.date) -> tuple[str, dict[str, dict]]:
+    """리포트 날짜 전 `PAST_DAYS`일 동안 발표된 이벤트의 마크다운과, 이벤트 이름마다 `resolved` 항목.
 
-    발표일마다 그날 이벤트를 예측한 가장 최근 리포트의 소제목과 표를 그 리포트의 순서대로 쓰고, 소제목의 중요도 표식은 뺀다.
+    발표일마다 그날 이벤트를 예측한 가장 최근 리포트의 소제목과 표를 그 리포트의 순서대로 쓴다.
     발표가 옮겨진 이벤트는 넣지 않는다.
     """
     first = date - dt.timedelta(days=PAST_DAYS)
-    found: dict[dt.date, list[tuple[str, str, str | None]]] = {}
+    found: dict[dt.date, list[tuple[str, str]]] = {}
     for back in range(1, LOOKBACK + 1):
         source = report_path(vault, date - dt.timedelta(days=back), index)
         if not source.is_file():
             continue
-        latest: dict[dt.date, list[tuple[str, str, str | None]]] = {}
+        latest: dict[dt.date, list[tuple[str, str]]] = {}
         for day, name, chunk in event_items(source.read_text(encoding="utf-8"), date):
             if first <= day < date and day not in found:
-                level = LEVEL_RE.search(chunk.partition("\n")[0])
-                latest.setdefault(day, []).append((name, LEVEL_RE.sub("", chunk, count=1), level and level.group(1)))
+                latest.setdefault(day, []).append((name, chunk))
         found.update(latest)
-    blocks, branches, levels = [], {}, {}
+    blocks, branches = [], {}
     for day in sorted(found):
-        for name, chunk, level in found[day]:
+        for name, chunk in found[day]:
             entry = realized(vault, index, name, day, date)
             if entry and "postponed" in entry:
                 continue
             blocks.append(chunk.rstrip() + "\n")
             if entry:
                 branches[name] = entry
-            if level:
-                levels[name] = level
-    return "\n".join(blocks), branches, levels
+    return "\n".join(blocks), branches
 
 
 def phase(announced: str) -> str:
@@ -196,12 +199,11 @@ def phases(vault: Path, index: str, date: dt.date) -> dict[tuple[str, str], str]
     return found
 
 
-def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[tuple[str, str], str],
-              levels: dict[str, str]) -> str:
+def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[tuple[str, str], str]) -> str:
     """`다가오는 이벤트` 절의 소제목에 발표일(`data-day`)을 달고 제목에서 날짜를 지운다.
 
     발표 시간대는 제목 앞 `when` 이름표로 남긴다. 소제목에 시간대가 없으면 `timing`에서 찾는다.
-    중요도는 소제목의 표식에서, 표식을 뺀 지난 이벤트는 `levels`에서 찾아 `data-level`로 단다.
+    소제목의 중요도 표식은 `data-level`로도 단다.
     리포트 날짜 전 이벤트의 표에는 `judged`를, 실제 갈래 줄에는 `hit`을 달고 그 줄의 전개 예상 뒤에 실제 전개를 붙인다.
     """
     head = re.search(rf'<h2 id="[^"]*">{EVENTS_TITLE}</h2>', body)
@@ -222,7 +224,7 @@ def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[
             when = timing.get((f"{day}", name)) or timing.get((f"{day}", ""), "")
         label = f'<span class="when">{when}</span>' if when else ""
         tag = re.search(r"<code>중요도 ([^<]*)</code>", rest)
-        level = LEVELS.get(tag.group(1) if tag else levels.get(name, ""))
+        level = LEVELS.get(tag.group(1)) if tag else None
         mark = f' data-level="{level}"' if level else ""
         return f'<h3{attrs} data-day="{day}"{mark}>{label}{rest}</h3>'
 
@@ -232,7 +234,7 @@ def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[
         day, title, table = match.group(1), match.group(2), match.group(3)
         if dt.date.fromisoformat(day) >= date:
             return match.group(0)
-        name = re.sub(r"<[^>]+>", "", title).strip()
+        name = re.sub(r"<[^>]+>", "", re.sub(r"<code>.*?</code>", "", title)).strip()
         entry = branches.get(html.unescape(name), {})
         table = table.replace('<table class="events">', '<table class="events judged">', 1)
         if entry.get("branch"):
@@ -262,7 +264,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
 
     markdown = public_markdown(source.read_text(encoding="utf-8"), vault, target, f"r/{key}")
     day = dt.date.fromisoformat(date)
-    past, branches, levels = past_events(vault, index, day)
+    past, branches = past_events(vault, index, day)
     if past:
         markdown = re.sub(rf"^## {EVENTS_TITLE}\s*\n", lambda m: m.group(0) + "\n" + past + "\n", markdown,
                           count=1, flags=re.MULTILINE)
@@ -271,12 +273,16 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     body = subprocess.run(["pandoc", "-f", "gfm", "-t", "html5", "--wrap=none"], input=markdown,
                           capture_output=True, text=True, check=True).stdout
     body = TABLE_RE.sub(lambda m: mark_events(m.group(0)), body)
-    body = mark_days(body, day, branches, phases(vault, index, day), levels)
+    body = mark_days(body, day, branches, phases(vault, index, day))
     (target / "report.html").write_text(body, encoding="utf-8")
 
     listing = out / "r" / "index.json"
     entries = json.loads(listing.read_text(encoding="utf-8")) if listing.exists() else {}
-    entries[key] = {"title": html.unescape(title), "date": date, "index": index}
+    heading = TITLE_RE.match(html.unescape(title))
+    if not heading:
+        raise SystemExit(f"제목 끝에 날짜가 없다: {title}")
+    written = entries.get(key, {}).get("written") or dt.datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d %H:%M")
+    entries[key] = {"title": heading.group(1), "day": heading.group(2), "written": written, "date": date, "index": index}
     listing.write_text(json.dumps(dict(sorted(entries.items(), reverse=True)), ensure_ascii=False, indent=1) + "\n",
                        encoding="utf-8")
     return key

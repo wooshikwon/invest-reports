@@ -25,6 +25,7 @@
   }
   main { max-width: 720px; margin: 0 auto; padding: 16px 16px 40px; }
   header h1 { font-size: 19px; line-height: 1.4; margin: 4px 0 2px; color: var(--accent); }
+  header p { margin: 0; font-size: 12.5px; color: var(--hint); }
   h2 { font-size: 17px; color: var(--accent); margin: 28px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
   h3 { font-size: 15.5px; line-height: 1.5; margin: 22px 0 6px; color: var(--accent); }
   p { margin: 0 0 12px; }
@@ -102,7 +103,7 @@
 </head>
 <body>
 <main>
-  <header><h1 id="title">투자 판단 리포트</h1></header>
+  <header><h1 id="title">투자 판단 리포트</h1><p id="dated"></p></header>
   <article id="report"><p class="status">리포트를 불러오는 중이다.</p></article>
 </main>
 <script>
@@ -301,7 +302,11 @@
       const entry = listing[key];
       if (entry) {
         document.getElementById("title").textContent = entry.title;
-        document.title = entry.title;
+        document.title = `${entry.title} ${entry.day}`;
+        // 처음 만든 날이 리포트 날짜와 같으면 시각만, 다르면 월/일까지 적는다.
+        const [day, time] = entry.written.split(" ");
+        const when = day === entry.date ? time : `${+day.slice(5, 7)}/${+day.slice(8)} ${time}`;
+        document.getElementById("dated").textContent = `${entry.day} · ${when} 작성`;
       }
       report.innerHTML = body;
       figures();
