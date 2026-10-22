@@ -14,6 +14,7 @@ PDF와 미니 앱이 같은 자리에서 자르므로, 공개 채널로 나가�
 
 `다가오는 이벤트` 절에는 리포트 날짜 전 이틀 동안 발표된 이벤트도 넣는다. 표는 그 이벤트를 예측한 가장 최근
 리포트의 표를 쓰고, 그 뒤 사안 나무(`tree.json`)의 `resolved`에 적힌 실제 갈래 줄에 `hit` 이름표를 단다.
+실제 갈래 줄의 전개 예상 뒤에는 `resolved`의 실제 전개(`outcome`)를 화살표와 함께 붙인다.
 이벤트 소제목마다 발표일을 `data-day`로 달고 제목에서는 날짜를 지운다. 미니 앱은 이 값으로 날짜 띠를 그리고
 같은 날 이벤트를 한 장에 모은다. 소제목에 장전·장중·장후가 없으면 사안 나무의 발표 시각(`announced`)으로 정한다.
 """
@@ -122,23 +123,20 @@ def report_path(vault: Path, day: dt.date, index: str) -> Path:
     return vault / f"routine/invest/{day:%Y-%m}/{day}/{index}/report.md"
 
 
-def realized(vault: Path, index: str, name: str, day: dt.date, date: dt.date) -> str | None:
-    """발표일 다음 날부터 리포트 날짜까지의 사안 나무 `resolved`에서 그 이벤트의 실제 갈래를 찾는다.
-
-    발표가 옮겨졌으면 빈 문자열을 돌려준다. 아직 적히지 않았으면 None이다.
-    """
+def realized(vault: Path, index: str, name: str, day: dt.date, date: dt.date) -> dict | None:
+    """발표일 다음 날부터 리포트 날짜까지의 사안 나무 `resolved`에서 그 이벤트의 항목을 찾는다. 아직 적히지 않았으면 None이다."""
     for offset in range(1, (date - day).days + 1):
         tree = report_path(vault, day + dt.timedelta(days=offset), index).with_name("tree.json")
         if not tree.is_file():
             continue
         for entry in json.loads(tree.read_text(encoding="utf-8")).get("resolved", []):
             if entry.get("name") == name:
-                return entry.get("branch", "")
+                return entry
     return None
 
 
-def past_events(vault: Path, index: str, date: dt.date) -> tuple[str, dict[str, str]]:
-    """리포트 날짜 전 `PAST_DAYS`일 동안 발표된 이벤트의 마크다운과, 이벤트 이름마다 실제 갈래.
+def past_events(vault: Path, index: str, date: dt.date) -> tuple[str, dict[str, dict]]:
+    """리포트 날짜 전 `PAST_DAYS`일 동안 발표된 이벤트의 마크다운과, 이벤트 이름마다 `resolved` 항목.
 
     발표일마다 그날 이벤트를 예측한 가장 최근 리포트의 소제목과 표를 그 리포트의 순서대로 쓰고, 소제목의 중요도 표식은 뺀다.
     발표가 옮겨진 이벤트는 넣지 않는다.
@@ -157,12 +155,12 @@ def past_events(vault: Path, index: str, date: dt.date) -> tuple[str, dict[str, 
     blocks, branches = [], {}
     for day in sorted(found):
         for name, chunk in found[day]:
-            branch = realized(vault, index, name, day, date)
-            if branch == "":
+            entry = realized(vault, index, name, day, date)
+            if entry and "postponed" in entry:
                 continue
             blocks.append(chunk.rstrip() + "\n")
-            if branch:
-                branches[name] = branch
+            if entry:
+                branches[name] = entry
     return "\n".join(blocks), branches
 
 
@@ -193,11 +191,11 @@ def phases(vault: Path, index: str, date: dt.date) -> dict[tuple[str, str], str]
     return found
 
 
-def mark_days(body: str, date: dt.date, branches: dict[str, str], timing: dict[tuple[str, str], str]) -> str:
+def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[tuple[str, str], str]) -> str:
     """`다가오는 이벤트` 절의 소제목에 발표일(`data-day`)을 달고 제목에서 날짜를 지운다.
 
     발표 시간대는 제목 앞 `when` 이름표로 남긴다. 소제목에 시간대가 없으면 `timing`에서 찾는다.
-    리포트 날짜 전 이벤트의 표에는 `judged`를, 실제 갈래 줄에는 `hit`을 단다.
+    리포트 날짜 전 이벤트의 표에는 `judged`를, 실제 갈래 줄에는 `hit`을 달고 그 줄의 전개 예상 뒤에 실제 전개를 붙인다.
     """
     head = re.search(rf'<h2 id="[^"]*">{EVENTS_TITLE}</h2>', body)
     if not head:
@@ -225,11 +223,16 @@ def mark_days(body: str, date: dt.date, branches: dict[str, str], timing: dict[t
         if dt.date.fromisoformat(day) >= date:
             return match.group(0)
         name = re.sub(r"<[^>]+>", "", title).strip()
-        branch = branches.get(html.unescape(name))
+        entry = branches.get(html.unescape(name), {})
         table = table.replace('<table class="events">', '<table class="events judged">', 1)
-        if branch:
-            table = table.replace(f'<tr><td class="branch">{html.escape(branch, quote=False)}</td>',
-                                  f'<tr class="hit"><td class="branch">{html.escape(branch, quote=False)}</td>', 1)
+        if entry.get("branch"):
+            cell = f'<tr><td class="branch">{html.escape(entry["branch"], quote=False)}</td>'
+            start = table.find(cell)
+            if start >= 0:
+                stop = table.index("</td></tr>", start)
+                outcome = entry.get("outcome")
+                tail = f' <span class="outcome">→ {html.escape(outcome, quote=False)}</span>' if outcome else ""
+                table = (table[:start] + '<tr class="hit">' + table[start + 4:stop] + tail + table[stop:])
         return match.group(0)[:match.start(3) - match.start(0)] + table
 
     section = re.sub(r'<h3[^>]* data-day="([^"]+)">(?:<span class="when">[^<]*</span>)?(.*?)</h3>\s*(<table class="events">.*?</table>)',

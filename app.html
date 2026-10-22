@@ -85,6 +85,7 @@
   h3 .when { display: block; font-size: 13px; font-weight: 600; color: var(--hint); }
   /* 지난 이벤트의 표는 실제로 일어난 갈래 줄만 또렷하게 보이고 나머지 줄은 흐리다. */
   table.judged tbody tr { opacity: .28; }
+  table.judged tbody tr.hit .outcome { color: var(--accent); }
   table.judged tbody tr.hit { opacity: 1; background: color-mix(in srgb, var(--accent) 13%, transparent);
                               box-shadow: inset 3px 0 0 var(--accent); }
   .empty { border: 1px dashed var(--line); border-radius: 12px; padding: 22px 14px; text-align: center;
