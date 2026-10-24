@@ -13,8 +13,14 @@ PDF와 미니 앱이 같은 자리에서 자르므로, 공개 채널로 나가�
 폭과 정렬을 정하는 이름표를 단다.
 
 `다가오는 이벤트` 절에는 리포트 날짜 전 이틀 동안 발표된 이벤트도 넣는다. 표는 그 이벤트를 예측한 가장 최근
-리포트의 표를 쓰고, 그 뒤 사안 나무(`tree.json`)의 `resolved`에 적힌 실제 갈래 줄에 `hit` 이름표를 단다.
+리포트의 표를 쓰고, 그 리포트의 사안 나무(`tree.json`)에서 이벤트의 사안 id를 찾아 뒤 사안 나무의 `resolved`가
+그 id로 적은 실제 갈래 줄에 `hit` 이름표를 단다. `resolved`의 갈래는 갈래 id이므로, 표를 쓴 리포트의 사안 나무에서
+그 id의 갈래 이름을 찾아 표의 줄과 잇는다. 갈래 id가 없는 앞 날짜 나무는 사안마다 나무 순서대로 `b1`부터 번호를 붙여
+읽고, 갈래 id가 아닌 `resolved` 갈래는 이름으로 읽는다.
 실제 갈래 줄의 전개 예상 뒤에는 `resolved`의 실제 전개(`outcome`)를 화살표와 함께 붙인다.
+리포트 날짜와 그 뒤 이벤트의 표는 리포트 폴더 `system/display.json` `next`의 갈래 변화(`change`)를 확률 아래 작은 글씨로
+붙인다. 표의 분기 이름이 모두 한 사안의 갈래 이름이면 그 사안의 표로 본다. 오르면 `▲`, 내리면 `▼`와 %p 차이를 쓰고,
+변화가 없으면 `–`, 어제 나무에 없던 갈래는 `신규`, 오늘 다시 정의한 갈래는 `재정의`를 쓴다.
 이벤트 소제목마다 발표일을 `data-day`로 달고 제목에서는 날짜를 지운다. 미니 앱은 이 값으로 날짜 띠를 그리고
 같은 날 이벤트를 한 장에 모은다. 소제목에 장전·장중·장후가 없으면 사안 나무의 발표 시각(`announced`)으로 정한다.
 중요도는 `data-level`로 달아 미니 앱이 날짜 띠에 점으로 그린다.
@@ -131,14 +137,24 @@ def report_path(vault: Path, day: dt.date, index: str) -> Path:
     return vault / f"routine/invest/{day:%Y-%m}/{day}/{index}/report.md"
 
 
-def realized(vault: Path, index: str, name: str, day: dt.date, date: dt.date) -> dict | None:
-    """발표일 다음 날부터 리포트 날짜까지의 사안 나무 `resolved`에서 그 이벤트의 항목을 찾는다. 아직 적히지 않았으면 None이다."""
+def realized(vault: Path, index: str, source: Path, name: str, day: dt.date, date: dt.date) -> dict | None:
+    """`source` 리포트의 사안 나무에서 이벤트의 사안을 찾고, 발표일 다음 날부터 리포트 날짜까지의
+    사안 나무 `resolved`에서 그 id의 항목을 찾는다. 항목의 `branch`는 `source` 나무의 갈래 이름으로 바꿔 돌려준다.
+    아직 적히지 않았으면 None이다."""
+    tree = source.with_name("tree.json")
+    issues = json.loads(tree.read_text(encoding="utf-8")).get("issues", []) if tree.is_file() else []
+    issue = next((issue for issue in issues if issue.get("name") == name and issue.get("id")), None)
+    if issue is None:
+        return None
+    names = {branch["id"]: branch["name"] for branch in issue.get("branches", [])}
     for offset in range(1, (date - day).days + 1):
         tree = report_path(vault, day + dt.timedelta(days=offset), index).with_name("tree.json")
         if not tree.is_file():
             continue
         for entry in json.loads(tree.read_text(encoding="utf-8")).get("resolved", []):
-            if entry.get("name") == name:
+            if entry.get("id") == issue["id"]:
+                if "branch" in entry:
+                    entry["branch"] = names.get(entry["branch"], entry["branch"])
                 return entry
     return None
 
@@ -147,25 +163,22 @@ def past_events(vault: Path, index: str, date: dt.date) -> tuple[str, dict[str, 
     """리포트 날짜 전 `PAST_DAYS`일 동안 발표된 이벤트의 마크다운과, 이벤트 이름마다 `resolved` 항목.
 
     발표일마다 그날 이벤트를 예측한 가장 최근 리포트의 소제목과 표를 그 리포트의 순서대로 쓴다.
-    발표가 옮겨진 이벤트는 넣지 않는다.
     """
     first = date - dt.timedelta(days=PAST_DAYS)
-    found: dict[dt.date, list[tuple[str, str]]] = {}
+    found: dict[dt.date, list[tuple[Path, str, str]]] = {}
     for back in range(1, LOOKBACK + 1):
         source = report_path(vault, date - dt.timedelta(days=back), index)
         if not source.is_file():
             continue
-        latest: dict[dt.date, list[tuple[str, str]]] = {}
+        latest: dict[dt.date, list[tuple[Path, str, str]]] = {}
         for day, name, chunk in event_items(source.read_text(encoding="utf-8"), date):
             if first <= day < date and day not in found:
-                latest.setdefault(day, []).append((name, chunk))
+                latest.setdefault(day, []).append((source, name, chunk))
         found.update(latest)
     blocks, branches = [], {}
     for day in sorted(found):
-        for name, chunk in found[day]:
-            entry = realized(vault, index, name, day, date)
-            if entry and "postponed" in entry:
-                continue
+        for source, name, chunk in found[day]:
+            entry = realized(vault, index, source, name, day, date)
             blocks.append(chunk.rstrip() + "\n")
             if entry:
                 branches[name] = entry
@@ -199,12 +212,43 @@ def phases(vault: Path, index: str, date: dt.date) -> dict[tuple[str, str], str]
     return found
 
 
-def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[tuple[str, str], str]) -> str:
+def change_mark(change: int | str) -> str:
+    """갈래 변화(`change`)를 확률 칸 아래에 붙일 작은 글씨로 바꾼다."""
+    if change == "new":
+        return '<small class="delta flat">신규</small>'
+    if change == "redefined":
+        return '<small class="delta flat">재정의</small>'
+    if change > 0:
+        return f'<small class="delta up">▲{change}%p</small>'
+    if change < 0:
+        return f'<small class="delta down">▼{-change}%p</small>'
+    return '<small class="delta flat">–</small>'
+
+
+def mark_changes(table: str, upcoming: list[dict]) -> str:
+    """분기 이름이 모두 한 사안의 갈래 이름인 표에서 갈래마다 확률 칸 아래에 어제 대비 변화를 붙인다."""
+    names = {html.unescape(name) for name in re.findall(r'<td class="branch">(.*?)</td>', table, flags=re.DOTALL)}
+    issue = next((issue for issue in upcoming
+                  if names and names <= {branch["name"] for branch in issue.get("branches", [])}), None)
+    if issue is None:
+        return table
+    for branch in issue["branches"]:
+        cell = f'<td class="branch">{html.escape(branch["name"], quote=False)}</td><td class="chance">'
+        start = table.find(cell)
+        if start >= 0:
+            stop = table.index("</td>", start + len(cell))
+            table = table[:stop] + "<br>" + change_mark(branch["change"]) + table[stop:]
+    return table
+
+
+def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[tuple[str, str], str],
+              upcoming: list[dict]) -> str:
     """`다가오는 이벤트` 절의 소제목에 발표일(`data-day`)을 달고 제목에서 날짜를 지운다.
 
     발표 시간대는 제목 앞 `when` 이름표로 남긴다. 소제목에 시간대가 없으면 `timing`에서 찾는다.
     소제목의 중요도 표식은 `data-level`로도 단다.
     리포트 날짜 전 이벤트의 표에는 `judged`를, 실제 갈래 줄에는 `hit`을 달고 그 줄의 전개 예상 뒤에 실제 전개를 붙인다.
+    리포트 날짜와 그 뒤 이벤트의 표에는 `upcoming`(`display.json`의 `next`)의 갈래 변화를 붙인다.
     """
     head = re.search(rf'<h2 id="[^"]*">{EVENTS_TITLE}</h2>', body)
     if not head:
@@ -233,7 +277,7 @@ def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[
     def judge(match: re.Match) -> str:
         day, title, table = match.group(1), match.group(2), match.group(3)
         if dt.date.fromisoformat(day) >= date:
-            return match.group(0)
+            return match.group(0)[:match.start(3) - match.start(0)] + mark_changes(table, upcoming)
         name = re.sub(r"<[^>]+>", "", re.sub(r"<code>.*?</code>", "", title)).strip()
         entry = branches.get(html.unescape(name), {})
         table = table.replace('<table class="events">', '<table class="events judged">', 1)
@@ -273,7 +317,9 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     body = subprocess.run(["pandoc", "-f", "gfm", "-t", "html5", "--wrap=none"], input=markdown,
                           capture_output=True, text=True, check=True).stdout
     body = TABLE_RE.sub(lambda m: mark_events(m.group(0)), body)
-    body = mark_days(body, day, branches, phases(vault, index, day))
+    display = source.parent / "system" / "display.json"
+    upcoming = json.loads(display.read_text(encoding="utf-8"))["next"] if display.is_file() else []
+    body = mark_days(body, day, branches, phases(vault, index, day), upcoming)
     (target / "report.html").write_text(body, encoding="utf-8")
 
     listing = out / "r" / "index.json"
