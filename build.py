@@ -22,7 +22,8 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 붙인다. 표의 분기 이름이 모두 한 사안의 갈래 이름이면 그 사안의 표로 본다. 오르면 `▲`, 내리면 `▼`와 %p 차이를 쓰고,
 변화가 없으면 `–`, 어제 나무에 없던 갈래는 `신규`, 오늘 다시 정의한 갈래는 `재정의`를 쓴다.
 이벤트 소제목마다 발표일을 `data-day`로 달고 제목에서는 날짜를 지운다. `invest-reports` 미니 앱은 이 값으로 날짜 띠를 그리고
-같은 날 이벤트를 한 장에 모은다. 소제목에 장전·장중·장후가 없으면 사안 나무의 발표 시각(`announced`)으로 정한다.
+같은 날 이벤트를 한 장에 모은다. 제목 아래에는 사안 나무의 발표 시각(`announced`)을 뉴욕 시각과 서울 시각으로 적는다.
+발표 시각이 수집기가 채운 기본값(`PLACEHOLDER_TIMES`)이거나 사안 나무에 없으면 장전·장중·장후만 적는다.
 중요도는 `data-level`로 달아 `invest-reports` 미니 앱이 날짜 띠에 점으로 그린다.
 
 `r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 처음 만든 시각(`written`, 서울 시각)을 적는다. `invest-reports` 미니 앱은 제목 아래
@@ -54,6 +55,10 @@ LEVELS = {"높음": "high", "보통": "mid", "낮음": "low"}  # 소제목 중�
 PAST_DAYS = 2  # 리포트 날짜 전 며칠 동안 발표된 이벤트를 넣는지
 LOOKBACK = 7  # 지난 이벤트의 표를 찾을 때 거슬러 보는 리포트 날짜 수
 REGULAR_OPEN, REGULAR_CLOSE = "09:30", "16:00"  # 뉴욕 정규장 시각. 발표 시각을 장전·장중·장후로 나눈다
+# 발표 시각을 모를 때 채우는 뉴욕 시각. 실적의 장전(bmo)·장후(amc) 단서는 `calendar_store.py`가 08:00·16:05로,
+# 장중(dmh)은 `render_inputs.py`가 12:00으로 채우고, 단서가 없는 발표는 16:00으로 적는다. 이 시각은 장 구분만 적는다.
+PLACEHOLDER_TIMES = {"08:00", "12:00", "16:00", "16:05"}
+NEW_YORK, SEOUL = ZoneInfo("America/New_York"), ZoneInfo("Asia/Seoul")
 # 리포트 제목 끝의 날짜 줄. `나스닥 투자 리포트 2026-10-22 (목)` 꼴이다.
 TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 
@@ -191,12 +196,20 @@ def phase(announced: str) -> str:
     return "장전" if moment < REGULAR_OPEN else "장중" if moment < REGULAR_CLOSE else "장후"
 
 
-def phases(vault: Path, index: str, date: dt.date) -> dict[tuple[str, str], str]:
-    """(발표일, 이벤트 이름)마다 장 구분. 이름이 빈 키에는 그날 발표가 모두 같은 장 구분일 때만 그 구분을 둔다.
+def when_label(announced: str) -> str:
+    """제목 아래에 적는 발표 시각. 기본값 시각이면 장 구분만, 아니면 `뉴욕 14:00 · 서울 10/29(목) 03:00` 꼴이다."""
+    if announced[11:16] in PLACEHOLDER_TIMES:
+        return phase(announced)
+    moment = dt.datetime.fromisoformat(announced).replace(tzinfo=NEW_YORK).astimezone(SEOUL)
+    return f"뉴욕 {announced[11:16]} · 서울 {moment:%m/%d}({'월화수목금토일'[moment.weekday()]}) {moment:%H:%M}"
+
+
+def timings(vault: Path, index: str, date: dt.date) -> dict[tuple[str, str], str]:
+    """(발표일, 이벤트 이름)마다 제목 아래 발표 시각(`when_label`). 이름이 빈 키에는 그날 발표가 모두 같은 장 구분일 때만 그 구분을 둔다.
 
     리포트 날짜 앞뒤 `LOOKBACK`일의 사안 나무에서 발표 시각을 읽고, 같은 사안은 가장 늦은 나무의 시각을 쓴다.
     """
-    found: dict[tuple[str, str], str] = {}
+    announced_at: dict[tuple[str, str], str] = {}
     for offset in range(LOOKBACK, -LOOKBACK - 1, -1):
         tree = report_path(vault, date + dt.timedelta(days=offset), index).with_name("tree.json")
         if not tree.is_file():
@@ -204,10 +217,11 @@ def phases(vault: Path, index: str, date: dt.date) -> dict[tuple[str, str], str]
         for issue in json.loads(tree.read_text(encoding="utf-8")).get("issues", []):
             announced = issue.get("announced")
             if announced:
-                found.setdefault((announced[:10], issue["name"]), phase(announced))
+                announced_at.setdefault((announced[:10], issue["name"]), announced)
+    found = {key: when_label(announced) for key, announced in announced_at.items()}
     days: dict[str, set[str]] = {}
-    for (day, _), value in found.items():
-        days.setdefault(day, set()).add(value)
+    for (day, _), announced in announced_at.items():
+        days.setdefault(day, set()).add(phase(announced))
     found.update({(day, ""): values.pop() for day, values in days.items() if len(values) == 1})
     return found
 
@@ -245,7 +259,7 @@ def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[
               upcoming: list[dict]) -> str:
     """`다가오는 이벤트` 절의 소제목에 발표일(`data-day`)을 달고 제목에서 날짜를 지운다.
 
-    발표 시간대는 제목 앞 `when` 이름표로 남긴다. 소제목에 시간대가 없으면 `timing`에서 찾는다.
+    발표 시각은 제목 뒤 `when` 이름표로 단다. `timing`에 그 이벤트가 없으면 소제목의 장 구분을, 그것도 없으면 그날의 장 구분을 쓴다.
     소제목의 중요도 표식은 `data-level`로도 단다.
     리포트 날짜 전 이벤트의 표에는 `judged`를, 실제 갈래 줄에는 `hit`을 달고 그 줄의 전개 예상 뒤에 실제 전개를 붙인다.
     리포트 날짜와 그 뒤 이벤트의 표에는 `upcoming`(`display.json`의 `next`)의 갈래 변화를 붙인다.
@@ -264,13 +278,12 @@ def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[
             raise SystemExit(f"발표일이 없는 이벤트 소제목: {inner}")
         day, when, rest = parsed
         name = html.unescape(re.sub(r"<[^>]+>", "", re.sub(r"<code>.*?</code>", "", rest))).strip()
-        if not when:
-            when = timing.get((f"{day}", name)) or timing.get((f"{day}", ""), "")
+        when = timing.get((f"{day}", name)) or when or timing.get((f"{day}", ""), "")
         label = f'<span class="when">{when}</span>' if when else ""
         tag = re.search(r"<code>중요도 ([^<]*)</code>", rest)
         level = LEVELS.get(tag.group(1)) if tag else None
         mark = f' data-level="{level}"' if level else ""
-        return f'<h3{attrs} data-day="{day}"{mark}>{label}{rest}</h3>'
+        return f'<h3{attrs} data-day="{day}"{mark}>{rest}{label}</h3>'
 
     section = re.sub(r"<h3([^>]*)>(.*?)</h3>", heading, section, flags=re.DOTALL)
 
@@ -291,7 +304,7 @@ def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[
                 table = (table[:start] + '<tr class="hit">' + table[start + 4:stop] + tail + table[stop:])
         return match.group(0)[:match.start(3) - match.start(0)] + table
 
-    section = re.sub(r'<h3[^>]* data-day="([^"]+)"(?: data-level="[^"]*")?>(?:<span class="when">[^<]*</span>)?(.*?)</h3>\s*(<table class="events">.*?</table>)',
+    section = re.sub(r'<h3[^>]* data-day="([^"]+)"(?: data-level="[^"]*")?>(.*?)(?:<span class="when">[^<]*</span>)?</h3>\s*(<table class="events">.*?</table>)',
                      judge, section, flags=re.DOTALL)
     return body[:head.end()] + section + body[end:]
 
@@ -319,7 +332,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     body = TABLE_RE.sub(lambda m: mark_events(m.group(0)), body)
     display = source.parent / "system" / "display.json"
     upcoming = json.loads(display.read_text(encoding="utf-8"))["next"] if display.is_file() else []
-    body = mark_days(body, day, branches, phases(vault, index, day), upcoming)
+    body = mark_days(body, day, branches, timings(vault, index, day), upcoming)
     (target / "report.html").write_text(body, encoding="utf-8")
 
     listing = out / "r" / "index.json"
