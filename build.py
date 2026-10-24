@@ -22,7 +22,7 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 붙인다. 표의 분기 이름이 모두 한 사안의 갈래 이름이면 그 사안의 표로 본다. 오르면 `▲`, 내리면 `▼`와 %p 차이를 쓰고,
 변화가 없으면 `–`, 어제 나무에 없던 갈래는 `신규`, 오늘 다시 정의한 갈래는 `재정의`를 쓴다.
 이벤트 소제목마다 발표일을 `data-day`로 달고 제목에서는 날짜를 지운다. `invest-reports` 미니 앱은 이 값으로 날짜 띠를 그리고
-같은 날 이벤트를 한 장에 모은다. 제목 위에는 사안 나무의 발표 시각(`announced`)을 뉴욕 시각과 서울 시각으로 적는다.
+같은 날 이벤트를 한 장에 모은다. 제목 위에는 사안 나무의 발표 시각(`announced`)을 한국 시각(KST)으로 적는다.
 발표 시각이 수집기가 채운 기본값(`PLACEHOLDER_TIMES`)이거나 사안 나무에 없으면 장전·장중·장후만 적는다.
 중요도는 `data-level`로 달아 `invest-reports` 미니 앱이 날짜 띠에 점으로 그린다.
 
@@ -197,11 +197,11 @@ def phase(announced: str) -> str:
 
 
 def when_label(announced: str) -> str:
-    """제목 위에 적는 발표 시각. 기본값 시각이면 장 구분만, 아니면 `뉴욕 14:00 · 서울 10/29(목) 03:00` 꼴이다."""
+    """제목 위에 적는 발표 시각. 기본값 시각이면 장 구분만, 아니면 `10/29(목) 03:00 KST` 꼴이다."""
     if announced[11:16] in PLACEHOLDER_TIMES:
         return phase(announced)
     moment = dt.datetime.fromisoformat(announced).replace(tzinfo=NEW_YORK).astimezone(SEOUL)
-    return f"뉴욕 {announced[11:16]} · 서울 {moment:%m/%d}({'월화수목금토일'[moment.weekday()]}) {moment:%H:%M}"
+    return f"{moment:%m/%d}({'월화수목금토일'[moment.weekday()]}) {moment:%H:%M} KST"
 
 
 def timings(vault: Path, index: str, date: dt.date) -> dict[tuple[str, str], str]:
