@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""build — 판단 리포트 공개본을 텔레그램 미니 앱(`app.html`)이 읽는 HTML 조각으로 만든다.
+"""build — 판단 리포트 공개본을 `invest-reports` `invest-reports` 미니 앱(`app.html`)이 읽는 HTML 조각으로 만든다. `run-with-notify.sh`의 `publish_miniapp`이 만든 조각을 게시한다.
 
 사용법: python3 build.py --date 2026-10-19 --index nasdaq [--vault ~/obsidian-vault] [--out .]
 
-`r/{YYYYMMDD}-{지수}/`에 `report.html`과 그림을 쓰고 `r/index.json`의 목록을 갱신한다. 미니 앱은
+`r/{YYYYMMDD}-{지수}/`에 `report.html`과 그림을 쓰고 `r/index.json`의 목록을 갱신한다. `invest-reports` 미니 앱은
 `start_param`으로 받은 `{YYYYMMDD}-{지수}`를 열어 그 조각을 그린다.
 
 공개본이 끝나는 자리와 공개본에 남으면 안 되는 말은 invest-report `report_pdf.py`의 값을 그대로 쓴다.
-PDF와 미니 앱이 같은 자리에서 자르므로, 공개 채널로 나가는 두 판본의 내용이 같다.
+PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 채널로 나가는 두 판본의 내용이 같다.
 
 `다가오는 이벤트` 표는 분기·확률·전개 예상 세 열이다. 휴대폰 폭에서 분기 이름이 접히지 않게 열마다
 폭과 정렬을 정하는 이름표를 단다.
@@ -21,11 +21,11 @@ PDF와 미니 앱이 같은 자리에서 자르므로, 공개 채널로 나가�
 리포트 날짜와 그 뒤 이벤트의 표는 리포트 폴더 `system/display.json` `next`의 갈래 변화(`change`)를 확률 아래 작은 글씨로
 붙인다. 표의 분기 이름이 모두 한 사안의 갈래 이름이면 그 사안의 표로 본다. 오르면 `▲`, 내리면 `▼`와 %p 차이를 쓰고,
 변화가 없으면 `–`, 어제 나무에 없던 갈래는 `신규`, 오늘 다시 정의한 갈래는 `재정의`를 쓴다.
-이벤트 소제목마다 발표일을 `data-day`로 달고 제목에서는 날짜를 지운다. 미니 앱은 이 값으로 날짜 띠를 그리고
+이벤트 소제목마다 발표일을 `data-day`로 달고 제목에서는 날짜를 지운다. `invest-reports` 미니 앱은 이 값으로 날짜 띠를 그리고
 같은 날 이벤트를 한 장에 모은다. 소제목에 장전·장중·장후가 없으면 사안 나무의 발표 시각(`announced`)으로 정한다.
-중요도는 `data-level`로 달아 미니 앱이 날짜 띠에 점으로 그린다.
+중요도는 `data-level`로 달아 `invest-reports` 미니 앱이 날짜 띠에 점으로 그린다.
 
-`r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 처음 만든 시각(`written`, 서울 시각)을 적는다. 미니 앱은 제목 아래
+`r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 처음 만든 시각(`written`, 서울 시각)을 적는다. `invest-reports` 미니 앱은 제목 아래
 작은 글씨로 날짜 줄과 처음 만든 시각을 그린다. 같은 리포트를 다시 만들어도 처음 만든 시각은 그대로 둔다.
 """
 import argparse
@@ -335,7 +335,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="판단 리포트 공개본을 미니 앱 조각으로 만든다")
+    parser = argparse.ArgumentParser(description="판단 리포트 공개본을 `invest-reports` 미니 앱 조각으로 만든다")
     parser.add_argument("--date", required=True, help="리포트 날짜 YYYY-MM-DD")
     parser.add_argument("--index", required=True, help="지수 폴더 이름 (nasdaq, biotech)")
     parser.add_argument("--vault", default=str(Path.home() / "obsidian-vault"))
