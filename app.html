@@ -34,6 +34,8 @@
   li { margin-bottom: 6px; }
   strong { color: var(--accent); }
   img { display: block; width: 100%; height: auto; margin: 12px 0; border-radius: 10px; background: var(--bg); cursor: zoom-in; }
+  .viewer { position: fixed; inset: 0; z-index: 10; display: flex; overflow: auto; background: rgba(0, 0, 0, .94); }
+  .viewer img { flex: 0 0 auto; max-width: none; margin: auto; border-radius: 0; cursor: zoom-out; }
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.55; margin: 8px 0 16px; }
   th, td { text-align: left; vertical-align: top; padding: 8px 6px; border-bottom: 1px solid var(--line); }
   th { color: var(--hint); font-weight: 600; font-size: 12.5px; }
@@ -347,10 +349,16 @@
         h3.childNodes.forEach((node) => { if (node.nodeType === 3) node.textContent = node.textContent.replace(/\s+$/, ""); });
       });
       events(entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`);
-      // Montecarlo처럼 글자가 작은 그림은 눌러서 원본 크기로 연다.
+      // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 원본의 절반 폭으로 크게 보고, 한 번 더 누르면 닫는다.
       report.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => {
-        const url = new URL(img.getAttribute("src"), location.href).href;
-        if (tg && tg.initData) tg.openLink(url); else window.open(url, "_blank");
+        const viewer = document.createElement("div");
+        viewer.className = "viewer";
+        const large = img.cloneNode();
+        large.style.width = `${Math.max(img.naturalWidth / 2, innerWidth)}px`;
+        viewer.append(large);
+        viewer.addEventListener("click", () => viewer.remove());
+        document.body.append(viewer);
+        viewer.scrollLeft = (viewer.scrollWidth - viewer.clientWidth) / 2;
       }));
     }).catch(() => fail("리포트를 찾지 못했다."));
   }
