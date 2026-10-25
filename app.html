@@ -351,7 +351,8 @@
       });
       events(entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`);
       // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
-      // 키운 그림은 한 손가락으로 옮긴다. 손가락을 움직이지 않고 한 번 누르면 닫는다.
+      // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
+      // 손가락을 움직이지 않고 한 번 누르면 닫는다.
       report.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => viewer(img)));
     }).catch(() => fail("리포트를 찾지 못했다."));
   }
@@ -361,13 +362,24 @@
     const large = img.cloneNode();
     box.append(large);
     document.body.append(box);
+    const carousel = img.closest(".carousel");
+    const group = carousel ? [...carousel.querySelectorAll("img")] : [img];
+    let index = group.indexOf(img), swipe = null;
     let scale = 1, x = 0, y = 0, start = null, moved = false;
     const place = () => {
       const fit = (offset, size, room, at) => size * scale <= room ? (size - size * scale) / 2
         : Math.min(-at, Math.max(room - at - size * scale, offset));
       x = fit(x, large.offsetWidth, box.clientWidth, large.offsetLeft);
       y = fit(y, large.offsetHeight, box.clientHeight, large.offsetTop);
-      large.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+      large.style.transform = `translate(${x + (swipe ? swipe.dx : 0)}px, ${y}px) scale(${scale})`;
+    };
+    // 묶음의 i번 그림으로 바꾸고, 닫았을 때 그 그림이 보이도록 뒤의 묶음도 함께 넘긴다.
+    const show = (i) => {
+      index = i;
+      large.src = group[i].src;
+      scale = 1; x = 0; y = 0;
+      large.style.transform = "";
+      carousel.go([...carousel.querySelector(".track").children].indexOf(group[i].closest(".slide")));
     };
     const touches = (event) => {
       const [a, b = a] = event.touches;
@@ -377,11 +389,18 @@
     box.addEventListener("touchstart", (event) => {
       if (event.touches.length === 1) moved = false;
       start = { ...touches(event), scale, x, y };
+      swipe = event.touches.length === 1 && scale === 1 && group.length > 1 ? { dx: 0, dy: 0 } : null;
     }, { passive: true });
     box.addEventListener("touchmove", (event) => {
       event.preventDefault();
       const now = touches(event);
-      if (now.count !== start.count) start = { ...now, scale, x, y };
+      if (now.count !== start.count) { start = { ...now, scale, x, y }; swipe = null; }
+      if (swipe) {
+        swipe = { dx: now.mid[0] - start.mid[0], dy: now.mid[1] - start.mid[1] };
+        if (Math.hypot(swipe.dx, swipe.dy) > 8) moved = true;
+        place();
+        return;
+      }
       if (now.count === 2) scale = Math.min(5, Math.max(1, start.scale * now.gap / start.gap));
       const ratio = scale / start.scale;
       x = now.mid[0] - (start.mid[0] - start.x) * ratio;
@@ -389,7 +408,14 @@
       if (now.count === 2 || Math.hypot(now.mid[0] - start.mid[0], now.mid[1] - start.mid[1]) > 8) moved = true;
       place();
     }, { passive: false });
-    box.addEventListener("touchend", (event) => { if (event.touches.length) start = { ...touches(event), scale, x, y }; });
+    box.addEventListener("touchend", (event) => {
+      if (event.touches.length) { start = { ...touches(event), scale, x, y }; swipe = null; return; }
+      if (!swipe) return;
+      const next = index + (swipe.dx < 0 ? 1 : -1);
+      const turn = Math.abs(swipe.dx) > 50 && Math.abs(swipe.dx) > Math.abs(swipe.dy) && group[next];
+      swipe = null;
+      if (turn) show(next); else place();
+    });
     box.addEventListener("click", () => { if (!moved) box.remove(); });
   }
 </script>
