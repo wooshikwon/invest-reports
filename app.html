@@ -34,8 +34,9 @@
   li { margin-bottom: 6px; }
   strong { color: var(--accent); }
   img { display: block; width: 100%; height: auto; margin: 12px 0; border-radius: 10px; background: var(--bg); cursor: zoom-in; }
-  .viewer { position: fixed; inset: 0; z-index: 10; display: flex; overflow: auto; background: rgba(0, 0, 0, .94); }
-  .viewer img { flex: 0 0 auto; max-width: none; margin: auto; border-radius: 0; cursor: zoom-out; }
+  .viewer { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; overflow: hidden; touch-action: none;
+            background: rgba(0, 0, 0, .94); }
+  .viewer img { margin: 0; border-radius: 0; transform-origin: 0 0; cursor: zoom-out; }
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.55; margin: 8px 0 16px; }
   th, td { text-align: left; vertical-align: top; padding: 8px 6px; border-bottom: 1px solid var(--line); }
   th { color: var(--hint); font-weight: 600; font-size: 12.5px; }
@@ -349,18 +350,47 @@
         h3.childNodes.forEach((node) => { if (node.nodeType === 3) node.textContent = node.textContent.replace(/\s+$/, ""); });
       });
       events(entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`);
-      // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 원본의 절반 폭으로 크게 보고, 한 번 더 누르면 닫는다.
-      report.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => {
-        const viewer = document.createElement("div");
-        viewer.className = "viewer";
-        const large = img.cloneNode();
-        large.style.width = `${Math.max(img.naturalWidth / 2, innerWidth)}px`;
-        viewer.append(large);
-        viewer.addEventListener("click", () => viewer.remove());
-        document.body.append(viewer);
-        viewer.scrollLeft = (viewer.scrollWidth - viewer.clientWidth) / 2;
-      }));
+      // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
+      // 키운 그림은 한 손가락으로 옮긴다. 손가락을 움직이지 않고 한 번 누르면 닫는다.
+      report.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => viewer(img)));
     }).catch(() => fail("리포트를 찾지 못했다."));
+  }
+  function viewer(img) {
+    const box = document.createElement("div");
+    box.className = "viewer";
+    const large = img.cloneNode();
+    box.append(large);
+    document.body.append(box);
+    let scale = 1, x = 0, y = 0, start = null, moved = false;
+    const place = () => {
+      const fit = (offset, size, room, at) => size * scale <= room ? (size - size * scale) / 2
+        : Math.min(-at, Math.max(room - at - size * scale, offset));
+      x = fit(x, large.offsetWidth, box.clientWidth, large.offsetLeft);
+      y = fit(y, large.offsetHeight, box.clientHeight, large.offsetTop);
+      large.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+    };
+    const touches = (event) => {
+      const [a, b = a] = event.touches;
+      return { mid: [(a.clientX + b.clientX) / 2 - large.offsetLeft, (a.clientY + b.clientY) / 2 - large.offsetTop],
+               gap: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), count: event.touches.length };
+    };
+    box.addEventListener("touchstart", (event) => {
+      if (event.touches.length === 1) moved = false;
+      start = { ...touches(event), scale, x, y };
+    }, { passive: true });
+    box.addEventListener("touchmove", (event) => {
+      event.preventDefault();
+      const now = touches(event);
+      if (now.count !== start.count) start = { ...now, scale, x, y };
+      if (now.count === 2) scale = Math.min(5, Math.max(1, start.scale * now.gap / start.gap));
+      const ratio = scale / start.scale;
+      x = now.mid[0] - (start.mid[0] - start.x) * ratio;
+      y = now.mid[1] - (start.mid[1] - start.y) * ratio;
+      if (now.count === 2 || Math.hypot(now.mid[0] - start.mid[0], now.mid[1] - start.mid[1]) > 8) moved = true;
+      place();
+    }, { passive: false });
+    box.addEventListener("touchend", (event) => { if (event.touches.length) start = { ...touches(event), scale, x, y }; });
+    box.addEventListener("click", () => { if (!moved) box.remove(); });
   }
 </script>
 </body>
