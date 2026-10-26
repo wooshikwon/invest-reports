@@ -23,7 +23,8 @@
     font: 15px/1.7 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
     word-break: keep-all; overflow-wrap: anywhere; -webkit-text-size-adjust: 100%;
   }
-  main { max-width: 720px; margin: 0 auto; padding: 16px 16px 40px; }
+  /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
+  main { max-width: 720px; margin: 0 auto; padding: 16px 16px calc(40px + var(--offscreen, 0px)); }
   header h1 { font-size: 19px; line-height: 1.4; margin: 4px 0 2px; color: var(--accent); }
   header p { margin: 0; font-size: 12.5px; color: var(--hint); }
   h2 { font-size: 17px; color: var(--accent); margin: 40px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
@@ -127,6 +128,15 @@
     if (tg.setHeaderColor) tg.setHeaderColor("#000000");
     // 좌우로 넘기는 몸짓이 조금 기울어도 시트가 내려가지 않게, 세로로 끌어 닫는 동작을 끈다.
     if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+    // 낮은 시트에서도 웹뷰는 시트를 끝까지 올린 높이로 그려지고 위쪽만 화면에 보인다. 보이는 높이는 `viewportStableHeight`이므로
+    // 웹뷰 높이와의 차이를 `--offscreen`에 적고, 시트 높이가 바뀔 때마다 다시 적는다.
+    const offscreen = () => {
+      const hidden = tg.viewportStableHeight ? Math.max(0, innerHeight - tg.viewportStableHeight) : 0;
+      document.documentElement.style.setProperty("--offscreen", `${hidden}px`);
+    };
+    offscreen();
+    tg.onEvent("viewportChanged", offscreen);
+    window.addEventListener("resize", offscreen);
   }
   const query = new URLSearchParams(location.search);
   const key = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || query.get("r") || "";
