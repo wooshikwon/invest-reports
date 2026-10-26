@@ -124,6 +124,8 @@
   const tg = window.Telegram && window.Telegram.WebApp;
   if (tg && tg.initData) {
     tg.ready();
+    // 리포트를 처음부터 시트를 끝까지 올린 높이로 연다.
+    tg.expand();
     if (tg.setBackgroundColor) tg.setBackgroundColor("#000000");
     if (tg.setHeaderColor) tg.setHeaderColor("#000000");
     // 좌우로 넘기는 몸짓이 조금 기울어도 시트가 내려가지 않게, 세로로 끌어 닫는 동작을 끈다.
