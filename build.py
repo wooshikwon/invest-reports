@@ -59,7 +59,7 @@ REGULAR_OPEN, REGULAR_CLOSE = "09:30", "16:00"  # 뉴욕 정규장 시각. 발�
 # 장중(dmh)은 `render_inputs.py`가 12:00으로 채우고, 단서가 없는 발표는 16:00으로 적는다. 이 시각은 장 구분만 적는다.
 PLACEHOLDER_TIMES = {"08:00", "12:00", "16:00", "16:05"}
 NEW_YORK, SEOUL = ZoneInfo("America/New_York"), ZoneInfo("Asia/Seoul")
-# 리포트 제목 끝의 날짜 줄. `나스닥 투자 판단 리포트 2026-10-22 (목)` 꼴이다.
+# 리포트 제목 끝의 날짜 줄. `나스닥 리포트 2026-10-22 (목)` 꼴이다.
 TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 
 
