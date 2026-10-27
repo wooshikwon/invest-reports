@@ -201,13 +201,13 @@
     if (Math.abs(gap) > 2) head.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  // 요약의 Outlook 그림 자리에 6M + Predictions, Outlook, Montecarlo 순서로 넘기는 묶음을 둔다.
+  // 요약의 Outlook 그림 자리에 6M + Predictions, Montecarlo, Outlook 순서로 넘기는 묶음을 둔다.
   // Montecarlo는 원래 다가오는 이벤트 절에 있으므로 그 자리에서는 뺀다. 6M + Predictions가 없는 리포트는 두 장을 넘긴다.
   function figures() {
     const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
     const chart = pick("chart"), tree = pick("tree");
     if (!chart || !tree) return;
-    const shown = [pick("predict"), chart, tree].filter(Boolean);
+    const shown = [pick("predict"), tree, chart].filter(Boolean);
     shown.forEach((img) => (img.closest("p") || img).remove());
     slider(shown.map((img) => [img]), report.querySelector("h2"));
   }
