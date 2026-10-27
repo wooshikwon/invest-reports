@@ -150,7 +150,7 @@
   const fail = (message) => { report.innerHTML = `<p class="status">${message}</p>`; };
 
   // 슬라이드마다 노드 목록을 받아 좌우로 넘기는 묶음을 만들고 `after` 뒤에 둔다. 묶음 상자를 돌려준다.
-  // `fit`이면 넘기기가 멈춘 뒤 묶음 높이를 보고 있는 슬라이드에 맞춘다. `change`가 있으면 아래 점 대신
+  // `fit`이면 넘기기가 멈춘 뒤와 슬라이드 높이가 바뀐 뒤 묶음 높이를 보고 있는 슬라이드에 맞춘다. `change`가 있으면 아래 점 대신
   // 보고 있는 슬라이드가 바뀔 때마다 그 번호로 `change`를 부르고, `start`번 슬라이드부터 보여 준다.
   // `moved`가 있으면 넘기기가 멈춘 뒤 보고 있는 슬라이드가 바뀌었을 때 그 번호로 부른다.
   // 상자의 `go(i)`는 i번 슬라이드로 넘긴다.
@@ -181,7 +181,11 @@
         if (moved && current() !== settled) moved((settled = current()));
       }, 150);
     }, { passive: true });
-    window.addEventListener("resize", fitHeight);
+    // 화면 폭이 바뀌거나 슬라이드 안의 표식·그림이 나중에 자리를 잡아 슬라이드 높이가 바뀌어도 묶음 높이를 다시 맞춘다.
+    if (fit) {
+      const watch = new ResizeObserver(fitHeight);
+      [...track.children].forEach((slide) => watch.observe(slide));
+    }
     box.go = (i) => track.scrollTo({ left: i * step(), behavior: "smooth" });
     track.scrollLeft = start * step();
     if (change) change(start);
