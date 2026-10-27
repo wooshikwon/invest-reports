@@ -74,13 +74,13 @@
   /* 절 제목 아래 첫 요소는 절 제목의 아래 여백만큼 띄우고, 절 안의 항목 사이는 30px씩 띄운다.
      1개월 지수 방향 예측 절의 세 소제목 사이는 이슈 문단 사이만큼 띄운다. */
   /* 1개월 지수 방향 예측 절의 세 문단은 소제목만 보이고, 소제목을 누르면 문단이 펼쳐진다.
-     펼친 소제목과 문단 사이는 이슈 제목의 표식 줄과 문단 사이(표식 줄 아래 14px와 소제목 아래 6px)만큼 띄운다. */
+     펼친 소제목과 문단 사이는 표식이 없는 소제목의 아래 여백(다가오는 이벤트의 소제목과 표 사이)만큼 띄운다. */
   details.fold > summary { list-style: none; cursor: pointer; }
   details.fold > summary::-webkit-details-marker { display: none; }
   details.fold { margin-top: 15.5px; }
   .carousel + details.fold { margin-top: 30px; }
   details.fold > summary h3 { margin: 0; }
-  details.fold[open] > summary h3 { margin-bottom: 20px; }
+  details.fold[open] > summary h3 { margin-bottom: 6px; }
   details.fold > :not(summary) { margin-top: 0; }
   /* 주요 이슈 해설과 다가오는 이벤트는 항목 하나씩 넘기고, 넘기기가 멈추면 높이를 그 항목에 맞춘다. */
   .carousel.fit .track { align-items: flex-start; transition: height .2s ease; }
