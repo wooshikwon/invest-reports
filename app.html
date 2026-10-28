@@ -71,6 +71,7 @@
   .carousel .dots { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
   .carousel .dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
   .carousel .dots span.on { background: var(--accent); }
+  .carousel .slide canvas.live { display: block; width: 100%; height: auto; border-radius: 10px; background: var(--bg); cursor: zoom-in; }
   .carousel .rewind { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
   .carousel .rewind input { flex: 1; margin: 0; accent-color: var(--accent); }
   .carousel .rewind span { min-width: 3em; text-align: right; font-size: 13px; color: var(--hint); font-variant-numeric: tabular-nums; }
@@ -230,20 +231,30 @@
       (x) => (axes.left + (x - axes.xlim[0]) / (axes.xlim[1] - axes.xlim[0]) * axes.width) * w,
       (y) => (axes.top + (axes.ylim[1] - y) / (axes.ylim[1] - axes.ylim[0]) * axes.height) * h,
     ];
-    const canvas = (image, axes, paint) => {
-      const c = Object.assign(document.createElement("canvas"), { width: image.naturalWidth, height: image.naturalHeight });
+    // 슬라이더가 움직이는 동안 그림을 끊김 없이 바꾸려고, 그림 대신 같은 자리의 canvas에 바로 그린다.
+    // 원래 그림은 숨겨 두고, 슬라이더가 멈추면 canvas 내용을 그림 주소로 옮겨 크게 보기가 같은 그림을 쓰게 한다.
+    const surface = (img) => {
+      const c = Object.assign(document.createElement("canvas"), { className: "live" });
+      c.addEventListener("click", () => img.click());
+      return c;
+    };
+    // 그림 좌표는 원래 그림의 픽셀로 두고, `width`가 있으면 canvas를 그 폭으로 줄여 그린다.
+    const paint = (c, image, axes, draw, width = image.naturalWidth) => {
+      const w = image.naturalWidth, h = image.naturalHeight, scale = width / w;
+      if (c.width !== width || c.height !== Math.round(h * scale)) Object.assign(c, { width, height: Math.round(h * scale) });
       const g = c.getContext("2d");
+      g.setTransform(scale, 0, 0, scale, 0, 0);
       g.drawImage(image, 0, 0);
-      const [px, py] = mapper(axes, c.width, c.height);
-      paint(g, px, py, (draw) => {
+      if (!axes) return;
+      const [px, py] = mapper(axes, w, h);
+      draw(g, px, py, (inside) => {
         g.save();
         g.beginPath();
-        g.rect(axes.left * c.width, axes.top * c.height, axes.width * c.width, axes.height * c.height);
+        g.rect(axes.left * w, axes.top * h, axes.width * w, axes.height * h);
         g.clip();
-        draw();
+        inside();
         g.restore();
       });
-      return new Promise((ok) => c.toBlob((blob) => ok(URL.createObjectURL(blob)), "image/jpeg", 0.92));
     };
     const line = (g, points, color, width, dash = []) => {
       g.beginPath();
@@ -262,9 +273,13 @@
       const start = frames.findIndex((frame) => frame.day === date);
       if (start < 0) return;
       const latest = data.frames[data.frames.length - 1].day;
-      const base = data.predict, made = new Map();
+      const base = data.predict;
       const backdrop = imgs.predict ? await load(base.src) : null;
-      const predict = (frame) => canvas(backdrop, base, (g, px, py, clipped) => {
+      // 모든 날짜의 Montecarlo·권장 추종 배율 그림을 처음에 한꺼번에 받아 해독해 둔다.
+      const sources = frames.map((frame) => Promise.all([load(frame.tree.src), load(frame.chart.src)]).then((pair) => Promise.all(pair.map((image) => image.decode().then(() => image)))));
+      const ready = new Array(frames.length);
+      sources.forEach((source, i) => source.then((pair) => { ready[i] = pair; }).catch(() => {}));
+      const predict = (c, frame, width) => paint(c, backdrop, base, (g, px, py, clipped) => {
         const p = frame.predict, xs = p.q50.map((_, k) => px(p.x0 + k));
         clipped(() => {
           line(g, [[px(base.xlim[0]), py(p.base)], [px(base.xlim[1]), py(p.base)]], "#3A3F4A", 0.8 * pt, [1.6 * pt, 1.6 * pt]);
@@ -291,34 +306,57 @@
         g.textAlign = "center";
         g.textBaseline = "bottom";
         g.fillText(frame.day === latest ? "TODAY" : label(frame.day), px(p.x0), py(p.base) - 8 * pt);
-      });
-      const tree = (frame) => load(frame.tree.src).then((image) => canvas(image, frame.tree, (g, px, py, clipped) => {
+      }, width);
+      const tree = (c, frame, image, width) => paint(c, image, frame.tree, (g, px, py, clipped) => {
         const points = frame.tree.actual.map((v, k) => [px(k), py(v)]);
         clipped(() => {
           line(g, points, "rgba(0, 0, 0, 0.6)", 4.4 * pt);
           line(g, points, "#FFFFFF", 2.2 * pt);
         });
         dot(g, ...points[points.length - 1], 2.6 * pt, "#FFFFFF");
-      }));
-      // 날짜마다 합성한 그림 주소를 한 번만 만든다. 슬라이더를 빨리 움직이면 마지막으로 고른 날짜만 그림에 건다.
-      const make = (i) => {
-        if (!made.has(i)) made.set(i, Promise.all([backdrop ? predict(frames[i]) : null, tree(frames[i])]));
-        return made.get(i);
+      }, width);
+      // 슬라이더가 움직이는 동안에는 화면 해상도로, 멈춘 뒤 크게 보기용 그림은 원래 해상도로 그린다.
+      const render = (target, i, width) => {
+        const pair = ready[i];
+        if (target.predict) predict(target.predict, frames[i], width && width("predict"));
+        tree(target.tree, frames[i], pair[0], width && width("tree"));
+        if (target.chart) paint(target.chart, pair[1], null, null, width && width("chart"));
       };
+      const names = ["predict", "tree", "chart"].filter((name) => imgs[name] && (name !== "predict" || backdrop));
+      const live = Object.fromEntries(names.map((name) => [name, surface(imgs[name])]));
       const control = document.createElement("div");
       control.className = "rewind";
       control.innerHTML = `<input type="range" min="0" max="${frames.length - 1}" step="1" value="${start}"><span></span>`;
       const [range, shown] = control.children;
-      let wanted = start;
+      let wanted = start, drawn = -1, frame = 0, settle;
+      const draw = () => {
+        frame = 0;
+        const i = wanted, pair = ready[i];
+        if (!pair || drawn === i) return;
+        drawn = i;
+        render(live, i, (name) => Math.round(imgs[name].parentElement.clientWidth * devicePixelRatio));
+        names.forEach((name) => {
+          if (live[name].isConnected) return;
+          imgs[name].before(live[name]);
+          imgs[name].style.display = "none";
+        });
+        clearTimeout(settle);
+        settle = setTimeout(() => {
+          const full = Object.fromEntries(names.filter((name) => name !== "chart").map((name) => [name, document.createElement("canvas")]));
+          render(full, i);
+          imgs.chart.src = frames[i].chart.src;
+          Object.entries(full).forEach(([name, c]) => c.toBlob((blob) => {
+            if (drawn !== i) return;
+            if (imgs[name].src.startsWith("blob:")) URL.revokeObjectURL(imgs[name].src);
+            imgs[name].src = URL.createObjectURL(blob);
+          }, "image/jpeg", 0.92));
+        }, 300);
+      };
       const show = (i) => {
         wanted = i;
         shown.textContent = label(frames[i].day);
-        imgs.chart.src = frames[i].chart.src;
-        make(i).then(([predictSrc, treeSrc]) => {
-          if (wanted !== i) return;
-          if (predictSrc) imgs.predict.src = predictSrc;
-          imgs.tree.src = treeSrc;
-        });
+        if (ready[i]) { if (!frame) frame = requestAnimationFrame(draw); }
+        else sources[i].then(() => { if (wanted === i && !frame) frame = requestAnimationFrame(draw); }).catch(() => {});
       };
       range.addEventListener("input", () => show(+range.value));
       box.querySelector(".dots").before(control);
