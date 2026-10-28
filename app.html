@@ -72,9 +72,18 @@
   .carousel .dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
   .carousel .dots span.on { background: var(--accent); }
   .carousel .slide canvas.live { display: block; width: 100%; height: auto; border-radius: 10px; background: var(--bg); cursor: zoom-in; }
-  .carousel .rewind { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
-  .carousel .rewind input { flex: 1; margin: 0; accent-color: var(--accent); }
-  .carousel .rewind span { min-width: 3em; text-align: right; font-size: 13px; color: var(--hint); font-variant-numeric: tabular-nums; }
+  .carousel .rewind { position: relative; margin-top: 12px; }
+  .carousel .rewind + .dots { margin-top: 12px; }
+  .carousel .rewind input { display: block; width: 100%; height: 20px; margin: 0; background: none; -webkit-appearance: none; appearance: none; }
+  .carousel .rewind input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--line); }
+  .carousel .rewind input::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line); }
+  .carousel .rewind input::-webkit-slider-thumb { width: 20px; height: 20px; margin-top: -8px; border: 0; border-radius: 50%; background: var(--accent); -webkit-appearance: none; appearance: none; }
+  .carousel .rewind input::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: var(--accent); }
+  .carousel .rewind span { position: absolute; bottom: calc(100% + 8px); padding: 3px 8px; border-radius: 6px; background: var(--accent); color: var(--bg);
+    font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; transform: translateX(-50%);
+    opacity: 0; transition: opacity .15s ease; pointer-events: none; }
+  .carousel .rewind span::after { content: ""; position: absolute; top: 100%; left: calc(50% + var(--tail, 0px)); margin-left: -5px; border: 5px solid transparent; border-top-color: var(--accent); }
+  .carousel .rewind.held span { opacity: 1; }
   /* 절 제목 아래 첫 요소는 절 제목의 아래 여백만큼 띄우고, 절 안의 항목 사이는 30px씩 띄운다.
      1개월 지수 방향 예측 절의 세 소제목 사이는 이슈 문단 사이만큼 띄운다. */
   /* 1개월 지수 방향 예측 절의 세 문단은 소제목만 보이고, 소제목을 누르면 문단이 펼쳐진다.
@@ -352,13 +361,21 @@
           }, "image/jpeg", 0.92));
         }, 300);
       };
+      // 레버를 잡고 있는 동안 레버 위에 날짜 말풍선을 띄운다. 레버 지름 20px를 빼고 남은 폭에서 레버 중심을 찾고,
+      // 말풍선은 슬라이더 폭 안에 두되 꼬리는 레버 중심을 가리킨다.
       const show = (i) => {
         wanted = i;
         shown.textContent = label(frames[i].day);
+        const half = shown.offsetWidth / 2, at = 10 + (frames.length > 1 ? i / (frames.length - 1) : 0) * (range.clientWidth - 20);
+        shown.style.left = `${Math.min(range.clientWidth - half, Math.max(half, at))}px`;
+        shown.style.setProperty("--tail", `${at - Math.min(range.clientWidth - half, Math.max(half, at))}px`);
         if (ready[i]) { if (!frame) frame = requestAnimationFrame(draw); }
         else sources[i].then(() => { if (wanted === i && !frame) frame = requestAnimationFrame(draw); }).catch(() => {});
       };
       range.addEventListener("input", () => show(+range.value));
+      const hold = (on) => () => { control.classList.toggle("held", on); if (on) show(+range.value); };
+      range.addEventListener("pointerdown", hold(true));
+      ["pointerup", "pointercancel", "change", "blur"].forEach((type) => range.addEventListener(type, hold(false)));
       box.querySelector(".dots").before(control);
       show(start);
     }).catch(() => {});
