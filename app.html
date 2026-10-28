@@ -75,14 +75,15 @@
   .carousel .rewind { position: relative; margin-top: 12px; }
   .carousel .rewind + .dots { margin-top: 12px; }
   .carousel .rewind input { display: block; width: 100%; height: 20px; margin: 0; background: none; -webkit-appearance: none; appearance: none; }
-  .carousel .rewind input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--line); }
-  .carousel .rewind input::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line); }
-  .carousel .rewind input::-webkit-slider-thumb { width: 20px; height: 20px; margin-top: -8px; border: 0; border-radius: 50%; background: var(--accent); -webkit-appearance: none; appearance: none; }
-  .carousel .rewind input::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: var(--accent); }
-  .carousel .rewind span { position: absolute; bottom: calc(100% + 8px); padding: 3px 8px; border-radius: 6px; background: var(--accent); color: var(--bg);
-    font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; transform: translateX(-50%);
+  .carousel .rewind input { --track: linear-gradient(to right, rgba(58, 63, 74, .35) calc(9px + var(--from, 0) * (100% - 18px)), var(--line) 0); }
+  .carousel .rewind input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--track); }
+  .carousel .rewind input::-moz-range-track { height: 4px; border-radius: 2px; background: var(--track); }
+  .carousel .rewind input::-webkit-slider-thumb { width: 18px; height: 10px; margin-top: -3px; border: 0; border-radius: 5px; background: var(--accent); -webkit-appearance: none; appearance: none; }
+  .carousel .rewind input::-moz-range-thumb { width: 18px; height: 10px; border: 0; border-radius: 5px; background: var(--accent); }
+  .carousel .rewind span { position: absolute; bottom: calc(100% + 4px); padding: 3px 8px; border-radius: 6px; background: rgba(72, 78, 90, .85); color: #FFFFFF;
+    font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; transform: translateX(-50%);
     opacity: 0; transition: opacity .15s ease; pointer-events: none; }
-  .carousel .rewind span::after { content: ""; position: absolute; top: 100%; left: calc(50% + var(--tail, 0px)); margin-left: -5px; border: 5px solid transparent; border-top-color: var(--accent); }
+  .carousel .rewind span::after { content: ""; position: absolute; top: 100%; left: calc(50% + var(--tail, 0px)); margin-left: -5px; border: 5px solid transparent; border-top-color: rgba(72, 78, 90, .85); }
   .carousel .rewind.held span { opacity: 1; }
   /* 절 제목 아래 첫 요소는 절 제목의 아래 여백만큼 띄우고, 절 안의 항목 사이는 30px씩 띄운다.
      1개월 지수 방향 예측 절의 세 소제목 사이는 이슈 문단 사이만큼 띄운다. */
@@ -247,12 +248,17 @@
       c.addEventListener("click", () => img.click());
       return c;
     };
-    // 그림 좌표는 원래 그림의 픽셀로 두고, `width`가 있으면 canvas를 그 폭으로 줄여 그린다.
-    const paint = (c, image, axes, draw, width = image.naturalWidth) => {
+    // 그림 좌표는 원래 그림의 픽셀로 두고, `width`가 있으면 canvas를 그 폭으로 줄여 그린다. `ratio`(높이÷폭)가 있으면
+    // canvas를 그 비율로 두고 그림을 세로 가운데에 놓아, 날짜마다 그림 높이가 달라도 묶음 높이가 바뀌지 않게 한다.
+    const paint = (c, image, axes, draw, width = image.naturalWidth, ratio = 0) => {
       const w = image.naturalWidth, h = image.naturalHeight, scale = width / w;
-      if (c.width !== width || c.height !== Math.round(h * scale)) Object.assign(c, { width, height: Math.round(h * scale) });
+      const height = Math.round(Math.max(h * scale, width * ratio));
+      if (c.width !== width || c.height !== height) Object.assign(c, { width, height });
       const g = c.getContext("2d");
-      g.setTransform(scale, 0, 0, scale, 0, 0);
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.fillStyle = "#000000";
+      g.fillRect(0, 0, width, height);
+      g.setTransform(scale, 0, 0, scale, 0, (height - h * scale) / 2);
       g.drawImage(image, 0, 0);
       if (!axes) return;
       const [px, py] = mapper(axes, w, h);
@@ -276,9 +282,11 @@
     const dot = (g, x, y, r, color) => { g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI); g.fillStyle = color; g.fill(); };
     const label = (day) => `${day.slice(5, 7)}/${day.slice(8, 10)}`;
 
+    // 슬라이더는 리포트 날짜와 그 앞 30일을 늘 같은 폭으로 보여 주고, 레버는 프레임이 있는 날짜에만 선다.
+    const span = 30, offset = (day) => Math.round((Date.parse(day) - Date.parse(date)) / 864e5) + span;
     fetch(`r/rewind-${index}/frames.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then(async (data) => {
       if (!data) return;
-      const frames = data.frames.filter((frame) => frame.day <= date);
+      const frames = data.frames.filter((frame) => frame.day <= date && offset(frame.day) >= 0);
       const start = frames.findIndex((frame) => frame.day === date);
       if (start < 0) return;
       const latest = data.frames[data.frames.length - 1].day;
@@ -288,7 +296,7 @@
       const sources = frames.map((frame) => Promise.all([load(frame.tree.src), load(frame.chart.src)]).then((pair) => Promise.all(pair.map((image) => image.decode().then(() => image)))));
       const ready = new Array(frames.length);
       sources.forEach((source, i) => source.then((pair) => { ready[i] = pair; }).catch(() => {}));
-      const predict = (c, frame, width) => paint(c, backdrop, base, (g, px, py, clipped) => {
+      const predict = (c, frame, width, ratio) => paint(c, backdrop, base, (g, px, py, clipped) => {
         const p = frame.predict, xs = p.q50.map((_, k) => px(p.x0 + k));
         clipped(() => {
           line(g, [[px(base.xlim[0]), py(p.base)], [px(base.xlim[1]), py(p.base)]], "#3A3F4A", 0.8 * pt, [1.6 * pt, 1.6 * pt]);
@@ -315,28 +323,34 @@
         g.textAlign = "center";
         g.textBaseline = "bottom";
         g.fillText(frame.day === latest ? "TODAY" : label(frame.day), px(p.x0), py(p.base) - 8 * pt);
-      }, width);
-      const tree = (c, frame, image, width) => paint(c, image, frame.tree, (g, px, py, clipped) => {
+      }, width, ratio);
+      const tree = (c, frame, image, width, ratio) => paint(c, image, frame.tree, (g, px, py, clipped) => {
         const points = frame.tree.actual.map((v, k) => [px(k), py(v)]);
         clipped(() => {
           line(g, points, "rgba(0, 0, 0, 0.6)", 4.4 * pt);
-          line(g, points, "#FFFFFF", 2.2 * pt);
+          line(g, points, base.price, 2.2 * pt);
         });
-        dot(g, ...points[points.length - 1], 2.6 * pt, "#FFFFFF");
-      }, width);
+        dot(g, ...points[points.length - 1], 2.6 * pt, base.price);
+      }, width, ratio);
       // 슬라이더가 움직이는 동안에는 화면 해상도로, 멈춘 뒤 크게 보기용 그림은 원래 해상도로 그린다.
       const render = (target, i, width) => {
-        const pair = ready[i];
-        if (target.predict) predict(target.predict, frames[i], width && width("predict"));
-        tree(target.tree, frames[i], pair[0], width && width("tree"));
-        if (target.chart) paint(target.chart, pair[1], null, null, width && width("chart"));
+        const pair = ready[i], fixed = (name) => (width ? ratio[name] : 0);
+        if (target.predict) predict(target.predict, frames[i], width && width("predict"), fixed("predict"));
+        tree(target.tree, frames[i], pair[0], width && width("tree"), fixed("tree"));
+        if (target.chart) paint(target.chart, pair[1], null, null, width && width("chart"), fixed("chart"));
       };
+      // 화면의 canvas 비율은 날짜마다의 그림 가운데 가장 긴 비율로 고정한다. 모든 그림을 받은 뒤에 처음 그린다.
+      await Promise.allSettled(sources);
+      const tallest = (k) => Math.max(...ready.filter(Boolean).map((pair) => pair[k].naturalHeight / pair[k].naturalWidth));
+      const ratio = { predict: backdrop && backdrop.naturalHeight / backdrop.naturalWidth, tree: tallest(0), chart: tallest(1) };
       const names = ["predict", "tree", "chart"].filter((name) => imgs[name] && (name !== "predict" || backdrop));
       const live = Object.fromEntries(names.map((name) => [name, surface(imgs[name])]));
       const control = document.createElement("div");
       control.className = "rewind";
-      control.innerHTML = `<input type="range" min="0" max="${frames.length - 1}" step="1" value="${start}"><span></span>`;
+      control.innerHTML = `<input type="range" min="0" max="${span}" step="1" value="${span}"><span></span>`;
       const [range, shown] = control.children;
+      const first = offset(frames[0].day);
+      range.style.setProperty("--from", first / span);
       let wanted = start, drawn = -1, frame = 0, settle;
       const draw = () => {
         frame = 0;
@@ -361,19 +375,25 @@
           }, "image/jpeg", 0.92));
         }, 300);
       };
-      // 레버를 잡고 있는 동안 레버 위에 날짜 말풍선을 띄운다. 레버 지름 20px를 빼고 남은 폭에서 레버 중심을 찾고,
+      // 레버를 잡고 있는 동안 레버 위에 날짜 말풍선을 띄운다. 레버 폭 18px를 빼고 남은 폭에서 레버 중심을 찾고,
       // 말풍선은 슬라이더 폭 안에 두되 꼬리는 레버 중심을 가리킨다.
       const show = (i) => {
         wanted = i;
+        range.value = offset(frames[i].day);
         shown.textContent = label(frames[i].day);
-        const half = shown.offsetWidth / 2, at = 10 + (frames.length > 1 ? i / (frames.length - 1) : 0) * (range.clientWidth - 20);
+        const half = shown.offsetWidth / 2, at = 9 + offset(frames[i].day) / span * (range.clientWidth - 18);
         shown.style.left = `${Math.min(range.clientWidth - half, Math.max(half, at))}px`;
         shown.style.setProperty("--tail", `${at - Math.min(range.clientWidth - half, Math.max(half, at))}px`);
         if (ready[i]) { if (!frame) frame = requestAnimationFrame(draw); }
         else sources[i].then(() => { if (wanted === i && !frame) frame = requestAnimationFrame(draw); }).catch(() => {});
       };
-      range.addEventListener("input", () => show(+range.value));
-      const hold = (on) => () => { control.classList.toggle("held", on); if (on) show(+range.value); };
+      // 레버를 첫 프레임보다 왼쪽으로 옮기면 첫 프레임에 세우고, 그 밖에는 가장 가까운 프레임 날짜로 붙인다.
+      const nearest = () => {
+        const at = Math.max(first, +range.value);
+        return frames.reduce((best, frame, i) => (Math.abs(offset(frame.day) - at) <= Math.abs(offset(frames[best].day) - at) ? i : best), 0);
+      };
+      range.addEventListener("input", () => show(nearest()));
+      const hold = (on) => () => { control.classList.toggle("held", on); if (on) show(nearest()); };
       range.addEventListener("pointerdown", hold(true));
       ["pointerup", "pointercancel", "change", "blur"].forEach((type) => range.addEventListener(type, hold(false)));
       box.querySelector(".dots").before(control);
