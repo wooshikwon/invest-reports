@@ -28,6 +28,14 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 
 `r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 처음 만든 시각(`written`, 서울 시각)을 적는다. `invest-reports` 미니 앱은 제목 아래
 작은 글씨로 날짜 줄과 처음 만든 시각을 그린다. 같은 리포트를 다시 만들어도 처음 만든 시각은 그대로 둔다.
+
+`r/rewind-{지수}/`에는 지난 판단으로 되감는 슬라이더의 값을 쓴다. 되감기 날짜는 공개본이 있는 그 지수 리포트 가운데
+가장 늦은 날짜에서 `REWIND_DAYS`일 안이고, `system/simulation.json`의 `quantiles`와 `system/tree-axes.json`이 있는
+날짜다. `predict.png`는 가장 늦은 날짜의 6M + Predictions 그림에서 종가 선과 오늘 판단을 지운 바탕이고
+(`predictions_chart.rewind`), `frames.json`은 바탕의 축 위치·종가와 날짜마다 6M + Predictions 범위, 그날 Montecarlo 그림과
+축 위치, 그날 기준 가격 뒤의 실제 종가 수익률(%), 그날 권장 추종 배율 그림을 담는다. Montecarlo·권장 추종 배율 그림은
+그날 공개본 폴더의 그림을 그대로 가리킨다. `invest-reports` 미니 앱은 슬라이더를 옮길 때 바탕 위에 그날 범위를 그리고,
+그날 Montecarlo 그림 위에 실제 종가 선을 그린다.
 """
 import argparse
 import datetime as dt
@@ -36,6 +44,7 @@ import html
 import json
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
@@ -61,12 +70,81 @@ PLACEHOLDER_TIMES = {"08:00", "12:00", "16:00", "16:05"}
 NEW_YORK, SEOUL = ZoneInfo("America/New_York"), ZoneInfo("Asia/Seoul")
 # 리포트 제목 끝의 날짜 줄. `나스닥 리포트 2026-10-22 (목)` 꼴이다.
 TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
+REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
 
 
 def report_pdf(vault: Path):
     sys.path.insert(0, str(vault / "agent/skills/tool/invest-report/scripts"))
     import report_pdf as module
     return module
+
+
+def predictions_chart(vault: Path):
+    sys.path.insert(0, str(vault / "agent/skills/tool/invest-report/scripts"))
+    import predictions_chart as module
+    return module
+
+
+def versioned(path: Path, out: Path) -> str:
+    return f"{path.relative_to(out).as_posix()}?v={hashlib.sha256(path.read_bytes()).hexdigest()[:10]}"
+
+
+def actual_returns(db: Path, ticker: str, days: list[str], base: float) -> list[float]:
+    """기준 가격 날짜 뒤 거래일마다 기준 가격 대비 종가 수익률(%). 첫 값은 출발점 0이고 종가가 있는 날까지 잇는다."""
+    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        closes = dict(con.execute(
+            f"SELECT price_date, close FROM market_price WHERE ticker=? AND price_date IN ({','.join('?' * len(days))})",
+            (ticker, *days)).fetchall())
+    finally:
+        con.close()
+    values = [0.0]
+    for day in days[1:]:
+        if day not in closes:
+            break
+        values.append(round((closes[day] / base - 1) * 100, 3))
+    return values
+
+
+def rewind(index: str, vault: Path, out: Path) -> Path | None:
+    """`r/rewind-{지수}/`에 되감기 바탕 그림과 `frames.json`을 쓴다. 되감을 날짜가 없으면 폴더를 지운다."""
+    target = out / "r" / f"rewind-{index}"
+    published = sorted(dt.date.fromisoformat(f"{p.name[:4]}-{p.name[4:6]}-{p.name[6:8]}")
+                       for p in (out / "r").glob(f"*-{index}") if p.name[:8].isdigit())
+    folders = {}
+    for day in published:
+        if published[-1] - day >= dt.timedelta(days=REWIND_DAYS):
+            continue
+        folder = vault / f"routine/invest/{day:%Y-%m}/{day}/{index}"
+        key = out / "r" / f"{day:%Y%m%d}-{index}"
+        if all(path.is_file() for path in (folder / "system" / "simulation.json", folder / "system" / "tree-axes.json",
+                                          key / f"tree-{index}.png", key / f"chart-{index}.png")):
+            folders[day.isoformat()] = folder
+    if not folders:
+        shutil.rmtree(target, ignore_errors=True)
+        return None
+    chart = predictions_chart(vault)
+    target.mkdir(parents=True, exist_ok=True)
+    latest = max(folders)
+    base = chart.rewind(index, latest, folders, target / "predict.png",
+                        chart.LEDGER_DIR / f"predictions-{index}.jsonl", chart.path_bands.REFERENCE_DB_PATH)
+    predict = {item["day"]: item for item in base.pop("frames")}
+    frames = []
+    for day, folder in sorted(folders.items()):
+        if day not in predict:
+            continue
+        key = out / "r" / f"{day.replace('-', '')}-{index}"
+        bands = json.loads((folder / "path-bands.json").read_text(encoding="utf-8"))
+        days = json.loads((folder / "system" / "simulation.json").read_text(encoding="utf-8"))["quantiles"]["days"]
+        actual = actual_returns(chart.path_bands.REFERENCE_DB_PATH, chart.path_bands.SECTOR_DB_TICKERS[index], days,
+                                float(bands["price_base"]))
+        axes = json.loads((folder / "system" / "tree-axes.json").read_text(encoding="utf-8"))
+        frames.append({"day": day, "predict": {k: v for k, v in predict[day].items() if k != "day"},
+                       "tree": {"src": versioned(key / f"tree-{index}.png", out), **axes, "actual": actual},
+                       "chart": {"src": versioned(key / f"chart-{index}.png", out)}})
+    data = {"predict": {"src": versioned(target / "predict.png", out), **base}, "frames": frames}
+    (target / "frames.json").write_text(json.dumps(data, ensure_ascii=False) + "\n", encoding="utf-8")
+    return target
 
 
 def public_markdown(text: str, vault: Path, out_dir: Path, base: str) -> str:
@@ -344,6 +422,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     entries[key] = {"title": heading.group(1), "day": heading.group(2), "written": written, "date": date, "index": index}
     listing.write_text(json.dumps(dict(sorted(entries.items(), reverse=True)), ensure_ascii=False, indent=1) + "\n",
                        encoding="utf-8")
+    rewind(index, vault, out)
     return key
 
 

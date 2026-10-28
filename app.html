@@ -71,6 +71,9 @@
   .carousel .dots { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
   .carousel .dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
   .carousel .dots span.on { background: var(--accent); }
+  .carousel .rewind { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .carousel .rewind input { flex: 1; margin: 0; accent-color: var(--accent); }
+  .carousel .rewind span { min-width: 3em; text-align: right; font-size: 13px; color: var(--hint); font-variant-numeric: tabular-nums; }
   /* 절 제목 아래 첫 요소는 절 제목의 아래 여백만큼 띄우고, 절 안의 항목 사이는 30px씩 띄운다.
      1개월 지수 방향 예측 절의 세 소제목 사이는 이슈 문단 사이만큼 띄운다. */
   /* 1개월 지수 방향 예측 절의 세 문단은 소제목만 보이고, 소제목을 누르면 문단이 펼쳐진다.
@@ -203,13 +206,124 @@
 
   // 요약의 Outlook 그림 자리에 6M + Predictions, Montecarlo, Outlook 순서로 넘기는 묶음을 둔다.
   // Montecarlo는 원래 다가오는 이벤트 절에 있으므로 그 자리에서는 뺀다. 6M + Predictions가 없는 리포트는 두 장을 넘긴다.
-  function figures() {
+  function figures(date) {
     const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
-    const chart = pick("chart"), tree = pick("tree");
+    const chart = pick("chart"), tree = pick("tree"), predict = pick("predict");
     if (!chart || !tree) return;
-    const shown = [pick("predict"), tree, chart].filter(Boolean);
+    const shown = [predict, tree, chart].filter(Boolean);
     shown.forEach((img) => (img.closest("p") || img).remove());
-    slider(shown.map((img) => [img]), report.querySelector("h2"));
+    const box = slider(shown.map((img) => [img]), report.querySelector("h2"));
+    rewind(box, date, { predict, tree, chart });
+  }
+
+  // 그림 묶음 아래에 지난 판단 날짜로 되감는 슬라이더를 둔다(build.py `r/rewind-{지수}/frames.json`). 리포트 날짜와 그 앞
+  // 날짜만 고를 수 있고, 리포트 날짜가 되감기 범위에 없으면 슬라이더를 두지 않는다.
+  // 6M + Predictions는 가장 늦은 리포트의 종가 바탕 위에 고른 날짜의 출발점·50% 선·25~75% 범위를 그린다.
+  // Montecarlo는 고른 날짜의 그림 위에 그날 기준 가격 뒤의 실제 종가 수익률을 흰 선으로 그리고, 권장 추종 배율은 그날 그림으로 바꾼다.
+  // 그림 크기 단위의 선 굵기와 글자 크기는 matplotlib 포인트를 그림 해상도(200dpi)로 옮긴 값이다.
+  function rewind(box, date, imgs) {
+    const index = key.split("-")[1];
+    const load = (src) => new Promise((ok, no) => Object.assign(new Image(), { onload() { ok(this); }, onerror: no, src }));
+    const pt = 200 / 72;
+    const font = '"Noto Sans CJK KR", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif';
+    const mapper = (axes, w, h) => [
+      (x) => (axes.left + (x - axes.xlim[0]) / (axes.xlim[1] - axes.xlim[0]) * axes.width) * w,
+      (y) => (axes.top + (axes.ylim[1] - y) / (axes.ylim[1] - axes.ylim[0]) * axes.height) * h,
+    ];
+    const canvas = (image, axes, paint) => {
+      const c = Object.assign(document.createElement("canvas"), { width: image.naturalWidth, height: image.naturalHeight });
+      const g = c.getContext("2d");
+      g.drawImage(image, 0, 0);
+      const [px, py] = mapper(axes, c.width, c.height);
+      paint(g, px, py, (draw) => {
+        g.save();
+        g.beginPath();
+        g.rect(axes.left * c.width, axes.top * c.height, axes.width * c.width, axes.height * c.height);
+        g.clip();
+        draw();
+        g.restore();
+      });
+      return new Promise((ok) => c.toBlob((blob) => ok(URL.createObjectURL(blob)), "image/jpeg", 0.92));
+    };
+    const line = (g, points, color, width, dash = []) => {
+      g.beginPath();
+      points.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+      Object.assign(g, { strokeStyle: color, lineWidth: width, lineJoin: "round", lineCap: "round" });
+      g.setLineDash(dash);
+      g.stroke();
+      g.setLineDash([]);
+    };
+    const dot = (g, x, y, r, color) => { g.beginPath(); g.arc(x, y, r, 0, 2 * Math.PI); g.fillStyle = color; g.fill(); };
+    const label = (day) => `${day.slice(5, 7)}/${day.slice(8, 10)}`;
+
+    fetch(`r/rewind-${index}/frames.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then(async (data) => {
+      if (!data) return;
+      const frames = data.frames.filter((frame) => frame.day <= date);
+      const start = frames.findIndex((frame) => frame.day === date);
+      if (start < 0) return;
+      const latest = data.frames[data.frames.length - 1].day;
+      const base = data.predict, made = new Map();
+      const backdrop = imgs.predict ? await load(base.src) : null;
+      const predict = (frame) => canvas(backdrop, base, (g, px, py, clipped) => {
+        const p = frame.predict, xs = p.q50.map((_, k) => px(p.x0 + k));
+        clipped(() => {
+          line(g, [[px(base.xlim[0]), py(p.base)], [px(base.xlim[1]), py(p.base)]], "#3A3F4A", 0.8 * pt, [1.6 * pt, 1.6 * pt]);
+          g.beginPath();
+          xs.forEach((x, k) => (k ? g.lineTo(x, py(p.q25[k])) : g.moveTo(x, py(p.q25[k]))));
+          xs.slice().reverse().forEach((x, k) => g.lineTo(x, py(p.q75[xs.length - 1 - k])));
+          g.closePath();
+          g.globalAlpha = 0.32;
+          g.fillStyle = base.color;
+          g.fill();
+          g.globalAlpha = 1;
+          line(g, base.history.map((v, k) => [px(k), py(v)]), base.price, 1.2 * pt);
+          line(g, xs.map((x, k) => [x, py(p.q50[k])]), base.color, 2.2 * pt);
+        });
+        dot(g, px(p.x0), py(p.base), Math.sqrt(14) / 2 * pt, base.color);
+        g.fillStyle = base.color;
+        g.font = `${13.5 * pt}px ${font}`;
+        g.textAlign = "left";
+        g.textBaseline = "middle";
+        const end = xs[xs.length - 1] + 5 * pt;
+        ["q25", "q50", "q75"].forEach((q) => g.fillText(`$${Math.round(p[q][p[q].length - 1]).toLocaleString("en-US")}`, end, py(p[q][p[q].length - 1])));
+        g.fillStyle = "#E5E7EB";
+        g.font = `bold ${15.3 * pt}px ${font}`;
+        g.textAlign = "center";
+        g.textBaseline = "bottom";
+        g.fillText(frame.day === latest ? "TODAY" : label(frame.day), px(p.x0), py(p.base) - 8 * pt);
+      });
+      const tree = (frame) => load(frame.tree.src).then((image) => canvas(image, frame.tree, (g, px, py, clipped) => {
+        const points = frame.tree.actual.map((v, k) => [px(k), py(v)]);
+        clipped(() => {
+          line(g, points, "rgba(0, 0, 0, 0.6)", 4.4 * pt);
+          line(g, points, "#FFFFFF", 2.2 * pt);
+        });
+        dot(g, ...points[points.length - 1], 2.6 * pt, "#FFFFFF");
+      }));
+      // 날짜마다 합성한 그림 주소를 한 번만 만든다. 슬라이더를 빨리 움직이면 마지막으로 고른 날짜만 그림에 건다.
+      const make = (i) => {
+        if (!made.has(i)) made.set(i, Promise.all([backdrop ? predict(frames[i]) : null, tree(frames[i])]));
+        return made.get(i);
+      };
+      const control = document.createElement("div");
+      control.className = "rewind";
+      control.innerHTML = `<input type="range" min="0" max="${frames.length - 1}" step="1" value="${start}"><span></span>`;
+      const [range, shown] = control.children;
+      let wanted = start;
+      const show = (i) => {
+        wanted = i;
+        shown.textContent = label(frames[i].day);
+        imgs.chart.src = frames[i].chart.src;
+        make(i).then(([predictSrc, treeSrc]) => {
+          if (wanted !== i) return;
+          if (predictSrc) imgs.predict.src = predictSrc;
+          imgs.tree.src = treeSrc;
+        });
+      };
+      range.addEventListener("input", () => show(+range.value));
+      box.querySelector(".dots").before(control);
+      show(start);
+    }).catch(() => {});
   }
 
   // 절 안의 `###` 항목을 하나씩 넘기는 묶음으로 바꾼다. 항목은 `###` 제목부터 다음 `###`·`##` 앞까지다.
@@ -346,8 +460,9 @@
         const when = day === entry.date ? time : `${+day.slice(5, 7)}/${+day.slice(8)} ${time}`;
         document.getElementById("dated").textContent = `${entry.day} · ${when} 작성`;
       }
+      const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
       report.innerHTML = body;
-      figures();
+      figures(date);
       fold("1개월 지수 방향 예측");
       // 이슈 제목의 방향 표식을 먼저 가려내고, 나머지 표식은 중요도로 칠한다.
       const tones = { "상승 요인": "tone-up", "하락 요인": "tone-down", "양방향": "tone-both" };
@@ -367,7 +482,7 @@
         h3.normalize();
         h3.childNodes.forEach((node) => { if (node.nodeType === 3) node.textContent = node.textContent.replace(/\s+$/, ""); });
       });
-      events(entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`);
+      events(date);
       // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
       // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
       // 손가락을 움직이지 않고 한 번 누르면 닫는다.
