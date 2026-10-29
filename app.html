@@ -105,7 +105,7 @@
      1개월 지수 방향 예측 절의 세 소제목 사이는 이슈 문단 사이만큼 띄운다. */
   /* 1개월 지수 방향 예측 절의 세 문단, 주요 이슈 해설의 이슈마다 세 문단, 다가오는 이벤트의 이벤트마다 표는 소제목만 보이고,
      소제목을 누르면 문단이나 표가 펼쳐진다. 펼친 소제목과 문단 사이는 표식이 없는 소제목의 아래 여백만큼 띄우고, 펼친 문단은 `--hint` 색으로 쓰고,
-     펼친 이벤트 표는 열 제목을 지수색, 칸 글자를 소제목과 같은 색으로 쓴다. */
+     펼친 이벤트 표는 열 제목을 소제목 색, 칸 글자를 펼친 문단 색으로 쓴다. 펼치고 접을 때는 내용 높이가 이어서 바뀐다. */
   /* 주요 이슈 해설의 검토했지만 비중을 낮춘 이슈는 접지 않고, 굵은 이슈 이름은 소제목 색, 설명은 펼친 문단 색으로 쓴다. */
   .carousel.fit:not(.events) .slide > ul { color: var(--hint); }
   details.fold > summary { list-style: none; cursor: pointer; }
@@ -113,13 +113,15 @@
   details.fold { margin-top: 15.5px; }
   .carousel + details.fold { margin-top: 30px; }
   details.fold > summary :is(h3, h4) { margin: 0; }
-  details.fold[open] > summary :is(h3, h4) { margin-bottom: 6px; }
-  details.fold > :not(summary) { margin-top: 0; color: var(--hint); }
+  details.fold > .body { display: flow-root; padding-top: 6px; color: var(--hint); }
+  details.fold > .body > * { margin-top: 0; }
   /* 주요 이슈 해설과 다가오는 이벤트는 항목 하나씩 넘기고, 넘기기가 멈추면 높이를 그 항목에 맞춘다. */
   .carousel.fit .track { align-items: flex-start; transition: height .2s ease; }
+  .carousel.fit.folding .track { transition: none; }
   .carousel.fit .slide h3:first-child { margin-top: 0; }
   /* 이슈의 마지막 소제목을 접어도 아래 점과의 간격은 펼친 마지막 문단의 아래 여백만큼 띄운다. */
-  .carousel.fit:not(.events) .slide > details.fold:last-child:not([open]) { margin-bottom: 12px; }
+  .carousel.fit:not(.events) .slide > details.fold:last-child { margin-bottom: 12px; }
+  .carousel.fit:not(.events) .slide > details.fold:last-child > .body > :last-child { margin-bottom: 0; }
   /* 다가오는 이벤트는 발표일마다 한 장이고, 위 날짜 띠에서 보고 있는 날짜만 흰색이고, 나머지 날짜는 넘기기 아래 점과 같은 색이다. 보고 있는 날짜가
      날짜 띠 맨 왼쪽에 오도록 띠를 옆으로 밀고, 그 앞 날짜는 왼쪽 밖으로 숨긴다. */
   .days { position: relative; overflow: hidden; }
@@ -503,13 +505,42 @@
       h3.before(box);
       let node = h3.nextElementSibling;
       summary.appendChild(h3);
-      box.appendChild(summary);
+      const body = Object.assign(document.createElement("div"), { className: "body" });
+      box.append(summary, body);
       while (node && level(node) > depth) {
         const next = node.nextElementSibling;
-        box.appendChild(node);
+        body.appendChild(node);
         node = next;
       }
+      summary.addEventListener("click", (event) => {
+        event.preventDefault();
+        setFold(box, !(box.want ?? box.open));
+      });
     });
+  }
+  // 접기 상자의 내용 높이와 투명도를 지금 값에서 목표 값까지 이어서 바꾼다. 움직이는 중에 다시 누르면 그 자리에서 방향을 바꾸고,
+  // 다 닫힌 뒤에야 상자를 닫는다. 넘기는 묶음 안에서는 움직이는 동안 묶음 높이가 매 프레임 내용 높이를 따라가게 한다.
+  const motion = matchMedia("(prefers-reduced-motion: reduce)");
+  function setFold(box, open) {
+    if ((box.want ?? box.open) === open) return;
+    box.want = open;
+    const body = box.lastElementChild, carousel = box.closest(".carousel.fit");
+    const start = box.open ? body.getBoundingClientRect().height : 0;
+    box.anim?.cancel();
+    box.open = true;
+    const full = body.scrollHeight, end = open ? full : 0;
+    body.style.overflow = "hidden";
+    carousel?.classList.add("folding");
+    const anim = (box.anim = body.animate(
+      [{ height: `${start}px`, opacity: full ? start / full : 1 }, { height: `${end}px`, opacity: open ? 1 : 0 }],
+      { duration: motion.matches ? 0 : 280, easing: "cubic-bezier(.25, .8, .25, 1)" },
+    ));
+    anim.onfinish = () => {
+      box.anim = null;
+      body.style.overflow = "";
+      if (!open) box.open = false;
+      carousel?.classList.remove("folding");
+    };
   }
 
   // 다가오는 이벤트를 발표일마다 한 장으로 모아 넘기는 묶음으로 바꾸고, 위에 날짜 띠를 둔다.
@@ -569,10 +600,11 @@
     wrap([...box.querySelectorAll(".slide > h3")], 3);
     // 날짜마다 첫 이벤트는 펼쳐 두고, 이벤트 하나를 펼치면 같은 날짜의 다른 이벤트는 접는다.
     box.querySelectorAll(".slide > details.fold:first-of-type").forEach((fold) => (fold.open = true));
-    box.addEventListener("toggle", ({ target }) => {
-      if (!target.open || !target.matches(".slide > details.fold")) return;
-      target.parentElement.querySelectorAll(":scope > details.fold[open]").forEach((fold) => { if (fold !== target) fold.open = false; });
-    }, true);
+    box.addEventListener("click", ({ target }) => {
+      const fold = target.closest(".slide > details.fold");
+      if (!fold || !fold.want || !target.closest("summary")) return;
+      fold.parentElement.querySelectorAll(":scope > details.fold").forEach((other) => { if (other !== fold) setFold(other, false); });
+    });
     // 이 절이 리포트 끝이라 아래 내용이 화면보다 짧으면 절 제목이 위까지 오지 못하므로, 묶음에 그만큼 최소 높이를 준다.
     // 최소 높이가 줄면 문서가 짧아져 화면이 위로 당겨지므로, 최소 높이는 커질 때만 바꾼다. 날짜를 넘기거나 표를 접어
     // 묶음이 짧아지기 전에 최소 높이를 맞추도록, 묶음을 누르기 시작할 때마다 다시 잰다.
