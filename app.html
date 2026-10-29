@@ -10,7 +10,7 @@
   /* 검은 바탕에 파란색을 아주 조금 섞어 그리고, 텔레그램 테마 색은 쓰지 않는다. 본문 글자는 눈부시지 않게 채도를 낮춘 색을 쓰고, 제목과 강조는 지수와 관계없이 흰색에 회색을 조금 섞은 색으로 쓴다. */
   :root {
     color-scheme: dark;
-    --bg: #05070B;
+    --bg: #0A0E15;
     --text: #e7edf3;
     --hint: #7d8b99;
     --accent: #F2F2F2;
@@ -152,8 +152,8 @@
     tg.ready();
     // 리포트를 처음부터 시트를 끝까지 올린 높이로 연다.
     tg.expand();
-    if (tg.setBackgroundColor) tg.setBackgroundColor("#05070B");
-    if (tg.setHeaderColor) tg.setHeaderColor("#05070B");
+    if (tg.setBackgroundColor) tg.setBackgroundColor("#0A0E15");
+    if (tg.setHeaderColor) tg.setHeaderColor("#0A0E15");
     // 좌우로 넘기는 몸짓이 조금 기울어도 시트가 내려가지 않게, 세로로 끌어 닫는 동작을 끈다.
     if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
     // 낮은 시트에서도 웹뷰는 시트를 끝까지 올린 높이로 그려지고 위쪽만 화면에 보인다. 보이는 높이는 `viewportStableHeight`이므로
