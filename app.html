@@ -335,7 +335,12 @@
   // 그림 크기 단위의 선 굵기와 글자 크기는 matplotlib 포인트를 그림 해상도(200dpi)로 옮긴 값이다.
   function rewind(box, date, imgs) {
     const index = key.split("-")[1];
-    const load = (src) => new Promise((ok, no) => Object.assign(new Image(), { onload() { ok(this); }, onerror: no, src }));
+    // 받은 그림은 해독한 픽셀을 ImageBitmap으로 붙잡아 둔다. iOS WebView는 메모리가 부족하면 해독해 둔 그림을 버리고,
+    // 버린 그림을 canvas에 그리면 아무것도 그려지지 않는다. ImageBitmap을 만들지 못하면 그림을 그대로 쓴다.
+    const load = (src) => new Promise((ok, no) => Object.assign(new Image(), { onload() { ok(this); }, onerror: no, src }))
+      .then((image) => image.decode().then(() => image))
+      .then((image) => (window.createImageBitmap ? createImageBitmap(image).catch(() => image) : image));
+    const size = (image) => [image.naturalWidth || image.width, image.naturalHeight || image.height];
     const pt = 200 / 72;
     const font = '"Noto Sans CJK KR", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif';
     const mapper = (axes, w, h) => [
@@ -351,8 +356,8 @@
     };
     // 그림 좌표는 원래 그림의 픽셀로 두고, `width`가 있으면 canvas를 그 폭으로 줄여 그린다. `ratio`(높이÷폭)가 있으면
     // canvas를 그 비율로 두고 그림을 세로 가운데에 놓아, 날짜마다 그림 높이가 달라도 묶음 높이가 바뀌지 않게 한다.
-    const paint = (c, image, axes, draw, width = image.naturalWidth, ratio = 0) => {
-      const w = image.naturalWidth, h = image.naturalHeight, scale = width / w;
+    const paint = (c, image, axes, draw, width = size(image)[0], ratio = 0) => {
+      const [w, h] = size(image), scale = width / w;
       const height = Math.round(Math.max(h * scale, width * ratio));
       if (c.width !== width || c.height !== height) Object.assign(c, { width, height });
       const g = c.getContext("2d");
@@ -394,7 +399,7 @@
       const base = data.predict;
       const backdrop = imgs.predict ? await load(base.src) : null;
       // 모든 날짜의 Montecarlo·권장 추종 배율 그림을 처음에 한꺼번에 받아 해독해 둔다.
-      const sources = frames.map((frame) => Promise.all([load(frame.tree.src), load(frame.chart.src)]).then((pair) => Promise.all(pair.map((image) => image.decode().then(() => image)))));
+      const sources = frames.map((frame) => Promise.all([load(frame.tree.src), load(frame.chart.src)]));
       const ready = new Array(frames.length);
       sources.forEach((source, i) => source.then((pair) => { ready[i] = pair; }).catch(() => {}));
       const predict = (c, frame, width, ratio) => paint(c, backdrop, base, (g, px, py, clipped) => {
@@ -457,8 +462,9 @@
       };
       // 화면의 canvas 비율은 날짜마다의 그림 가운데 가장 긴 비율로 고정한다. 모든 그림을 받은 뒤에 처음 그린다.
       await Promise.allSettled(sources);
-      const tallest = (k) => Math.max(...ready.filter(Boolean).map((pair) => pair[k].naturalHeight / pair[k].naturalWidth));
-      const ratio = { predict: backdrop && backdrop.naturalHeight / backdrop.naturalWidth, tree: tallest(0), chart: tallest(1) };
+      const aspect = (image) => size(image)[1] / size(image)[0];
+      const tallest = (k) => Math.max(...ready.filter(Boolean).map((pair) => aspect(pair[k])));
+      const ratio = { predict: backdrop && aspect(backdrop), tree: tallest(0), chart: tallest(1) };
       const names = ["predict", "tree", "chart"].filter((name) => imgs[name] && (name !== "predict" || backdrop));
       const live = Object.fromEntries(names.map((name) => [name, surface(imgs[name])]));
       const control = document.createElement("div");
@@ -512,6 +518,10 @@
       const hold = (on) => () => { control.classList.toggle("held", on); if (on) show(nearest()); };
       range.addEventListener("pointerdown", hold(true));
       ["pointerup", "pointercancel", "change", "blur"].forEach((type) => range.addEventListener(type, hold(false)));
+      // iOS는 화면을 떠난 WebView의 canvas 내용을 비울 수 있으므로, 화면에 돌아오면 고른 날짜를 다시 그린다.
+      const redraw = () => { if (document.visibilityState !== "visible") return; drawn = -1; if (!frame) frame = requestAnimationFrame(draw); };
+      document.addEventListener("visibilitychange", redraw);
+      addEventListener("pageshow", redraw);
       box.appendChild(control);
       show(start);
     }).catch(() => {});
