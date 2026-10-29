@@ -310,10 +310,18 @@
           g.fillStyle = base.color;
           g.fill();
           g.globalAlpha = 1;
-          line(g, base.history.slice(0, last + 1).map((v, k) => [px(k), py(v)]), base.price, 1.2 * pt);
-          line(g, [[px(p.x0), py(base.history[p.x0])], [xs[0], py(p.base)]], base.price, 1.2 * pt, [1.6 * pt, 1.6 * pt]);
+          // 종가 선은 기준 가격 날짜 종가에서 점선으로 출발점에 닿고, 그 뒤 종가는 출발점에서 다시 잇는다. 지난 날짜에서는
+          // 리포트 날짜 판단의 기준 가격 날짜 종가 오른쪽 `start_offset` 거래일에 그 판단의 기준 가격을 놓고 점선으로 잇는다.
+          const h = base.history, origin = [xs[0], py(p.base)], dash = [1.6 * pt, 1.6 * pt];
+          line(g, h.slice(0, p.x0 + 1).map((v, k) => [px(k), py(v)]), base.price, 1.2 * pt);
+          line(g, [[px(p.x0), py(h[p.x0])], origin], base.price, 1.2 * pt, dash);
+          if (last > p.x0) {
+            line(g, [origin, ...h.slice(p.x0 + 1, last + 1).map((v, k) => [px(p.x0 + 1 + k), py(v)])], base.price, 1.2 * pt);
+            line(g, [[px(last), py(h[last])], [px(last + base.start_offset), py(frames[start].predict.base)]], base.price, 1.2 * pt, dash);
+          }
           line(g, xs.map((x, k) => [x, py(p.q50[k])]), base.color, 2.2 * pt);
         });
+        if (last > p.x0) dot(g, px(last + base.start_offset), py(frames[start].predict.base), 2.6 * pt, base.price);
         dot(g, xs[0], py(p.base), Math.sqrt(14) / 2 * pt, base.color);
         g.fillStyle = base.color;
         g.font = `${13.5 * pt}px ${font}`;
