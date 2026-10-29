@@ -180,6 +180,10 @@
   nav.jump button { appearance: none; border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--accent);
                     padding: 10px 8px; cursor: pointer; }
   nav.jump button:active { color: #fff; }
+  /* 지금 읽는 절의 단추만 굵게 쓴다. 굵기가 바뀌어도 알약 폭이 변하지 않도록 굵은 글자 폭을 숨겨 둔다. */
+  nav.jump button { display: flex; flex-direction: column; align-items: center; font-weight: 500; color: var(--hint); }
+  nav.jump button::after { content: attr(data-name); height: 0; overflow: hidden; visibility: hidden; font-weight: 800; }
+  nav.jump button.on { font-weight: 800; color: var(--accent); }
 </style>
 </head>
 <body>
@@ -807,25 +811,43 @@
   }
   // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 보던 위치에서 절 제목 글자가 화면 위에서 72px 아래에 올 때까지
   // 화면을 부드럽게 움직인다. 제목 위의 띠는 화면 위쪽에 보인다. 문서 끝이 모자라 제목이 그 높이까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
+  // 화면을 움직일 때마다, 절 제목 글자가 바로가기로 옮겼을 때의 높이(화면 위에서 72px)를 넘은 절 가운데 마지막 절의 단추를 굵게 쓴다.
+  // 문서 끝까지 내려 마지막 절 제목이 그 높이에 닿지 못하면 마지막 절의 단추를 굵게 쓴다.
   function jump(pairs) {
     const nav = document.createElement("nav");
     nav.className = "jump";
+    const marks = [];
+    const textTop = (head) => {
+      const band = getComputedStyle(head, "::before");
+      return head.getBoundingClientRect().top + (band.content === "none" ? 0 : parseFloat(band.height) + parseFloat(band.marginBottom));
+    };
+    let pending = false;
+    const mark = () => {
+      pending = false;
+      const end = scrollY + innerHeight >= document.documentElement.scrollHeight - 2;
+      let on = -1;
+      marks.forEach(([head], i) => { if (textTop(head) <= 73) on = i; });
+      if (end && scrollY > 0) on = marks.length - 1;
+      marks.forEach(([, button], i) => button.classList.toggle("on", i === on));
+    };
+    addEventListener("scroll", () => { if (!pending) { pending = true; requestAnimationFrame(mark); } }, { passive: true });
+    addEventListener("resize", mark);
     pairs.forEach(([name, title]) => {
       const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
       if (!head) return;
       const button = document.createElement("button");
       button.textContent = name;
+      button.dataset.name = name;
+      marks.push([head, button]);
       button.addEventListener("click", () => {
-        const band = getComputedStyle(head, "::before");
-        const skip = band.content === "none" ? 0 : parseFloat(band.height) + parseFloat(band.marginBottom);
-        const top = head.getBoundingClientRect().top + scrollY + skip - 72;
+        const top = textTop(head) + scrollY - 72;
         const lack = top + innerHeight - document.documentElement.scrollHeight;
         if (lack > 0) report.style.paddingBottom = `${(parseFloat(report.style.paddingBottom) || 0) + lack}px`;
         scrollTo({ top, behavior: "smooth" });
       });
       nav.append(button);
     });
-    if (nav.children.length) document.body.append(nav);
+    if (nav.children.length) { document.body.append(nav); mark(); }
   }
 
   function viewer(img) {
