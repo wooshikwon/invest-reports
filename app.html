@@ -809,24 +809,25 @@
       report.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => viewer(img)));
     }).catch(() => fail("리포트를 찾지 못했다."));
   }
-  // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 보던 위치에서 절 제목 글자가 화면 위에서 108px 아래에 올 때까지
+  // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 보던 위치에서 절 제목 글자가 문서 맨 위에서 본 첫 절 제목 글자와 같은 높이에 올 때까지
   // 화면을 부드럽게 움직인다. 제목 위의 띠는 화면 위쪽에 보인다. 문서 끝이 모자라 제목이 그 높이까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
-  // 화면을 움직일 때마다, 절 제목 글자가 바로가기로 옮겼을 때의 높이(화면 위에서 108px)를 넘은 절 가운데 마지막 절의 단추를 굵게 쓴다.
-  // 첫 절 제목이 그 높이에 닿기 전에는 첫 절의 단추를, 문서 끝까지 내려 마지막 절 제목이 그 높이에 닿지 못하면 마지막 절의 단추를 굵게 쓴다.
+  // 화면을 움직일 때마다, 절 제목 글자가 바로가기로 옮겼을 때의 높이를 넘은 절 가운데 마지막 절의 단추를 굵게 쓴다.
+  // 문서 끝까지 내려 마지막 절 제목이 그 높이에 닿지 못하면 마지막 절의 단추를 굵게 쓴다.
   function jump(pairs) {
     const nav = document.createElement("nav");
     nav.className = "jump";
-    const gap = 108, marks = [];
+    const marks = [];
     const textTop = (head) => {
       const band = getComputedStyle(head, "::before");
       return head.getBoundingClientRect().top + (band.content === "none" ? 0 : parseFloat(band.height) + parseFloat(band.marginBottom));
     };
+    const gap = () => textTop(marks[0][0]) + scrollY;
     let pending = false;
     const mark = () => {
       pending = false;
       const end = scrollY + innerHeight >= document.documentElement.scrollHeight - 2;
-      let on = 0;
-      marks.forEach(([head], i) => { if (textTop(head) <= gap + 1) on = i; });
+      let on = -1;
+      marks.forEach(([head], i) => { if (textTop(head) <= gap() + 1) on = i; });
       if (end && scrollY > 0) on = marks.length - 1;
       marks.forEach(([, button], i) => button.classList.toggle("on", i === on));
     };
@@ -840,7 +841,7 @@
       button.dataset.name = name;
       marks.push([head, button]);
       button.addEventListener("click", () => {
-        const top = textTop(head) + scrollY - gap;
+        const top = textTop(head) + scrollY - gap();
         const lack = top + innerHeight - document.documentElement.scrollHeight;
         if (lack > 0) report.style.paddingBottom = `${(parseFloat(report.style.paddingBottom) || 0) + lack}px`;
         scrollTo({ top, behavior: "smooth" });
