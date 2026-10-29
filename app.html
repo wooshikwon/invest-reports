@@ -297,7 +297,8 @@
       const ready = new Array(frames.length);
       sources.forEach((source, i) => source.then((pair) => { ready[i] = pair; }).catch(() => {}));
       const predict = (c, frame, width, ratio) => paint(c, backdrop, base, (g, px, py, clipped) => {
-        const p = frame.predict, xs = p.q50.map((_, k) => px(p.x0 + k));
+        // 기준 가격 날짜의 가로 위치에는 그 세션 종가가 놓이고, 기준 가격은 그 오른쪽 `start_offset` 거래일에 놓인다.
+        const p = frame.predict, xs = p.q50.map((_, k) => px(p.x0 + (k || base.start_offset)));
         clipped(() => {
           line(g, [[px(base.xlim[0]), py(p.base)], [px(base.xlim[1]), py(p.base)]], "#3A3F4A", 0.8 * pt, [1.6 * pt, 1.6 * pt]);
           g.beginPath();
@@ -309,9 +310,10 @@
           g.fill();
           g.globalAlpha = 1;
           line(g, base.history.map((v, k) => [px(k), py(v)]), base.price, 1.2 * pt);
+          line(g, [[px(p.x0), py(base.history[p.x0])], [xs[0], py(p.base)]], base.price, 1.2 * pt, [1.6 * pt, 1.6 * pt]);
           line(g, xs.map((x, k) => [x, py(p.q50[k])]), base.color, 2.2 * pt);
         });
-        dot(g, px(p.x0), py(p.base), Math.sqrt(14) / 2 * pt, base.color);
+        dot(g, xs[0], py(p.base), Math.sqrt(14) / 2 * pt, base.color);
         g.fillStyle = base.color;
         g.font = `${13.5 * pt}px ${font}`;
         g.textAlign = "left";
@@ -322,7 +324,7 @@
         g.font = `bold ${15.3 * pt}px ${font}`;
         g.textAlign = "center";
         g.textBaseline = "bottom";
-        g.fillText(frame.day === latest ? "TODAY" : label(frame.day), px(p.x0), py(p.base) - 8 * pt);
+        g.fillText(frame.day === latest ? "TODAY" : label(frame.day), xs[0], py(p.base) - 8 * pt);
       }, width, ratio);
       const tree = (c, frame, image, width, ratio) => paint(c, image, frame.tree, (g, px, py, clipped) => {
         const points = frame.tree.actual.map((v, k) => [px(k), py(v)]);
