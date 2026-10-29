@@ -329,11 +329,16 @@
       }, width, ratio);
       const tree = (c, frame, image, width, ratio) => paint(c, image, frame.tree, (g, px, py, clipped) => {
         const points = frame.tree.actual.slice(0, last - frame.predict.x0 + 1).map((v, k) => [px(k), py(v)]);
+        // 지난 날짜에서는 리포트 날짜 판단의 기준 가격 날짜 종가 오른쪽 `start_offset` 거래일에 그 판단의 기준 가격을 놓고 점선으로 잇는다.
+        const today = frames[start].predict.base;
+        const tail = frame.day !== date && points.length === last - frame.predict.x0 + 1
+          ? [points[points.length - 1], [px(points.length - 1 + base.start_offset), py((today / frame.predict.base - 1) * 100)]] : null;
         clipped(() => {
           line(g, points, "rgba(0, 0, 0, 0.6)", 4.4 * pt);
           line(g, points, base.price, 2.2 * pt);
+          if (tail) line(g, tail, base.price, 2.2 * pt, [2.2 * pt, 2.2 * pt]);
         });
-        dot(g, ...points[points.length - 1], 2.6 * pt, base.price);
+        dot(g, ...(tail ? tail[1] : points[points.length - 1]), 2.6 * pt, base.price);
       }, width, ratio);
       // 슬라이더가 움직이는 동안에는 화면 해상도로, 멈춘 뒤 크게 보기용 그림은 원래 해상도로 그린다.
       const render = (target, i, width) => {
