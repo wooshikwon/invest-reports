@@ -120,8 +120,8 @@
   .carousel.fit .slide h3:first-child { margin-top: 0; }
   /* 이슈의 마지막 소제목을 접어도 아래 점과의 간격은 펼친 마지막 문단의 아래 여백만큼 띄운다. */
   .carousel.fit:not(.events) .slide > details.fold:last-child:not([open]) { margin-bottom: 12px; }
-  /* 다가오는 이벤트는 발표일마다 한 장이고, 위 날짜 띠에서 보고 있는 날짜만 흰색이고, 나머지 날짜는 넘기기 아래 점과 같은 색이다. 날짜 띠가 화면 폭을 넘으면
-     보고 있는 날짜가 화면 안에 들어오도록 띠를 옆으로 민다. */
+  /* 다가오는 이벤트는 발표일마다 한 장이고, 위 날짜 띠에서 보고 있는 날짜만 흰색이고, 나머지 날짜는 넘기기 아래 점과 같은 색이다. 보고 있는 날짜가
+     날짜 띠 맨 왼쪽에 오도록 띠를 옆으로 밀고, 그 앞 날짜는 왼쪽 밖으로 숨긴다. */
   .days { position: relative; overflow: hidden; }
   .days .strip { display: flex; gap: 6px; width: max-content; transition: transform .2s ease; }
   .days button { appearance: none; border: 0; background: none; font: inherit; flex: 0 0 auto; min-width: 50px;
@@ -559,13 +559,9 @@
       button.innerHTML = `${marks(groups.get(day))}<b>${m}/${d}</b><small>${day === date ? "오늘" : "일월화수목금토"[new Date(day).getUTCDay()]}</small>`;
       strip.appendChild(button);
     });
-    let offset = 0;
     const change = (i) => {
       [...strip.children].forEach((button, j) => button.classList.toggle("on", i === j));
-      const button = strip.children[i], width = bar.clientWidth;
-      if (button.offsetLeft + button.offsetWidth - offset > width) offset = button.offsetLeft + button.offsetWidth - width;
-      if (button.offsetLeft < offset) offset = button.offsetLeft;
-      strip.style.transform = `translateX(${-offset}px)`;
+      strip.style.transform = `translateX(${-strip.children[i].offsetLeft}px)`;
     };
     head.after(bar);
     const box = slider(days.map((day) => groups.get(day)), bar, { fit: true, start: days.indexOf(date), change, name: "events", moved: () => toTop(head) });
