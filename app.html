@@ -38,9 +38,10 @@
   header #moves .down { color: #5b9bff; }
   header #moves .sep { margin-left: 12px; }
   header:has(#moves:not(:empty)) + #report > h2:first-child { margin-top: 36px; }
-  h2 { font-size: 17px; font-weight: 900; color: var(--accent); margin: 40px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  h2 { font-size: 17px; font-weight: 900; color: var(--hint); margin: 40px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
   #report > h2:first-child { margin-top: 28px; }
   h3, h4 { font-size: 15.5px; line-height: 1.5; margin: 22px 0 6px; color: var(--accent); }
+  .carousel.issues .slide > h3 { font-size: 23px; line-height: 1.4; }
   p { margin: 0 0 12px; }
   ul { padding-left: 1.2em; margin: 0 0 12px; }
   li { margin-bottom: 6px; }
@@ -459,7 +460,7 @@
       }
     });
     const moved = () => toTop(head);
-    if (items.length > 1) slider(items, head, { fit: true, moved });
+    if (items.length > 1) slider(items, head, { fit: true, moved, name: "issues" });
   }
 
   // 절 안의 `###`(depth 3)이나 `####`(depth 4) 소제목마다 접기 상자를 만든다.
