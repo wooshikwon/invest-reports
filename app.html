@@ -160,6 +160,13 @@
                               box-shadow: inset 3px 0 0 var(--accent); }
   .empty { border: 1px dashed var(--line); border-radius: 12px; padding: 22px 14px; text-align: center;
            color: var(--hint); font-size: 14px; }
+  /* 화면 오른쪽 아래에 절 바로가기를 세로로 긴 알약 하나에 담아 띄운다. 누르면 그 절 제목이 화면 맨 위에 오도록 바로 옮긴다. */
+  nav.jump { position: fixed; z-index: 5; right: 16px; bottom: calc(24px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
+             display: flex; flex-direction: column; padding: 6px; border-radius: 999px; background: rgba(44, 46, 52, .82);
+             -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); box-shadow: 0 4px 16px rgba(0, 0, 0, .4); }
+  nav.jump button { appearance: none; border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--hint);
+                    padding: 10px 8px; cursor: pointer; }
+  nav.jump button:active { color: #fff; }
 </style>
 </head>
 <body>
@@ -720,12 +727,36 @@
         h3.childNodes.forEach((node) => { if (node.nodeType === 3) node.textContent = node.textContent.replace(/\s+$/, ""); });
       });
       events(date);
+      jump([["예측", "1개월 지수 방향 예측"], ["이슈", "주요 이슈 해설"], ["이벤트", "다가오는 이벤트"]]);
       // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
       // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
       // 손가락을 움직이지 않고 한 번 누르면 닫는다.
       report.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => viewer(img)));
     }).catch(() => fail("리포트를 찾지 못했다."));
   }
+  // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 절 제목 글자가 화면 위 여백 16px 아래에 오도록 화면을 바로 옮긴다.
+  // 제목 위의 띠는 화면 밖으로 넘긴다. 문서 끝이 모자라 제목이 위까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
+  function jump(pairs) {
+    const nav = document.createElement("nav");
+    nav.className = "jump";
+    pairs.forEach(([name, title]) => {
+      const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
+      if (!head) return;
+      const button = document.createElement("button");
+      button.textContent = name;
+      button.addEventListener("click", () => {
+        const band = getComputedStyle(head, "::before");
+        const skip = band.content === "none" ? 0 : parseFloat(band.height) + parseFloat(band.marginBottom);
+        const top = head.getBoundingClientRect().top + scrollY + skip - 16;
+        const lack = top + innerHeight - document.documentElement.scrollHeight;
+        if (lack > 0) report.style.paddingBottom = `${(parseFloat(report.style.paddingBottom) || 0) + lack}px`;
+        scrollTo({ top, behavior: "instant" });
+      });
+      nav.append(button);
+    });
+    if (nav.children.length) document.body.append(nav);
+  }
+
   function viewer(img) {
     const box = document.createElement("div");
     box.className = "viewer";
