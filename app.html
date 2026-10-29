@@ -623,8 +623,11 @@
     box.prepend(bar);
     new ResizeObserver(fill).observe(box);
     wrap([...box.querySelectorAll(".slide > h3")], 3);
-    // 날짜마다 첫 이벤트는 펼쳐 두고, 이벤트 하나를 펼치면 같은 날짜의 다른 이벤트는 접는다.
-    box.querySelectorAll(".slide > details.fold:first-of-type").forEach((fold) => (fold.open = true));
+    // 지수색 별이 붙은 이벤트(중요도 높음·보통)는 펼쳐 두고, 나머지 이벤트는 접어 둔다. 이벤트 하나를 펼치면 같은 날짜의 다른 이벤트는 접는다.
+    box.querySelectorAll(".slide > details.fold").forEach((fold) => {
+      const level = fold.querySelector("summary h3")?.dataset.level;
+      fold.open = Boolean(level) && level !== "low";
+    });
     box.addEventListener("click", ({ target }) => {
       const fold = target.closest(".slide > details.fold");
       if (!fold || !fold.want || !target.closest("summary")) return;
