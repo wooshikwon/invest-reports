@@ -89,8 +89,11 @@ def versioned(path: Path, out: Path) -> str:
     return f"{path.relative_to(out).as_posix()}?v={hashlib.sha256(path.read_bytes()).hexdigest()[:10]}"
 
 
-def actual_returns(db: Path, ticker: str, days: list[str], base: float) -> list[float]:
-    """기준 가격 날짜 뒤 거래일마다 기준 가격 대비 종가 수익률(%). 첫 값은 출발점 0이고 종가가 있는 날까지 잇는다."""
+def actual_returns(db: Path, ticker: str, days: list[str], base: float, until: str) -> list[float]:
+    """기준 가격 날짜 뒤 `until`까지의 거래일마다 기준 가격 대비 종가 수익률(%). 첫 값은 출발점 0이고 종가가 있는 날까지 잇는다.
+
+    `until`은 가장 늦은 리포트의 기준 가격 날짜다. 그 리포트를 만든 뒤에 확정된 종가는 잇지 않는다.
+    """
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     try:
         closes = dict(con.execute(
@@ -100,7 +103,7 @@ def actual_returns(db: Path, ticker: str, days: list[str], base: float) -> list[
         con.close()
     values = [0.0]
     for day in days[1:]:
-        if day not in closes:
+        if day > until or day not in closes:
             break
         values.append(round((closes[day] / base - 1) * 100, 3))
     return values
@@ -129,6 +132,7 @@ def rewind(index: str, vault: Path, out: Path) -> Path | None:
     base = chart.rewind(index, latest, folders, target / "predict.png",
                         chart.LEDGER_DIR / f"predictions-{index}.jsonl", chart.path_bands.REFERENCE_DB_PATH)
     predict = {item["day"]: item for item in base.pop("frames")}
+    until = json.loads((folders[latest] / "path-bands.json").read_text(encoding="utf-8"))["price_base_date"]
     frames = []
     for day, folder in sorted(folders.items()):
         if day not in predict:
@@ -137,7 +141,7 @@ def rewind(index: str, vault: Path, out: Path) -> Path | None:
         bands = json.loads((folder / "path-bands.json").read_text(encoding="utf-8"))
         days = json.loads((folder / "system" / "simulation.json").read_text(encoding="utf-8"))["quantiles"]["days"]
         actual = actual_returns(chart.path_bands.REFERENCE_DB_PATH, chart.path_bands.SECTOR_DB_TICKERS[index], days,
-                                float(bands["price_base"]))
+                                float(bands["price_base"]), until)
         axes = json.loads((folder / "system" / "tree-axes.json").read_text(encoding="utf-8"))
         frames.append({"day": day, "predict": {k: v for k, v in predict[day].items() if k != "day"},
                        "tree": {"src": versioned(key / f"tree-{index}.png", out), **axes, "actual": actual},
