@@ -60,8 +60,8 @@
   table.events td.chance small.down { color: #5b9bff; }
   table.events td.chance small.flat { color: #9aa0a6; font-weight: 500; }
   .status { color: var(--hint); text-align: center; padding: 48px 0; }
-  /* 요약 소제목과 이슈 소제목 앞 말머리는 이벤트 발표 시각과 같은 회색 글자로 소제목 위 한 줄에 둔다.
-     방향 표식은 제목 끝 오른쪽에 색을 채운 스티커로 그린다.
+  /* 요약 소제목과 이슈 소제목 앞 말머리는 이벤트 발표 시각과 같은 지수색 글자로 소제목 위 한 줄에 둔다.
+     방향 표식은 제목 끝 오른쪽에 색을 채운 스티커로 그리고, 상승 요인과 하락 요인은 머리말 등락률의 상승·하락 색으로 칠한다.
      이벤트 중요도는 제목 끝 오른쪽 위에 위첨자처럼 작은 글자로 붙여, 높음은 빨간 "중요", 보통은 주황 "관심"으로 쓰고 낮음은 표시하지 않는다. */
   mark { display: block; background: none; color: var(--index); font-size: 13px; font-weight: 600; margin-bottom: 2px; }
   h3 code { font-family: inherit; font-size: 10.5px; font-weight: 700; color: #8b95a1; background: none; border: 1px solid;
@@ -72,9 +72,9 @@
   h3 code.lv-high { color: #d1495b; }
   h3 code.lv-mid { color: #d98e04; }
   h3 code.tone-up, h3 code.tone-down, h3 code.tone-both { color: #fff; border: 0; padding: 1.5px 8px; }
-  h3 code.tone-up { background: #d1495b; }
+  h3 code.tone-up { background: #ff5c5c; }
   h3 code.tone-down { background: #5b9bff; }
-  h3 code.tone-both { background: #8b95a1; }
+  h3 code.tone-both { background: #6f7984; }
   .carousel { margin: 12px 0 4px; }
   /* 한 번 넘기면 한 장씩 멈추고, 세로 움직임은 페이지가 받는다. */
   .carousel .track { display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory;
