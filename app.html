@@ -98,12 +98,19 @@
   .carousel .rewind { position: relative; margin-top: 12px; }
   .carousel .rewind + .dots { margin-top: 12px; }
   .carousel .rewind input { display: block; width: 100%; height: 20px; margin: 0; background: none; -webkit-appearance: none; appearance: none; }
-  .carousel .rewind input { --track: linear-gradient(to right, rgba(58, 63, 74, .35) calc(9px + var(--from, 0) * (100% - 18px)), var(--line) 0); }
+  .carousel .rewind input { --track: linear-gradient(to right, rgba(58, 63, 74, .35) calc(13px + var(--from, 0) * (100% - 26px)), var(--line) 0); }
   .carousel .rewind input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--track); }
   .carousel .rewind input::-moz-range-track { height: 4px; border-radius: 2px; background: var(--track); }
-  .carousel .rewind input::-webkit-slider-thumb { width: 18px; height: 10px; margin-top: -3px; border: 0; border-radius: 5px; background: var(--accent); -webkit-appearance: none; appearance: none; }
-  .carousel .rewind input::-moz-range-thumb { width: 18px; height: 10px; border: 0; border-radius: 5px; background: var(--accent); }
-  .carousel .rewind span { position: absolute; bottom: calc(100% + 4px); padding: 3px 8px; border-radius: 6px; background: rgba(72, 78, 90, .72); color: #FFFFFF;
+  /* 레버는 떠 있는 이동 막대와 같은 유리 질감으로 그리고, 누르고 있는 동안 1.4배로 키운다. */
+  .carousel .rewind input::-webkit-slider-thumb { width: 26px; height: 14px; margin-top: -5px; border: 1px solid rgba(255, 255, 255, .28); border-radius: 999px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, .30), rgba(255, 255, 255, .10)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 2px 8px rgba(0, 0, 0, .45);
+    backdrop-filter: blur(6px) saturate(160%); transition: transform .15s ease; -webkit-appearance: none; appearance: none; }
+  .carousel .rewind input::-moz-range-thumb { width: 26px; height: 14px; box-sizing: border-box; border: 1px solid rgba(255, 255, 255, .28); border-radius: 999px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, .30), rgba(255, 255, 255, .10)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 2px 8px rgba(0, 0, 0, .45);
+    transition: transform .15s ease; }
+  .carousel .rewind.held input::-webkit-slider-thumb { transform: scale(1.4); }
+  .carousel .rewind.held input::-moz-range-thumb { transform: scale(1.4); }
+  .carousel .rewind span { position: absolute; bottom: calc(100% + 8px); padding: 3px 8px; border-radius: 6px; background: rgba(72, 78, 90, .72); color: #FFFFFF;
     font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; transform: translateX(-50%);
     opacity: 0; transition: opacity .15s ease; pointer-events: none; }
   .carousel .rewind span::after { content: ""; position: absolute; top: 100%; left: calc(50% + var(--tail, 0px)); margin-left: -5px; border: 5px solid transparent; border-top-color: rgba(72, 78, 90, .72); }
@@ -125,7 +132,7 @@
   /* 주요 이슈 해설과 다가오는 이벤트는 항목 하나씩 넘기고, 넘기기가 멈추면 높이를 그 항목에 맞춘다. */
   .carousel.fit .track { align-items: flex-start; transition: height .2s ease; }
   .carousel.fit.folding .track { transition: none; }
-  .carousel.fit .slide h3:first-child { margin-top: 0; }
+  .carousel.fit .slide :is(h3, ul):first-child { margin-top: 0; }
   /* 이슈의 마지막 소제목을 접어도 아래 점과의 간격은 펼친 마지막 문단의 아래 여백만큼 띄운다. */
   .carousel.fit:not(.events) .slide > details.fold:last-child { margin-bottom: 12px; }
   .carousel.fit:not(.events) .slide > details.fold:last-child > .body > :last-child { margin-bottom: 0; }
@@ -206,13 +213,13 @@
   const fail = (message) => { report.innerHTML = `<p class="status">${message}</p>`; };
 
   // 슬라이드마다 노드 목록을 받아 좌우로 넘기는 묶음을 만들고 `after` 뒤에 둔다. 묶음 상자를 돌려준다.
-  // `fit`이면 넘기기가 멈춘 뒤와 슬라이드 높이가 바뀐 뒤 묶음 높이를 보고 있는 슬라이드에 맞춘다. `change`가 있으면 아래 점 대신
-  // 보고 있는 슬라이드가 바뀔 때마다 그 번호로 `change`를 부르고, `start`번 슬라이드부터 보여 준다.
+  // `fit`이면 넘기기가 멈춘 뒤와 슬라이드 높이가 바뀐 뒤 묶음 높이를 보고 있는 슬라이드에 맞춘다. `change`가 있으면 보고 있는
+  // 슬라이드가 바뀔 때마다 그 번호로 `change`를 부르고, `dots`를 켜지 않으면 아래 점을 두지 않는다. `start`번 슬라이드부터 보여 준다.
   // 상자의 `go(i)`는 i번 슬라이드로 넘긴다.
-  function slider(slides, after, { fit = false, start = 0, change = null, name = "", area = null } = {}) {
+  function slider(slides, after, { fit = false, start = 0, change = null, dots: dotted = !change, name = "", area = null } = {}) {
     const box = document.createElement("div");
     box.className = ["carousel", fit && "fit", name].filter(Boolean).join(" ");
-    box.innerHTML = change ? '<div class="track"></div>' : '<div class="track"></div><div class="dots"></div>';
+    box.innerHTML = dotted ? '<div class="track"></div><div class="dots"></div>' : '<div class="track"></div>';
     const track = box.querySelector(".track"), dots = box.querySelector(".dots");
     slides.forEach((nodes, i) => {
       const slide = document.createElement("div");
@@ -471,13 +478,13 @@
           }, "image/jpeg", 0.92));
         }, 300);
       };
-      // 레버를 잡고 있는 동안 레버 위에 날짜 말풍선을 띄운다. 레버 폭 18px를 빼고 남은 폭에서 레버 중심을 찾고,
+      // 레버를 잡고 있는 동안 레버 위에 날짜 말풍선을 띄운다. 레버 폭 26px를 빼고 남은 폭에서 레버 중심을 찾고,
       // 말풍선은 슬라이더 폭 안에 두되 꼬리는 레버 중심을 가리킨다.
       const show = (i) => {
         wanted = i;
         range.value = offset(frames[i].day);
         shown.textContent = label(frames[i].day);
-        const half = shown.offsetWidth / 2, at = 9 + offset(frames[i].day) / span * (range.clientWidth - 18);
+        const half = shown.offsetWidth / 2, at = 13 + offset(frames[i].day) / span * (range.clientWidth - 26);
         shown.style.left = `${Math.min(range.clientWidth - half, Math.max(half, at))}px`;
         shown.style.setProperty("--tail", `${at - Math.min(range.clientWidth - half, Math.max(half, at))}px`);
         if (ready[i]) { if (!frame) frame = requestAnimationFrame(draw); }
@@ -499,7 +506,7 @@
 
   // 절 안의 `###` 항목을 하나씩 넘기는 묶음으로 바꾼다. 항목은 `###` 제목부터 다음 `###`·`##` 앞까지다.
   // 주요 이슈 해설에서는 템플릿이 검토했지만 비중을 낮춘 이슈를 번호 이슈 뒤에 두므로 그 항목이 마지막 슬라이드가 된다.
-  // 넘기면 절 제목이 화면 위에 오도록 화면을 옮긴다.
+  // 그 슬라이드는 소제목을 지우고, 그 슬라이드로 넘기면 절 제목을 "검토했지만 비중을 낮춘 이슈"로 바꾼다.
   function section(title) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
     if (!head) return;
@@ -517,7 +524,24 @@
       const text = [...h3.childNodes].find((node) => node.nodeType === 3 && node.textContent.trim());
       if (text) text.textContent = text.textContent.replace(/^\s*\d+\.\s*/, "");
     });
-    if (items.length > 1) slider(items, head, { fit: true, name: "issues", area: head });
+    const name = head.textContent.trim(), reviewed = "검토했지만 비중을 낮춘 이슈";
+    const tail = items.length > 1 && items[items.length - 1][0].textContent.trim() === reviewed ? items.length - 1 : -1;
+    if (tail >= 0) items[tail].shift().remove();
+    // 절 제목은 흐려진 뒤 글자를 바꾸고 다시 진해진다. 흐려지는 동안 다시 넘기면 마지막에 보는 슬라이드의 제목을 쓴다.
+    let want = name;
+    const rename = (i) => {
+      const next = i === tail ? reviewed : name;
+      if (next === want) return;
+      want = next;
+      head.getAnimations().forEach((anim) => anim.cancel());
+      const fade = head.animate([{ opacity: 1 }, { opacity: 0 }], { duration: motion.matches ? 0 : 120, fill: "forwards" });
+      fade.onfinish = () => {
+        head.textContent = want;
+        fade.cancel();
+        head.animate([{ opacity: 0 }, { opacity: 1 }], { duration: motion.matches ? 0 : 160 });
+      };
+    };
+    if (items.length > 1) slider(items, head, { fit: true, change: rename, dots: true, name: "issues", area: head });
   }
 
   // 절 안의 `###`(depth 3)이나 `####`(depth 4) 소제목마다 접기 상자를 만든다.
