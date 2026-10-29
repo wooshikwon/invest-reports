@@ -333,7 +333,8 @@
         g.font = `bold ${15.3 * pt}px ${font}`;
         g.textAlign = "center";
         g.textBaseline = "bottom";
-        g.fillText(frame.day === date ? "TODAY" : label(frame.day), xs[0], py(p.base) - 8 * pt);
+        // 날짜 글자는 출발점 앞 종가 선 끝에 적는다. 그 종가가 확정된 한국 날짜(`close_day`)다.
+        g.fillText(frame.day === date ? "TODAY" : label(p.close_day), px(p.x0), py(base.history[p.x0]) - 8 * pt);
       }, width, ratio);
       const tree = (c, frame, image, width, ratio) => paint(c, image, frame.tree, (g, px, py, clipped) => {
         const points = frame.tree.actual.slice(0, last - frame.predict.x0 + 1).map((v, k) => [px(k), py(v)]);
