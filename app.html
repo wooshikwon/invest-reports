@@ -122,13 +122,16 @@
   .carousel.fit:not(.events) .slide > details.fold:last-child { margin-bottom: 12px; }
   .carousel.fit:not(.events) .slide > details.fold:last-child > .body > :last-child { margin-bottom: 0; }
   /* 다가오는 이벤트는 발표일마다 한 장이고, 위 날짜 띠에서 보고 있는 날짜만 흰색이고, 나머지 날짜는 넘기기 아래 점과 같은 색이다. 보고 있는 날짜가
-     날짜 띠 맨 왼쪽에 오도록 띠를 옆으로 밀고, 그 앞 날짜는 왼쪽 밖으로 숨긴다. 날짜 칸은 같은 폭이고, 칸 사이 간격은 날짜 띠의 첫 날짜 글자가
-     문단의 왼쪽 끝에, 띠 안의 마지막 날짜 글자가 문단의 오른쪽 끝에 오도록 정한다. */
+     날짜 띠 맨 왼쪽에 오도록 띠를 옆으로 밀고, 그 앞 날짜는 왼쪽 밖으로 숨긴다. 날짜와 요일은 테두리 없는 둥근 회색 상자에 담고, 보고 있는 날짜의
+     상자는 진하게, 나머지 상자는 연하게 칠한다. 날짜 상자는 같은 폭이고, 상자 사이 간격은 날짜 띠의 첫 상자가 문단의 왼쪽 끝에, 띠 안의 마지막
+     상자가 문단의 오른쪽 끝에 오도록 정한다. */
   .days { position: relative; overflow: hidden; }
   .days .strip { display: flex; width: max-content; transition: transform .2s ease; }
   .days button { appearance: none; border: 0; background: none; font: inherit; flex: 0 0 auto;
                  padding: 2px 0; text-align: center; line-height: 1.25; color: var(--line); cursor: pointer; }
-  .days button b { display: block; width: fit-content; margin: 0 auto; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .days button .date { display: block; width: fit-content; margin: 0 auto; padding: 4px 10px; border-radius: 8px; background: rgba(255, 255, 255, .05); }
+  .days button.on .date { background: rgba(255, 255, 255, .16); }
+  .days button b { display: block; font-size: 14px; font-variant-numeric: tabular-nums; }
   .days button small { display: block; font-size: 11px; }
   .days button.on { color: #fff; }
   /* 날짜 위 별은 그날 이벤트마다 하나씩, 중요도 높음·보통은 지수색, 낮음은 회색으로 찍는다. 5개를 넘으면 색마다 별 하나와 개수를 적는다.
@@ -598,7 +601,7 @@
     days.forEach((day) => {
       const [, m, d] = day.split("-");
       const button = document.createElement("button");
-      button.innerHTML = `${marks(groups.get(day))}<b>${m}/${d}</b><small>${day === date ? "오늘" : "일월화수목금토"[new Date(day).getUTCDay()]}</small>`;
+      button.innerHTML = `${marks(groups.get(day))}<span class="date"><b>${m}/${d}</b><small>${day === date ? "오늘" : "일월화수목금토"[new Date(day).getUTCDay()]}</small></span>`;
       strip.appendChild(button);
     });
     let seen = days.indexOf(date), half = 0;
@@ -606,16 +609,19 @@
       [...strip.children].forEach((button, j) => button.classList.toggle("on", i === j));
       strip.style.transform = `translateX(${-strip.children[(seen = i)].offsetLeft - half}px)`;
     };
-    // 날짜 칸의 폭은 가장 넓은 날짜 글자에 칸 사이 간격을 더한 값이고(별은 칸보다 넓어도 칸 가운데에 둔다), 띠는 간격의 절반만큼 더 왼쪽으로 밀어
-    // 보고 있는 날짜의 글자를 문단 왼쪽 끝에 맞춘다.
-    // 간격은 16px 이상이 되도록 띠에 들어갈 날짜 수를 고른 뒤(날짜가 그보다 적으면 모든 날짜), 남는 폭을 날짜 사이에 나눈다.
+    // 날짜 상자는 가장 넓은 상자의 폭으로 맞추고, 날짜 칸의 폭은 상자 폭에 칸 사이 간격을 더한 값이다(별은 칸보다 넓어도 칸 가운데에 둔다).
+    // 띠는 간격의 절반만큼 더 왼쪽으로 밀어 보고 있는 날짜의 상자를 문단 왼쪽 끝에 맞춘다.
+    // 간격은 8px 이상이 되도록 띠에 들어갈 날짜 수를 고른 뒤(날짜가 그보다 적으면 모든 날짜), 남는 폭을 날짜 사이에 나눈다.
     const fill = () => {
       const buttons = [...strip.children];
+      const dates = buttons.map((button) => button.querySelector(".date"));
       buttons.forEach((button) => (button.style.width = ""));
-      const width = box.clientWidth, text = Math.max(...buttons.map((button) => button.querySelector("b").getBoundingClientRect().width));
-      const count = Math.max(1, Math.min(buttons.length, Math.floor((width + 16) / (text + 16))));
+      dates.forEach((date) => (date.style.width = ""));
+      const width = box.clientWidth, text = Math.max(...dates.map((date) => date.getBoundingClientRect().width));
+      const count = Math.max(1, Math.min(buttons.length, Math.floor((width + 8) / (text + 8))));
       const gap = count > 1 ? (width - count * text) / (count - 1) : 0;
       half = gap / 2;
+      dates.forEach((date) => (date.style.width = `${text}px`));
       buttons.forEach((button) => (button.style.width = `${text + gap}px`));
       strip.style.transition = "none";
       change(seen);
