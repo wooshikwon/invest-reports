@@ -131,6 +131,8 @@
   details.fold > .body > * { margin-top: 0; }
   /* 주요 이슈 해설과 다가오는 이벤트는 항목 하나씩 넘기고, 넘기기가 멈추면 높이를 그 항목에 맞춘다. */
   .carousel.fit .track { align-items: flex-start; transition: height .2s ease; }
+  h2 .names { display: inline-grid; }
+  h2 .names > span { grid-area: 1 / 1; }
   .carousel.fit.folding .track { transition: none; }
   .carousel.fit .slide :is(h3, ul):first-child { margin-top: 0; }
   /* 이슈의 마지막 소제목을 접어도 아래 점과의 간격은 펼친 마지막 문단의 아래 여백만큼 띄운다. */
@@ -527,19 +529,24 @@
     const name = head.textContent.trim(), reviewed = "검토했지만 비중을 낮춘 이슈";
     const tail = items.length > 1 && items[items.length - 1][0].textContent.trim() === reviewed ? items.length - 1 : -1;
     if (tail >= 0) items[tail].shift().remove();
-    // 절 제목은 흐려진 뒤 글자를 바꾸고 다시 진해진다. 흐려지는 동안 다시 넘기면 마지막에 보는 슬라이드의 제목을 쓴다.
+    // 절 제목은 글자만 바꾼다. 새 제목은 옛 제목과 같은 칸에 겹쳐 진해지고, 옛 제목은 흐려진 뒤 빠진다.
+    const names = document.createElement("span");
+    names.className = "names";
+    names.appendChild(Object.assign(document.createElement("span"), { textContent: name }));
+    head.replaceChildren(names);
     let want = name;
     const rename = (i) => {
       const next = i === tail ? reviewed : name;
       if (next === want) return;
       want = next;
-      head.getAnimations().forEach((anim) => anim.cancel());
-      const fade = head.animate([{ opacity: 1 }, { opacity: 0 }], { duration: motion.matches ? 0 : 120, fill: "forwards" });
-      fade.onfinish = () => {
-        head.textContent = want;
-        fade.cancel();
-        head.animate([{ opacity: 0 }, { opacity: 1 }], { duration: motion.matches ? 0 : 160 });
-      };
+      const time = motion.matches ? 0 : 220;
+      [...names.children].forEach((old) => {
+        const from = getComputedStyle(old).opacity;
+        old.getAnimations().forEach((anim) => anim.cancel());
+        old.animate([{ opacity: from }, { opacity: 0 }], { duration: time, fill: "forwards" }).onfinish = () => old.remove();
+      });
+      const label = names.appendChild(Object.assign(document.createElement("span"), { textContent: next }));
+      label.animate([{ opacity: 0 }, { opacity: 1 }], { duration: time });
     };
     if (items.length > 1) slider(items, head, { fit: true, change: rename, dots: true, name: "issues", area: head });
   }
