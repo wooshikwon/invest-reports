@@ -6,7 +6,6 @@
   "date": "2026-10-29",
   "index": "nasdaq",
   "moves": {
-   "day": "2026-10-28",
    "session": 0.55,
    "after": -1.18
   }
@@ -18,7 +17,6 @@
   "date": "2026-10-29",
   "index": "biotech",
   "moves": {
-   "day": "2026-10-28",
    "session": 1.48,
    "after": 0.61
   }
@@ -30,7 +28,6 @@
   "date": "2026-10-28",
   "index": "nasdaq",
   "moves": {
-   "day": "2026-10-27",
    "session": 1.29,
    "after": 0.14
   }
@@ -42,7 +39,6 @@
   "date": "2026-10-28",
   "index": "biotech",
   "moves": {
-   "day": "2026-10-27",
    "session": 1.87,
    "after": 0.14
   }
@@ -54,7 +50,6 @@
   "date": "2026-10-27",
   "index": "nasdaq",
   "moves": {
-   "day": "2026-10-26",
    "session": 1.09,
    "after": 0.35
   }
@@ -66,7 +61,6 @@
   "date": "2026-10-27",
   "index": "biotech",
   "moves": {
-   "day": "2026-10-26",
    "session": 0.38,
    "after": 0.25
   }
@@ -78,8 +72,7 @@
   "date": "2026-10-26",
   "index": "nasdaq",
   "moves": {
-   "day": "2026-10-23",
-   "session": 0.0,
+   "session": null,
    "after": 0.07
   }
  },
@@ -90,8 +83,7 @@
   "date": "2026-10-26",
   "index": "biotech",
   "moves": {
-   "day": "2026-10-23",
-   "session": -1.13,
+   "session": null,
    "after": 0.0
   }
  },
@@ -102,7 +94,6 @@
   "date": "2026-10-24",
   "index": "nasdaq",
   "moves": {
-   "day": "2026-10-23",
    "session": 0.0,
    "after": 0.08
   }
@@ -114,7 +105,6 @@
   "date": "2026-10-24",
   "index": "biotech",
   "moves": {
-   "day": "2026-10-23",
    "session": -1.13,
    "after": 0.0
   }
@@ -126,7 +116,6 @@
   "date": "2026-10-23",
   "index": "nasdaq",
   "moves": {
-   "day": "2026-10-22",
    "session": -2.9,
    "after": 0.2
   }
@@ -138,7 +127,6 @@
   "date": "2026-10-23",
   "index": "biotech",
   "moves": {
-   "day": "2026-10-22",
    "session": -0.75,
    "after": -0.02
   }
@@ -150,7 +138,6 @@
   "date": "2026-10-22",
   "index": "nasdaq",
   "moves": {
-   "day": "2026-10-21",
    "session": 1.13,
    "after": -1.79
   }
@@ -162,7 +149,6 @@
   "date": "2026-10-22",
   "index": "biotech",
   "moves": {
-   "day": "2026-10-21",
    "session": 0.24,
    "after": -0.37
   }
@@ -174,7 +160,6 @@
   "date": "2026-10-21",
   "index": "nasdaq",
   "moves": {
-   "day": "2026-10-20",
    "session": -0.13,
    "after": 0.0
   }
@@ -186,7 +171,6 @@
   "date": "2026-10-21",
   "index": "biotech",
   "moves": {
-   "day": "2026-10-20",
    "session": 3.23,
    "after": 0.0
   }
@@ -198,7 +182,6 @@
   "date": "2026-10-20",
   "index": "nasdaq",
   "moves": {
-   "day": "2026-10-19",
    "session": 1.17,
    "after": 0.0
   }
@@ -210,7 +193,6 @@
   "date": "2026-10-20",
   "index": "biotech",
   "moves": {
-   "day": "2026-10-19",
    "session": 0.89,
    "after": 0.0
   }
@@ -222,8 +204,7 @@
   "date": "2026-10-19",
   "index": "nasdaq",
   "moves": {
-   "day": "2026-10-16",
-   "session": -2.5,
+   "session": null,
    "after": -0.27
   }
  },
@@ -234,8 +215,7 @@
   "date": "2026-10-19",
   "index": "biotech",
   "moves": {
-   "day": "2026-10-16",
-   "session": -2.56,
+   "session": null,
    "after": -0.22
   }
  }
