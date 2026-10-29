@@ -173,7 +173,7 @@
            color: var(--hint); font-size: 14px; }
   /* 화면 오른쪽 아래에 절 바로가기를 세로로 긴 반투명 유리 알약 하나에 담아 띄운다. 알약 뒤 본문은 흐리게 비친다. 누르면 그 절 제목이 화면 위쪽에 오도록 부드럽게 옮긴다. */
   nav.jump { position: fixed; z-index: 5; right: 16px; bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
-             display: flex; flex-direction: column; padding: 6px; border-radius: 999px;
+             display: flex; flex-direction: column; padding: 6px; border-radius: 24px; touch-action: none; user-select: none; -webkit-user-select: none;
              background: linear-gradient(160deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, .01));
              border: 1px solid rgba(255, 255, 255, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 8px 24px rgba(0, 0, 0, .35);
              -webkit-backdrop-filter: blur(4px) saturate(160%); backdrop-filter: blur(4px) saturate(160%); }
@@ -184,6 +184,12 @@
   nav.jump button { display: flex; flex-direction: column; align-items: center; font-weight: 500; color: var(--hint); }
   nav.jump button::after { content: attr(data-name); height: 0; overflow: hidden; visibility: hidden; font-weight: 800; }
   nav.jump button.on { font-weight: 800; color: var(--accent); }
+  /* 지금 읽는 절의 단추 뒤에 밝은 레버를 깔고, 굵게 쓰는 단추가 바뀌면 레버를 그 단추로 미끄러뜨린다. 레버를 끌면 손가락을 따라 움직이고, 놓으면 가장 가까운 단추로 옮겨 그 절로 간다. */
+  nav.jump button { position: relative; z-index: 1; }
+  nav.jump .lever { position: absolute; top: 0; left: 6px; right: 6px; border-radius: 18px; pointer-events: none;
+                    background: rgba(255, 255, 255, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+                    transition: transform .25s ease, height .25s ease, opacity .2s ease; }
+  nav.jump .lever.drag { transition: none; background: rgba(255, 255, 255, .18); }
 </style>
 </head>
 <body>
@@ -811,44 +817,104 @@
   }
   // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 보던 위치에서 절 제목 글자가 문서 맨 위에서 본 첫 절 제목 글자와 같은 높이에 올 때까지
   // 화면을 부드럽게 움직인다. 제목 위의 띠는 화면 위쪽에 보인다. 문서 끝이 모자라 제목이 그 높이까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
-  // 화면을 움직일 때마다, 절 제목 글자가 바로가기로 옮겼을 때의 높이를 넘은 절 가운데 마지막 절의 단추를 굵게 쓴다.
+  // 화면을 움직일 때마다, 절 제목 글자가 바로가기로 옮겼을 때의 높이를 넘은 절 가운데 마지막 절의 단추를 굵게 쓰고 레버를 그 단추 뒤로 옮긴다.
   // 문서 끝까지 내려 마지막 절 제목이 그 높이에 닿지 못하면 마지막 절의 단추를 굵게 쓴다.
+  // 바로가기로 화면이 움직이는 동안에는 지나가는 절의 단추 대신 고른 단추를 굵게 쓴다. 화면이 멈추거나 1.5초가 지나면 다시 읽는 절을 따른다.
+  // 알약 위에서 누른 채 6px 넘게 움직이면 레버가 손가락을 따라 움직이고, 레버 가운데에서 가장 가까운 단추를 굵게 쓴다. 손을 떼면 그 단추를 누른 것과 같이 그 절로 간다.
   function jump(pairs) {
     const nav = document.createElement("nav");
     nav.className = "jump";
+    const lever = document.createElement("i");
+    lever.className = "lever";
+    nav.append(lever);
     const marks = [];
     const textTop = (head) => {
       const band = getComputedStyle(head, "::before");
       return head.getBoundingClientRect().top + (band.content === "none" ? 0 : parseFloat(band.height) + parseFloat(band.marginBottom));
     };
     const gap = () => textTop(marks[0][0]) + scrollY;
-    let pending = false;
+    const show = (on) => {
+      marks.forEach(([, button], i) => button.classList.toggle("on", i === on));
+      const button = marks[on]?.[1];
+      lever.style.opacity = button ? 1 : 0;
+      if (!button) return;
+      lever.style.height = `${button.offsetHeight}px`;
+      lever.style.transform = `translateY(${button.offsetTop}px)`;
+    };
+    let pending = false, held = null, release = 0, drag = null;
     const mark = () => {
       pending = false;
+      if (drag?.moved) return;
       const end = scrollY + innerHeight >= document.documentElement.scrollHeight - 2;
       let on = -1;
       marks.forEach(([head], i) => { if (textTop(head) <= gap() + 1) on = i; });
       if (end && scrollY > 0) on = marks.length - 1;
-      marks.forEach(([, button], i) => button.classList.toggle("on", i === on));
+      if (held !== null && on === held) held = null;
+      show(held ?? on);
     };
+    const settle = () => { held = null; mark(); };
     addEventListener("scroll", () => { if (!pending) { pending = true; requestAnimationFrame(mark); } }, { passive: true });
+    addEventListener("scrollend", settle);
     addEventListener("resize", mark);
+    const go = (i) => {
+      const head = marks[i][0];
+      const top = textTop(head) + scrollY - gap();
+      const lack = top + innerHeight - document.documentElement.scrollHeight;
+      if (lack > 0) report.style.paddingBottom = `${(parseFloat(report.style.paddingBottom) || 0) + lack}px`;
+      held = i;
+      clearTimeout(release);
+      release = setTimeout(settle, 1500);
+      show(i);
+      scrollTo({ top, behavior: "smooth" });
+    };
     pairs.forEach(([name, title]) => {
       const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
       if (!head) return;
       const button = document.createElement("button");
       button.textContent = name;
       button.dataset.name = name;
+      const i = marks.length;
       marks.push([head, button]);
-      button.addEventListener("click", () => {
-        const top = textTop(head) + scrollY - gap();
-        const lack = top + innerHeight - document.documentElement.scrollHeight;
-        if (lack > 0) report.style.paddingBottom = `${(parseFloat(report.style.paddingBottom) || 0) + lack}px`;
-        scrollTo({ top, behavior: "smooth" });
-      });
+      button.addEventListener("click", (event) => { if (nav.dataset.dragged) { delete nav.dataset.dragged; event.preventDefault(); return; } go(i); });
       nav.append(button);
     });
-    if (nav.children.length) { document.body.append(nav); mark(); }
+    const nearest = (y) => {
+      let best = 0;
+      marks.forEach(([, button], i) => {
+        const centre = (b) => b.offsetTop + b.offsetHeight / 2;
+        if (Math.abs(centre(button) - y) < Math.abs(centre(marks[best][1]) - y)) best = i;
+      });
+      return best;
+    };
+    nav.addEventListener("pointerdown", (event) => {
+      drag = { y: event.clientY, top: nav.getBoundingClientRect().top + nav.clientTop, moved: false, id: event.pointerId };
+    });
+    nav.addEventListener("pointermove", (event) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      if (!drag.moved && Math.abs(event.clientY - drag.y) <= 6) return;
+      if (!drag.moved) { drag.moved = true; nav.setPointerCapture(event.pointerId); lever.classList.add("drag"); }
+      const first = marks[0][1], last = marks[marks.length - 1][1];
+      const height = lever.offsetHeight;
+      const y = Math.min(last.offsetTop + last.offsetHeight - height, Math.max(first.offsetTop, event.clientY - drag.top - height / 2));
+      lever.style.opacity = 1;
+      lever.style.transform = `translateY(${y}px)`;
+      const on = nearest(y + height / 2);
+      marks.forEach(([, button], i) => button.classList.toggle("on", i === on));
+    });
+    const end = (event) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      const moved = drag.moved;
+      drag = null;
+      if (!moved) return;
+      nav.dataset.dragged = "1";
+      setTimeout(() => delete nav.dataset.dragged, 0);
+      lever.classList.remove("drag");
+      const rect = lever.getBoundingClientRect();
+      go(nearest(rect.top - nav.getBoundingClientRect().top - nav.clientTop + rect.height / 2));
+    };
+    nav.addEventListener("pointerup", end);
+    nav.addEventListener("pointercancel", end);
+    if (marks.length) { document.body.append(nav); mark(); }
   }
 
   function viewer(img) {
