@@ -95,8 +95,7 @@
   .carousel .dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
   .carousel .dots span.on { background: var(--accent); }
   .carousel .slide canvas.live { display: block; width: 100%; height: auto; border-radius: 10px; background: var(--bg); cursor: zoom-in; }
-  .carousel .rewind { position: relative; margin-top: 12px; }
-  .carousel .rewind + .dots { margin-top: 12px; }
+  .carousel .rewind { position: relative; margin: 12px 0 18px; }
   .carousel .rewind input { display: block; width: 100%; height: 20px; margin: 0; background: none; -webkit-appearance: none; appearance: none; }
   .carousel .rewind input { --track: linear-gradient(to right, rgba(58, 63, 74, .35) calc(9px + var(--from, 0) * (100% - 18px)), var(--line) 0); }
   .carousel .rewind input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--track); }
@@ -146,6 +145,11 @@
   .days button b { display: block; font-size: 14px; font-variant-numeric: tabular-nums; }
   .days button small { display: block; font-size: 11px; }
   .days button.on { color: #fff; }
+  /* 1개월 지수 방향 예측 절의 그림 이름 탭은 날짜 상자와 같은 색으로 그리고, 고른 탭으로 줄을 옮기지 않는다. */
+  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tabs button { appearance: none; border: 0; font: inherit; font-size: 14px; font-weight: 600; padding: 6px 12px; border-radius: 8px;
+                 background: rgba(255, 255, 255, .05); color: var(--dim); cursor: pointer; }
+  .tabs button.on { background: rgba(255, 255, 255, .16); color: #fff; }
   /* 날짜 위 별은 그날 이벤트마다 하나씩, 중요도 높음·보통은 지수색, 낮음은 회색으로 찍는다. 5개를 넘으면 색마다 별 하나와 개수를 적는다.
      제목 끝 별과 크기가 같다. */
   .days button i { display: flex; justify-content: center; align-items: center; gap: 2px; height: 8px; margin-bottom: 2px;
@@ -303,13 +307,23 @@
 
   // 요약의 Outlook 그림 자리에 6M + Predictions, Montecarlo, Outlook 순서로 넘기는 묶음을 둔다.
   // Montecarlo는 원래 다가오는 이벤트 절에 있으므로 그 자리에서는 뺀다. 6M + Predictions가 없는 리포트는 두 장을 넘긴다.
+  // 묶음 위에는 그림 이름 탭을 둔다. 탭을 누르면 그 그림으로 넘기고, 넘기면 보고 있는 그림의 탭을 밝힌다.
   function figures(date) {
     const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
     const chart = pick("chart"), tree = pick("tree"), predict = pick("predict");
     if (!chart || !tree) return;
-    const shown = [predict, tree, chart].filter(Boolean);
-    shown.forEach((img) => (img.closest("p") || img).remove());
-    const box = slider(shown.map((img) => [img]), report.querySelector("h2"));
+    const shown = [[predict, "주가와 예측"], [tree, "몬테카를로"], [chart, "권장 추종 배율"]].filter(([img]) => img);
+    shown.forEach(([img]) => (img.closest("p") || img).remove());
+    const bar = document.createElement("div");
+    bar.className = "tabs";
+    shown.forEach(([, name], i) => {
+      const button = Object.assign(document.createElement("button"), { textContent: name });
+      button.addEventListener("click", () => box.go(i));
+      bar.appendChild(button);
+    });
+    const change = (i) => [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j));
+    const box = slider(shown.map(([img]) => [img]), report.querySelector("h2"), { change });
+    box.prepend(bar);
     rewind(box, date, { predict, tree, chart });
   }
 
@@ -498,7 +512,7 @@
       const hold = (on) => () => { control.classList.toggle("held", on); if (on) show(nearest()); };
       range.addEventListener("pointerdown", hold(true));
       ["pointerup", "pointercancel", "change", "blur"].forEach((type) => range.addEventListener(type, hold(false)));
-      box.querySelector(".dots").before(control);
+      box.appendChild(control);
       show(start);
     }).catch(() => {});
   }
