@@ -33,7 +33,7 @@
   header #moves b { font-weight: 700; margin-left: 4px; }
   header #moves .up { color: #ff5c5c; }
   header #moves .down { color: #5b9bff; }
-  header .sep { margin-left: 12px; }
+  header #moves .sep { margin-left: 12px; }
   header:has(#moves:not(:empty)) + #report > h2:first-child { margin-top: 36px; }
   h2 { font-size: 17px; color: var(--accent); margin: 40px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
   #report > h2:first-child { margin-top: 28px; }
@@ -557,7 +557,7 @@
         // 처음 만든 날이 리포트 날짜와 같으면 시각만, 다르면 월/일까지 적는다.
         const [day, time] = entry.written.split(" ");
         const when = day === entry.date ? time : `${+day.slice(5, 7)}/${+day.slice(8)} ${time}`;
-        document.getElementById("dated").innerHTML = `${entry.day}<span class="sep"></span>${when} 작성`;
+        document.getElementById("dated").textContent = `${entry.day} ${when} 작성`;
         if (entry.moves) {
           const pct = (v) => v === null ? "<b>—</b>"
             : `<b class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}%</b>`;
