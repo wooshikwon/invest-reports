@@ -639,15 +639,10 @@
     box.prepend(bar);
     new ResizeObserver(fill).observe(box);
     wrap([...box.querySelectorAll(".slide > h3")], 3);
-    // 지수색 별이 붙은 이벤트(중요도 높음·보통)는 펼쳐 두고, 나머지 이벤트는 접어 둔다. 이벤트 하나를 펼치면 같은 날짜의 다른 이벤트는 접는다.
+    // 지수색 별이 붙은 이벤트(중요도 높음·보통)는 펼쳐 두고, 나머지 이벤트는 접어 둔다.
     box.querySelectorAll(".slide > details.fold").forEach((fold) => {
       const level = fold.querySelector("summary h3")?.dataset.level;
       fold.open = Boolean(level) && level !== "low";
-    });
-    box.addEventListener("click", ({ target }) => {
-      const fold = target.closest(".slide > details.fold");
-      if (!fold || !fold.want || !target.closest("summary")) return;
-      fold.parentElement.querySelectorAll(":scope > details.fold").forEach((other) => { if (other !== fold) setFold(other, false); });
     });
     // 이 절이 리포트 끝이라 아래 내용이 화면보다 짧으면 절 제목이 위까지 오지 못하므로, 묶음에 그만큼 최소 높이를 준다.
     // 최소 높이가 줄면 문서가 짧아져 화면이 위로 당겨지므로, 최소 높이는 커질 때만 바꾼다. 날짜를 넘기거나 표를 접어
