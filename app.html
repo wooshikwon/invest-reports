@@ -102,6 +102,8 @@
   /* 1개월 지수 방향 예측 절의 세 문단, 주요 이슈 해설의 이슈마다 세 문단, 다가오는 이벤트의 이벤트마다 표는 소제목만 보이고,
      소제목을 누르면 문단이나 표가 펼쳐진다. 펼친 소제목과 문단 사이는 표식이 없는 소제목의 아래 여백만큼 띄우고, 펼친 문단은 `--fold` 색으로 쓰고,
      펼친 이벤트 표는 열 제목을 지수색, 칸 글자를 소제목과 같은 색으로 쓴다. */
+  /* 주요 이슈 해설의 검토했지만 비중을 낮춘 이슈는 접지 않고, 굵은 이슈 이름은 소제목 색, 설명은 펼친 문단 색으로 쓴다. */
+  .carousel.fit:not(.events) .slide > ul { color: var(--fold); }
   details.fold > summary { list-style: none; cursor: pointer; }
   details.fold > summary::-webkit-details-marker { display: none; }
   details.fold { margin-top: 15.5px; }
