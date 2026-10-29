@@ -599,15 +599,17 @@
       });
       fold("주요 이슈 해설", 4);
       section("주요 이슈 해설");
-      // 소제목의 방향 표식은 제목 아래 한 줄로 옮기고, 중요도 점은 제목 끝에 붙인다. 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
+      // 소제목의 방향 표식은 제목 아래 한 줄로 옮기고, 이벤트의 중요도 점은 제목 끝에 붙인다. 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
       report.querySelectorAll("h3").forEach((h3) => {
         const codes = [...h3.querySelectorAll("code")];
         if (!codes.length) return;
         const levels = codes.filter((code) => /^lv-/.test(code.className));
         levels.forEach((code) => code.title = code.textContent.trim());
+        // 주요 이슈 해설은 중요도가 높은 이슈만 다루므로 중요도 점을 붙이지 않는다. 이 시점의 묶음은 주요 이슈 해설뿐이다.
+        if (h3.closest(".carousel")) levels.splice(0).forEach((code) => code.remove());
         const tags = document.createElement("span");
         tags.className = "tags";
-        tags.append(...codes.filter((code) => !levels.includes(code)));
+        tags.append(...codes.filter((code) => !/^lv-/.test(code.className)));
         h3.append(...levels);
         if (tags.childNodes.length) h3.append(tags);
         h3.normalize();
