@@ -25,7 +25,7 @@
   }
   /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
   main { max-width: 720px; margin: 0 auto; padding: 16px 16px calc(40px + var(--offscreen, 0px)); }
-  header h1 { font-size: 19px; line-height: 1.4; margin: 4px 0 2px; color: var(--accent); }
+  header h1 { font-size: 19px; font-weight: 800; line-height: 1.4; margin: 4px 0 2px; color: var(--accent); }
   header p { margin: 0; font-size: 12.5px; color: var(--hint); }
   /* 날짜 줄 아래 등락률 줄은 같은 회색 글씨로 쓰고, 제목과 날짜 줄 사이만큼 띄운다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다. */
   header #moves { margin-top: 1.5px; }
@@ -35,7 +35,7 @@
   header #moves .down { color: #5b9bff; }
   header #moves .sep { margin-left: 12px; }
   header:has(#moves:not(:empty)) + #report > h2:first-child { margin-top: 36px; }
-  h2 { font-size: 17px; color: var(--accent); margin: 40px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  h2 { font-size: 17px; font-weight: 800; color: var(--accent); margin: 40px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
   #report > h2:first-child { margin-top: 28px; }
   h3, h4 { font-size: 15.5px; line-height: 1.5; margin: 22px 0 6px; color: var(--accent); }
   p { margin: 0 0 12px; }
