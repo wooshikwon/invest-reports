@@ -44,7 +44,7 @@
   strong { color: var(--accent); }
   img { display: block; width: 100%; height: auto; margin: 12px 0; border-radius: 10px; background: var(--bg); cursor: zoom-in; }
   .viewer { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; overflow: hidden; touch-action: none;
-            background: rgba(0, 0, 0, .94); }
+            background: rgba(10, 14, 21, .96); }
   .viewer img { margin: 0; border-radius: 0; transform-origin: 0 0; cursor: zoom-out; }
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.55; margin: 8px 0 16px; }
   th, td { text-align: left; vertical-align: top; padding: 8px 6px; border-bottom: 1px solid var(--line); }
@@ -263,7 +263,7 @@
       if (c.width !== width || c.height !== height) Object.assign(c, { width, height });
       const g = c.getContext("2d");
       g.setTransform(1, 0, 0, 1, 0, 0);
-      g.fillStyle = "#000000";
+      g.fillStyle = "#0A0E15";
       g.fillRect(0, 0, width, height);
       g.setTransform(scale, 0, 0, scale, 0, (height - h * scale) / 2);
       g.drawImage(image, 0, 0);
