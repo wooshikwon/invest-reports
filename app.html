@@ -53,7 +53,7 @@
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.55; margin: 8px 0 16px; }
   th, td { text-align: left; vertical-align: top; padding: 8px 6px; border-bottom: 1px solid var(--line); }
   th { color: var(--hint); font-weight: 600; font-size: 12.5px; }
-  table.events th { color: var(--index); }
+  table.events th { color: var(--accent); }
   table.events td, table.events td.chance { color: var(--hint); }
   table.events td.branch { width: 34%; font-weight: 600; }
   table.events td.chance { width: 3.2em; text-align: right; font-weight: 700; color: var(--accent); white-space: nowrap; }
@@ -252,7 +252,7 @@
     if (Math.abs(gap) > 2) head.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  // 요약의 Outlook 그림 자리에 6M + Predictions, Montecarlo, Outlook 순서로 넘기는 묶음을 둔다.
+  // 요약 절 제목 위에 6M + Predictions, Montecarlo, Outlook 순서로 넘기는 묶음을 둔다.
   // Montecarlo는 원래 다가오는 이벤트 절에 있으므로 그 자리에서는 뺀다. 6M + Predictions가 없는 리포트는 두 장을 넘긴다.
   function figures(date) {
     const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
@@ -260,7 +260,9 @@
     if (!chart || !tree) return;
     const shown = [predict, tree, chart].filter(Boolean);
     shown.forEach((img) => (img.closest("p") || img).remove());
-    const box = slider(shown.map((img) => [img]), report.querySelector("h2"));
+    const head = report.querySelector("h2");
+    const box = slider(shown.map((img) => [img]), head);
+    head.before(box);
     rewind(box, date, { predict, tree, chart });
   }
 
