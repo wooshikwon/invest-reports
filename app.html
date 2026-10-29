@@ -7,10 +7,10 @@
 <title>투자 판단 리포트</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-  /* 검은 바탕에 회색과 파란색을 아주 조금 섞어 그리고, 텔레그램 테마 색은 쓰지 않는다. 본문 글자는 눈부시지 않게 채도를 낮춘 색을 쓰고, 제목과 강조는 지수와 관계없이 흰색에 회색을 조금 섞은 색으로 쓴다. */
+  /* 토스 앱과 같은 짙은 회색 바탕에 그리고, 텔레그램 테마 색은 쓰지 않는다. 본문 글자는 눈부시지 않게 채도를 낮춘 색을 쓰고, 제목과 강조는 지수와 관계없이 흰색에 회색을 조금 섞은 색으로 쓴다. */
   :root {
     color-scheme: dark;
-    --bg: #0D0F13;
+    --bg: #171719;
     --text: #e7edf3;
     --hint: #7d8b99;
     --accent: #F2F2F2;
@@ -44,7 +44,7 @@
   strong { color: var(--accent); }
   img { display: block; width: 100%; height: auto; margin: 12px 0; border-radius: 10px; background: var(--bg); cursor: zoom-in; }
   .viewer { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; overflow: hidden; touch-action: none;
-            background: rgba(13, 15, 19, .96); }
+            background: rgba(23, 23, 25, .96); }
   .viewer img { margin: 0; border-radius: 0; transform-origin: 0 0; cursor: zoom-out; }
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.55; margin: 8px 0 16px; }
   th, td { text-align: left; vertical-align: top; padding: 8px 6px; border-bottom: 1px solid var(--line); }
@@ -152,8 +152,8 @@
     tg.ready();
     // 리포트를 처음부터 시트를 끝까지 올린 높이로 연다.
     tg.expand();
-    if (tg.setBackgroundColor) tg.setBackgroundColor("#0D0F13");
-    if (tg.setHeaderColor) tg.setHeaderColor("#0D0F13");
+    if (tg.setBackgroundColor) tg.setBackgroundColor("#171719");
+    if (tg.setHeaderColor) tg.setHeaderColor("#171719");
     // 좌우로 넘기는 몸짓이 조금 기울어도 시트가 내려가지 않게, 세로로 끌어 닫는 동작을 끈다.
     if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
     // 낮은 시트에서도 웹뷰는 시트를 끝까지 올린 높이로 그려지고 위쪽만 화면에 보인다. 보이는 높이는 `viewportStableHeight`이므로
@@ -263,7 +263,7 @@
       if (c.width !== width || c.height !== height) Object.assign(c, { width, height });
       const g = c.getContext("2d");
       g.setTransform(1, 0, 0, 1, 0, 0);
-      g.fillStyle = "#0D0F13";
+      g.fillStyle = "#171719";
       g.fillRect(0, 0, width, height);
       g.setTransform(scale, 0, 0, scale, 0, (height - h * scale) / 2);
       g.drawImage(image, 0, 0);
