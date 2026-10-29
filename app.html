@@ -14,6 +14,8 @@
     --text: #e7edf3;
     --hint: #AEB6BF;
     --accent: #EAEAEA;
+    /* 절 제목, 작성 시각, 선택되지 않은 날짜는 본문보다 연한 회색 하나로 쓴다. */
+    --dim: #7A828C;
     --index: var(--hint);
     /* 중요도 표식: 네 꼭짓점이 뾰족하고 변이 안쪽으로 휜 별 */
     --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 0Q5.7 4.3 10 5Q5.7 5.7 5 10Q4.3 5.7 0 5Q4.3 4.3 5 0Z'/%3E%3C/svg%3E");
@@ -30,6 +32,7 @@
   main { max-width: 720px; margin: 0 auto; padding: 16px 16px calc(40px + var(--offscreen, 0px)); }
   header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 4px 0 2px; color: var(--accent); }
   header p { margin: 0; font-size: 12.5px; color: var(--hint); }
+  header #dated { color: var(--dim); }
   /* 날짜 줄 아래 등락률 줄은 같은 회색 글씨로 쓰고, 제목과 날짜 줄 사이만큼 띄운다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다. */
   header #moves { margin-top: 1.5px; }
   header #moves:empty { display: none; }
@@ -38,7 +41,7 @@
   header #moves .down { color: #5b9bff; }
   header #moves .sep { margin-left: 12px; }
   header:has(#moves:not(:empty)) + #report > h2:first-child { margin-top: 36px; }
-  h2 { font-size: 15.5px; font-weight: 700; color: var(--hint); margin: 46px 0 10px; }
+  h2 { font-size: 15.5px; font-weight: 700; color: var(--dim); margin: 46px 0 10px; }
   #report > h2:first-child { margin-top: 28px; }
   h3, h4 { font-size: 15.5px; line-height: 1.5; margin: 22px 0 6px; color: var(--accent); }
   p { margin: 0 0 12px; }
@@ -127,7 +130,7 @@
   .days { position: relative; overflow: hidden; }
   .days .strip { display: flex; gap: 10px; width: max-content; transition: transform .2s ease; }
   .days button { appearance: none; border: 0; font: inherit; flex: 0 0 auto; padding: 5px 10px; border-radius: 8px;
-                 background: rgba(255, 255, 255, .05); text-align: center; line-height: 1.25; color: #7A828C; cursor: pointer; }
+                 background: rgba(255, 255, 255, .05); text-align: center; line-height: 1.25; color: var(--dim); cursor: pointer; }
   .days button.on { background: rgba(255, 255, 255, .16); }
   .days button b { display: block; font-size: 14px; font-variant-numeric: tabular-nums; }
   .days button small { display: block; font-size: 11px; }
