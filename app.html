@@ -123,12 +123,13 @@
   .carousel.fit:not(.events) .slide > details.fold:last-child { margin-bottom: 12px; }
   .carousel.fit:not(.events) .slide > details.fold:last-child > .body > :last-child { margin-bottom: 0; }
   /* 다가오는 이벤트는 발표일마다 한 장이고, 위 날짜 띠에서 보고 있는 날짜만 흰색이고, 나머지 날짜는 넘기기 아래 점과 같은 색이다. 보고 있는 날짜가
-     날짜 띠 맨 왼쪽에 오도록 띠를 옆으로 밀고, 그 앞 날짜는 왼쪽 밖으로 숨긴다. */
+     날짜 띠 맨 왼쪽에 오도록 띠를 옆으로 밀고, 그 앞 날짜는 왼쪽 밖으로 숨긴다. 날짜 칸은 같은 폭이고, 칸 사이 간격은 날짜 띠의 첫 날짜 글자가
+     문단의 왼쪽 끝에, 띠 안의 마지막 날짜 글자가 문단의 오른쪽 끝에 오도록 정한다. */
   .days { position: relative; overflow: hidden; }
-  .days .strip { display: flex; gap: 6px; width: max-content; transition: transform .2s ease; }
-  .days button { appearance: none; border: 0; background: none; font: inherit; flex: 0 0 auto; min-width: 50px;
-                 padding: 2px 4px; text-align: center; line-height: 1.25; color: var(--line); cursor: pointer; }
-  .days button b { display: block; font-size: 14px; }
+  .days .strip { display: flex; width: max-content; transition: transform .2s ease; }
+  .days button { appearance: none; border: 0; background: none; font: inherit; flex: 0 0 auto;
+                 padding: 2px 0; text-align: center; line-height: 1.25; color: var(--line); cursor: pointer; }
+  .days button b { display: block; width: fit-content; margin: 0 auto; font-size: 14px; font-variant-numeric: tabular-nums; }
   .days button small { display: block; font-size: 11px; }
   .days button.on { color: #fff; }
   /* 날짜 위 별은 그날 이벤트마다 하나씩, 중요도 높음·보통은 지수색, 낮음은 회색으로 찍는다. 5개를 넘으면 색마다 별 하나와 개수를 적는다.
@@ -209,32 +210,43 @@
     const step = () => (slides.length > 1 ? track.children[1].offsetLeft - track.children[0].offsetLeft : 1);
     const current = () => Math.min(slides.length - 1, Math.max(0, Math.round(track.scrollLeft / step())));
     const fitHeight = () => { if (fit) track.style.height = `${track.children[current()].offsetHeight}px`; };
-    // 손가락을 뗀 뒤 넘기기가 두 장 사이에서 멈추면, 손을 댄 장에서 폭의 1/5 넘게 밀었을 때 민 방향의 다음 장으로, 아니면 손을 댄 장으로 맞춘다.
-    let timer, shown = start, settled = start, from = null, touching = false;
-    track.addEventListener("touchstart", () => { touching = true; from = current(); }, { passive: true });
-    track.addEventListener("touchend", () => { touching = false; }, { passive: true });
+    // 손가락을 뗀 뒤 넘기기가 멈추면, 손을 댄 장에서 민 방향으로 지나간 장의 폭 1/5을 넘긴 만큼 장을 넘기고, 1/5을 넘기지 못하면
+    // 손을 댄 장으로 맞춘다. 맞추는 동안 손을 다시 대면 맞추기를 그 위치에서 멈추고 새로 민 거리로 다시 정한다.
+    let timer, shown = start, settled = start, from = null, touching = false, aligning = false;
+    track.addEventListener("touchstart", () => {
+      touching = true;
+      if (aligning) { track.scrollTo({ left: track.scrollLeft, behavior: "instant" }); aligning = false; }
+      from = current();
+    }, { passive: true });
+    const settle = () => {
+      if (touching) return;
+      const goal = target();
+      if (Math.abs(track.scrollLeft - goal * step()) > 1) {
+        from = goal;
+        aligning = true;
+        track.scrollTo({ left: goal * step(), behavior: "smooth" });
+        return;
+      }
+      from = null;
+      aligning = false;
+      fitHeight();
+      if (moved && current() !== settled) moved((settled = current()));
+    };
+    const wait = () => { clearTimeout(timer); timer = setTimeout(settle, 150); };
+    const release = () => { touching = false; wait(); };
+    track.addEventListener("touchend", release, { passive: true });
+    track.addEventListener("touchcancel", release, { passive: true });
     const target = () => {
-      const delta = track.scrollLeft / step() - (from ?? current());
-      if (from === null || Math.abs(delta) < 0.2) return from ?? current();
-      return Math.min(slides.length - 1, Math.max(0, from + Math.sign(delta)));
+      const at = track.scrollLeft / step(), base = from ?? current();
+      if (Math.abs(at - base) < 0.2) return base;
+      const goal = at > base ? Math.ceil(at - 0.2) : Math.floor(at + 0.2);
+      return Math.min(slides.length - 1, Math.max(0, goal));
     };
     track.addEventListener("scroll", () => {
       const now = current();
       if (dots) [...dots.children].forEach((dot, i) => dot.classList.toggle("on", i === now));
       if (change && now !== shown) change((shown = now));
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        if (touching) return;
-        const goal = target();
-        if (Math.abs(track.scrollLeft - goal * step()) > 1) {
-          from = goal;
-          track.scrollTo({ left: goal * step(), behavior: "smooth" });
-          return;
-        }
-        from = null;
-        fitHeight();
-        if (moved && current() !== settled) moved((settled = current()));
-      }, 150);
+      wait();
     }, { passive: true });
     // 화면 폭이 바뀌거나 슬라이드 안의 표식·그림이 나중에 자리를 잡아 슬라이드 높이가 바뀌어도 묶음 높이를 다시 맞춘다.
     if (fit) {
@@ -590,13 +602,31 @@
       button.innerHTML = `${marks(groups.get(day))}<b>${m}/${d}</b><small>${day === date ? "오늘" : "일월화수목금토"[new Date(day).getUTCDay()]}</small>`;
       strip.appendChild(button);
     });
+    let seen = days.indexOf(date), half = 0;
     const change = (i) => {
       [...strip.children].forEach((button, j) => button.classList.toggle("on", i === j));
-      strip.style.transform = `translateX(${-strip.children[i].offsetLeft}px)`;
+      strip.style.transform = `translateX(${-strip.children[(seen = i)].offsetLeft - half}px)`;
+    };
+    // 날짜 칸의 폭은 가장 넓은 날짜 글자에 칸 사이 간격을 더한 값이고(별은 칸보다 넓어도 칸 가운데에 둔다), 띠는 간격의 절반만큼 더 왼쪽으로 밀어
+    // 보고 있는 날짜의 글자를 문단 왼쪽 끝에 맞춘다.
+    // 간격은 16px 이상이 되도록 띠에 들어갈 날짜 수를 고른 뒤(날짜가 그보다 적으면 모든 날짜), 남는 폭을 날짜 사이에 나눈다.
+    const fill = () => {
+      const buttons = [...strip.children];
+      buttons.forEach((button) => (button.style.width = ""));
+      const width = box.clientWidth, text = Math.max(...buttons.map((button) => button.querySelector("b").getBoundingClientRect().width));
+      const count = Math.max(1, Math.min(buttons.length, Math.floor((width + 16) / (text + 16))));
+      const gap = count > 1 ? (width - count * text) / (count - 1) : 0;
+      half = gap / 2;
+      buttons.forEach((button) => (button.style.width = `${text + gap}px`));
+      strip.style.transition = "none";
+      change(seen);
+      strip.getBoundingClientRect();
+      strip.style.transition = "";
     };
     head.after(bar);
     const box = slider(days.map((day) => groups.get(day)), bar, { fit: true, start: days.indexOf(date), change, name: "events", moved: () => toTop(head) });
     box.prepend(bar);
+    new ResizeObserver(fill).observe(box);
     wrap([...box.querySelectorAll(".slide > h3")], 3);
     // 날짜마다 첫 이벤트는 펼쳐 두고, 이벤트 하나를 펼치면 같은 날짜의 다른 이벤트는 접는다.
     box.querySelectorAll(".slide > details.fold:first-of-type").forEach((fold) => (fold.open = true));
