@@ -812,7 +812,7 @@
   // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 보던 위치에서 절 제목 글자가 화면 위에서 108px 아래에 올 때까지
   // 화면을 부드럽게 움직인다. 제목 위의 띠는 화면 위쪽에 보인다. 문서 끝이 모자라 제목이 그 높이까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
   // 화면을 움직일 때마다, 절 제목 글자가 바로가기로 옮겼을 때의 높이(화면 위에서 108px)를 넘은 절 가운데 마지막 절의 단추를 굵게 쓴다.
-  // 문서 끝까지 내려 마지막 절 제목이 그 높이에 닿지 못하면 마지막 절의 단추를 굵게 쓴다.
+  // 첫 절 제목이 그 높이에 닿기 전에는 첫 절의 단추를, 문서 끝까지 내려 마지막 절 제목이 그 높이에 닿지 못하면 마지막 절의 단추를 굵게 쓴다.
   function jump(pairs) {
     const nav = document.createElement("nav");
     nav.className = "jump";
@@ -825,7 +825,7 @@
     const mark = () => {
       pending = false;
       const end = scrollY + innerHeight >= document.documentElement.scrollHeight - 2;
-      let on = -1;
+      let on = 0;
       marks.forEach(([head], i) => { if (textTop(head) <= gap + 1) on = i; });
       if (end && scrollY > 0) on = marks.length - 1;
       marks.forEach(([, button], i) => button.classList.toggle("on", i === on));
