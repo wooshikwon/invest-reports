@@ -62,15 +62,14 @@
   .status { color: var(--hint); text-align: center; padding: 48px 0; }
   /* 요약 소제목과 이슈 소제목 앞 말머리는 이벤트 발표 시각과 같은 지수색 글자로 소제목 위 한 줄에 둔다.
      방향 표식은 제목 끝 오른쪽에 색을 채운 스티커로 그리고, 상승 요인과 하락 요인은 머리말 등락률의 상승·하락 색으로 칠한다.
-     이벤트 중요도는 제목 끝 오른쪽 위에 위첨자처럼 작은 글자로 붙여, 높음은 빨간 "중요", 보통은 주황 "관심"으로 쓰고 낮음은 표시하지 않는다. */
+     이벤트 중요도가 높음이나 보통이면 제목 끝 오른쪽 위에 위첨자처럼 지수색 점을 붙이고, 낮음이면 붙이지 않는다. */
   mark { display: block; background: none; color: var(--index); font-size: 13px; font-weight: 600; margin-bottom: 2px; }
   h3 code { font-family: inherit; font-size: 10.5px; font-weight: 700; color: #8b95a1; background: none; border: 1px solid;
             border-radius: 999px; padding: 0.5px 7px; margin-right: 5px; white-space: nowrap; }
   h3 .tags { display: inline; margin-left: 8px; vertical-align: 2px; line-height: 1; }
   h3:has(> .tags) { margin-bottom: 18px; }
-  h3 code[class^="lv-"] { padding: 0; margin: 0 0 0 2px; border: 0; font-size: 9px; line-height: 1; vertical-align: text-top; }
-  h3 code.lv-high { color: #d1495b; }
-  h3 code.lv-mid { color: #d98e04; }
+  h3 code[class^="lv-"] { display: inline-block; width: 6px; height: 6px; padding: 0; margin: 3px 0 0 3px; border: 0;
+                          border-radius: 50%; font-size: 0; vertical-align: text-top; background: var(--index); }
   h3 code.tone-up, h3 code.tone-down, h3 code.tone-both { color: #fff; border: 0; padding: 1.5px 8px; }
   h3 code.tone-up { background: #ff5c5c; }
   h3 code.tone-down { background: #5b9bff; }
@@ -132,8 +131,7 @@
                    font-style: normal; font-size: 8px; line-height: 1; color: var(--hint); }
   .days button i span { width: 4px; height: 4px; border-radius: 50%; }
   .days button i em { font-style: normal; margin: 0 2px 0 -1px; }
-  .days button i .lv-high { background: #d1495b; }
-  .days button i .lv-mid { background: #d98e04; }
+  .days button i .lv-key { background: var(--index); }
   .days button i .lv-low { background: #8b95a1; }
   h2.events, h2.issues { scroll-margin-top: 12px; }
   .carousel.events .slide { display: flow-root; }
@@ -516,10 +514,11 @@
     if (!groups.get(date).length) {
       groups.get(date).push(Object.assign(document.createElement("div"), { className: "empty", textContent: "오늘 예정된 이벤트가 없습니다" }));
     }
-    // 날짜 위 점: `build.py`가 소제목에 단 `data-level`을 중요도 순서로 센다.
+    // 날짜 위 점: `build.py`가 소제목에 단 `data-level`을 세어, 중요도 높음과 보통은 지수색 점, 낮음은 회색 점으로 그린다.
     const marks = (nodes) => {
-      const levels = nodes.filter((node) => node.tagName === "H3" && node.dataset.level).map((node) => node.dataset.level);
-      const order = ["high", "mid", "low"].filter((level) => levels.includes(level));
+      const levels = nodes.filter((node) => node.tagName === "H3" && node.dataset.level)
+        .map((node) => (node.dataset.level === "low" ? "low" : "key"));
+      const order = ["key", "low"].filter((level) => levels.includes(level));
       const dot = (level) => `<span class="lv-${level}"></span>`;
       const inner = levels.length > 5
         ? order.map((level) => dot(level) + `<em>${levels.filter((l) => l === level).length}</em>`).join("")
@@ -605,10 +604,9 @@
         if (!codes.length) return;
         const levels = codes.filter((code) => /^lv-/.test(code.className));
         // 주요 이슈 해설은 중요도가 높은 이슈만 다루므로 중요도를 표시하지 않는다. 이 시점의 묶음은 주요 이슈 해설뿐이다.
-        const marks = { "lv-high": "중요", "lv-mid": "관심" };
         levels.forEach((code) => {
-          if (h3.closest(".carousel") || !marks[code.className]) code.remove();
-          else code.textContent = marks[code.className];
+          if (h3.closest(".carousel") || code.className === "lv-low") code.remove();
+          else code.title = code.textContent.trim();
         });
         const tags = document.createElement("span");
         tags.className = "tags";
