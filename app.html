@@ -631,6 +631,19 @@
     const box = slider(days.map((day) => groups.get(day)), bar, { fit: true, start: days.indexOf(date), change, name: "events", area: head });
     box.prepend(bar);
     new ResizeObserver(fill).observe(box);
+    // 앞 날짜가 있으면 날짜 띠가 처음 화면에 다 들어올 때 띠를 오른쪽으로 잠깐 밀었다가 돌려, 앞 날짜 상자를 보여 준다.
+    const peek = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      peek.disconnect();
+      if (!seen || motion.matches) return;
+      const base = -strip.children[seen].offsetLeft;
+      strip.animate([
+        { transform: `translateX(${base}px)` },
+        { transform: `translateX(${base + 40}px)`, offset: 0.4 },
+        { transform: `translateX(${base}px)` },
+      ], { duration: 900, delay: 300, easing: "ease-in-out" });
+    }, { threshold: 1 });
+    peek.observe(bar);
     wrap([...box.querySelectorAll(".slide > h3")], 3);
     // 지수색 별이 붙은 이벤트(중요도 높음·보통)는 펼쳐 두고, 나머지 이벤트는 접어 둔다.
     box.querySelectorAll(".slide > details.fold").forEach((fold) => {
