@@ -12,10 +12,11 @@
     color-scheme: dark;
     --bg: #171719;
     --text: #e7edf3;
-    --hint: #7d8b99;
+    --hint: #AEB6BF;
     --accent: #EAEAEA;
     --index: var(--hint);
-    --fold: #AEB6BF;
+    /* 중요도 표식: 네 꼭짓점이 뾰족하고 변이 안쪽으로 휜 별 */
+    --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 0Q5.7 4.3 10 5Q5.7 5.7 5 10Q4.3 5.7 0 5Q4.3 4.3 5 0Z'/%3E%3C/svg%3E");
     --line: #3A3F4A;
     --soft: #111318;
   }
@@ -52,24 +53,25 @@
   th, td { text-align: left; vertical-align: top; padding: 8px 6px; border-bottom: 1px solid var(--line); }
   th { color: var(--hint); font-weight: 600; font-size: 12.5px; }
   table.events th { color: var(--index); }
-  table.events td { color: var(--accent); }
+  table.events td, table.events td.chance { color: var(--hint); }
   table.events td.branch { width: 34%; font-weight: 600; }
   table.events td.chance { width: 3.2em; text-align: right; font-weight: 700; color: var(--accent); white-space: nowrap; }
   table.events td.chance small.delta { display: block; font-size: 0.68em; font-weight: 600; line-height: 1.2; margin-top: 1px; }
   table.events td.chance small.up { color: #ff5c5c; }
   table.events td.chance small.down { color: #5b9bff; }
-  table.events td.chance small.flat { color: #9aa0a6; font-weight: 500; }
+  table.events td.chance small.flat { color: var(--hint); font-weight: 500; }
   .status { color: var(--hint); text-align: center; padding: 48px 0; }
   /* 요약 소제목과 이슈 소제목 앞 말머리는 이벤트 발표 시각과 같은 지수색 글자로 소제목 위 한 줄에 둔다.
      방향 표식은 제목 끝 오른쪽에 색을 채운 스티커로 그리고, 상승 요인과 하락 요인은 머리말 등락률의 상승·하락 색으로 칠한다.
-     이벤트 중요도가 높음이나 보통이면 제목 끝 오른쪽 위에 위첨자처럼 지수색 점을 붙이고, 낮음이면 붙이지 않는다. */
+     이벤트 중요도가 높음이나 보통이면 제목 끝 오른쪽 위에 위첨자처럼 지수색 별을 붙이고, 낮음이면 붙이지 않는다. */
   mark { display: block; background: none; color: var(--index); font-size: 13px; font-weight: 600; margin-bottom: 2px; }
   h3 code { font-family: inherit; font-size: 10.5px; font-weight: 700; color: #8b95a1; background: none; border: 1px solid;
             border-radius: 999px; padding: 0.5px 7px; margin-right: 5px; white-space: nowrap; }
   h3 .tags { display: inline; margin-left: 8px; vertical-align: 2px; line-height: 1; }
   h3:has(> .tags) { margin-bottom: 18px; }
-  h3 code[class^="lv-"] { display: inline-block; width: 6px; height: 6px; padding: 0; margin: 3px 0 0 3px; border: 0;
-                          border-radius: 50%; font-size: 0; vertical-align: text-top; background: var(--index); }
+  h3 code[class^="lv-"] { display: inline-block; width: 6px; height: 6px; padding: 0; margin: 3px 0 0 3px; border: 0; border-radius: 0;
+                          font-size: 0; vertical-align: text-top; background: var(--index); -webkit-mask: var(--star) center / contain no-repeat;
+                          mask: var(--star) center / contain no-repeat; }
   h3 code.tone-up, h3 code.tone-down, h3 code.tone-both { color: #fff; border: 0; padding: 1.5px 8px; }
   h3 code.tone-up { background: #ff5c5c; }
   h3 code.tone-down { background: #5b9bff; }
@@ -101,17 +103,17 @@
   /* 절 제목 아래 첫 요소는 절 제목의 아래 여백만큼 띄우고, 절 안의 항목 사이는 30px씩 띄운다.
      1개월 지수 방향 예측 절의 세 소제목 사이는 이슈 문단 사이만큼 띄운다. */
   /* 1개월 지수 방향 예측 절의 세 문단, 주요 이슈 해설의 이슈마다 세 문단, 다가오는 이벤트의 이벤트마다 표는 소제목만 보이고,
-     소제목을 누르면 문단이나 표가 펼쳐진다. 펼친 소제목과 문단 사이는 표식이 없는 소제목의 아래 여백만큼 띄우고, 펼친 문단은 `--fold` 색으로 쓰고,
+     소제목을 누르면 문단이나 표가 펼쳐진다. 펼친 소제목과 문단 사이는 표식이 없는 소제목의 아래 여백만큼 띄우고, 펼친 문단은 `--hint` 색으로 쓰고,
      펼친 이벤트 표는 열 제목을 지수색, 칸 글자를 소제목과 같은 색으로 쓴다. */
   /* 주요 이슈 해설의 검토했지만 비중을 낮춘 이슈는 접지 않고, 굵은 이슈 이름은 소제목 색, 설명은 펼친 문단 색으로 쓴다. */
-  .carousel.fit:not(.events) .slide > ul { color: var(--fold); }
+  .carousel.fit:not(.events) .slide > ul { color: var(--hint); }
   details.fold > summary { list-style: none; cursor: pointer; }
   details.fold > summary::-webkit-details-marker { display: none; }
   details.fold { margin-top: 15.5px; }
   .carousel + details.fold { margin-top: 30px; }
   details.fold > summary :is(h3, h4) { margin: 0; }
   details.fold[open] > summary :is(h3, h4) { margin-bottom: 6px; }
-  details.fold > :not(summary) { margin-top: 0; color: var(--fold); }
+  details.fold > :not(summary) { margin-top: 0; color: var(--hint); }
   /* 주요 이슈 해설과 다가오는 이벤트는 항목 하나씩 넘기고, 넘기기가 멈추면 높이를 그 항목에 맞춘다. */
   .carousel.fit .track { align-items: flex-start; transition: height .2s ease; }
   .carousel.fit .slide h3:first-child { margin-top: 0; }
@@ -126,13 +128,14 @@
   .days button b { display: block; font-size: 14px; }
   .days button small { display: block; font-size: 11px; }
   .days button.on { color: #fff; }
-  /* 날짜 위 점은 그날 이벤트의 중요도를 높음·보통·낮음 순서로 하나씩 찍는다. 5개를 넘으면 중요도마다 점 하나와 개수를 적는다. */
+  /* 날짜 위 별은 그날 이벤트마다 하나씩, 중요도 높음·보통은 지수색, 낮음은 회색으로 찍는다. 5개를 넘으면 색마다 별 하나와 개수를 적는다.
+     제목 끝 별과 크기가 같다. */
   .days button i { display: flex; justify-content: center; align-items: center; gap: 2px; height: 8px; margin-bottom: 2px;
                    font-style: normal; font-size: 8px; line-height: 1; color: var(--hint); }
-  .days button i span { width: 4px; height: 4px; border-radius: 50%; }
+  .days button i span { width: 6px; height: 6px; -webkit-mask: var(--star) center / contain no-repeat; mask: var(--star) center / contain no-repeat; }
   .days button i em { font-style: normal; margin: 0 2px 0 -1px; }
   .days button i .lv-key { background: var(--index); }
-  .days button i .lv-low { background: #8b95a1; }
+  .days button i .lv-low { background: var(--hint); }
   h2.events, h2.issues { scroll-margin-top: 12px; }
   .carousel.events .slide { display: flow-root; }
   .carousel.events details.fold + details.fold { margin-top: 30px; }
@@ -514,7 +517,7 @@
     if (!groups.get(date).length) {
       groups.get(date).push(Object.assign(document.createElement("div"), { className: "empty", textContent: "오늘 예정된 이벤트가 없습니다" }));
     }
-    // 날짜 위 점: `build.py`가 소제목에 단 `data-level`을 세어, 중요도 높음과 보통은 지수색 점, 낮음은 회색 점으로 그린다.
+    // 날짜 위 별: `build.py`가 소제목에 단 `data-level`을 세어, 중요도 높음과 보통은 지수색 별, 낮음은 회색 별로 그린다.
     const marks = (nodes) => {
       const levels = nodes.filter((node) => node.tagName === "H3" && node.dataset.level)
         .map((node) => (node.dataset.level === "low" ? "low" : "key"));
