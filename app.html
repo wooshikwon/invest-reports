@@ -15,6 +15,7 @@
     --hint: #7d8b99;
     --accent: #EAEAEA;
     --index: var(--hint);
+    --fold: #A4AEB8;
     --line: #3A3F4A;
     --soft: #111318;
   }
@@ -50,6 +51,8 @@
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.55; margin: 8px 0 16px; }
   th, td { text-align: left; vertical-align: top; padding: 8px 6px; border-bottom: 1px solid var(--line); }
   th { color: var(--hint); font-weight: 600; font-size: 12.5px; }
+  table.events th { color: var(--index); }
+  table.events td { color: var(--accent); }
   table.events td.branch { width: 34%; font-weight: 600; }
   table.events td.chance { width: 3.2em; text-align: right; font-weight: 700; color: var(--accent); white-space: nowrap; }
   table.events td.chance small.delta { display: block; font-size: 0.68em; font-weight: 600; line-height: 1.2; margin-top: 1px; }
@@ -97,14 +100,15 @@
   /* 절 제목 아래 첫 요소는 절 제목의 아래 여백만큼 띄우고, 절 안의 항목 사이는 30px씩 띄운다.
      1개월 지수 방향 예측 절의 세 소제목 사이는 이슈 문단 사이만큼 띄운다. */
   /* 1개월 지수 방향 예측 절의 세 문단, 주요 이슈 해설의 이슈마다 세 문단, 다가오는 이벤트의 이벤트마다 표는 소제목만 보이고,
-     소제목을 누르면 문단이나 표가 펼쳐진다. 펼친 소제목과 문단 사이는 표식이 없는 소제목의 아래 여백만큼 띄우고, 펼친 글자는 `--hint` 색으로 쓴다. */
+     소제목을 누르면 문단이나 표가 펼쳐진다. 펼친 소제목과 문단 사이는 표식이 없는 소제목의 아래 여백만큼 띄우고, 펼친 문단은 `--fold` 색으로 쓰고,
+     펼친 이벤트 표는 열 제목을 지수색, 칸 글자를 소제목과 같은 색으로 쓴다. */
   details.fold > summary { list-style: none; cursor: pointer; }
   details.fold > summary::-webkit-details-marker { display: none; }
   details.fold { margin-top: 15.5px; }
   .carousel + details.fold { margin-top: 30px; }
   details.fold > summary :is(h3, h4) { margin: 0; }
   details.fold[open] > summary :is(h3, h4) { margin-bottom: 6px; }
-  details.fold > :not(summary) { margin-top: 0; color: var(--hint); }
+  details.fold > :not(summary) { margin-top: 0; color: var(--fold); }
   /* 주요 이슈 해설과 다가오는 이벤트는 항목 하나씩 넘기고, 넘기기가 멈추면 높이를 그 항목에 맞춘다. */
   .carousel.fit .track { align-items: flex-start; transition: height .2s ease; }
   .carousel.fit .slide h3:first-child { margin-top: 0; }
