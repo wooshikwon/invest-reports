@@ -28,7 +28,6 @@
   }
   /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
   main { max-width: 720px; margin: 0 auto; padding: 16px 16px calc(40px + var(--offscreen, 0px)); }
-  .carousel + header { margin-top: 30px; }
   header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 4px 0 2px; color: var(--accent); }
   header p { margin: 0; font-size: 12.5px; color: var(--hint); }
   /* 날짜 줄 아래 등락률 줄은 같은 회색 글씨로 쓰고, 제목과 날짜 줄 사이만큼 띄운다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다. */
@@ -253,7 +252,7 @@
     if (Math.abs(gap) > 2) head.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  // 리포트 제목 위에 6M + Predictions, Montecarlo, Outlook 순서로 넘기는 묶음을 둔다.
+  // 요약 절 제목 위에 6M + Predictions, Montecarlo, Outlook 순서로 넘기는 묶음을 둔다.
   // Montecarlo는 원래 다가오는 이벤트 절에 있으므로 그 자리에서는 뺀다. 6M + Predictions가 없는 리포트는 두 장을 넘긴다.
   function figures(date) {
     const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
@@ -261,8 +260,9 @@
     if (!chart || !tree) return;
     const shown = [predict, tree, chart].filter(Boolean);
     shown.forEach((img) => (img.closest("p") || img).remove());
-    const box = slider(shown.map((img) => [img]), report.querySelector("h2"));
-    document.querySelector("header").before(box);
+    const head = report.querySelector("h2");
+    const box = slider(shown.map((img) => [img]), head);
+    head.before(box);
     rewind(box, date, { predict, tree, chart });
   }
 
