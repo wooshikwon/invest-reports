@@ -329,15 +329,11 @@
         g.textBaseline = "middle";
         const end = xs[xs.length - 1] + 5 * pt;
         ["q25", "q50", "q75"].forEach((q) => g.fillText(`$${Math.round(p[q][p[q].length - 1]).toLocaleString("en-US")}`, end, py(p[q][p[q].length - 1])));
-        // 종가 선 끝에는 그 세션 날짜를, 점선 끝 출발점에는 리포트 날짜(오늘이면 `TODAY`)를 적는다.
-        g.textBaseline = "bottom";
-        g.fillStyle = base.price;
-        g.textAlign = "right";
-        g.fillText(label(p.close_day), px(p.x0) - 2 * pt, py(base.history[p.x0]) - 8 * pt);
         g.fillStyle = "#E5E7EB";
         g.font = `bold ${15.3 * pt}px ${font}`;
-        g.textAlign = "left";
-        g.fillText(frame.day === date ? "TODAY" : label(frame.day), xs[0] + 2 * pt, py(p.base) - 8 * pt);
+        g.textAlign = "center";
+        g.textBaseline = "bottom";
+        g.fillText(frame.day === date ? "TODAY" : label(frame.day), xs[0], py(p.base) - 8 * pt);
       }, width, ratio);
       const tree = (c, frame, image, width, ratio) => paint(c, image, frame.tree, (g, px, py, clipped) => {
         const points = frame.tree.actual.slice(0, last - frame.predict.x0 + 1).map((v, k) => [px(k), py(v)]);
