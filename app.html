@@ -825,8 +825,9 @@
   // 화면을 부드럽게 움직인다. 제목 위의 띠는 화면 위쪽에 보인다. 문서 끝이 모자라 제목이 그 높이까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
   // 화면을 움직일 때마다, 절 제목 글자가 바로가기로 옮겼을 때의 높이를 넘은 절 가운데 마지막 절의 단추를 굵게 쓰고 레버를 그 단추 뒤로 옮긴다.
   // 문서 끝까지 내려 마지막 절 제목이 그 높이에 닿지 못하면 마지막 절의 단추를 굵게 쓴다.
-  // 바로가기로 화면이 움직이는 동안에는 지나가는 절의 단추 대신 고른 단추를 굵게 쓴다. 화면이 멈추거나 1.5초가 지나면 다시 읽는 절을 따른다.
+  // 바로가기로 화면이 움직이는 동안에는 지나가는 절의 단추 대신 고른 단추를 굵게 쓴다. 고른 절에 닿거나, 알약 밖을 누르거나 휠을 굴리거나, 3초가 지나면 다시 읽는 절을 따른다.
   // 알약 위에서 누른 채 6px 넘게 움직이면 레버가 손가락을 따라 움직이고, 레버 가운데에서 가장 가까운 단추를 굵게 쓴다. 손을 떼면 그 단추를 누른 것과 같이 그 절로 간다.
+  // 끈 뒤 손을 뗄 때 따라오는 단추 누름은 다음에 알약을 누를 때까지 무시한다.
   function jump(pairs) {
     const nav = document.createElement("nav");
     nav.className = "jump";
@@ -860,7 +861,8 @@
     };
     const settle = () => { held = null; mark(); };
     addEventListener("scroll", () => { if (!pending) { pending = true; requestAnimationFrame(mark); } }, { passive: true });
-    addEventListener("scrollend", settle);
+    addEventListener("wheel", settle, { passive: true });
+    addEventListener("touchstart", (event) => { if (!nav.contains(event.target)) settle(); }, { passive: true });
     addEventListener("resize", mark);
     const go = (i) => {
       const head = marks[i][0];
@@ -869,7 +871,7 @@
       if (lack > 0) report.style.paddingBottom = `${(parseFloat(report.style.paddingBottom) || 0) + lack}px`;
       held = i;
       clearTimeout(release);
-      release = setTimeout(settle, 1500);
+      release = setTimeout(settle, 3000);
       show(i);
       scrollTo({ top, behavior: "smooth" });
     };
@@ -881,7 +883,7 @@
       button.dataset.name = name;
       const i = marks.length;
       marks.push([head, button]);
-      button.addEventListener("click", (event) => { if (nav.dataset.dragged) { delete nav.dataset.dragged; event.preventDefault(); return; } go(i); });
+      button.addEventListener("click", () => { if (!nav.dataset.dragged) go(i); });
       nav.append(button);
     });
     const nearest = (y) => {
@@ -893,6 +895,7 @@
       return best;
     };
     nav.addEventListener("pointerdown", (event) => {
+      delete nav.dataset.dragged;
       drag = { y: event.clientY, top: nav.getBoundingClientRect().top + nav.clientTop, moved: false, id: event.pointerId };
     });
     nav.addEventListener("pointermove", (event) => {
@@ -913,7 +916,6 @@
       drag = null;
       if (!moved) return;
       nav.dataset.dragged = "1";
-      setTimeout(() => delete nav.dataset.dragged, 0);
       lever.classList.remove("drag");
       const rect = lever.getBoundingClientRect();
       go(nearest(rect.top - nav.getBoundingClientRect().top - nav.clientTop + rect.height / 2));
