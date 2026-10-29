@@ -119,12 +119,12 @@
   .carousel.fit .slide h3:first-child { margin-top: 0; }
   /* 이슈의 마지막 소제목을 접어도 아래 점과의 간격은 펼친 마지막 문단의 아래 여백만큼 띄운다. */
   .carousel.fit:not(.events) .slide > details.fold:last-child:not([open]) { margin-bottom: 12px; }
-  /* 다가오는 이벤트는 발표일마다 한 장이고, 위 날짜 띠에서 보고 있는 날짜만 흰색이다. 날짜 띠가 화면 폭을 넘으면
+  /* 다가오는 이벤트는 발표일마다 한 장이고, 위 날짜 띠에서 보고 있는 날짜만 흰색이고, 나머지 날짜는 넘기기 아래 점과 같은 색이다. 날짜 띠가 화면 폭을 넘으면
      보고 있는 날짜가 화면 안에 들어오도록 띠를 옆으로 민다. */
   .days { position: relative; overflow: hidden; }
   .days .strip { display: flex; gap: 6px; width: max-content; transition: transform .2s ease; }
   .days button { appearance: none; border: 0; background: none; font: inherit; flex: 0 0 auto; min-width: 50px;
-                 padding: 2px 4px; text-align: center; line-height: 1.25; color: var(--hint); cursor: pointer; }
+                 padding: 2px 4px; text-align: center; line-height: 1.25; color: var(--line); cursor: pointer; }
   .days button b { display: block; font-size: 14px; }
   .days button small { display: block; font-size: 11px; }
   .days button.on { color: #fff; }
