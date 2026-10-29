@@ -562,7 +562,7 @@
           const pct = (v) => v === null ? "<b>—</b>"
             : `<b class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}%</b>`;
           document.getElementById("moves").innerHTML =
-            `전날 정규장${pct(entry.moves.session)}<span class="sep"></span>장 마감 후${pct(entry.moves.after)}`;
+            `정규장${pct(entry.moves.session)}<span class="sep"></span>장 마감 후${pct(entry.moves.after)}`;
         }
       }
       const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
