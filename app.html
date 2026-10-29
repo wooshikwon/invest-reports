@@ -143,7 +143,6 @@
   .days button i em { font-style: normal; margin: 0 2px 0 -1px; }
   .days button i .lv-key { background: var(--index); }
   .days button i .lv-low { background: var(--hint); }
-  h2.events, h2.issues { scroll-margin-top: 12px; }
   .carousel.events .slide { display: flow-root; }
   .carousel.events details.fold + details.fold { margin-top: 30px; }
   .carousel.events.fit .slide > :first-child { margin-top: 30px; }
@@ -195,9 +194,8 @@
   // 슬라이드마다 노드 목록을 받아 좌우로 넘기는 묶음을 만들고 `after` 뒤에 둔다. 묶음 상자를 돌려준다.
   // `fit`이면 넘기기가 멈춘 뒤와 슬라이드 높이가 바뀐 뒤 묶음 높이를 보고 있는 슬라이드에 맞춘다. `change`가 있으면 아래 점 대신
   // 보고 있는 슬라이드가 바뀔 때마다 그 번호로 `change`를 부르고, `start`번 슬라이드부터 보여 준다.
-  // `moved`가 있으면 넘기기가 멈춘 뒤 보고 있는 슬라이드가 바뀌었을 때 그 번호로 부른다.
   // 상자의 `go(i)`는 i번 슬라이드로 넘긴다.
-  function slider(slides, after, { fit = false, start = 0, change = null, moved = null, name = "", area = null } = {}) {
+  function slider(slides, after, { fit = false, start = 0, change = null, name = "", area = null } = {}) {
     const box = document.createElement("div");
     box.className = ["carousel", fit && "fit", name].filter(Boolean).join(" ");
     box.innerHTML = change ? '<div class="track"></div>' : '<div class="track"></div><div class="dots"></div>';
@@ -215,7 +213,7 @@
     const fitHeight = () => { if (fit) track.style.height = `${track.children[current()].offsetHeight}px`; };
     // 손가락을 뗀 뒤 넘기기가 멈추면, 손을 댄 장에서 민 방향으로 지나간 장의 폭 1/5을 넘긴 만큼 장을 넘기고, 1/5을 넘기지 못하면
     // 손을 댄 장으로 맞춘다. 맞추는 동안 손을 다시 대면 맞추기를 그 위치에서 멈추고 새로 민 거리로 다시 정한다.
-    let timer, shown = start, settled = start, from = null, touching = false, aligning = false;
+    let timer, shown = start, from = null, touching = false, aligning = false;
     track.addEventListener("touchstart", () => {
       touching = true;
       if (aligning) { track.scrollTo({ left: track.scrollLeft, behavior: "instant" }); aligning = false; }
@@ -233,7 +231,6 @@
       from = null;
       aligning = false;
       fitHeight();
-      if (moved && current() !== settled) moved((settled = current()));
     };
     const wait = () => { clearTimeout(timer); timer = setTimeout(settle, 150); };
     const release = () => { touching = false; wait(); };
@@ -282,12 +279,6 @@
     if (change) change(start);
     fitHeight();
     return box;
-  }
-
-  // 절 제목을 화면 위로 옮긴다. 제목이 이미 화면 위에 있으면 화면을 움직이지 않는다.
-  function toTop(head) {
-    const gap = head.getBoundingClientRect().top - parseFloat(getComputedStyle(head).scrollMarginTop);
-    if (Math.abs(gap) > 2) head.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   // 요약의 Outlook 그림 자리에 6M + Predictions, Montecarlo, Outlook 순서로 넘기는 묶음을 둔다.
@@ -512,8 +503,7 @@
       const text = [...h3.childNodes].find((node) => node.nodeType === 3 && node.textContent.trim());
       if (text) text.textContent = text.textContent.replace(/^\s*\d+\.\s*/, "");
     });
-    const moved = () => toTop(head);
-    if (items.length > 1) slider(items, head, { fit: true, moved, name: "issues", area: head });
+    if (items.length > 1) slider(items, head, { fit: true, name: "issues", area: head });
   }
 
   // 절 안의 `###`(depth 3)이나 `####`(depth 4) 소제목마다 접기 상자를 만든다.
@@ -638,7 +628,7 @@
       strip.style.transition = "";
     };
     head.after(bar);
-    const box = slider(days.map((day) => groups.get(day)), bar, { fit: true, start: days.indexOf(date), change, name: "events", moved: () => toTop(head), area: head });
+    const box = slider(days.map((day) => groups.get(day)), bar, { fit: true, start: days.indexOf(date), change, name: "events", area: head });
     box.prepend(bar);
     new ResizeObserver(fill).observe(box);
     wrap([...box.querySelectorAll(".slide > h3")], 3);
@@ -647,19 +637,14 @@
       const level = fold.querySelector("summary h3")?.dataset.level;
       fold.open = Boolean(level) && level !== "low";
     });
-    // 이 절이 리포트 끝이라 아래 내용이 화면보다 짧으면 절 제목이 위까지 오지 못하므로, 묶음에 그만큼 최소 높이를 준다.
-    // 최소 높이가 줄면 문서가 짧아져 화면이 위로 당겨지므로, 최소 높이는 커질 때만 바꾼다. 날짜를 넘기거나 표를 접어
-    // 묶음이 짧아지기 전에 최소 높이를 맞추도록, 묶음을 누르기 시작할 때마다 다시 잰다.
+    // 이 절이 리포트 끝이라 묶음이 짧아지면 문서가 짧아져 화면이 위로 당겨지므로, 묶음은 이미 보인 높이보다 짧아지지 않게 한다.
+    // 날짜를 넘기거나 표를 접어 묶음이 짧아지기 전에 최소 높이를 맞추도록, 묶음을 누르기 시작할 때마다 다시 잰다.
     const hold = () => {
-      const rect = box.getBoundingClientRect(), after = document.documentElement.scrollHeight - (rect.bottom + scrollY);
-      const margin = parseFloat(getComputedStyle(head).scrollMarginTop);
-      const need = innerHeight - margin - (rect.top - head.getBoundingClientRect().top) - after;
-      box.style.minHeight = `${Math.max(need, parseFloat(box.style.minHeight) || 0)}px`;
+      box.style.minHeight = `${Math.max(box.getBoundingClientRect().height, parseFloat(box.style.minHeight) || 0)}px`;
     };
     box.addEventListener("pointerdown", hold, { passive: true });
     [...strip.children].forEach((button, i) => button.addEventListener("click", () => {
       hold();
-      toTop(head);
       box.go(i);
     }));
   }
