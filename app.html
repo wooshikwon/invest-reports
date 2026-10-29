@@ -38,7 +38,7 @@
   header #moves .down { color: #5b9bff; }
   header #moves .sep { margin-left: 12px; }
   header:has(#moves:not(:empty)) + #report > h2:first-child { margin-top: 36px; }
-  h2 { font-size: 17px; font-weight: 900; color: var(--hint); margin: 40px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  h2 { font-size: 15.5px; font-weight: 700; color: var(--hint); margin: 40px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
   #report > h2:first-child { margin-top: 28px; }
   h3, h4 { font-size: 15.5px; line-height: 1.5; margin: 22px 0 6px; color: var(--accent); }
   .carousel.issues .slide > h3 { font-size: 23px; line-height: 1.4; }
@@ -453,11 +453,15 @@
         items[items.length - 1].push(node);
       }
     }
-    // 번호 없이 번호 이슈 뒤에 오는 항목(검토했지만 비중을 낮춘 이슈)에는 다음 번호를 붙인다.
-    items.forEach(([h3], i) => {
-      if (i && /^\d+\.\s/.test(items[i - 1][0].textContent.trim()) && !/^\d+\.\s/.test(h3.textContent.trim())) {
-        h3.prepend(`${i + 1}. `);
-      }
+    // 이슈 제목 앞의 번호를 지운다.
+    items.forEach(([h3]) => {
+      const text = [...h3.childNodes].find((node) => node.nodeType === 3 && node.textContent.trim());
+      if (text) text.textContent = text.textContent.replace(/^\s*\d+\.\s*/, "");
+    });
+    // 이슈 번호를 동그라미 숫자(①②③)로 바꾼다.
+    items.forEach(([h3]) => {
+      const text = [...h3.childNodes].find((node) => node.nodeType === 3 && node.textContent.trim());
+      if (text) text.textContent = text.textContent.replace(/^\s*(\d+)\.\s*/, (_, n) => `${String.fromCharCode(0x245f + +n)} `);
     });
     const moved = () => toTop(head);
     if (items.length > 1) slider(items, head, { fit: true, moved, name: "issues" });
