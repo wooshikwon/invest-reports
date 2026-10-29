@@ -571,8 +571,12 @@
     const box = slider(days.map((day) => groups.get(day)), bar, { fit: true, start: days.indexOf(date), change, name: "events", moved: () => toTop(head) });
     box.prepend(bar);
     wrap([...box.querySelectorAll(".slide > h3")], 3);
-    // 날짜마다 첫 이벤트는 펼쳐 둔다.
+    // 날짜마다 첫 이벤트는 펼쳐 두고, 이벤트 하나를 펼치면 같은 날짜의 다른 이벤트는 접는다.
     box.querySelectorAll(".slide > details.fold:first-of-type").forEach((fold) => (fold.open = true));
+    box.addEventListener("toggle", ({ target }) => {
+      if (!target.open || !target.matches(".slide > details.fold")) return;
+      target.parentElement.querySelectorAll(":scope > details.fold[open]").forEach((fold) => { if (fold !== target) fold.open = false; });
+    }, true);
     // 이 절이 리포트 끝이라 아래 내용이 화면보다 짧으면 절 제목이 위까지 오지 못하므로, 묶음에 그만큼 최소 높이를 준다.
     // 최소 높이가 줄면 문서가 짧아져 화면이 위로 당겨지므로, 최소 높이는 커질 때만 바꾼다. 날짜를 넘기거나 표를 접어
     // 묶음이 짧아지기 전에 최소 높이를 맞추도록, 묶음을 누르기 시작할 때마다 다시 잰다.
