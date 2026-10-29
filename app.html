@@ -115,7 +115,7 @@
   /* 절 제목 아래 첫 요소는 절 제목의 아래 여백만큼 띄우고, 절 안의 항목 사이는 30px씩 띄운다.
      1개월 지수 방향 예측 절의 세 소제목 사이는 이슈 문단 사이만큼 띄운다. */
   /* 1개월 지수 방향 예측 절의 세 문단, 주요 이슈 해설의 이슈마다 세 문단은 소제목만 보이고, 다가오는 이벤트의 이벤트마다 표는 펼쳐 둔다.
-     소제목을 누르면 문단이나 표가 펼쳐지거나 접힌다. 펼친 소제목과 문단 사이는 표식이 없는 소제목의 아래 여백만큼 띄우고, 펼친 문단은 `--hint` 색으로 쓰고,
+     소제목을 누르면 문단이나 표가 펼쳐지거나 접히고, 펼친 문단이나 표를 눌러도 접힌다. 펼친 소제목과 문단 사이는 표식이 없는 소제목의 아래 여백만큼 띄우고, 펼친 문단은 `--hint` 색으로 쓰고,
      펼친 이벤트 표는 열 제목을 소제목 색, 칸 글자를 펼친 문단 색으로 쓴다. 펼치고 접을 때는 내용 높이가 이어서 바뀐다. */
   /* 주요 이슈 해설의 검토했지만 비중을 낮춘 이슈는 접지 않고, 굵은 이슈 이름은 소제목 색, 설명은 펼친 문단 색으로 쓴다. */
   .carousel.fit:not(.events) .slide > ul { color: var(--hint); }
@@ -624,6 +624,17 @@
       summary.addEventListener("click", (event) => {
         event.preventDefault();
         setFold(box, !(box.want ?? box.open));
+      });
+      // 펼친 내용을 누르면 접는다. 그림과 링크를 누른 경우, 누른 채 10px 넘게 움직인 경우, 글자를 고른 경우는 접지 않는다.
+      // 소제목이 화면 위로 지나가 있으면 접기 전에 소제목을 화면 위로 옮긴다.
+      let down = null;
+      body.addEventListener("pointerdown", (event) => { down = [event.clientX, event.clientY]; }, { passive: true });
+      body.addEventListener("click", (event) => {
+        const moved = down && Math.hypot(event.clientX - down[0], event.clientY - down[1]) > 10;
+        down = null;
+        if (moved || event.target.closest("img, a, button") || String(getSelection()).trim()) return;
+        if (summary.getBoundingClientRect().top < 0) summary.scrollIntoView({ block: "start", behavior: motion.matches ? "instant" : "smooth" });
+        setFold(box, false);
       });
     });
   }
