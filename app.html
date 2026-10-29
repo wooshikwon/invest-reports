@@ -62,15 +62,14 @@
   .status { color: var(--hint); text-align: center; padding: 48px 0; }
   /* 요약 소제목과 이슈 소제목 앞 말머리는 이벤트 발표 시각과 같은 회색 글자로 소제목 위 한 줄에 둔다.
      방향 표식은 제목 아래 한 줄에 색을 채운 스티커로 그리고, 제목과 표식 줄 사이는 말머리·발표 시각과 제목 사이만큼 띄운다.
-     중요도 표식은 제목 끝 오른쪽 위에 위첨자처럼 붙는 점으로 그린다. */
+     이벤트 중요도는 제목 끝 오른쪽 위에 위첨자처럼 작은 글자로 붙여, 높음은 빨간 "중요", 보통은 주황 "관심"으로 쓰고 낮음은 표시하지 않는다. */
   mark { display: block; background: none; color: var(--index); font-size: 13px; font-weight: 600; margin-bottom: 2px; }
   h3 code { font-family: inherit; font-size: 10.5px; font-weight: 700; color: #8b95a1; background: none; border: 1px solid;
             border-radius: 999px; padding: 0.5px 7px; margin-right: 5px; white-space: nowrap; }
   h3 .tags { display: block; line-height: 1; margin: 2.5px 0 14px; }
-  h3 code[class^="lv-"] { display: inline-block; width: 6px; height: 6px; padding: 0; margin: 0 0 0 3px; border: 0;
-                          border-radius: 50%; font-size: 0; vertical-align: text-top; margin-top: 3px; background: #8b95a1; }
-  h3 code.lv-high { background: #d1495b; }
-  h3 code.lv-mid { background: #d98e04; }
+  h3 code[class^="lv-"] { padding: 0; margin: 0 0 0 2px; border: 0; font-size: 9px; line-height: 1; vertical-align: text-top; }
+  h3 code.lv-high { color: #d1495b; }
+  h3 code.lv-mid { color: #d98e04; }
   h3 code.tone-up, h3 code.tone-down, h3 code.tone-both { color: #fff; border: 0; padding: 1.5px 8px; }
   h3 code.tone-up { background: #d1495b; }
   h3 code.tone-down { background: #5b9bff; }
@@ -599,18 +598,21 @@
       });
       fold("주요 이슈 해설", 4);
       section("주요 이슈 해설");
-      // 소제목의 방향 표식은 제목 아래 한 줄로 옮기고, 이벤트의 중요도 점은 제목 끝에 붙인다. 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
+      // 소제목의 방향 표식은 제목 아래 한 줄로 옮기고, 이벤트의 중요도는 제목 끝에 붙인다. 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
       report.querySelectorAll("h3").forEach((h3) => {
         const codes = [...h3.querySelectorAll("code")];
         if (!codes.length) return;
         const levels = codes.filter((code) => /^lv-/.test(code.className));
-        levels.forEach((code) => code.title = code.textContent.trim());
-        // 주요 이슈 해설은 중요도가 높은 이슈만 다루므로 중요도 점을 붙이지 않는다. 이 시점의 묶음은 주요 이슈 해설뿐이다.
-        if (h3.closest(".carousel")) levels.splice(0).forEach((code) => code.remove());
+        // 주요 이슈 해설은 중요도가 높은 이슈만 다루므로 중요도를 표시하지 않는다. 이 시점의 묶음은 주요 이슈 해설뿐이다.
+        const marks = { "lv-high": "중요", "lv-mid": "관심" };
+        levels.forEach((code) => {
+          if (h3.closest(".carousel") || !marks[code.className]) code.remove();
+          else code.textContent = marks[code.className];
+        });
         const tags = document.createElement("span");
         tags.className = "tags";
         tags.append(...codes.filter((code) => !/^lv-/.test(code.className)));
-        h3.append(...levels);
+        h3.append(...levels.filter((code) => code.isConnected));
         if (tags.childNodes.length) h3.append(tags);
         h3.normalize();
         h3.childNodes.forEach((node) => { if (node.nodeType === 3) node.textContent = node.textContent.replace(/\s+$/, ""); });
