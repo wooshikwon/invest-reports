@@ -27,6 +27,14 @@
   main { max-width: 720px; margin: 0 auto; padding: 16px 16px calc(40px + var(--offscreen, 0px)); }
   header h1 { font-size: 19px; line-height: 1.4; margin: 4px 0 2px; color: var(--accent); }
   header p { margin: 0; font-size: 12.5px; color: var(--hint); }
+  /* 날짜 줄 아래 등락률 줄은 같은 회색 글씨로 쓰고, 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다. */
+  header #moves { margin-top: 3px; }
+  header #moves:empty { display: none; }
+  header #moves b { font-weight: 700; margin-left: 4px; }
+  header #moves .up { color: #ff5c5c; }
+  header #moves .down { color: #5b9bff; }
+  header #moves .sep { margin: 0 6px; }
+  header:has(#moves:not(:empty)) + #report > h2:first-child { margin-top: 36px; }
   h2 { font-size: 17px; color: var(--accent); margin: 40px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
   #report > h2:first-child { margin-top: 28px; }
   h3 { font-size: 15.5px; line-height: 1.5; margin: 22px 0 6px; color: var(--accent); }
@@ -133,7 +141,7 @@
 </head>
 <body>
 <main>
-  <header><h1 id="title">투자 판단 리포트</h1><p id="dated"></p></header>
+  <header><h1 id="title">투자 판단 리포트</h1><p id="dated"></p><p id="moves"></p></header>
   <article id="report"><p class="status">리포트를 불러오는 중이다.</p></article>
 </main>
 <script>
@@ -550,6 +558,12 @@
         const [day, time] = entry.written.split(" ");
         const when = day === entry.date ? time : `${+day.slice(5, 7)}/${+day.slice(8)} ${time}`;
         document.getElementById("dated").textContent = `${entry.day} · ${when} 작성`;
+        if (entry.moves) {
+          const pct = (v) => `<b class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}%</b>`;
+          const day = `${entry.moves.day.slice(5, 7)}/${entry.moves.day.slice(8, 10)}`;
+          document.getElementById("moves").innerHTML =
+            `${day} 정규장${pct(entry.moves.session)}<span class="sep">·</span>장 마감 후${pct(entry.moves.after)}`;
+        }
       }
       const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
       report.innerHTML = body;

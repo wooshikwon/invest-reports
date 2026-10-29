@@ -28,6 +28,10 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 
 `r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 처음 만든 시각(`written`, 서울 시각)을 적는다. `invest-reports` 미니 앱은 제목 아래
 작은 글씨로 날짜 줄과 처음 만든 시각을 그린다. 같은 리포트를 다시 만들어도 처음 만든 시각은 그대로 둔다.
+`moves`에는 기준 가격 날짜(`day`), 그 세션 종가의 앞 세션 종가 대비 등락률(`session`, %), 기준 가격의 그 세션 종가 대비
+등락률(`after`, %)을 적는다. 두 등락률은 `path-bands.json`의 ^NDX·^NBI 환산 가격과 `reference.db` 환산 종가로 재므로
+6M + Predictions 그림의 종가 선과 기준 가격 차이와 같다. `invest-reports` 미니 앱은 날짜 줄 아래 회색 글씨로
+`MM/DD 정규장`과 `장 마감 후` 등락률을 적고 등락률만 오르면 빨강, 내리면 파랑으로 칠한다.
 
 `r/rewind-{지수}/`에는 지난 판단으로 되감는 슬라이더의 값을 쓴다. 되감기 날짜는 공개본이 있는 그 지수 리포트 가운데
 가장 늦은 날짜에서 `REWIND_DAYS`일 안이고, `system/simulation.json`의 `quantiles`와 `system/tree-axes.json`이 있는
@@ -107,6 +111,27 @@ def actual_returns(db: Path, ticker: str, days: list[str], base: float, until: s
             break
         values.append(round((closes[day] / base - 1) * 100, 3))
     return values
+
+
+def moves(vault: Path, index: str, date: str) -> dict | None:
+    """리포트 날짜 `date`의 정규장 등락률과 장 마감 뒤 등락률(%). `path-bands.json`이나 앞 세션 종가가 없으면 `None`."""
+    bands_path = vault / f"routine/invest/{date[:7]}/{date}/{index}/path-bands.json"
+    if not bands_path.is_file():
+        return None
+    bands = json.loads(bands_path.read_text(encoding="utf-8"))
+    chart = predictions_chart(vault)
+    con = sqlite3.connect(f"file:{chart.path_bands.REFERENCE_DB_PATH}?mode=ro", uri=True)
+    try:
+        closes = [close for (close,) in con.execute(
+            "SELECT close FROM market_price WHERE ticker=? AND price_date<=? ORDER BY price_date DESC LIMIT 2",
+            (chart.path_bands.SECTOR_DB_TICKERS[index], bands["price_base_date"])).fetchall()]
+    finally:
+        con.close()
+    if len(closes) < 2:
+        return None
+    close = float(bands["price_base_session_close"])
+    return {"day": bands["price_base_date"], "session": round((close / closes[1] - 1) * 100, 2) + 0.0,
+            "after": round((float(bands["price_base"]) / close - 1) * 100, 2) + 0.0}
 
 
 def rewind(index: str, vault: Path, out: Path) -> Path | None:
@@ -424,6 +449,8 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
         raise SystemExit(f"제목 끝에 날짜가 없다: {title}")
     written = entries.get(key, {}).get("written") or dt.datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d %H:%M")
     entries[key] = {"title": heading.group(1), "day": heading.group(2), "written": written, "date": date, "index": index}
+    if (move := moves(vault, index, date)):
+        entries[key]["moves"] = move
     listing.write_text(json.dumps(dict(sorted(entries.items(), reverse=True)), ensure_ascii=False, indent=1) + "\n",
                        encoding="utf-8")
     rewind(index, vault, out)

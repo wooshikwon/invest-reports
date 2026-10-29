@@ -4,139 +4,239 @@
   "day": "2026-10-29 (목)",
   "written": "2026-10-29 12:16",
   "date": "2026-10-29",
-  "index": "nasdaq"
+  "index": "nasdaq",
+  "moves": {
+   "day": "2026-10-28",
+   "session": 0.55,
+   "after": -1.18
+  }
  },
  "20261029-biotech": {
   "title": "바이오 리포트",
   "day": "2026-10-29 (목)",
   "written": "2026-10-29 12:00",
   "date": "2026-10-29",
-  "index": "biotech"
+  "index": "biotech",
+  "moves": {
+   "day": "2026-10-28",
+   "session": 1.48,
+   "after": 0.61
+  }
  },
  "20261028-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-10-28 (수)",
   "written": "2026-10-28 11:08",
   "date": "2026-10-28",
-  "index": "nasdaq"
+  "index": "nasdaq",
+  "moves": {
+   "day": "2026-10-27",
+   "session": 1.29,
+   "after": 0.14
+  }
  },
  "20261028-biotech": {
   "title": "바이오 리포트",
   "day": "2026-10-28 (수)",
   "written": "2026-10-28 11:13",
   "date": "2026-10-28",
-  "index": "biotech"
+  "index": "biotech",
+  "moves": {
+   "day": "2026-10-27",
+   "session": 1.87,
+   "after": 0.14
+  }
  },
  "20261027-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-10-27 (화)",
   "written": "2026-10-27 10:54",
   "date": "2026-10-27",
-  "index": "nasdaq"
+  "index": "nasdaq",
+  "moves": {
+   "day": "2026-10-26",
+   "session": 1.09,
+   "after": 0.35
+  }
  },
  "20261027-biotech": {
   "title": "바이오 리포트",
   "day": "2026-10-27 (화)",
   "written": "2026-10-27 11:16",
   "date": "2026-10-27",
-  "index": "biotech"
+  "index": "biotech",
+  "moves": {
+   "day": "2026-10-26",
+   "session": 0.38,
+   "after": 0.25
+  }
  },
  "20261026-nasdaq": {
   "title": "나스닥 투자 리포트",
   "day": "2026-10-26 (월)",
   "written": "2026-10-26 11:03",
   "date": "2026-10-26",
-  "index": "nasdaq"
+  "index": "nasdaq",
+  "moves": {
+   "day": "2026-10-23",
+   "session": 0.0,
+   "after": 0.07
+  }
  },
  "20261026-biotech": {
   "title": "바이오 투자 리포트",
   "day": "2026-10-26 (월)",
   "written": "2026-10-26 10:55",
   "date": "2026-10-26",
-  "index": "biotech"
+  "index": "biotech",
+  "moves": {
+   "day": "2026-10-23",
+   "session": -1.13,
+   "after": 0.0
+  }
  },
  "20261024-nasdaq": {
   "title": "나스닥 투자 리포트",
   "day": "2026-10-24 (토)",
   "written": "2026-10-24 11:10",
   "date": "2026-10-24",
-  "index": "nasdaq"
+  "index": "nasdaq",
+  "moves": {
+   "day": "2026-10-23",
+   "session": 0.0,
+   "after": 0.08
+  }
  },
  "20261024-biotech": {
   "title": "바이오 투자 리포트",
   "day": "2026-10-24 (토)",
   "written": "2026-10-24 11:10",
   "date": "2026-10-24",
-  "index": "biotech"
+  "index": "biotech",
+  "moves": {
+   "day": "2026-10-23",
+   "session": -1.13,
+   "after": 0.0
+  }
  },
  "20261023-nasdaq": {
   "title": "나스닥 투자 리포트",
   "day": "2026-10-23 (금)",
   "written": "2026-10-23 11:17",
   "date": "2026-10-23",
-  "index": "nasdaq"
+  "index": "nasdaq",
+  "moves": {
+   "day": "2026-10-22",
+   "session": -2.9,
+   "after": 0.2
+  }
  },
  "20261023-biotech": {
   "title": "바이오 투자 리포트",
   "day": "2026-10-23 (금)",
   "written": "2026-10-23 11:22",
   "date": "2026-10-23",
-  "index": "biotech"
+  "index": "biotech",
+  "moves": {
+   "day": "2026-10-22",
+   "session": -0.75,
+   "after": -0.02
+  }
  },
  "20261022-nasdaq": {
   "title": "나스닥 투자 리포트",
   "day": "2026-10-22 (목)",
   "written": "2026-10-22 14:57",
   "date": "2026-10-22",
-  "index": "nasdaq"
+  "index": "nasdaq",
+  "moves": {
+   "day": "2026-10-21",
+   "session": 1.13,
+   "after": -1.79
+  }
  },
  "20261022-biotech": {
   "title": "바이오 투자 리포트",
   "day": "2026-10-22 (목)",
   "written": "2026-10-22 15:02",
   "date": "2026-10-22",
-  "index": "biotech"
+  "index": "biotech",
+  "moves": {
+   "day": "2026-10-21",
+   "session": 0.24,
+   "after": -0.37
+  }
  },
  "20261021-nasdaq": {
   "title": "나스닥 투자 리포트",
   "day": "2026-10-21 (수)",
   "written": "2026-10-21 11:08",
   "date": "2026-10-21",
-  "index": "nasdaq"
+  "index": "nasdaq",
+  "moves": {
+   "day": "2026-10-20",
+   "session": -0.13,
+   "after": 0.0
+  }
  },
  "20261021-biotech": {
   "title": "바이오 투자 리포트",
   "day": "2026-10-21 (수)",
   "written": "2026-10-21 11:01",
   "date": "2026-10-21",
-  "index": "biotech"
+  "index": "biotech",
+  "moves": {
+   "day": "2026-10-20",
+   "session": 3.23,
+   "after": 0.0
+  }
  },
  "20261020-nasdaq": {
   "title": "나스닥 투자 리포트",
   "day": "2026-10-20 (화)",
   "written": "2026-10-20 11:13",
   "date": "2026-10-20",
-  "index": "nasdaq"
+  "index": "nasdaq",
+  "moves": {
+   "day": "2026-10-19",
+   "session": 1.17,
+   "after": 0.0
+  }
  },
  "20261020-biotech": {
   "title": "바이오 투자 리포트",
   "day": "2026-10-20 (화)",
   "written": "2026-10-20 10:56",
   "date": "2026-10-20",
-  "index": "biotech"
+  "index": "biotech",
+  "moves": {
+   "day": "2026-10-19",
+   "session": 0.89,
+   "after": 0.0
+  }
  },
  "20261019-nasdaq": {
   "title": "나스닥 투자 리포트",
   "day": "2026-10-19 (월)",
   "written": "2026-10-19 13:38",
   "date": "2026-10-19",
-  "index": "nasdaq"
+  "index": "nasdaq",
+  "moves": {
+   "day": "2026-10-16",
+   "session": -2.5,
+   "after": -0.27
+  }
  },
  "20261019-biotech": {
   "title": "바이오 투자 리포트",
   "day": "2026-10-19 (월)",
   "written": "2026-10-19 13:38",
   "date": "2026-10-19",
-  "index": "biotech"
+  "index": "biotech",
+  "moves": {
+   "day": "2026-10-16",
+   "session": -2.56,
+   "after": -0.22
+  }
  }
 }
