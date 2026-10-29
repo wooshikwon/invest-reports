@@ -102,11 +102,11 @@
   .carousel .rewind input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--track); }
   .carousel .rewind input::-moz-range-track { height: 4px; border-radius: 2px; background: var(--track); }
   /* 레버는 떠 있는 이동 막대와 같은 유리 질감으로 그리고, 누르고 있는 동안 1.4배로 키운다. */
-  .carousel .rewind input::-webkit-slider-thumb { width: 26px; height: 14px; margin-top: -5px; border: 1px solid rgba(255, 255, 255, .28); border-radius: 999px;
-    background: linear-gradient(160deg, rgba(255, 255, 255, .30), rgba(255, 255, 255, .10)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 2px 8px rgba(0, 0, 0, .45);
+  .carousel .rewind input::-webkit-slider-thumb { width: 26px; height: 14px; margin-top: -5px; border: 1px solid rgba(255, 255, 255, .22); border-radius: 999px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .04)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 2px 8px rgba(0, 0, 0, .45);
     backdrop-filter: blur(6px) saturate(160%); transition: transform .15s ease; -webkit-appearance: none; appearance: none; }
-  .carousel .rewind input::-moz-range-thumb { width: 26px; height: 14px; box-sizing: border-box; border: 1px solid rgba(255, 255, 255, .28); border-radius: 999px;
-    background: linear-gradient(160deg, rgba(255, 255, 255, .30), rgba(255, 255, 255, .10)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 2px 8px rgba(0, 0, 0, .45);
+  .carousel .rewind input::-moz-range-thumb { width: 26px; height: 14px; box-sizing: border-box; border: 1px solid rgba(255, 255, 255, .22); border-radius: 999px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .04)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 2px 8px rgba(0, 0, 0, .45);
     transition: transform .15s ease; }
   .carousel .rewind.held input::-webkit-slider-thumb { transform: scale(1.4); }
   .carousel .rewind.held input::-moz-range-thumb { transform: scale(1.4); }
@@ -117,8 +117,8 @@
   .carousel .rewind.held span { opacity: 1; }
   /* 절 제목 아래 첫 요소는 절 제목의 아래 여백만큼 띄우고, 절 안의 항목 사이는 30px씩 띄운다.
      1개월 지수 방향 예측 절의 세 소제목 사이는 이슈 문단 사이만큼 띄운다. */
-  /* 1개월 지수 방향 예측 절의 세 문단, 주요 이슈 해설의 이슈마다 세 문단, 다가오는 이벤트의 이벤트마다 표는 소제목만 보이고,
-     소제목을 누르면 문단이나 표가 펼쳐진다. 펼친 소제목과 문단 사이는 표식이 없는 소제목의 아래 여백만큼 띄우고, 펼친 문단은 `--hint` 색으로 쓰고,
+  /* 1개월 지수 방향 예측 절의 세 문단, 주요 이슈 해설의 이슈마다 세 문단은 소제목만 보이고, 다가오는 이벤트의 이벤트마다 표는 펼쳐 둔다.
+     소제목을 누르면 문단이나 표가 펼쳐지거나 접힌다. 펼친 소제목과 문단 사이는 표식이 없는 소제목의 아래 여백만큼 띄우고, 펼친 문단은 `--hint` 색으로 쓰고,
      펼친 이벤트 표는 열 제목을 소제목 색, 칸 글자를 펼친 문단 색으로 쓴다. 펼치고 접을 때는 내용 높이가 이어서 바뀐다. */
   /* 주요 이슈 해설의 검토했지만 비중을 낮춘 이슈는 접지 않고, 굵은 이슈 이름은 소제목 색, 설명은 펼친 문단 색으로 쓴다. */
   .carousel.fit:not(.events) .slide > ul { color: var(--hint); }
@@ -170,9 +170,9 @@
   /* 화면 오른쪽 아래에 절 바로가기를 세로로 긴 반투명 유리 알약 하나에 담아 띄운다. 알약 뒤 본문은 흐리게 비친다. 누르면 그 절 제목이 화면 위쪽에 오도록 부드럽게 옮긴다. */
   nav.jump { position: fixed; z-index: 5; right: 16px; bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
              display: flex; flex-direction: column; padding: 6px; border-radius: 999px;
-             background: linear-gradient(160deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, .02));
-             border: 1px solid rgba(255, 255, 255, .16); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 8px 24px rgba(0, 0, 0, .35);
-             -webkit-backdrop-filter: blur(6px) saturate(160%); backdrop-filter: blur(6px) saturate(160%); }
+             background: linear-gradient(160deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, .01));
+             border: 1px solid rgba(255, 255, 255, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 8px 24px rgba(0, 0, 0, .35);
+             -webkit-backdrop-filter: blur(4px) saturate(160%); backdrop-filter: blur(4px) saturate(160%); }
   nav.jump button { appearance: none; border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--accent);
                     padding: 10px 8px; cursor: pointer; }
   nav.jump button:active { color: #fff; }
@@ -670,11 +670,8 @@
     box.prepend(bar);
     new ResizeObserver(fill).observe(box);
     wrap([...box.querySelectorAll(".slide > h3")], 3);
-    // 지수색 별이 붙은 이벤트(중요도 높음·보통)는 펼쳐 두고, 나머지 이벤트는 접어 둔다.
-    box.querySelectorAll(".slide > details.fold").forEach((fold) => {
-      const level = fold.querySelector("summary h3")?.dataset.level;
-      fold.open = Boolean(level) && level !== "low";
-    });
+    // 이벤트 표는 모두 펼쳐 둔다.
+    box.querySelectorAll(".slide > details.fold").forEach((fold) => (fold.open = true));
     // 이 절이 리포트 끝이라 묶음이 짧아지면 문서가 짧아져 화면이 위로 당겨지므로, 묶음은 이미 보인 높이보다 짧아지지 않게 한다.
     // 날짜를 넘기거나 표를 접어 묶음이 짧아지기 전에 최소 높이를 맞추도록, 묶음을 누르기 시작할 때마다 다시 잰다.
     const hold = () => {
