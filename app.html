@@ -207,13 +207,29 @@
     const step = () => (slides.length > 1 ? track.children[1].offsetLeft - track.children[0].offsetLeft : 1);
     const current = () => Math.min(slides.length - 1, Math.max(0, Math.round(track.scrollLeft / step())));
     const fitHeight = () => { if (fit) track.style.height = `${track.children[current()].offsetHeight}px`; };
-    let timer, shown = start, settled = start;
+    // 손가락을 뗀 뒤 넘기기가 두 장 사이에서 멈추면, 손을 댄 장에서 폭의 1/5 넘게 밀었을 때 민 방향의 다음 장으로, 아니면 손을 댄 장으로 맞춘다.
+    let timer, shown = start, settled = start, from = null, touching = false;
+    track.addEventListener("touchstart", () => { touching = true; from = current(); }, { passive: true });
+    track.addEventListener("touchend", () => { touching = false; }, { passive: true });
+    const target = () => {
+      const delta = track.scrollLeft / step() - (from ?? current());
+      if (from === null || Math.abs(delta) < 0.2) return from ?? current();
+      return Math.min(slides.length - 1, Math.max(0, from + Math.sign(delta)));
+    };
     track.addEventListener("scroll", () => {
       const now = current();
       if (dots) [...dots.children].forEach((dot, i) => dot.classList.toggle("on", i === now));
       if (change && now !== shown) change((shown = now));
       clearTimeout(timer);
       timer = setTimeout(() => {
+        if (touching) return;
+        const goal = target();
+        if (Math.abs(track.scrollLeft - goal * step()) > 1) {
+          from = goal;
+          track.scrollTo({ left: goal * step(), behavior: "smooth" });
+          return;
+        }
+        from = null;
         fitHeight();
         if (moved && current() !== settled) moved((settled = current()));
       }, 150);
