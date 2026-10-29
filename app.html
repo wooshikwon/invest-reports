@@ -231,6 +231,7 @@
   // 날짜만 고를 수 있고, 리포트 날짜가 되감기 범위에 없으면 슬라이더를 두지 않는다.
   // 6M + Predictions는 가장 늦은 리포트의 종가 바탕 위에 고른 날짜의 출발점·50% 선·25~75% 범위를 그린다.
   // Montecarlo는 고른 날짜의 그림 위에 그날 기준 가격 뒤의 실제 종가 수익률을 흰 선으로 그리고, 권장 추종 배율은 그날 그림으로 바꾼다.
+  // 종가 선과 실제 종가 수익률은 리포트 날짜 판단의 기준 가격 날짜까지만 그린다. 그 뒤 종가는 리포트를 만든 뒤에 확정됐다.
   // 그림 크기 단위의 선 굵기와 글자 크기는 matplotlib 포인트를 그림 해상도(200dpi)로 옮긴 값이다.
   function rewind(box, date, imgs) {
     const index = key.split("-")[1];
@@ -289,7 +290,7 @@
       const frames = data.frames.filter((frame) => frame.day <= date && offset(frame.day) >= 0);
       const start = frames.findIndex((frame) => frame.day === date);
       if (start < 0) return;
-      const latest = data.frames[data.frames.length - 1].day;
+      const last = frames[start].predict.x0;
       const base = data.predict;
       const backdrop = imgs.predict ? await load(base.src) : null;
       // 모든 날짜의 Montecarlo·권장 추종 배율 그림을 처음에 한꺼번에 받아 해독해 둔다.
@@ -309,7 +310,7 @@
           g.fillStyle = base.color;
           g.fill();
           g.globalAlpha = 1;
-          line(g, base.history.map((v, k) => [px(k), py(v)]), base.price, 1.2 * pt);
+          line(g, base.history.slice(0, last + 1).map((v, k) => [px(k), py(v)]), base.price, 1.2 * pt);
           line(g, [[px(p.x0), py(base.history[p.x0])], [xs[0], py(p.base)]], base.price, 1.2 * pt, [1.6 * pt, 1.6 * pt]);
           line(g, xs.map((x, k) => [x, py(p.q50[k])]), base.color, 2.2 * pt);
         });
@@ -324,10 +325,10 @@
         g.font = `bold ${15.3 * pt}px ${font}`;
         g.textAlign = "center";
         g.textBaseline = "bottom";
-        g.fillText(frame.day === latest ? "TODAY" : label(frame.day), xs[0], py(p.base) - 8 * pt);
+        g.fillText(frame.day === date ? "TODAY" : label(frame.day), xs[0], py(p.base) - 8 * pt);
       }, width, ratio);
       const tree = (c, frame, image, width, ratio) => paint(c, image, frame.tree, (g, px, py, clipped) => {
-        const points = frame.tree.actual.map((v, k) => [px(k), py(v)]);
+        const points = frame.tree.actual.slice(0, last - frame.predict.x0 + 1).map((v, k) => [px(k), py(v)]);
         clipped(() => {
           line(g, points, "rgba(0, 0, 0, 0.6)", 4.4 * pt);
           line(g, points, base.price, 2.2 * pt);
