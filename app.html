@@ -597,7 +597,9 @@
   function viewer(img) {
     const box = document.createElement("div");
     box.className = "viewer";
+    // 되감기 슬라이더가 원래 그림을 숨기고 canvas를 보이므로, 크게 보는 그림은 숨김을 풀어 띄운다.
     const large = img.cloneNode();
+    large.style.display = "";
     box.append(large);
     document.body.append(box);
     const carousel = img.closest(".carousel");
