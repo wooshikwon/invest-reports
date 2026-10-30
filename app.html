@@ -139,7 +139,7 @@
   .carousel.fit.folding .track { transition: none; }
   .carousel.fit .slide :is(h3, ul):first-child { margin-top: 0; }
   /* 주요 이슈 해설은 이슈 제목 목록으로 시작한다. 이슈마다 아주 연한 둥근 상자에 왼쪽부터 순위 번호, 방향 표식을 끝에 붙인 제목, 오른쪽 끝 꺾쇠를 놓고, 제목 아래에 현재 상태의 소제목을 흐린 글씨로 붙인다.
-     마지막 상자에는 검토했지만 비중을 낮춘 이슈의 건수를 제목 "외 N건"으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 소제목을 모두 펼쳐 보이거나
+     마지막 상자에는 검토했지만 비중을 낮춘 이슈의 건수를 제목 "외 N건"으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 소제목을 모두 접은 채 보이거나
      검토했지만 비중을 낮춘 이슈를 보이고, 절 제목 줄 오른쪽 끝에 이슈 목록으로 돌아가는 단추를 띄운다. 단추는 내용을 옮기는 동안 나타나거나 사라진다.
      목록과 내용을 바꾸는 동안에는 두 쪽을 넘기기 장처럼 장 사이만큼 띄워 나란히 옆으로 옮기고, 묶음 밖으로 나간 부분은 가린다. */
   .issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px 22px 18px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); cursor: pointer; }
@@ -760,7 +760,7 @@
         pages[i].querySelectorAll("details.fold").forEach((fold) => {
           fold.anim?.cancel();
           fold.want = undefined;
-          fold.open = true;
+          fold.open = false;
           fold.lastElementChild.style.overflow = "";
         });
         box.classList.add("inside");
