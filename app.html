@@ -19,8 +19,9 @@
     --dim: #7A828C;
     --index: var(--hint);
     --index-to: var(--hint);
-    /* 지수색 글자와 별은 지수색에서 옆 색상으로 옮겨 가는 그라데이션으로 칠한다. */
-    --index-ink: linear-gradient(100deg, var(--index), var(--index-to));
+    /* 지수색 글자와 별은 지수색에서 옆 색상으로 천천히 옮겨 가는 그라데이션으로 칠한다. 앞 30%는 지수색 그대로 두고,
+       끝 색은 글자 폭 밖(160%)에 두어 글자 끝에서도 끝 색의 절반 남짓만 섞인다. */
+    --index-ink: linear-gradient(100deg, var(--index) 30%, var(--index-to) 160%);
     /* 중요도 표식: 네 꼭짓점이 뾰족하고 변이 안쪽으로 휜 별 */
     --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 0Q5.7 4.3 10 5Q5.7 5.7 5 10Q4.3 5.7 0 5Q4.3 4.3 5 0Z'/%3E%3C/svg%3E");
     --line: #3A3F4A;
