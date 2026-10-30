@@ -39,13 +39,13 @@
   header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 4px 0 2px; color: var(--accent); }
   header p { margin: 0; font-size: 12.5px; color: var(--hint); }
   header #dated { color: var(--dim); }
-  /* 날짜 줄 아래 등락률 줄은 같은 회색 글씨로 쓰고, 제목과 날짜 줄 사이만큼 띄운다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다. */
+  /* 날짜 줄 아래 등락률 줄은 같은 회색 글씨로 쓰고, 제목과 날짜 줄 사이만큼 띄운다. 장 마감 후 등락률은 그날 리포트의 기준 가격에만 쓰이므로 괄호로 묶는다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다. */
   header #moves { margin-top: 1.5px; }
   header #moves:empty { display: none; }
   header #moves b { font-weight: 700; margin-left: 4px; }
   header #moves .up { color: #ff5c5c; }
   header #moves .down { color: #5b9bff; }
-  header #moves .sep { margin-left: 12px; }
+  header #moves .sep { margin-left: 8px; }
   header:has(#moves:not(:empty)) + #report > h2:first-child { margin-top: 36px; }
   h2 { font-size: 15.5px; font-weight: 700; color: var(--dim); margin: 46px 0 10px; }
   #report > h2:first-child { margin-top: 28px; }
@@ -967,7 +967,7 @@
           const pct = (v) => v === null ? "<b>—</b>"
             : `<b class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}%</b>`;
           document.getElementById("moves").innerHTML =
-            `정규장${pct(entry.moves.session)}<span class="sep"></span>장 마감 후${pct(entry.moves.after)}`;
+            `정규장${pct(entry.moves.session)}<span class="sep"></span>(장 마감 후${pct(entry.moves.after)})`;
         }
       }
       const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
