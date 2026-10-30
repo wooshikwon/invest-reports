@@ -196,8 +196,8 @@
                     background: rgba(255, 255, 255, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
                     transition: transform .25s ease, height .25s ease, opacity .2s ease; }
   nav.jump .lever.drag { transition: none; background: rgba(255, 255, 255, .18); }
-  /* 설명이 있는 절 제목은 오른쪽 끝에 원 안 물음표 단추를 둔다. 단추를 누르면 화면 가운데에 설명 상자를 띄우고, 닫기 단추나 상자 바깥을 누르면 닫는다. */
-  h2 .help { float: right; display: grid; place-items: center; width: 26px; height: 1lh; margin-right: -5px; padding: 0; border: 0; font: inherit;
+  /* 설명이 있는 절 제목은 제목 글자 바로 뒤에 원 안 물음표 단추를 둔다. 단추를 누르면 화면 가운데에 설명 상자를 띄우고, 닫기 단추나 상자 바깥을 누르면 닫는다. */
+  h2 .help { display: inline-grid; place-items: center; vertical-align: top; width: 26px; height: 1lh; margin-left: -2px; padding: 0; border: 0; font: inherit;
              background: none; color: var(--dim); cursor: pointer; }
   .help-card { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 24px;
                background: rgba(0, 0, 0, .55); }
@@ -958,7 +958,7 @@
       ["실제 결과", "이벤트 결과가 나온 다음 날에는 실제로 일어난 분기를 표시해요. 리포트가 예측한 확률과 실제 결과를 함께 보여줘요."],
     ],
   };
-  const QUESTION = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1"/>'
+  const QUESTION = '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1"/>'
     + '<path d="M6.2 6.2a1.8 1.8 0 1 1 2.6 1.6c-.5.3-.8.6-.8 1.2v.4" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
     + '<circle cx="8" cy="11.6" r=".8" fill="currentColor"/></svg>';
   // 설명이 있는 절 제목 앞에 물음표 단추를 넣는다. 단추는 글자를 담지 않으므로 절 제목 글자로 절을 찾는 `jump`가 그대로 동작한다.
@@ -988,7 +988,7 @@
         box.addEventListener("click", (event) => { if (event.target === box || close.contains(event.target)) box.remove(); });
         document.body.append(box);
       });
-      head.prepend(button);
+      head.append(button);
     });
   }
 
