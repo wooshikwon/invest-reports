@@ -123,7 +123,7 @@
      소제목을 누르면 문단이나 표가 펼쳐지거나 접히고, 펼친 문단이나 표를 눌러도 접힌다. 펼친 소제목과 문단 사이는 표식이 없는 소제목의 아래 여백만큼 띄우고, 펼친 문단은 `--hint` 색으로 쓰고,
      펼친 이벤트 표는 열 제목을 소제목 색, 칸 글자를 펼친 문단 색으로 쓴다. 펼치고 접을 때는 내용 높이가 이어서 바뀐다. */
   /* 주요 이슈 해설의 검토했지만 비중을 낮춘 이슈는 접지 않고, 굵은 이슈 이름은 소제목 색, 설명은 펼친 문단 색으로 쓴다. */
-  .carousel.fit:not(.events) .slide > ul { color: var(--hint); }
+  .issue-page > ul { color: var(--hint); }
   details.fold > summary { list-style: none; cursor: pointer; }
   details.fold > summary::-webkit-details-marker { display: none; }
   details.fold { margin-top: 15.5px; }
@@ -131,15 +131,28 @@
   details.fold > summary :is(h3, h4) { margin: 0; }
   details.fold > .body { display: flow-root; padding-top: 6px; color: var(--hint); }
   details.fold > .body > * { margin-top: 0; }
-  /* 주요 이슈 해설과 다가오는 이벤트는 항목 하나씩 넘기고, 넘기기가 멈추면 높이를 그 항목에 맞춘다. */
+  /* 다가오는 이벤트는 항목 하나씩 넘기고, 넘기기가 멈추면 높이를 그 항목에 맞춘다. */
   .carousel.fit .track { align-items: flex-start; transition: height .2s ease; }
-  h2 .names { display: inline-grid; }
-  h2 .names > span { grid-area: 1 / 1; }
   .carousel.fit.folding .track { transition: none; }
   .carousel.fit .slide :is(h3, ul):first-child { margin-top: 0; }
-  /* 이슈의 마지막 소제목을 접어도 아래 점과의 간격은 펼친 마지막 문단의 아래 여백만큼 띄운다. */
-  .carousel.fit:not(.events) .slide > details.fold:last-child { margin-bottom: 12px; }
-  .carousel.fit:not(.events) .slide > details.fold:last-child > .body > :last-child { margin-bottom: 0; }
+  /* 주요 이슈 해설은 이슈 제목 목록으로 시작한다. 이슈마다 아주 연한 둥근 상자에 왼쪽부터 순위 번호, 방향 표식을 끝에 붙인 제목, 오른쪽 끝 꺾쇠를 놓고, 제목 아래에 현재 상태의 소제목을 흐린 글씨로 붙인다.
+     마지막 상자에는 검토했지만 비중을 낮춘 이슈의 건수를 제목 "외 N건"으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 소제목이나 검토했지만 비중을 낮춘 이슈를 보이고,
+     절 제목 대신 이슈 목록으로 돌아가는 단추를 둔다. */
+  .issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px 22px 18px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); cursor: pointer; }
+  .issue-list .pick + .pick { margin-top: 10px; }
+  .issue-list .pick .num { flex: none; align-self: flex-start; min-width: 12px; color: var(--hint); font-size: 15.5px; line-height: 1.5; font-weight: 700; }
+  .issue-list .pick .text { flex: 1; }
+  .issue-list .pick h3 { margin: 0; }
+  .issue-list .pick p { margin: 6px 0 0; padding-right: 24px; color: var(--dim); font-size: 14px; line-height: 1.5; }
+  .issue-list .pick svg { flex: none; color: var(--dim); }
+  .issue-page { display: none; }
+  .issue-page > h3:first-child { margin-top: 0; }
+  .issue-box.inside .issue-list { display: none; }
+  .issue-box.inside .issue-page.on { display: block; }
+  h2.issues .back { display: none; align-items: center; gap: 6px; margin-left: -2px; padding: 0 12px 0 8px; height: 1lh; border: 0; border-radius: 999px;
+                    background: rgba(255, 255, 255, .07); color: var(--hint); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  h2.issues.inside > :not(.back) { display: none; }
+  h2.issues.inside .back { display: inline-flex; }
   /* 다가오는 이벤트는 발표일마다 한 장이고, 위 날짜 띠의 날짜마다 별·날짜·요일을 테두리 없는 둥근 회색 상자에 담는다. 보고 있는 날짜는 상자를
      진하게, 글자를 흰색으로 쓰고, 나머지 날짜는 상자를 연하게, 글자를 흐린 회색으로 쓴다. 상자는 같은 폭이고 넘기기 장 사이만큼 띄운다.
      보고 있는 날짜의 상자가 문단 왼쪽 끝에 오도록 띠를 옆으로 민다. 띠는 화면 양 끝 여백까지 보여서, 앞 날짜가 있으면 그 상자 끝이 왼쪽 여백에 보인다. */
@@ -582,13 +595,15 @@
     }).catch(() => {});
   }
 
-  // 절 안의 `###` 항목을 하나씩 넘기는 묶음으로 바꾼다. 항목은 `###` 제목부터 다음 `###`·`##` 앞까지다.
-  // 주요 이슈 해설에서는 템플릿이 검토했지만 비중을 낮춘 이슈를 번호 이슈 뒤에 두므로 그 항목이 마지막 슬라이드가 된다.
-  // 그 슬라이드는 소제목을 지우고, 그 슬라이드로 넘기면 절 제목을 "검토했지만 비중을 낮춘 이슈"로 바꾼다.
+  // 주요 이슈 해설을 이슈 목록으로 바꾼다. 이슈는 `###` 제목부터 다음 `###`·`##` 앞까지다.
+  // 템플릿이 검토했지만 비중을 낮춘 이슈를 번호 이슈 뒤에 두므로, 그 항목은 목록 끝의 "외 N건" 상자가 된다.
+  // 목록에서 상자를 누르면 누른 상자의 위쪽 끝을 화면의 같은 높이에 둔 채 그 내용을 보인다. 목록으로 돌아가면 상자를 누르기 전의 화면 위치로 옮긴다.
   function section(title) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
     if (!head) return;
     head.classList.add("issues");
+    // 이슈를 보는 동안 절 제목 글자를 가리도록 글자를 따로 감싼다.
+    head.replaceChildren(Object.assign(document.createElement("span"), { textContent: head.textContent.trim() }));
     const items = [];
     for (let node = head.nextElementSibling; node && node.tagName !== "H2"; node = node.nextElementSibling) {
       if (node.tagName === "H3") {
@@ -597,34 +612,73 @@
         items[items.length - 1].push(node);
       }
     }
+    if (!items.length) return;
     // 이슈 제목 앞의 번호를 지운다.
     items.forEach(([h3]) => {
       const text = [...h3.childNodes].find((node) => node.nodeType === 3 && node.textContent.trim());
       if (text) text.textContent = text.textContent.replace(/^\s*\d+\.\s*/, "");
     });
-    const name = head.textContent.trim(), reviewed = "검토했지만 비중을 낮춘 이슈";
-    const tail = items.length > 1 && items[items.length - 1][0].textContent.trim() === reviewed ? items.length - 1 : -1;
-    if (tail >= 0) items[tail].shift().remove();
-    // 절 제목은 글자만 바꾼다. 새 제목은 옛 제목과 같은 칸에 겹쳐 진해지고, 옛 제목은 흐려진 뒤 빠진다.
-    const names = document.createElement("span");
-    names.className = "names";
-    names.appendChild(Object.assign(document.createElement("span"), { textContent: name }));
-    head.replaceChildren(names);
-    let want = name;
-    const rename = (i) => {
-      const next = i === tail ? reviewed : name;
-      if (next === want) return;
-      want = next;
-      const time = motion.matches ? 0 : 220;
-      [...names.children].forEach((old) => {
-        const from = getComputedStyle(old).opacity;
-        old.getAnimations().forEach((anim) => anim.cancel());
-        old.animate([{ opacity: from }, { opacity: 0 }], { duration: time, fill: "forwards" }).onfinish = () => old.remove();
-      });
-      const label = names.appendChild(Object.assign(document.createElement("span"), { textContent: next }));
-      label.animate([{ opacity: 0 }, { opacity: 1 }], { duration: time });
+    const reviewed = items[items.length - 1][0].textContent.trim() === "검토했지만 비중을 낮춘 이슈";
+    const chevron = '<svg width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const box = document.createElement("div");
+    box.className = "issue-box";
+    const list = box.appendChild(document.createElement("div"));
+    list.className = "issue-list";
+    const pages = items.map((nodes, i) => {
+      const pick = list.appendChild(document.createElement("div"));
+      const text = document.createElement("div");
+      text.className = "text";
+      if (reviewed && i === items.length - 1) {
+        pick.className = "pick more";
+        const names = [...(nodes[1]?.querySelectorAll("li") ?? [])].map((li) => (li.querySelector("strong") ?? li).textContent.trim());
+        text.append(Object.assign(document.createElement("h3"), { textContent: `외 ${names.length}건` }));
+        text.append(Object.assign(document.createElement("p"), { textContent: names.slice(0, 3).join(", ") + (names.length > 3 ? "\u00a0등" : "") }));
+        pick.append(Object.assign(document.createElement("span"), { className: "num" }), text);
+      } else {
+        pick.className = "pick";
+        const title = nodes[0].cloneNode(true);
+        title.removeAttribute("id");
+        text.append(title);
+        const now = nodes.map((node) => node.querySelector?.("h4")).find((h4) => h4?.querySelector("mark")?.textContent.trim() === "현재 상태");
+        if (now) text.append(Object.assign(document.createElement("p"), { textContent: [...now.childNodes].filter((n) => n.nodeName !== "MARK").map((n) => n.textContent).join("").trim() }));
+        pick.append(Object.assign(document.createElement("span"), { className: "num", textContent: i + 1 }), text);
+      }
+      pick.insertAdjacentHTML("beforeend", chevron);
+      pick.addEventListener("click", () => open(i));
+      const page = box.appendChild(document.createElement("div"));
+      page.className = "issue-page";
+      page.append(...nodes);
+      return page;
+    });
+    head.after(box);
+    let back = null, saved = 0;
+    const show = (inside) => {
+      box.classList.toggle("inside", inside);
+      head.classList.toggle("inside", inside);
     };
-    if (items.length > 1) slider(items, head, { fit: true, change: rename, dots: true, name: "issues", area: head });
+    const open = (i) => {
+      // 돌아가는 단추는 처음 상자를 누를 때 만든다. 절 제목 글자로 절을 찾는 설명 단추와 바로가기가 리포트를 연 뒤 절 제목을 먼저 찾는다.
+      if (!back) {
+        back = document.createElement("button");
+        back.className = "back";
+        back.innerHTML = '<svg width="8" height="12" viewBox="0 0 8 12" aria-hidden="true"><path d="M6.5 1 1.5 6l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>이슈 목록';
+        back.addEventListener("click", close);
+        head.append(back);
+      }
+      const at = list.children[i].getBoundingClientRect().top;
+      saved = scrollY;
+      pages.forEach((page, j) => page.classList.toggle("on", i === j));
+      show(true);
+      scrollBy(0, pages[i].getBoundingClientRect().top - at);
+      if (!motion.matches) pages[i].animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220 });
+    };
+    const close = () => {
+      if (!box.classList.contains("inside")) return;
+      show(false);
+      scrollTo(0, saved);
+      if (!motion.matches) list.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220 });
+    };
+    head.close = close;
   }
 
   // 절 안의 `###`(depth 3)이나 `####`(depth 4) 소제목마다 접기 상자를 만든다.
@@ -822,9 +876,9 @@
         const codes = [...h3.querySelectorAll("code")];
         if (!codes.length) return;
         const levels = codes.filter((code) => /^lv-/.test(code.className));
-        // 주요 이슈 해설은 중요도가 높은 이슈만 다루므로 중요도를 표시하지 않는다. 이 시점의 묶음은 주요 이슈 해설뿐이다.
+        // 주요 이슈 해설은 중요도가 높은 이슈만 다루므로 중요도를 표시하지 않는다.
         levels.forEach((code) => {
-          if (h3.closest(".carousel") || code.className === "lv-low") code.remove();
+          if (h3.closest(".issue-box") || code.className === "lv-low") code.remove();
           else code.title = code.textContent.trim();
         });
         const tags = document.createElement("span");
@@ -892,6 +946,8 @@
     addEventListener("resize", mark);
     const go = (i) => {
       const head = marks[i][0];
+      // 주요 이슈 해설에서 이슈 하나를 보고 있으면 이슈 목록으로 돌아간 뒤 절 제목으로 옮긴다.
+      head.close?.();
       const top = textTop(head) + scrollY - gap();
       const lack = top + innerHeight - document.documentElement.scrollHeight;
       if (lack > 0) report.style.paddingBottom = `${(parseFloat(report.style.paddingBottom) || 0) + lack}px`;
