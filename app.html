@@ -138,7 +138,7 @@
   .carousel.fit .slide :is(h3, ul):first-child { margin-top: 0; }
   /* 주요 이슈 해설은 이슈 제목 목록으로 시작한다. 이슈마다 아주 연한 둥근 상자에 왼쪽부터 순위 번호, 방향 표식을 끝에 붙인 제목, 오른쪽 끝 꺾쇠를 놓고, 제목 아래에 현재 상태의 소제목을 흐린 글씨로 붙인다.
      마지막 상자에는 검토했지만 비중을 낮춘 이슈의 건수를 제목 "외 N건"으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 소제목을 모두 펼쳐 보이거나
-     검토했지만 비중을 낮춘 이슈를 보이고, 그 내용 맨 위에 이슈 목록으로 돌아가는 단추를 둔다. 단추와 내용 사이는 절 제목과 내용 사이만큼 띄운다.
+     검토했지만 비중을 낮춘 이슈를 보이고, 절 제목 줄 오른쪽 끝에 이슈 목록으로 돌아가는 단추를 띄운다. 단추는 내용을 옮기는 동안 나타나거나 사라진다.
      목록과 내용을 바꾸는 동안에는 두 쪽을 넘기기 장처럼 장 사이만큼 띄워 나란히 옆으로 옮기고, 묶음 밖으로 나간 부분은 가린다. */
   .issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px 22px 18px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); cursor: pointer; }
   .issue-list .pick + .pick { margin-top: 10px; }
@@ -151,11 +151,14 @@
   .issue-box.moving { overflow-x: clip; }
   .issue-box .leaving { display: block; position: absolute; top: 0; left: 0; right: 0; }
   .issue-page { display: none; }
-  .issue-page > .back + * { margin-top: 0; }
+  .issue-page > :first-child { margin-top: 0; }
   .issue-box.inside .issue-list:not(.leaving) { display: none; }
   .issue-box.inside .issue-page.on { display: block; }
-  .issue-page > .back { display: flex; width: fit-content; align-items: center; gap: 6px; margin: 0 0 12px -2px; padding: 0 12px 0 8px; height: 28px; border: 0; border-radius: 999px;
-                     background: rgba(255, 255, 255, .07); color: var(--hint); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  h2.issues { position: relative; }
+  h2.issues .back { position: absolute; right: 0; bottom: 0; display: flex; align-items: center; gap: 6px; padding: 0 12px 0 8px; height: 28px; border: 0; border-radius: 999px;
+                    transform: translateY(var(--shift, 0px)); background: rgba(255, 255, 255, .07); color: var(--hint); font: inherit; cursor: pointer; opacity: 0; visibility: hidden; transition: opacity var(--glide), visibility 0s .3s; }
+  h2.issues .back::after { content: "이슈 목록"; font-size: 13px; font-weight: 600; }
+  h2.issues.inside .back { opacity: 1; visibility: visible; transition: opacity var(--glide); }
   /* 다가오는 이벤트는 발표일마다 한 장이고, 위 날짜 띠의 날짜마다 별·날짜·요일을 테두리 없는 둥근 회색 상자에 담는다. 보고 있는 날짜는 상자를
      진하게, 글자를 흰색으로 쓰고, 나머지 날짜는 상자를 연하게, 글자를 흐린 회색으로 쓴다. 상자는 같은 폭이고 넘기기 장 사이만큼 띄운다.
      보고 있는 날짜의 상자가 문단 왼쪽 끝에 오도록 띠를 옆으로 민다. 띠는 화면 양 끝 여백까지 보여서, 앞 날짜가 있으면 그 상자 끝이 왼쪽 여백에 보인다. */
@@ -272,7 +275,7 @@
     const begin = performance.now(), span = motion.matches ? 0 : GLIDE;
     let frame;
     const tick = (now) => {
-      const t = span ? Math.min(1, (now - begin) / span) : 1;
+      const t = span ? Math.min(1, Math.max(0, (now - begin) / span)) : 1;
       set(from + (to - from) * (1 - (1 - t) ** 3));
       if (t < 1) frame = requestAnimationFrame(tick);
       else done?.();
@@ -337,7 +340,19 @@
       const goal = at > base ? Math.ceil(at - 0.2) : Math.floor(at + 0.2);
       return Math.min(slides.length - 1, Math.max(0, goal));
     };
+    // `fit`이면 넘기는 동안 화면에 걸친 두 장 가운데 더 높은 장만큼 묶음 높이를 바로 늘려, 들어오는 장의 아래가 잘리지 않게 한다.
+    // 줄이는 것은 넘기기가 멈춘 뒤에 한다.
+    const reveal = () => {
+      const at = track.scrollLeft / step(), last = slides.length - 1;
+      const need = Math.max(...[Math.floor(at), Math.ceil(at)].map((i) => track.children[Math.min(last, Math.max(0, i))].offsetHeight));
+      if (need <= track.offsetHeight) return;
+      track.style.transition = "none";
+      track.style.height = `${need}px`;
+      track.offsetHeight;
+      track.style.transition = "";
+    };
     track.addEventListener("scroll", () => {
+      if (fit) reveal();
       const now = current();
       if (dots) [...dots.children].forEach((dot, i) => dot.classList.toggle("on", i === now));
       if (change && now !== shown) change((shown = now));
@@ -678,12 +693,27 @@
       page.append(...nodes);
       return page;
     });
-    pages.forEach((page) => {
-      const back = page.insertBefore(document.createElement("button"), page.firstChild);
-      back.className = "back";
-      back.innerHTML = '<svg width="8" height="12" viewBox="0 0 8 12" aria-hidden="true"><path d="M6.5 1 1.5 6l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>이슈 목록';
-      back.addEventListener("click", () => close());
-    });
+    head.classList.add("issues");
+    const back = head.appendChild(document.createElement("button"));
+    back.className = "back";
+    back.innerHTML = '<svg width="8" height="12" viewBox="0 0 8 12" aria-hidden="true"><path d="M6.5 1 1.5 6l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    // 절 제목 글자로 절을 찾는 곳이 있으므로 단추 이름은 글자 대신 CSS로 쓴다.
+    back.setAttribute("aria-label", "이슈 목록");
+    back.addEventListener("click", () => close());
+    // 단추 가운데를 절 제목 글자 획의 위아래 가운데에 맞춘다. 글꼴마다 글자 줄 안에서 획이 놓이는 높이가 달라서, 기준선 위치와 그 글꼴로 잰 획의 높이로 정한다.
+    const ink = document.createElement("canvas").getContext("2d");
+    const align = () => {
+      const probe = label.appendChild(Object.assign(document.createElement("i"), { style: "display: inline-block; width: 0; height: 0" }));
+      const base = probe.getBoundingClientRect().bottom;
+      probe.remove();
+      const style = getComputedStyle(label);
+      ink.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const { actualBoundingBoxAscent: up, actualBoundingBoxDescent: down } = ink.measureText(label.textContent);
+      const rect = back.getBoundingClientRect(), now = parseFloat(back.style.getPropertyValue("--shift")) || 0;
+      back.style.setProperty("--shift", `${now + base - (up - down) / 2 - (rect.top + rect.height / 2)}px`);
+    };
+    new ResizeObserver(align).observe(head);
+    document.fonts?.ready.then(align);
     head.after(box);
     let busy = false;
     const rename = (next) => {
@@ -727,7 +757,9 @@
           fold.lastElementChild.style.overflow = "";
         });
         box.classList.add("inside");
+        head.classList.add("inside");
         rename(reviewed && i === pages.length - 1 ? other : name);
+        align();
         return pages[i];
       }, 1);
     };
@@ -736,6 +768,7 @@
       const page = box.querySelector(".issue-page.on");
       swap(page, () => {
         box.classList.remove("inside");
+        head.classList.remove("inside");
         rename(name);
         return list;
       }, -1);
@@ -969,8 +1002,8 @@
       report.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => viewer(img)));
     }).catch(() => fail("리포트를 찾지 못했다."));
   }
-  // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 보던 위치에서 절 제목 글자가 문서 맨 위에서 본 첫 절 제목 글자보다 40px 낮은 높이에 올 때까지
-  // 화면을 부드럽게 움직인다. 제목 위의 띠와 그 위 절의 끝이 화면 위쪽에 보인다. 문서 끝이 모자라 제목이 그 높이까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
+  // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 보던 위치에서 절 제목 글자가 문서 맨 위에서 본 첫 절 제목 글자보다 40px 높은 높이에 올 때까지
+  // 화면을 부드럽게 움직인다. 제목 위의 띠는 화면 위쪽에 보인다. 문서 끝이 모자라 제목이 그 높이까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
   // 단추를 만들 때 절마다 여백을 미리 늘려, 처음부터 마지막 절 제목까지 손으로 밀어 올릴 수 있다.
   // 화면을 움직일 때마다, 절 제목 글자가 화면 위에서 3분의 1 높이를 넘은 절 가운데 마지막 절의 단추를 굵게 쓰고 레버를 그 단추 뒤로 옮긴다.
   // 그 높이가 바로가기로 옮겼을 때의 높이보다 위에 있으면 바로가기로 옮겼을 때의 높이를 쓴다.
@@ -989,7 +1022,7 @@
       const band = getComputedStyle(head, "::before");
       return head.getBoundingClientRect().top + (band.content === "none" ? 0 : parseFloat(band.height) + parseFloat(band.marginBottom));
     };
-    const gap = () => textTop(marks[0][0]) + scrollY + 40;
+    const gap = () => textTop(marks[0][0]) + scrollY - 40;
     const show = (on) => {
       marks.forEach(([, button], i) => button.classList.toggle("on", i === on));
       const button = marks[on]?.[1];
