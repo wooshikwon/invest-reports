@@ -197,7 +197,7 @@
                     transition: transform .25s ease, height .25s ease, opacity .2s ease; }
   nav.jump .lever.drag { transition: none; background: rgba(255, 255, 255, .18); }
   /* 설명이 있는 절 제목은 오른쪽 끝에 원 안 물음표 단추를 둔다. 단추를 누르면 화면 가운데에 설명 상자를 띄우고, 닫기 단추나 상자 바깥을 누르면 닫는다. */
-  h2 .help { float: right; display: grid; place-items: center; width: 26px; height: 1.25em; margin-right: -5px; padding: 0; border: 0;
+  h2 .help { float: right; display: grid; place-items: center; width: 26px; height: 1lh; margin-right: -5px; padding: 0; border: 0; font: inherit;
              background: none; color: var(--dim); cursor: pointer; }
   .help-card { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 24px;
                background: rgba(0, 0, 0, .55); }
@@ -953,7 +953,7 @@
       ["상승 요인과 하락 요인", "이슈가 1개월 주가 예측을 상승 쪽으로 바꿨는지 하락 쪽으로 바꿨는지 보여줘요. 뉴스의 좋고 나쁨과는 달라요. 나쁜 소식도 반등 가능성을 높이면 상승 요인이에요. 양방향 이슈는 결과에 따라 주가를 올릴 수도 있고 내릴 수도 있어요."],
     ],
     "다가오는 이벤트": [
-      ["분기와 확률", "앞으로 7일 안에 발표되는 이벤트마다 가능한 결과와 그 확률을 보여줘요. 몬테카를로 그림은 경로 2만 개에 이 확률대로 이벤트 결과를 나눠요."],
+      ["이벤트 확률표", "앞으로 7일 안에 발표되는 이벤트마다 가능한 결과와 그 확률을 보여줘요. 몬테카를로 그림은 경로 2만 개에 이 확률대로 이벤트 결과를 나눠요."],
       ["확률 변화", "확률 아래에는 어제 리포트의 확률과 오늘 확률의 차이를 %p로 보여줘요. 하루 사이 새 보도와 지표가 나오면 확률이 바뀌어요."],
       ["실제 결과", "이벤트 결과가 나온 다음 날에는 실제로 일어난 분기를 표시해요. 리포트가 예측한 확률과 실제 결과를 함께 보여줘요."],
     ],
