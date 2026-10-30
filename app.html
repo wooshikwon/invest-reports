@@ -969,8 +969,8 @@
       report.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => viewer(img)));
     }).catch(() => fail("리포트를 찾지 못했다."));
   }
-  // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 보던 위치에서 절 제목 글자가 문서 맨 위에서 본 첫 절 제목 글자와 같은 높이에 올 때까지
-  // 화면을 부드럽게 움직인다. 제목 위의 띠는 화면 위쪽에 보인다. 문서 끝이 모자라 제목이 그 높이까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
+  // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 보던 위치에서 절 제목 글자가 문서 맨 위에서 본 첫 절 제목 글자보다 40px 낮은 높이에 올 때까지
+  // 화면을 부드럽게 움직인다. 제목 위의 띠와 그 위 절의 끝이 화면 위쪽에 보인다. 문서 끝이 모자라 제목이 그 높이까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
   // 단추를 만들 때 절마다 여백을 미리 늘려, 처음부터 마지막 절 제목까지 손으로 밀어 올릴 수 있다.
   // 화면을 움직일 때마다, 절 제목 글자가 화면 위에서 3분의 1 높이를 넘은 절 가운데 마지막 절의 단추를 굵게 쓰고 레버를 그 단추 뒤로 옮긴다.
   // 그 높이가 바로가기로 옮겼을 때의 높이보다 위에 있으면 바로가기로 옮겼을 때의 높이를 쓴다.
@@ -989,7 +989,7 @@
       const band = getComputedStyle(head, "::before");
       return head.getBoundingClientRect().top + (band.content === "none" ? 0 : parseFloat(band.height) + parseFloat(band.marginBottom));
     };
-    const gap = () => textTop(marks[0][0]) + scrollY;
+    const gap = () => textTop(marks[0][0]) + scrollY + 40;
     const show = (on) => {
       marks.forEach(([, button], i) => button.classList.toggle("on", i === on));
       const button = marks[on]?.[1];
@@ -1016,9 +1016,9 @@
     addEventListener("wheel", settle, { passive: true });
     addEventListener("touchstart", (event) => { if (!nav.contains(event.target)) settle(); }, { passive: true });
     addEventListener("resize", mark);
-    // 절 제목 글자가 첫 절 제목 글자의 높이에 오는 화면 위치를 돌려준다. 문서 끝이 모자라면 리포트 아래를 늘린다.
+    // 절 제목 글자가 바로가기 높이에 오는 화면 위치를 돌려준다. 문서 끝이 모자라면 리포트 아래를 늘린다.
     const reach = (head) => {
-      const top = textTop(head) + scrollY - gap();
+      const top = Math.max(0, textTop(head) + scrollY - gap());
       const lack = top + innerHeight - document.documentElement.scrollHeight;
       if (lack > 0) report.style.paddingBottom = `${(parseFloat(report.style.paddingBottom) || 0) + lack}px`;
       return top;
