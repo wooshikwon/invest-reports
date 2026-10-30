@@ -18,6 +18,9 @@
     /* 절 제목, 작성 시각, 선택되지 않은 날짜는 본문보다 연한 회색 하나로 쓴다. */
     --dim: #7A828C;
     --index: var(--hint);
+    --index-to: var(--hint);
+    /* 지수색 글자와 별은 지수색에서 옆 색상으로 옮겨 가는 그라데이션으로 칠한다. */
+    --index-ink: linear-gradient(100deg, var(--index), var(--index-to));
     /* 중요도 표식: 네 꼭짓점이 뾰족하고 변이 안쪽으로 휜 별 */
     --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 0Q5.7 4.3 10 5Q5.7 5.7 5 10Q4.3 5.7 0 5Q4.3 4.3 5 0Z'/%3E%3C/svg%3E");
     --line: #3A3F4A;
@@ -78,13 +81,14 @@
   /* 요약 소제목과 이슈 소제목 앞 말머리는 이벤트 발표 시각과 같은 지수색 글자로 소제목 위 한 줄에 둔다.
      방향 표식은 제목 끝 오른쪽에 색을 채운 스티커로 그리고, 상승 요인과 하락 요인은 머리말 등락률의 상승·하락 색으로 칠한다.
      이벤트 중요도가 높음이나 보통이면 제목 끝 오른쪽 위에 위첨자처럼 지수색 별을 붙이고, 낮음이면 붙이지 않는다. */
-  mark { display: block; background: none; color: var(--index); font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  mark, h3 .when { width: fit-content; background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  mark { display: block; font-size: 13px; font-weight: 600; margin-bottom: 2px; }
   h3 code { font-family: inherit; font-size: 10.5px; font-weight: 700; color: #8b95a1; background: none; border: 1px solid;
             border-radius: 999px; padding: 0.5px 7px; margin-right: 5px; white-space: nowrap; }
   h3 .tags { display: inline; margin-left: 8px; vertical-align: 2px; line-height: 1; }
   h3:has(> .tags) { margin-bottom: 18px; }
   h3 code[class^="lv-"] { display: inline-block; width: 6px; height: 6px; padding: 0; margin: 3px 0 0 3px; border: 0; border-radius: 0;
-                          font-size: 0; vertical-align: text-top; background: var(--index); -webkit-mask: var(--star) center / contain no-repeat;
+                          font-size: 0; vertical-align: text-top; background: var(--index-ink); -webkit-mask: var(--star) center / contain no-repeat;
                           mask: var(--star) center / contain no-repeat; }
   h3 code.tone-up, h3 code.tone-down, h3 code.tone-both { color: #fff; border: 0; padding: 1.5px 8px; }
   h3 code.tone-up { background: #ff5c5c; }
@@ -181,13 +185,13 @@
                    font-style: normal; font-size: 8px; line-height: 1; color: var(--hint); }
   .days button i span { width: 6px; height: 6px; -webkit-mask: var(--star) center / contain no-repeat; mask: var(--star) center / contain no-repeat; }
   .days button i em { font-style: normal; margin: 0 2px 0 -1px; }
-  .days button i .lv-key { background: var(--index); }
+  .days button i .lv-key { background: var(--index-ink); }
   .days button i .lv-low { background: var(--hint); }
   .carousel.events .slide { display: flow-root; }
   .carousel.events details.fold + details.fold { margin-top: 30px; }
   .carousel.events.fit .slide > :first-child { margin-top: 30px; }
   .carousel.events table { margin: 0; }
-  h3 .when { display: block; margin-bottom: 2px; font-size: 13px; font-weight: 600; color: var(--index); }
+  h3 .when { display: block; margin-bottom: 2px; font-size: 13px; font-weight: 600; }
   /* 지난 이벤트의 표는 실제로 일어난 갈래 줄만 또렷하게 보이고 나머지 줄은 흐리다. */
   table.judged tbody tr { opacity: .28; }
   table.judged tbody tr.hit .outcome { color: var(--accent); }
@@ -263,9 +267,13 @@
   const key = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || query.get("r") || "";
   const report = document.getElementById("report");
   // 소제목 위 말머리와 이벤트 시각은 지수마다 리포트 그림의 판단 색 계열에서 채도를 낮춘 색으로 쓴다(conviction_chart.py JUDGMENT_COLORS).
-  const INDEX = { nasdaq: "#94B8E0", biotech: "#B79BE0" };
+  // 두 번째 색은 그라데이션이 끝나는 색으로, 지수색에서 색상환을 따라 보라 쪽으로 조금 옮긴 색이다.
+  const INDEX = { nasdaq: ["#8FBCE6", "#AFA6EC"], biotech: ["#AE9CE6", "#E09DCB"] };
   const tint = INDEX[key.split("-")[1]];
-  if (tint) document.documentElement.style.setProperty("--index", tint);
+  if (tint) {
+    document.documentElement.style.setProperty("--index", tint[0]);
+    document.documentElement.style.setProperty("--index-to", tint[1]);
+  }
   const fail = (message) => { report.innerHTML = `<p class="status">${message}</p>`; };
   // 좌우로 넘기는 동작은 모두 `--glide`와 같은 0.3초, 같은 감속 곡선(cubic-bezier(.33, 1, .68, 1))으로 움직인다.
   // `glide`는 값을 `from`에서 `to`까지 그 곡선으로 바꾸며 매 프레임 `set`을 부르고, 다 바꾸면 `done`을 부른다. 멈추는 함수를 돌려준다.
