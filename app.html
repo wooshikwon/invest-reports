@@ -136,8 +136,8 @@
   .carousel.fit.folding .track { transition: none; }
   .carousel.fit .slide :is(h3, ul):first-child { margin-top: 0; }
   /* 주요 이슈 해설은 이슈 제목 목록으로 시작한다. 이슈마다 아주 연한 둥근 상자에 왼쪽부터 순위 번호, 방향 표식을 끝에 붙인 제목, 오른쪽 끝 꺾쇠를 놓고, 제목 아래에 현재 상태의 소제목을 흐린 글씨로 붙인다.
-     마지막 상자에는 검토했지만 비중을 낮춘 이슈의 건수를 제목 "외 N건"으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 소제목이나 검토했지만 비중을 낮춘 이슈를 보이고,
-     절 제목 대신 이슈 목록으로 돌아가는 단추를 둔다. */
+     마지막 상자에는 검토했지만 비중을 낮춘 이슈의 건수를 제목 "외 N건"으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 소제목을 모두 펼쳐 보이거나
+     검토했지만 비중을 낮춘 이슈를 보이고, 절 제목 아래에 이슈 목록으로 돌아가는 단추를 둔다. 단추와 내용 사이는 절 제목과 내용 사이만큼 띄운다. */
   .issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px 22px 18px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); cursor: pointer; }
   .issue-list .pick + .pick { margin-top: 10px; }
   .issue-list .pick .num { flex: none; align-self: flex-start; min-width: 12px; color: var(--hint); font-size: 15.5px; line-height: 1.5; font-weight: 700; }
@@ -145,14 +145,14 @@
   .issue-list .pick h3 { margin: 0; }
   .issue-list .pick p { margin: 6px 0 0; padding-right: 24px; color: var(--dim); font-size: 14px; line-height: 1.5; }
   .issue-list .pick svg { flex: none; color: var(--dim); }
+  .issue-box { margin-top: 12px; }
   .issue-page { display: none; }
   .issue-page > h3:first-child { margin-top: 0; }
   .issue-box.inside .issue-list { display: none; }
   .issue-box.inside .issue-page.on { display: block; }
-  h2.issues .back { display: none; align-items: center; gap: 6px; margin-left: -2px; padding: 0 12px 0 8px; height: 1lh; border: 0; border-radius: 999px;
-                    background: rgba(255, 255, 255, .07); color: var(--hint); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
-  h2.issues.inside > :not(.back) { display: none; }
-  h2.issues.inside .back { display: inline-flex; }
+  .issue-box .back { display: none; align-items: center; gap: 6px; margin: 0 0 12px -2px; padding: 0 12px 0 8px; height: 28px; border: 0; border-radius: 999px;
+                     background: rgba(255, 255, 255, .07); color: var(--hint); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .issue-box.inside .back { display: inline-flex; }
   /* 다가오는 이벤트는 발표일마다 한 장이고, 위 날짜 띠의 날짜마다 별·날짜·요일을 테두리 없는 둥근 회색 상자에 담는다. 보고 있는 날짜는 상자를
      진하게, 글자를 흰색으로 쓰고, 나머지 날짜는 상자를 연하게, 글자를 흐린 회색으로 쓴다. 상자는 같은 폭이고 넘기기 장 사이만큼 띄운다.
      보고 있는 날짜의 상자가 문단 왼쪽 끝에 오도록 띠를 옆으로 민다. 띠는 화면 양 끝 여백까지 보여서, 앞 날짜가 있으면 그 상자 끝이 왼쪽 여백에 보인다. */
@@ -597,13 +597,16 @@
 
   // 주요 이슈 해설을 이슈 목록으로 바꾼다. 이슈는 `###` 제목부터 다음 `###`·`##` 앞까지다.
   // 템플릿이 검토했지만 비중을 낮춘 이슈를 번호 이슈 뒤에 두므로, 그 항목은 목록 끝의 "외 N건" 상자가 된다.
-  // 목록에서 상자를 누르면 누른 상자의 위쪽 끝을 화면의 같은 높이에 둔 채 그 내용을 보인다. 목록으로 돌아가면 상자를 누르기 전의 화면 위치로 옮긴다.
+  // 상자를 누르거나 이슈를 보는 중에 오른쪽으로 밀면 내용을 바꾸는 동안 지금 내용을 흐리고, 새 내용은 옆에서 들어오며 진해진다.
+  // 상자를 누르면 바로가기에서 이슈를 누를 때의 위치로 화면을 옮기고, 목록으로 돌아가면 상자를 누르기 전의 화면 위치로 옮긴다.
+  // 검토했지만 비중을 낮춘 이슈를 보는 동안에는 절 제목을 "검토했지만 비중을 낮춘 이슈"로 바꾼다. 바로가기에서 이슈를 누르면 보던 이슈를 그대로 두고 화면만 옮긴다.
   function section(title) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
     if (!head) return;
-    head.classList.add("issues");
-    // 이슈를 보는 동안 절 제목 글자를 가리도록 글자를 따로 감싼다.
-    head.replaceChildren(Object.assign(document.createElement("span"), { textContent: head.textContent.trim() }));
+    const name = head.textContent.trim();
+    // 절 제목 글자만 바꾸도록 글자를 따로 감싼다.
+    const label = Object.assign(document.createElement("span"), { textContent: name });
+    head.replaceChildren(label);
     const items = [];
     for (let node = head.nextElementSibling; node && node.tagName !== "H2"; node = node.nextElementSibling) {
       if (node.tagName === "H3") {
@@ -618,7 +621,8 @@
       const text = [...h3.childNodes].find((node) => node.nodeType === 3 && node.textContent.trim());
       if (text) text.textContent = text.textContent.replace(/^\s*\d+\.\s*/, "");
     });
-    const reviewed = items[items.length - 1][0].textContent.trim() === "검토했지만 비중을 낮춘 이슈";
+    const other = "검토했지만 비중을 낮춘 이슈", reviewed = items[items.length - 1][0].textContent.trim() === other;
+    if (reviewed) items[items.length - 1].shift().remove();
     const chevron = '<svg width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     const box = document.createElement("div");
     box.className = "issue-box";
@@ -630,7 +634,7 @@
       text.className = "text";
       if (reviewed && i === items.length - 1) {
         pick.className = "pick more";
-        const names = [...(nodes[1]?.querySelectorAll("li") ?? [])].map((li) => (li.querySelector("strong") ?? li).textContent.trim());
+        const names = [...(nodes[0]?.querySelectorAll("li") ?? [])].map((li) => (li.querySelector("strong") ?? li).textContent.trim());
         text.append(Object.assign(document.createElement("h3"), { textContent: `외 ${names.length}건` }));
         text.append(Object.assign(document.createElement("p"), { textContent: names.slice(0, 3).join(", ") + (names.length > 3 ? "\u00a0등" : "") }));
         pick.append(Object.assign(document.createElement("span"), { className: "num" }), text);
@@ -650,35 +654,67 @@
       page.append(...nodes);
       return page;
     });
+    const back = box.insertBefore(document.createElement("button"), list);
+    back.className = "back";
+    back.innerHTML = '<svg width="8" height="12" viewBox="0 0 8 12" aria-hidden="true"><path d="M6.5 1 1.5 6l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>이슈 목록';
+    back.addEventListener("click", () => close());
     head.after(box);
-    let back = null, saved = 0;
-    const show = (inside) => {
-      box.classList.toggle("inside", inside);
-      head.classList.toggle("inside", inside);
+    let saved = 0, busy = null;
+    const time = () => (motion.matches ? 0 : 160);
+    const rename = (next) => {
+      if (label.textContent === next) return;
+      label.textContent = next;
+      label.animate([{ opacity: 0 }, { opacity: 1 }], { duration: time() * 1.5 });
+    };
+    // 지금 내용을 흐린 뒤 내용을 바꾸고, 새 내용을 `from`만큼 옆에서 들이며 진하게 한다. 바꾸는 동안 묶음 높이를 지금 높이 아래로 줄이지 않아 화면이 튀지 않는다.
+    const swap = (out, change, from, top) => {
+      busy?.cancel();
+      box.style.minHeight = `${box.offsetHeight}px`;
+      const fade = (busy = out.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: `translateX(${-from / 2}px)` }], { duration: time(), easing: "ease-in", fill: "forwards" }));
+      fade.onfinish = () => {
+        busy = null;
+        fade.cancel();
+        const shown = change();
+        scrollTo({ top: top(), behavior: motion.matches ? "instant" : "smooth" });
+        shown.animate([{ opacity: 0, transform: `translateX(${from}px)` }, { opacity: 1, transform: "none" }], { duration: time() * 1.6, easing: "cubic-bezier(.25, .8, .25, 1)" });
+        setTimeout(() => (box.style.minHeight = ""), 600);
+      };
     };
     const open = (i) => {
-      // 돌아가는 단추는 처음 상자를 누를 때 만든다. 절 제목 글자로 절을 찾는 설명 단추와 바로가기가 리포트를 연 뒤 절 제목을 먼저 찾는다.
-      if (!back) {
-        back = document.createElement("button");
-        back.className = "back";
-        back.innerHTML = '<svg width="8" height="12" viewBox="0 0 8 12" aria-hidden="true"><path d="M6.5 1 1.5 6l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>이슈 목록';
-        back.addEventListener("click", close);
-        head.append(back);
-      }
-      const at = list.children[i].getBoundingClientRect().top;
+      if (busy || box.classList.contains("inside")) return;
       saved = scrollY;
-      pages.forEach((page, j) => page.classList.toggle("on", i === j));
-      show(true);
-      scrollBy(0, pages[i].getBoundingClientRect().top - at);
-      if (!motion.matches) pages[i].animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220 });
+      swap(list, () => {
+        pages.forEach((page, j) => page.classList.toggle("on", i === j));
+        pages[i].querySelectorAll("details.fold").forEach((fold) => {
+          fold.anim?.cancel();
+          fold.want = undefined;
+          fold.open = true;
+          fold.lastElementChild.style.overflow = "";
+        });
+        box.classList.add("inside");
+        rename(reviewed && i === pages.length - 1 ? other : name);
+        return box;
+      }, 24, () => head.reach?.() ?? scrollY);
     };
     const close = () => {
-      if (!box.classList.contains("inside")) return;
-      show(false);
-      scrollTo(0, saved);
-      if (!motion.matches) list.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220 });
+      if (busy || !box.classList.contains("inside")) return;
+      swap(box.querySelector(".issue-page.on"), () => {
+        box.classList.remove("inside");
+        rename(name);
+        return list;
+      }, -24, () => saved);
     };
-    head.close = close;
+    // 이슈를 보는 중에 묶음 안에서 가로로 40px 넘게, 세로 이동의 1.5배 넘게 오른쪽으로 밀고 손을 떼면 목록으로 돌아간다.
+    let begin = null;
+    box.addEventListener("touchstart", ({ touches }) => {
+      begin = box.classList.contains("inside") && touches.length === 1 ? { x: touches[0].clientX, y: touches[0].clientY } : null;
+    }, { passive: true });
+    box.addEventListener("touchend", ({ changedTouches }) => {
+      if (!begin) return;
+      const dx = changedTouches[0].clientX - begin.x, dy = changedTouches[0].clientY - begin.y;
+      begin = null;
+      if (dx > 40 && dx > 1.5 * Math.abs(dy)) close();
+    }, { passive: true });
   }
 
   // 절 안의 `###`(depth 3)이나 `####`(depth 4) 소제목마다 접기 상자를 만든다.
@@ -900,6 +936,7 @@
   }
   // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 보던 위치에서 절 제목 글자가 문서 맨 위에서 본 첫 절 제목 글자와 같은 높이에 올 때까지
   // 화면을 부드럽게 움직인다. 제목 위의 띠는 화면 위쪽에 보인다. 문서 끝이 모자라 제목이 그 높이까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
+  // 단추를 만들 때 절마다 여백을 미리 늘려, 처음부터 마지막 절 제목까지 손으로 밀어 올릴 수 있다.
   // 화면을 움직일 때마다, 절 제목 글자가 화면 위에서 3분의 1 높이를 넘은 절 가운데 마지막 절의 단추를 굵게 쓰고 레버를 그 단추 뒤로 옮긴다.
   // 그 높이가 바로가기로 옮겼을 때의 높이보다 위에 있으면 바로가기로 옮겼을 때의 높이를 쓴다.
   // 문서 맨 위에서는 첫 절의 단추를, 문서 끝까지 내려 마지막 절 제목이 그 높이에 닿지 못하면 마지막 절의 단추를 굵게 쓴다.
@@ -944,13 +981,15 @@
     addEventListener("wheel", settle, { passive: true });
     addEventListener("touchstart", (event) => { if (!nav.contains(event.target)) settle(); }, { passive: true });
     addEventListener("resize", mark);
-    const go = (i) => {
-      const head = marks[i][0];
-      // 주요 이슈 해설에서 이슈 하나를 보고 있으면 이슈 목록으로 돌아간 뒤 절 제목으로 옮긴다.
-      head.close?.();
+    // 절 제목 글자가 첫 절 제목 글자의 높이에 오는 화면 위치를 돌려준다. 문서 끝이 모자라면 리포트 아래를 늘린다.
+    const reach = (head) => {
       const top = textTop(head) + scrollY - gap();
       const lack = top + innerHeight - document.documentElement.scrollHeight;
       if (lack > 0) report.style.paddingBottom = `${(parseFloat(report.style.paddingBottom) || 0) + lack}px`;
+      return top;
+    };
+    const go = (i) => {
+      const top = reach(marks[i][0]);
       held = i;
       clearTimeout(release);
       release = setTimeout(settle, 3000);
@@ -965,6 +1004,7 @@
       button.dataset.name = name;
       const i = marks.length;
       marks.push([head, button]);
+      head.reach = () => reach(head);
       button.addEventListener("click", () => { if (!nav.dataset.dragged) go(i); });
       nav.append(button);
     });
@@ -1004,7 +1044,10 @@
     };
     nav.addEventListener("pointerup", end);
     nav.addEventListener("pointercancel", end);
-    if (marks.length) { document.body.append(nav); mark(); }
+    if (!marks.length) return;
+    document.body.append(nav);
+    marks.forEach(([head]) => reach(head));
+    mark();
   }
 
   // 절 제목마다 설명 상자에 쓸 항목을 둔다. 항목마다 이름을 굵게 쓰고 그 아래에 설명을 쓴다.
