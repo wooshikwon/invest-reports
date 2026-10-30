@@ -65,8 +65,10 @@
   table.events td.branch { width: 34%; font-weight: 600; }
   table.events td.chance { width: 3.2em; text-align: right; font-weight: 700; white-space: nowrap; }
   table.judged td.chance { color: var(--accent); }
-  /* 오늘과 이후 이벤트의 표는 확률이 가장 높은 갈래 줄의 글자만 흰색으로 쓴다. */
+  /* 오늘과 이후 이벤트의 표는 확률이 가장 높은 갈래 줄의 글자만 흰색으로 쓰고, 나머지 줄의 확률 변화는 빨강과 파랑에 회색을 섞어 탁하게 쓴다. */
   table.events:not(.judged) tr.top td { color: var(--accent); }
+  table.events:not(.judged) tr:not(.top) td.chance small.up { color: color-mix(in srgb, #ff5c5c 55%, var(--dim)); }
+  table.events:not(.judged) tr:not(.top) td.chance small.down { color: color-mix(in srgb, #5b9bff 55%, var(--dim)); }
   table.events td.chance small.delta { display: block; font-size: 0.68em; font-weight: 600; line-height: 1.2; margin-top: 1px; }
   table.events td.chance small.up { color: #ff5c5c; }
   table.events td.chance small.down { color: #5b9bff; }
