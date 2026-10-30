@@ -65,6 +65,8 @@
   table.events td.branch { width: 34%; font-weight: 600; }
   table.events td.chance { width: 3.2em; text-align: right; font-weight: 700; white-space: nowrap; }
   table.judged td.chance { color: var(--accent); }
+  /* 오늘과 이후 이벤트의 표는 확률이 가장 높은 갈래 줄의 글자만 흰색으로 쓴다. */
+  table.events:not(.judged) tr.top td { color: var(--accent); }
   table.events td.chance small.delta { display: block; font-size: 0.68em; font-weight: 600; line-height: 1.2; margin-top: 1px; }
   table.events td.chance small.up { color: #ff5c5c; }
   table.events td.chance small.down { color: #5b9bff; }
@@ -760,6 +762,11 @@
     box.prepend(bar);
     new ResizeObserver(fill).observe(box);
     wrap([...box.querySelectorAll(".slide > h3")], 3);
+    box.querySelectorAll("table.events:not(.judged)").forEach((table) => {
+      const rows = [...table.querySelectorAll("tbody tr")].map((row) => [row, parseFloat(row.querySelector(".chance")?.textContent)]);
+      const top = Math.max(...rows.map(([, chance]) => chance).filter((chance) => !isNaN(chance)));
+      rows.forEach(([row, chance]) => row.classList.toggle("top", chance === top));
+    });
     // 이벤트 표는 모두 펼쳐 둔다.
     box.querySelectorAll(".slide > details.fold").forEach((fold) => (fold.open = true));
     // 이 절이 리포트 끝이라 묶음이 짧아지면 문서가 짧아져 화면이 위로 당겨지므로, 묶음은 이미 보인 높이보다 짧아지지 않게 한다.
