@@ -12,8 +12,8 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `다가오는 이벤트` 표는 분기·확률·전개 예상 세 열이다. 휴대폰 폭에서 분기 이름이 접히지 않게 열마다
 폭과 정렬을 정하는 이름표를 단다.
 
-`다가오는 이벤트` 절에는 리포트 날짜 전 이틀 동안 발표된 이벤트도 넣는다. 표는 그 이벤트를 예측한 가장 최근
-리포트의 표를 쓰고, 그 리포트의 사안 나무(`tree.json`)에서 이벤트의 사안 id를 찾아 뒤 사안 나무의 `resolved`가
+`다가오는 이벤트` 절에는 리포트 날짜 전 이틀 동안 발표된 이벤트도 넣는다. 리포트가 같은 사안 id의 이벤트를 이미
+적었으면 리포트의 표만 둔다. 그 밖의 이벤트는 그 이벤트를 예측한 가장 최근 리포트의 표를 쓰고, 그 리포트의 사안 나무(`tree.json`)에서 이벤트의 사안 id를 찾아 뒤 사안 나무의 `resolved`가
 그 id로 적은 실제 갈래 줄에 `hit` 이름표를 단다. `resolved`의 갈래는 갈래 id이므로, 표를 쓴 리포트의 사안 나무에서
 그 id의 갈래 이름을 찾아 표의 줄과 잇는다. 갈래 id가 없는 앞 날짜 나무는 사안마다 나무 순서대로 `b1`부터 번호를 붙여
 읽고, 갈래 id가 아닌 `resolved` 갈래는 이름으로 읽는다.
@@ -250,13 +250,18 @@ def report_path(vault: Path, day: dt.date, index: str) -> Path:
     return vault / f"routine/invest/{day:%Y-%m}/{day}/{index}/report.md"
 
 
+def tree_issues(report: Path) -> dict[str, dict]:
+    """리포트 폴더 사안 나무에서 id가 있는 사안을 이름마다 하나씩."""
+    tree = report.with_name("tree.json")
+    issues = json.loads(tree.read_text(encoding="utf-8")).get("issues", []) if tree.is_file() else []
+    return {issue["name"]: issue for issue in issues if issue.get("id")}
+
+
 def realized(vault: Path, index: str, source: Path, name: str, day: dt.date, date: dt.date) -> dict | None:
     """`source` 리포트의 사안 나무에서 이벤트의 사안을 찾고, 발표일 다음 날부터 리포트 날짜까지의
     사안 나무 `resolved`에서 그 id의 항목을 찾는다. 항목의 `branch`는 `source` 나무의 갈래 이름으로 바꿔 돌려준다.
     아직 적히지 않았으면 None이다."""
-    tree = source.with_name("tree.json")
-    issues = json.loads(tree.read_text(encoding="utf-8")).get("issues", []) if tree.is_file() else []
-    issue = next((issue for issue in issues if issue.get("name") == name and issue.get("id")), None)
+    issue = tree_issues(source).get(name)
     if issue is None:
         return None
     names = {branch["id"]: branch["name"] for branch in issue.get("branches", [])}
@@ -276,8 +281,13 @@ def past_events(vault: Path, index: str, date: dt.date) -> tuple[str, dict[str, 
     """리포트 날짜 전 `PAST_DAYS`일 동안 발표된 이벤트의 마크다운과, 이벤트 이름마다 `resolved` 항목.
 
     발표일마다 그날 이벤트를 예측한 가장 최근 리포트의 소제목과 표를 그 리포트의 순서대로 쓴다.
+    리포트 날짜의 리포트가 같은 사안 id로 적은 이벤트는 뺀다.
     """
     first = date - dt.timedelta(days=PAST_DAYS)
+    current = report_path(vault, date, index)
+    issues = tree_issues(current)
+    shown = {issues[name]["id"] for _, name, _ in event_items(current.read_text(encoding="utf-8"), date)
+             if name in issues}
     found: dict[dt.date, list[tuple[Path, str, str]]] = {}
     for back in range(1, LOOKBACK + 1):
         source = report_path(vault, date - dt.timedelta(days=back), index)
@@ -291,6 +301,8 @@ def past_events(vault: Path, index: str, date: dt.date) -> tuple[str, dict[str, 
     blocks, branches = [], {}
     for day in sorted(found):
         for source, name, chunk in found[day]:
+            if tree_issues(source).get(name, {}).get("id") in shown:
+                continue
             entry = realized(vault, index, source, name, day, date)
             blocks.append(chunk.rstrip() + "\n")
             if entry:
