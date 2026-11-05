@@ -111,12 +111,14 @@
   .status { color: var(--hint); text-align: center; padding: 48px 0; }
   /* 요약 소제목과 이슈 소제목 앞 말머리는 이벤트 발표 시각과 같은 지수색 글자로 소제목 위 한 줄에 둔다.
      중요도가 낮은 이벤트의 발표 시각은 지수색 대신 회색으로 쓴다.
-     방향 표식은 제목 끝 오른쪽에 색을 채운 스티커로 그리고, 상승 요인과 하락 요인은 머리말 등락률의 상승·하락 색으로 칠한다. */
+     방향 표식은 제목 끝 오른쪽에 색을 채운 스티커로 그리고, 상승 요인과 하락 요인은 머리말 등락률의 상승·하락 색으로 칠한다.
+     제목 끝 줄에 스티커가 들어갈 폭이 없으면 스티커만 다음 줄 왼쪽 끝으로 넘긴다. 제목과 스티커 사이는 줄을 바꿀 수 있는 빈칸으로 띄운다. */
   mark, h3 .when { width: fit-content; background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
   mark { display: block; font-size: 13px; font-weight: 600; margin-bottom: 2px; }
   h3 code { font-family: inherit; font-size: 10.5px; font-weight: 700; color: #8b95a1; background: none; border: 1px solid;
             border-radius: 999px; padding: 0.5px 7px; margin-right: 5px; white-space: nowrap; }
-  h3 .tags { display: inline; margin-left: 8px; vertical-align: 2px; line-height: 1; }
+  h3 .gap { word-spacing: calc(8px - 0.25em); }
+  h3 .tags { display: inline; vertical-align: 2px; line-height: 1; }
   h3:has(> .tags) { margin-bottom: 18px; }
   h3 code.tone-up, h3 code.tone-down, h3 code.tone-both { color: #fff; border: 0; padding: 1.5px 8px; }
   h3 code.tone-up { background: #ff5c5c; }
@@ -1160,7 +1162,7 @@
           const tags = document.createElement("span");
           tags.className = "tags";
           tags.append(...codes);
-          h3.append(tags);
+          h3.append(Object.assign(document.createElement("span"), { className: "gap", textContent: " " }), tags);
         }
         h3.normalize();
         h3.childNodes.forEach((node) => { if (node.nodeType === 3) node.textContent = node.textContent.replace(/\s+$/, ""); });
