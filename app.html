@@ -56,13 +56,16 @@
   header .cal-open.on { background: rgba(255, 255, 255, .08); color: var(--accent); }
   .cal-layer { position: fixed; inset: 0; z-index: 10; background: rgba(0, 0, 0, .35); }
   .cal { position: absolute; z-index: 11; width: min(320px, calc(100vw - 24px)); padding: 14px 12px 12px; border-radius: 16px; background: #222226;
-         box-shadow: 0 12px 32px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .06); }
+         box-shadow: 0 12px 32px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .06); touch-action: pan-y; }
   .cal .head { display: flex; align-items: center; justify-content: space-between; margin: 0 0 10px; }
   .cal .head b { font-size: 15.5px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
   .cal .head button { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; background: none;
                       color: var(--hint); cursor: pointer; }
   .cal .head button:disabled { color: rgba(122, 130, 140, .35); cursor: default; }
   .cal .grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 2px; text-align: center; }
+  .cal .grid.later { animation: cal-in .18s ease-out; --from: 24px; }
+  .cal .grid.earlier { animation: cal-in .18s ease-out; --from: -24px; }
+  @keyframes cal-in { from { opacity: 0; transform: translateX(var(--from)); } }
   .cal .grid .wd { font-size: 11px; font-weight: 600; color: var(--dim); padding: 2px 0 6px; }
   .cal .grid .pad { height: 46px; }
   .cal .grid button { appearance: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; height: 46px;
@@ -976,7 +979,7 @@
     }));
   }
 
-  // 머리말에 달력 단추를 단다. `listing`은 `r/index.json`이다. 달력은 보고 있는 리포트의 달부터 보여 주고, 리포트가 있는 첫 달과 마지막 달 밖으로는 넘기지 않는다.
+  // 머리말에 달력 단추를 단다. `listing`은 `r/index.json`이다. 달력은 보고 있는 리포트의 달부터 보여 주고, 단추를 누르거나 달력을 옆으로 밀어 달을 넘기고, 리포트가 있는 첫 달과 마지막 달 밖으로는 넘기지 않는다.
   // 리포트가 있는 날짜를 누르면 같은 지수의 그날 리포트를 연다. 정규장 등락률이 `null`이면 `—`로 적는다.
   const CALENDAR = '<svg width="23" height="23" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">'
     + '<rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M3 8.5h14M7 2.8v3M13 2.8v3"/></svg>';
@@ -1000,7 +1003,7 @@
       const card = Object.assign(document.createElement("div"), { className: "cal" });
       card.style.top = `${opener.offsetTop + opener.offsetHeight + 6}px`;
       card.style.right = getComputedStyle(opener).right;
-      const draw = () => {
+      const draw = (step = 0) => {
         const [y, m] = month.split("-").map(Number);
         const first = new Date(Date.UTC(y, m - 1, 1)).getUTCDay(), count = new Date(Date.UTC(y, m, 0)).getUTCDate();
         let cells = [..."일월화수목금토"].map((w) => `<span class="wd">${w}</span>`).join("") + '<span class="pad"></span>'.repeat(first);
@@ -1011,9 +1014,9 @@
         }
         card.innerHTML = `<div class="head"><button class="prev" aria-label="이전 달"${month <= months[0] ? " disabled" : ""}>${CHEVRON("M10 3.5 5.5 8l4.5 4.5")}</button>`
           + `<b>${y}년 ${m}월</b><button class="next" aria-label="다음 달"${month >= months.at(-1) ? " disabled" : ""}>${CHEVRON("M6 3.5 10.5 8 6 12.5")}</button></div>`
-          + `<div class="grid">${cells}</div>`;
-        card.querySelector(".prev").addEventListener("click", () => { month = shift(month, -1); draw(); });
-        card.querySelector(".next").addEventListener("click", () => { month = shift(month, 1); draw(); });
+          + `<div class="grid${step > 0 ? " later" : step < 0 ? " earlier" : ""}">${cells}</div>`;
+        card.querySelector(".prev").addEventListener("click", () => go(-1));
+        card.querySelector(".next").addEventListener("click", () => go(1));
         card.querySelectorAll(".grid button.has").forEach((button) => button.addEventListener("click", () => {
           if (button.dataset.day === date) return close();
           const params = new URLSearchParams(location.search);
@@ -1021,6 +1024,23 @@
           location.search = params.toString();
         }));
       };
+      const go = (step) => {
+        const next = shift(month, step);
+        if (next < months[0] || next > months.at(-1)) return;
+        month = next;
+        draw(step);
+      };
+      // 달력 상자를 가로로 40px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 왼쪽으로 민 경우 다음 달로, 오른쪽으로 민 경우 이전 달로 넘긴다.
+      let begin = null;
+      card.addEventListener("touchstart", (event) => {
+        begin = event.touches.length === 1 ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
+      }, { passive: true });
+      card.addEventListener("touchend", (event) => {
+        if (!begin) return;
+        const touch = event.changedTouches[0], dx = touch.clientX - begin.x, dy = touch.clientY - begin.y;
+        begin = null;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > 1.5 * Math.abs(dy)) go(-Math.sign(dx));
+      }, { passive: true });
       const close = () => { layer.remove(); card.remove(); opener.classList.remove("on"); };
       draw();
       layer.addEventListener("click", (event) => { if (event.target === layer) close(); });
