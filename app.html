@@ -152,11 +152,13 @@
   .carousel .rewind.held span { opacity: 1; }
   /* 절 제목 아래 첫 요소는 절 제목의 아래 여백만큼 띄우고, 절 안의 항목 사이는 30px씩 띄운다.
      1개월 지수 방향 예측 절의 세 소제목 사이는 이슈 문단 사이만큼 띄운다. */
-  /* 1개월 지수 방향 예측 절의 세 문단, 주요 이슈 해설의 이슈마다 세 문단은 소제목만 보이고, 다가오는 이벤트의 이벤트마다 표는 펼쳐 둔다.
+  /* 1개월 지수 방향 예측 절의 세 문단은 소제목만 보이고, 주요 이슈 해설의 이슈 해설 문단과 다가오는 이벤트의 이벤트마다 표는 펼쳐 둔다.
      소제목을 누르면 문단이나 표가 펼쳐지거나 접히고, 펼친 문단이나 표를 눌러도 접힌다. 펼친 소제목과 문단 사이는 표식이 없는 소제목의 아래 여백만큼 띄우고, 펼친 문단은 `--hint` 색으로 쓰고,
      펼친 이벤트 표는 열 제목을 소제목 색, 칸 글자를 펼친 문단 색으로 쓴다. 펼치고 접을 때는 내용 높이가 이어서 바뀐다. */
-  /* 주요 이슈 해설의 검토했지만 비중을 낮춘 이슈는 접지 않고, 굵은 이슈 이름은 소제목 색, 설명은 펼친 문단 색으로 쓴다. */
-  .issue-page > ul { color: var(--hint); }
+  /* 주요 이슈 해설의 이슈 해설 문단은 펼친 문단처럼 소제목 아래 여백과 색을 쓴다. 이슈 해설 대신 현재 상태·주요 분기와 예측·지수 영향 소제목 세 개를 단 리포트는 세 문단을 접는다.
+     검토했지만 비중을 낮춘 이슈는 접지 않고, 굵은 이슈 이름은 소제목 색, 설명은 펼친 문단 색으로 쓴다. */
+  .issue-page > h4 { margin-top: 15.5px; }
+  .issue-page > :is(p, ul, ol) { color: var(--hint); }
   details.fold > summary { list-style: none; cursor: pointer; }
   details.fold > summary::-webkit-details-marker { display: none; }
   details.fold { margin-top: 15.5px; }
@@ -168,8 +170,8 @@
   .carousel.fit .track { align-items: flex-start; transition: height .2s ease; }
   .carousel.fit.folding .track { transition: none; }
   .carousel.fit .slide :is(h3, ul):first-child { margin-top: 0; }
-  /* 주요 이슈 해설은 이슈 제목 목록으로 시작한다. 이슈마다 아주 연한 둥근 상자에 왼쪽부터 순위 번호, 방향 표식을 끝에 붙인 제목, 오른쪽 끝 꺾쇠를 놓고, 제목 아래에 현재 상태의 소제목을 흐린 글씨로 붙인다.
-     마지막 상자에는 검토했지만 비중을 낮춘 이슈의 건수를 제목 "외 N건"으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 소제목을 모두 접은 채 보이거나
+  /* 주요 이슈 해설은 이슈 제목 목록으로 시작한다. 이슈마다 아주 연한 둥근 상자에 왼쪽부터 순위 번호, 방향 표식을 끝에 붙인 제목, 오른쪽 끝 꺾쇠를 놓고, 제목 아래에 이슈 해설(이전 리포트는 현재 상태)의 소제목을 흐린 글씨로 붙인다.
+     마지막 상자에는 검토했지만 비중을 낮춘 이슈의 건수를 제목 "외 N건"으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 문단을 보이거나
      검토했지만 비중을 낮춘 이슈를 보이고, 절 제목 줄 오른쪽 끝에 이슈 목록으로 돌아가는 단추를 띄운다. 단추는 내용을 옮기는 동안 나타나거나 사라진다.
      목록과 내용을 바꾸는 동안에는 두 쪽을 넘기기 장처럼 장 사이만큼 띄워 나란히 옆으로 옮기고, 묶음 밖으로 나간 부분은 가린다. */
   .issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px 22px 18px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); cursor: pointer; }
@@ -720,7 +722,7 @@
         const title = nodes[0].cloneNode(true);
         title.removeAttribute("id");
         text.append(title);
-        const now = nodes.map((node) => node.querySelector?.("h4")).find((h4) => h4?.querySelector("mark")?.textContent.trim() === "현재 상태");
+        const now = nodes.map((node) => (node.tagName === "H4" ? node : node.querySelector?.("h4"))).find((h4) => ["이슈 해설", "현재 상태"].includes(h4?.querySelector("mark")?.textContent.trim()));
         if (now) text.append(Object.assign(document.createElement("p"), { textContent: [...now.childNodes].filter((n) => n.nodeName !== "MARK").map((n) => n.textContent).join("").trim() }));
         pick.append(Object.assign(document.createElement("span"), { className: "num", textContent: i + 1 }), text);
       }
@@ -824,14 +826,14 @@
     }, { passive: true });
   }
 
-  // 절 안의 `###`(depth 3)이나 `####`(depth 4) 소제목마다 접기 상자를 만든다.
+  // 절 안의 `###`(depth 3)이나 `####`(depth 4) 소제목마다 접기 상자를 만든다. 말머리가 `keep`에 든 소제목은 접지 않는다.
   const level = (node) => (/^H\d$/.test(node.tagName) ? +node.tagName[1] : 9);
-  function fold(title, depth = 3) {
+  function fold(title, depth = 3, keep = []) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
     if (!head) return;
     const heads = [];
     for (let node = head.nextElementSibling; node && node.tagName !== "H2"; node = node.nextElementSibling) {
-      if (level(node) === depth) heads.push(node);
+      if (level(node) === depth && !keep.includes(node.querySelector("mark")?.textContent.trim())) heads.push(node);
     }
     wrap(heads, depth);
   }
@@ -1146,7 +1148,7 @@
         if (tone) tag.classList.add(tone);
         else tag.remove();
       });
-      fold("주요 이슈 해설", 4);
+      fold("주요 이슈 해설", 4, ["이슈 해설"]);
       section("주요 이슈 해설");
       // 소제목의 방향 표식은 제목 끝으로 옮긴다. 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
       report.querySelectorAll("h3").forEach((h3) => {
