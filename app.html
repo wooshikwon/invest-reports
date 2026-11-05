@@ -176,7 +176,7 @@
      목록과 내용을 바꾸는 동안에는 두 쪽을 넘기기 장처럼 장 사이만큼 띄워 나란히 옆으로 옮기고, 묶음 밖으로 나간 부분은 가린다. */
   .issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px 22px 18px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); cursor: pointer; }
   .issue-list .pick + .pick { margin-top: 10px; }
-  .issue-list .pick .num { flex: none; align-self: flex-start; min-width: 12px; color: var(--hint); font-size: 15.5px; line-height: 1.5; font-weight: 700; }
+  .issue-list .pick .num { flex: none; align-self: flex-start; min-width: 12px; color: var(--text); font-size: 15.5px; line-height: 1.5; font-weight: 700; }
   .issue-list .pick .text { flex: 1; }
   .issue-list .pick h3 { margin: 0; }
   .issue-list .pick p { margin: 6px 0 0; padding-right: 24px; color: var(--dim); font-size: 14px; line-height: 1.5; }
@@ -702,7 +702,7 @@
     });
     const other = "검토했지만 비중을 낮춘 이슈", reviewed = items[items.length - 1][0].textContent.trim() === other;
     if (reviewed) items[items.length - 1].shift().remove();
-    const chevron = '<svg width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const chevron = '<svg width="7" height="12.25" viewBox="0 0 8 14" aria-hidden="true"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     const box = document.createElement("div");
     box.className = "issue-box";
     const list = box.appendChild(document.createElement("div"));
