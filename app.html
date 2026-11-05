@@ -171,6 +171,7 @@
   .carousel.fit.folding .track { transition: none; }
   .carousel.fit .slide :is(h3, ul):first-child { margin-top: 0; }
   /* 주요 이슈 해설은 이슈 제목 목록으로 시작한다. 이슈마다 아주 연한 둥근 상자에 왼쪽부터 순위 번호, 방향 표식을 끝에 붙인 제목, 오른쪽 끝 꺾쇠를 놓고, 제목 아래에 이슈 해설(이전 리포트는 현재 상태)의 소제목을 흐린 글씨로 붙인다.
+     제목과 소제목은 같은 폭으로 쓰고, 글자 오른쪽 끝과 꺾쇠 사이는 꺾쇠와 상자 오른쪽 끝 사이만큼 띄운다.
      마지막 상자에는 검토했지만 비중을 낮춘 이슈의 건수를 제목 "외 N건"으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 문단을 보이거나
      검토했지만 비중을 낮춘 이슈를 보이고, 절 제목 줄 오른쪽 끝에 이슈 목록으로 돌아가는 단추를 띄운다. 단추는 내용을 옮기는 동안 나타나거나 사라진다.
      목록과 내용을 바꾸는 동안에는 두 쪽을 넘기기 장처럼 장 사이만큼 띄워 나란히 옆으로 옮기고, 묶음 밖으로 나간 부분은 가린다. */
@@ -179,8 +180,8 @@
   .issue-list .pick .num { flex: none; align-self: flex-start; min-width: 12px; color: var(--text); font-size: 15.5px; line-height: 1.5; font-weight: 700; }
   .issue-list .pick .text { flex: 1; }
   .issue-list .pick h3 { margin: 0; }
-  .issue-list .pick p { margin: 6px 0 0; padding-right: 24px; color: var(--dim); font-size: 14px; line-height: 1.5; }
-  .issue-list .pick svg { flex: none; color: var(--dim); }
+  .issue-list .pick p { margin: 6px 0 0; color: var(--dim); font-size: 14px; line-height: 1.5; }
+  .issue-list .pick svg { flex: none; margin-left: 8px; color: var(--dim); }
   .issue-box { position: relative; margin-top: 12px; }
   .issue-box.moving { overflow-x: clip; }
   .issue-box .leaving { display: block; position: absolute; top: 0; left: 0; right: 0; }
