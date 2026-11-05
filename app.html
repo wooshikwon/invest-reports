@@ -47,6 +47,33 @@
   header #moves .down { color: #5b9bff; }
   header #moves .sep { margin-left: 8px; }
   header:has(#moves:not(:empty)) + #report > h2:first-child { margin-top: 36px; }
+  /* 제목 줄 오른쪽 끝에 달력 단추를 두고, 단추의 세로 가운데를 제목 글줄의 가운데에 맞춘다. 누르면 단추 바로 아래에 같은 지수의 리포트 날짜를 고르는 달력을 띄운다.
+     달력 상자는 설명 상자와 같은 색으로 그리고, 리포트가 있는 날짜는 흰 글자로 쓰고 그 아래에 그 리포트의 정규장 등락률을 머리말과 같은 색으로 적는다.
+     리포트가 없는 날짜는 회색으로 쓰고 누를 수 없다. 보고 있는 리포트의 날짜는 날짜 띠의 고른 상자와 같은 색으로 칠하고, 다른 리포트를 볼 때 오늘 날짜에는 테두리를 두른다. */
+  header { position: relative; padding-right: 40px; }
+  header .cal-open { position: absolute; top: calc(19px * 1.4 / 2 - 18px); right: -6px; display: grid; place-items: center; width: 36px; height: 36px;
+                     padding: 0; border: 0; border-radius: 10px; background: none; color: var(--hint); cursor: pointer; }
+  header .cal-open.on { background: rgba(255, 255, 255, .08); color: var(--accent); }
+  .cal-layer { position: fixed; inset: 0; z-index: 10; background: rgba(0, 0, 0, .35); }
+  .cal { position: absolute; width: min(320px, calc(100vw - 24px)); padding: 14px 12px 12px; border-radius: 16px; background: #222226;
+         box-shadow: 0 12px 32px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .06); }
+  .cal .head { display: flex; align-items: center; justify-content: space-between; margin: 0 0 10px; }
+  .cal .head b { font-size: 15.5px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+  .cal .head button { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; background: none;
+                      color: var(--hint); cursor: pointer; }
+  .cal .head button:disabled { color: rgba(122, 130, 140, .35); cursor: default; }
+  .cal .grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 2px; text-align: center; }
+  .cal .grid .wd { font-size: 11px; font-weight: 600; color: var(--dim); padding: 2px 0 6px; }
+  .cal .grid .pad { height: 46px; }
+  .cal .grid button { appearance: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; height: 46px;
+                      margin: 0 1px; padding: 0; border: 0; border-radius: 8px; background: none; font: inherit; font-size: 14px; line-height: 1.2;
+                      font-variant-numeric: tabular-nums; color: #4E545C; cursor: default; }
+  .cal .grid button.has { color: #fff; font-weight: 600; cursor: pointer; }
+  .cal .grid button.on { background: rgba(255, 255, 255, .16); font-weight: 800; }
+  .cal .grid button.today:not(.on) { box-shadow: inset 0 0 0 1px var(--line); }
+  .cal .grid button small { font-size: 9.5px; font-weight: 600; letter-spacing: -.2px; color: var(--dim); }
+  .cal .grid button small.up { color: #ff5c5c; }
+  .cal .grid button small.down { color: #5b9bff; }
   h2 { font-size: 15.5px; font-weight: 700; color: var(--dim); margin: 46px 0 10px; }
   #report > h2:first-child { margin-top: 28px; }
   /* 절과 절 사이에는 화면 폭 전체에 바탕보다 짙은 띠를 두어 절을 나눈다. 띠 위아래는 같은 폭으로 띄운다. */
@@ -263,7 +290,8 @@
     window.addEventListener("resize", offscreen);
   }
   const query = new URLSearchParams(location.search);
-  const key = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || query.get("r") || "";
+  // 달력에서 고른 리포트는 주소의 `r`로 다시 연다. 텔레그램은 다시 연 뒤에도 처음 받은 `start_param`을 그대로 주므로 `r`을 먼저 읽는다.
+  const key = query.get("r") || (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || "";
   const report = document.getElementById("report");
   // 소제목 위 말머리와 이벤트 시각은 지수마다 리포트 그림의 판단 색 계열에서 채도를 낮춘 색으로 쓴다(conviction_chart.py JUDGMENT_COLORS).
   // 두 번째 색은 그라데이션이 끝나는 색으로, 지수색에서 색상환을 따라 보라 쪽으로 조금 옮긴 색이다.
@@ -378,7 +406,7 @@
       document.addEventListener("touchstart", (event) => {
         begin = null;
         const { target, touches } = event;
-        if (touches.length !== 1 || track.contains(target) || target.closest(".viewer, .help-card, input")) return;
+        if (touches.length !== 1 || track.contains(target) || target.closest(".viewer, .help-card, .cal-layer, input")) return;
         let next = area.nextElementSibling;
         while (next && next.tagName !== "H2") next = next.nextElementSibling;
         const y = touches[0].clientY;
@@ -948,6 +976,60 @@
     }));
   }
 
+  // 머리말에 달력 단추를 단다. `listing`은 `r/index.json`이다. 달력은 보고 있는 리포트의 달부터 보여 주고, 리포트가 있는 첫 달과 마지막 달 밖으로는 넘기지 않는다.
+  // 리포트가 있는 날짜를 누르면 같은 지수의 그날 리포트를 연다. 정규장 등락률이 `null`이면 `—`로 적는다.
+  const CALENDAR = '<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">'
+    + '<rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M3 8.5h14M7 2.8v3M13 2.8v3"/></svg>';
+  const CHEVRON = (d) => `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
+  function calendar(listing, date) {
+    const index = key.split("-")[1];
+    const moves = new Map(Object.values(listing).filter((entry) => entry.index === index)
+      .map((entry) => [entry.date, entry.moves ? entry.moves.session : null]));
+    if (!moves.size) return;
+    const months = [...moves.keys()].map((day) => day.slice(0, 7)).sort();
+    const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+    const shift = (month, n) => { const d = new Date(`${month}-01T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 7); };
+    const pct = (v) => v === null ? "<small>—</small>"
+      : `<small class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}%</small>`;
+    const opener = Object.assign(document.createElement("button"), { className: "cal-open", innerHTML: CALENDAR });
+    opener.setAttribute("aria-label", "다른 날짜 리포트");
+    document.querySelector("header").append(opener);
+    opener.addEventListener("click", () => {
+      let month = date.slice(0, 7);
+      const layer = Object.assign(document.createElement("div"), { className: "cal-layer" });
+      const card = layer.appendChild(Object.assign(document.createElement("div"), { className: "cal" }));
+      const at = opener.getBoundingClientRect();
+      card.style.top = `${at.bottom + 6}px`;
+      card.style.right = `${Math.max(12, innerWidth - at.right)}px`;
+      const draw = () => {
+        const [y, m] = month.split("-").map(Number);
+        const first = new Date(Date.UTC(y, m - 1, 1)).getUTCDay(), count = new Date(Date.UTC(y, m, 0)).getUTCDate();
+        let cells = [..."일월화수목금토"].map((w) => `<span class="wd">${w}</span>`).join("") + '<span class="pad"></span>'.repeat(first);
+        for (let d = 1; d <= count; d++) {
+          const day = `${month}-${String(d).padStart(2, "0")}`, has = moves.has(day);
+          const name = [has && "has", day === date && "on", day === today && "today"].filter(Boolean).join(" ");
+          cells += `<button class="${name}" data-day="${day}"${has ? "" : " disabled"}><span>${d}</span>${has ? pct(moves.get(day)) : ""}</button>`;
+        }
+        card.innerHTML = `<div class="head"><button class="prev" aria-label="이전 달"${month <= months[0] ? " disabled" : ""}>${CHEVRON("M10 3.5 5.5 8l4.5 4.5")}</button>`
+          + `<b>${y}년 ${m}월</b><button class="next" aria-label="다음 달"${month >= months.at(-1) ? " disabled" : ""}>${CHEVRON("M6 3.5 10.5 8 6 12.5")}</button></div>`
+          + `<div class="grid">${cells}</div>`;
+        card.querySelector(".prev").addEventListener("click", () => { month = shift(month, -1); draw(); });
+        card.querySelector(".next").addEventListener("click", () => { month = shift(month, 1); draw(); });
+        card.querySelectorAll(".grid button.has").forEach((button) => button.addEventListener("click", () => {
+          if (button.dataset.day === date) return close();
+          const params = new URLSearchParams(location.search);
+          params.set("r", `${button.dataset.day.replaceAll("-", "")}-${index}`);
+          location.search = params.toString();
+        }));
+      };
+      const close = () => { layer.remove(); opener.classList.remove("on"); };
+      draw();
+      layer.addEventListener("click", (event) => { if (event.target === layer) close(); });
+      opener.classList.add("on");
+      document.body.append(layer);
+    });
+  }
+
   if (!/^\d{8}-[a-z]+$/.test(key)) {
     fail("열 리포트가 지정되지 않았다.");
   } else {
@@ -972,6 +1054,7 @@
       }
       const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
       report.innerHTML = body;
+      calendar(listing, date);
       figures(date);
       fold("1개월 지수 방향 예측");
       // 이슈 제목의 방향 표식을 가려내 칠하고, 나머지 표식인 이벤트 중요도는 지운다. 중요도는 `build.py`가 소제목에 단 `data-level`로 그린다.
