@@ -177,14 +177,8 @@
      소제목은 짧은 폭에서 줄 끝이 들쭉날쭉하지 않게 단어 대신 글자 단위로 줄을 바꾼다.
      마지막 상자에는 검토했지만 비중을 낮춘 이슈의 건수를 제목 "외 N건"으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 문단을 보이거나
      검토했지만 비중을 낮춘 이슈를 보이고, 절 제목 줄 오른쪽 끝에 이슈 목록으로 돌아가는 단추를 띄운다. 단추는 내용을 옮기는 동안 나타나거나 사라진다.
-     목록과 내용을 바꾸는 동안에는 두 쪽을 넘기기 장처럼 장 사이만큼 띄워 나란히 옆으로 옮기고, 묶음 밖으로 나간 부분은 가린다.
-     보이는 화면을 위 45%, 아래 55%로 나누는 선이 상자 안에 있는 동안 그 상자를 고른 날짜 상자의 색으로 칠하고 소제목과 꺾쇠를 펼친 문단 색으로 밝힌다. 그 선이 상자를 벗어나면 원래 색으로 돌아간다. */
-  .issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px 22px 18px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); cursor: pointer;
-                      transition: background-color .2s ease; }
-  .issue-list .pick.lit { background: rgba(255, 255, 255, .16); }
-  .issue-list .pick :is(p, svg) { transition: color .2s ease; }
-  .issue-list .pick.lit > .text p, .issue-list .pick.lit > svg { color: var(--hint); }
-  @media (prefers-reduced-motion: reduce) { .issue-list .pick, .issue-list .pick :is(p, svg) { transition: none; } }
+     목록과 내용을 바꾸는 동안에는 두 쪽을 넘기기 장처럼 장 사이만큼 띄워 나란히 옆으로 옮기고, 묶음 밖으로 나간 부분은 가린다. */
+  .issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px 22px 18px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); cursor: pointer; }
   .issue-list .pick + .pick { margin-top: 10px; }
   .issue-list .pick .num { flex: none; align-self: flex-start; display: flex; flex-direction: column; align-items: center; gap: 6px;
                            min-width: 16px; color: var(--text); font-size: 15.5px; line-height: 1.5; font-weight: 700; }
@@ -788,23 +782,6 @@
     new ResizeObserver(align).observe(head);
     document.fonts?.ready.then(align);
     head.after(box);
-    // 낮은 시트에서는 웹뷰 아래쪽 `--offscreen`만큼이 화면 밖에 있으므로, 그 높이를 뺀 보이는 화면에서 위로부터 45% 높이의 선으로 상자를 고른다. 눈길은 화면 가운데보다 조금 위에 머물기 때문이다.
-    const picks = [...list.children];
-    let lighting = false;
-    const light = () => {
-      lighting = false;
-      const hidden = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--offscreen")) || 0;
-      const line = (innerHeight - hidden) * 0.45;
-      picks.forEach((pick) => {
-        const rect = pick.getBoundingClientRect();
-        pick.classList.toggle("lit", !box.classList.contains("inside") && rect.top <= line && line < rect.bottom);
-      });
-    };
-    const relight = () => { if (!lighting) { lighting = true; requestAnimationFrame(light); } };
-    addEventListener("scroll", relight, { passive: true });
-    addEventListener("resize", relight);
-    new ResizeObserver(relight).observe(box);
-    relight();
     let busy = false;
     const rename = (next) => {
       if (label.textContent === next) return;
