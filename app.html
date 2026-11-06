@@ -289,7 +289,8 @@
 <script>
   const tg = window.Telegram && window.Telegram.WebApp;
   // 텔레그램 앱 안에서만 기기를 진동시킨다. 이슈 상자·달력 단추·달력 날짜·바로가기 단추를 누르거나 접기 상자를 펼치면 가벼운 충격 진동을 낸다.
-  // 접기, 목록으로 돌아가기, 밀어서 넘기기는 진동하지 않는다. 다가오는 이벤트에서만 보는 날짜가 바뀔 때마다 선택 변경 진동을 낸다.
+  // 접기, 목록으로 돌아가기, 밀어서 넘기기는 진동하지 않는다. 1개월 지수 방향 예측의 날짜 레버로 고른 날짜가 바뀔 때와
+  // 다가오는 이벤트에서 보는 날짜가 바뀔 때마다 선택 변경 진동을 낸다.
   // 브라우저에서는 진동하지 않는다.
   const haptic = (tg && tg.initData && tg.HapticFeedback) || null;
   const feelPress = () => haptic?.impactOccurred("light");
@@ -675,12 +676,16 @@
         if (ready[i]) { if (!frame) frame = requestAnimationFrame(draw); }
         else sources[i].then(() => { if (wanted === i && !frame) frame = requestAnimationFrame(draw); }).catch(() => {});
       };
-      // 레버를 첫 프레임보다 왼쪽으로 옮기면 첫 프레임에 세우고, 그 밖에는 가장 가까운 프레임 날짜로 붙인다.
+      // 레버를 첫 프레임보다 왼쪽으로 옮기면 첫 프레임에 세우고, 그 밖에는 가장 가까운 프레임 날짜로 붙인다. 붙는 날짜가 바뀔 때마다 진동을 낸다.
       const nearest = () => {
         const at = Math.max(first, +range.value);
         return frames.reduce((best, frame, i) => (Math.abs(offset(frame.day) - at) <= Math.abs(offset(frames[best].day) - at) ? i : best), 0);
       };
-      range.addEventListener("input", () => show(nearest()));
+      range.addEventListener("input", () => {
+        const i = nearest();
+        if (i !== wanted) feelSlide();
+        show(i);
+      });
       const hold = (on) => () => { control.classList.toggle("held", on); if (on) show(nearest()); };
       range.addEventListener("pointerdown", hold(true));
       ["pointerup", "pointercancel", "change", "blur"].forEach((type) => range.addEventListener(type, hold(false)));
