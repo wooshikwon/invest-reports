@@ -286,8 +286,9 @@
 </main>
 <script>
   const tg = window.Telegram && window.Telegram.WebApp;
-  // 텔레그램 앱 안에서만 기기를 진동시킨다. 상자나 단추를 누르거나 접기 상자를 펼치고 접으면 가벼운 충격 진동을 내고,
-  // 넘기거나 끌어서 보는 장·달·절이 바뀌면 선택 변경 진동을 낸다. 브라우저에서는 진동하지 않는다.
+  // 텔레그램 앱 안에서만 기기를 진동시킨다. 이슈 상자·달력 단추·달력 날짜·바로가기 단추를 누르거나 접기 상자를 펼치면 가벼운 충격 진동을 낸다.
+  // 접기, 목록으로 돌아가기, 밀어서 넘기기는 진동하지 않는다. 다가오는 이벤트에서만 보는 날짜가 바뀔 때마다 선택 변경 진동을 낸다.
+  // 브라우저에서는 진동하지 않는다.
   const haptic = (tg && tg.initData && tg.HapticFeedback) || null;
   const feelPress = () => haptic?.impactOccurred("light");
   const feelSlide = () => haptic?.selectionChanged();
@@ -342,8 +343,8 @@
   // 슬라이드마다 노드 목록을 받아 좌우로 넘기는 묶음을 만들고 `after` 뒤에 둔다. 묶음 상자를 돌려준다.
   // `fit`이면 넘기기가 멈춘 뒤와 슬라이드 높이가 바뀐 뒤 묶음 높이를 보고 있는 슬라이드에 맞춘다. `change`가 있으면 보고 있는
   // 슬라이드가 바뀔 때마다 그 번호로 `change`를 부르고, `dots`를 켜지 않으면 아래 점을 두지 않는다. `start`번 슬라이드부터 보여 준다.
-  // 상자의 `go(i)`는 i번 슬라이드로 넘긴다.
-  function slider(slides, after, { fit = false, start = 0, change = null, dots: dotted = !change, name = "", area = null } = {}) {
+  // `feel`이면 보고 있는 슬라이드가 바뀔 때마다 선택 변경 진동을 낸다. 상자의 `go(i)`는 i번 슬라이드로 넘긴다.
+  function slider(slides, after, { fit = false, start = 0, change = null, dots: dotted = !change, name = "", area = null, feel = false } = {}) {
     const box = document.createElement("div");
     box.className = ["carousel", fit && "fit", name].filter(Boolean).join(" ");
     box.innerHTML = dotted ? '<div class="track"></div><div class="dots"></div>' : '<div class="track"></div>';
@@ -409,7 +410,7 @@
     track.addEventListener("scroll", () => {
       if (fit) reveal();
       const now = current();
-      if (now !== felt) { felt = now; feelSlide(); }
+      if (feel && now !== felt) { felt = now; feelSlide(); }
       if (dots) [...dots.children].forEach((dot, i) => dot.classList.toggle("on", i === now));
       if (change && now !== shown) change((shown = now));
       wait();
@@ -760,7 +761,13 @@
         pick.append(num, text);
       }
       pick.insertAdjacentHTML("beforeend", chevron);
-      pick.addEventListener("click", () => open(i));
+      // 이슈 상자를 누르면 진동을 내고, 상자를 0.12초 동안 4% 줄였다가 원래 크기로 돌린 뒤 그 이슈를 연다.
+      pick.addEventListener("click", () => {
+        if (busy || box.classList.contains("inside")) return;
+        feelPress();
+        const press = [{ transform: "none" }, { transform: "scale(.96)" }, { transform: "none" }];
+        pick.animate(press, { duration: motion.matches ? 0 : 120, easing: "ease-out" }).finished.then(() => open(i));
+      });
       const page = box.appendChild(document.createElement("div"));
       page.className = "issue-page";
       page.append(...nodes);
@@ -821,7 +828,6 @@
     };
     const open = (i) => {
       if (busy || box.classList.contains("inside")) return;
-      feelPress();
       swap(list, () => {
         pages.forEach((page, j) => page.classList.toggle("on", i === j));
         pages[i].querySelectorAll("details.fold").forEach((fold) => {
@@ -837,9 +843,8 @@
         return pages[i];
       }, 1);
     };
-    const close = (feel = feelPress) => {
+    const close = () => {
       if (busy || !box.classList.contains("inside")) return;
-      feel();
       const page = box.querySelector(".issue-page.on");
       swap(page, () => {
         box.classList.remove("inside");
@@ -857,7 +862,7 @@
       if (!begin) return;
       const dx = changedTouches[0].clientX - begin.x, dy = changedTouches[0].clientY - begin.y;
       begin = null;
-      if (dx > 40 && dx > 1.5 * Math.abs(dy)) close(feelSlide);
+      if (dx > 40 && dx > 1.5 * Math.abs(dy)) close();
     }, { passive: true });
   }
 
@@ -909,7 +914,7 @@
   // 다 닫힌 뒤에야 상자를 닫는다. 넘기는 묶음 안에서는 움직이는 동안 묶음 높이가 매 프레임 내용 높이를 따라가게 한다.
   function setFold(box, open) {
     if ((box.want ?? box.open) === open) return;
-    feelPress();
+    if (open) feelPress();
     box.want = open;
     const body = box.lastElementChild, carousel = box.closest(".carousel.fit");
     const start = box.open ? body.getBoundingClientRect().height : 0;
@@ -994,7 +999,7 @@
       strip.style.transition = "";
     };
     head.after(bar);
-    const box = slider(days.map((day) => groups.get(day)), bar, { fit: true, start: days.indexOf(date), change, name: "events", area: head });
+    const box = slider(days.map((day) => groups.get(day)), bar, { fit: true, start: days.indexOf(date), change, name: "events", area: head, feel: true });
     box.prepend(bar);
     new ResizeObserver(fill).observe(box);
     wrap([...box.querySelectorAll(".slide > h3")], 3);
@@ -1094,7 +1099,6 @@
         aligning?.();
         if (dir && !inside(shift(month, dir))) dir = 0;
         if (dir) {
-          feelSlide();
           reveal(dir);
           const [y, m] = shift(month, dir).split("-").map(Number);
           title.textContent = `${y}년 ${m}월`;
@@ -1294,8 +1298,7 @@
     };
     nav.addEventListener("pointerdown", (event) => {
       delete nav.dataset.dragged;
-      const on = marks.findIndex(([, button]) => button.classList.contains("on"));
-      drag = { y: event.clientY, top: nav.getBoundingClientRect().top + nav.clientTop, moved: false, id: event.pointerId, on };
+      drag = { y: event.clientY, top: nav.getBoundingClientRect().top + nav.clientTop, moved: false, id: event.pointerId };
     });
     nav.addEventListener("pointermove", (event) => {
       if (!drag || event.pointerId !== drag.id) return;
@@ -1307,7 +1310,6 @@
       lever.style.opacity = 1;
       lever.style.transform = `translateY(${y}px)`;
       const on = nearest(y + height / 2);
-      if (on !== drag.on) { drag.on = on; feelSlide(); }
       marks.forEach(([, button], i) => button.classList.toggle("on", i === on));
     });
     const end = (event) => {
