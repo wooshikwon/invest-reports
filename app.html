@@ -161,7 +161,9 @@
      검토했지만 비중을 낮춘 이슈는 접지 않고, 굵은 이슈 이름은 소제목 색, 설명은 펼친 문단 색으로 쓴다. */
   .issue-page > h4 { margin-top: 15.5px; }
   .issue-page > :is(p, ul, ol) { color: var(--hint); }
-  details.fold > summary { list-style: none; cursor: pointer; }
+  /* 접힌 소제목을 누르고 있는 동안 소제목 줄을 글자가 시작하는 왼쪽 끝을 기준으로 3% 줄인다. */
+  details.fold > summary { list-style: none; cursor: pointer; transform-origin: left center; transition: transform .1s ease-out; -webkit-tap-highlight-color: transparent; }
+  details.fold > summary.pressed { transform: scale(.97); }
   details.fold > summary::-webkit-details-marker { display: none; }
   details.fold { margin-top: 15.5px; }
   .carousel + details.fold { margin-top: 30px; }
@@ -902,6 +904,9 @@
         body.appendChild(node);
         node = next;
       }
+      // 접힌 소제목을 누르고 있는 동안 줄이고, 손을 떼거나 누른 채 화면을 밀거나 손가락이 소제목 밖으로 나가면 원래 크기로 돌린다.
+      summary.addEventListener("pointerdown", () => { if (!(box.want ?? box.open)) summary.classList.add("pressed"); }, { passive: true });
+      ["pointerup", "pointercancel", "pointerleave"].forEach((type) => summary.addEventListener(type, () => summary.classList.remove("pressed"), { passive: true }));
       summary.addEventListener("click", (event) => {
         event.preventDefault();
         setFold(box, !(box.want ?? box.open));
