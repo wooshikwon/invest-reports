@@ -178,7 +178,9 @@
      마지막 상자에는 검토했지만 비중을 낮춘 이슈의 건수를 제목 "외 N건"으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 문단을 보이거나
      검토했지만 비중을 낮춘 이슈를 보이고, 절 제목 줄 오른쪽 끝에 이슈 목록으로 돌아가는 단추를 띄운다. 단추는 내용을 옮기는 동안 나타나거나 사라진다.
      목록과 내용을 바꾸는 동안에는 두 쪽을 넘기기 장처럼 장 사이만큼 띄워 나란히 옆으로 옮기고, 묶음 밖으로 나간 부분은 가린다. */
-  .issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px 22px 18px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); cursor: pointer; }
+  .issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px 22px 18px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); cursor: pointer;
+    transition: transform .1s ease-out; -webkit-tap-highlight-color: transparent; }
+  .issue-list .pick.pressed { transform: scale(.97); }
   .issue-list .pick + .pick { margin-top: 10px; }
   .issue-list .pick .num { flex: none; align-self: flex-start; display: flex; flex-direction: column; align-items: center; gap: 6px;
                            min-width: 16px; color: var(--text); font-size: 15.5px; line-height: 1.5; font-weight: 700; }
@@ -761,12 +763,14 @@
         pick.append(num, text);
       }
       pick.insertAdjacentHTML("beforeend", chevron);
-      // 이슈 상자를 누르면 진동을 내고, 상자를 0.12초 동안 4% 줄였다가 원래 크기로 돌린 뒤 그 이슈를 연다.
+      // 이슈 상자를 누르고 있는 동안 상자를 3% 줄인다. 손을 떼면 원래 크기로 돌리고, 누름으로 판정되면 진동을 내고 그 이슈를 연다.
+      // 누른 채 화면을 밀어 누름이 취소되거나 손가락이 상자 밖으로 나가면 원래 크기로 돌린다.
+      pick.addEventListener("pointerdown", () => pick.classList.add("pressed"), { passive: true });
+      ["pointerup", "pointercancel", "pointerleave"].forEach((type) => pick.addEventListener(type, () => pick.classList.remove("pressed"), { passive: true }));
       pick.addEventListener("click", () => {
         if (busy || box.classList.contains("inside")) return;
         feelPress();
-        const press = [{ transform: "none" }, { transform: "scale(.96)" }, { transform: "none" }];
-        pick.animate(press, { duration: motion.matches ? 0 : 120, easing: "ease-out" }).finished.then(() => open(i));
+        open(i);
       });
       const page = box.appendChild(document.createElement("div"));
       page.className = "issue-page";
