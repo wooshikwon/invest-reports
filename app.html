@@ -451,8 +451,8 @@
     return box;
   }
 
-  // 요약의 Outlook 그림 자리에 6M + Predictions, Montecarlo, Outlook 순서로 넘기는 묶음을 둔다.
-  // Montecarlo는 원래 다가오는 이벤트 절에 있으므로 그 자리에서는 뺀다. 6M + Predictions가 없는 리포트는 두 장을 넘긴다.
+  // 요약의 Outlook 그림 자리에 12M + Predictions, Montecarlo, Outlook 순서로 넘기는 묶음을 둔다.
+  // Montecarlo는 원래 다가오는 이벤트 절에 있으므로 그 자리에서는 뺀다. 12M + Predictions가 없는 리포트는 두 장을 넘긴다.
   // 묶음 위에는 그림 이름 탭을 둔다. 탭을 누르면 그 그림으로 넘기고, 넘기면 보고 있는 그림의 탭을 밝힌다.
   function figures(date) {
     const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
@@ -475,7 +475,7 @@
 
   // 그림 묶음 아래에 지난 판단 날짜로 되감는 슬라이더를 둔다(build.py `r/rewind-{지수}/frames.json`). 리포트 날짜와 그 앞
   // 날짜만 고를 수 있고, 리포트 날짜가 되감기 범위에 없으면 슬라이더를 두지 않는다.
-  // 6M + Predictions는 가장 늦은 리포트의 종가 바탕 위에 고른 날짜의 출발점·50% 선·25~75% 범위를 그린다.
+  // 12M + Predictions는 가장 늦은 리포트의 종가 바탕 위에 고른 날짜의 출발점·50% 선·25~75% 범위를 그린다.
   // Montecarlo는 고른 날짜의 그림 위에 그날 기준 가격 뒤의 실제 종가 수익률을 흰 선으로 그리고, 권장 추종 배율은 그날 그림으로 바꾼다.
   // 종가 선과 실제 종가 수익률은 리포트 날짜 판단의 기준 가격 날짜까지만 그린다. 그 뒤 종가는 리포트를 만든 뒤에 확정됐다.
   // 그림 크기 단위의 선 굵기와 글자 크기는 matplotlib 포인트를 그림 해상도(200dpi)로 옮긴 값이다.
