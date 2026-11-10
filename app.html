@@ -58,7 +58,10 @@
   header:has(.index-switch) { padding-right: 100px; }
   header .index-switch { position: absolute; top: calc(var(--title-mid, 19px * 1.4 / 2) - 14px); right: 36px; height: 28px; padding: 0 10px;
                          border: 1px solid rgba(255, 255, 255, .12); border-radius: 10px; background: none;
-                         font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+                         font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+                         --index-ink: linear-gradient(100deg, var(--index-to) -25%, var(--index) 85%); }
+  /* 지수 전환 단추의 글자는 절 제목과 같은 그라데이션으로 칠하되, 단추가 여는 지수의 두 색을 쓴다. */
+  header .index-switch span { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .cal-layer { position: fixed; inset: 0; z-index: 10; background: rgba(0, 0, 0, .35); }
   .cal { position: absolute; z-index: 11; width: min(320px, calc(100vw - 24px)); padding: 14px 12px 12px; border-radius: 16px; background: #222226;
          box-shadow: 0 12px 32px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .06); touch-action: pan-y; }
@@ -1201,11 +1204,11 @@
     const other = order[(order.indexOf(index) + 1) % order.length];
     const same = `${date.replaceAll("-", "")}-${other}`;
     const target = listing[same] ? same : latest(listing, other);
-    const button = Object.assign(document.createElement("button"), {
-      className: "index-switch", textContent: listing[target].title.replace(/ 리포트$/, ""),
-    });
+    const button = Object.assign(document.createElement("button"), { className: "index-switch" });
+    button.append(Object.assign(document.createElement("span"), { textContent: listing[target].title.replace(/ 리포트$/, "") }));
     button.setAttribute("aria-label", `${listing[target].title} 열기`);
-    button.style.color = INDEX[other][0];
+    button.style.setProperty("--index", INDEX[other][0]);
+    button.style.setProperty("--index-to", INDEX[other][1]);
     document.querySelector("header").append(button);
     button.addEventListener("click", () => {
       feelPress();
