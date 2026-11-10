@@ -54,6 +54,11 @@
   header .cal-open { position: absolute; top: calc(19px * 1.4 / 2 - 18px); right: -6px; display: grid; place-items: center; width: 36px; height: 36px;
                      padding: 0; border: 0; border-radius: 10px; background: none; color: var(--hint); cursor: pointer; }
   header .cal-open.on { background: rgba(255, 255, 255, .08); color: var(--accent); }
+  /* 지수 전환 단추는 달력 단추 왼쪽에 두고 세로 가운데를 달력 단추와 맞춘다. 단추가 있으면 제목이 단추 밑으로 들어가지 않게 머리말 오른쪽 여백을 늘린다. */
+  header:has(.index-switch) { padding-right: 100px; }
+  header .index-switch { position: absolute; top: calc(19px * 1.4 / 2 - 14px); right: 36px; height: 28px; padding: 0 10px;
+                         border: 1px solid rgba(255, 255, 255, .12); border-radius: 10px; background: none;
+                         font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
   .cal-layer { position: fixed; inset: 0; z-index: 10; background: rgba(0, 0, 0, .35); }
   .cal { position: absolute; z-index: 11; width: min(320px, calc(100vw - 24px)); padding: 14px 12px 12px; border-radius: 16px; background: #222226;
          box-shadow: 0 12px 32px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .06); touch-action: pan-y; }
@@ -288,7 +293,7 @@
 </main>
 <script>
   const tg = window.Telegram && window.Telegram.WebApp;
-  // 텔레그램 앱 안에서만 기기를 진동시킨다. 이슈 상자·달력 단추·달력 날짜·바로가기 단추를 누르거나 접기 상자를 펼치면 가벼운 충격 진동을 낸다.
+  // 텔레그램 앱 안에서만 기기를 진동시킨다. 이슈 상자·달력 단추·달력 날짜·지수 전환 단추·바로가기 단추를 누르거나 접기 상자를 펼치면 가벼운 충격 진동을 낸다.
   // 접기, 목록으로 돌아가기, 밀어서 넘기기는 진동하지 않는다. 1개월 지수 방향 예측의 날짜 레버로 고른 날짜가 바뀔 때와
   // 다가오는 이벤트에서 보는 날짜가 바뀔 때마다 선택 변경 진동을 낸다.
   // 브라우저에서는 진동하지 않는다.
@@ -314,17 +319,22 @@
     window.addEventListener("resize", offscreen);
   }
   const query = new URLSearchParams(location.search);
-  // 달력에서 고른 리포트는 주소의 `r`로 다시 연다. 텔레그램은 다시 연 뒤에도 처음 받은 `start_param`을 그대로 주므로 `r`을 먼저 읽는다.
-  const key = query.get("r") || (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || "";
+  // 달력과 지수 전환 단추로 고른 리포트는 주소의 `r`로 다시 연다. 텔레그램은 다시 연 뒤에도 처음 받은 `start_param`을 그대로 주므로 `r`을 먼저 읽는다.
+  // 홈 화면 바로가기는 `start_param` 없이 미니 앱을 열므로, 키가 없으면 리포트를 받기 전에 `r/index.json`에서 키를 정한다.
+  let key = query.get("r") || (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || "";
   const report = document.getElementById("report");
   // 소제목 위 말머리와 이벤트 시각은 지수마다 리포트 그림의 판단 색 계열에서 채도를 낮춘 색으로 쓴다(conviction_chart.py JUDGMENT_COLORS).
   // 두 번째 색은 그라데이션이 끝나는 색으로, 지수색에서 색상환을 따라 보라 쪽으로 조금 옮긴 색이다.
   const INDEX = { nasdaq: ["#8FBCE6", "#AFA6EC"], biotech: ["#AE9CE6", "#E09DCB"] };
-  const tint = INDEX[key.split("-")[1]];
-  if (tint) {
+  const paint = () => {
+    const tint = INDEX[key.split("-")[1]];
+    if (!tint) return;
     document.documentElement.style.setProperty("--index", tint[0]);
     document.documentElement.style.setProperty("--index-to", tint[1]);
-  }
+  };
+  // `listing`은 `r/index.json`이다. `index` 지수의 리포트 가운데 날짜가 가장 늦은 리포트의 키를 돌려주고, 그 지수의 리포트가 없으면 빈 글자를 돌려준다.
+  const latest = (listing, index) => Object.keys(listing).filter((name) => listing[name].index === index)
+    .sort((a, b) => listing[b].date.localeCompare(listing[a].date))[0] || "";
   const fail = (message) => { report.innerHTML = `<p class="status">${message}</p>`; };
   // 좌우로 넘기는 동작은 모두 `--glide`와 같은 0.3초, 같은 감속 곡선(cubic-bezier(.33, 1, .68, 1))으로 움직인다.
   // `glide`는 값을 `from`에서 `to`까지 그 곡선으로 바꾸며 매 프레임 `set`을 부르고, 다 바꾸면 `done`을 부른다. 멈추는 함수를 돌려준다.
@@ -1166,63 +1176,90 @@
     });
   }
 
-  if (!/^\d{8}-[a-z]+$/.test(key)) {
-    fail("열 리포트가 지정되지 않았다.");
-  } else {
-    Promise.all([
-      fetch(`r/${key}/report.html`, { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); }),
-      fetch("r/index.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
-    ]).then(([body, listing]) => {
-      const entry = listing[key];
-      if (entry) {
-        document.getElementById("title").textContent = entry.title;
-        document.title = `${entry.title} ${entry.day}`;
-        // 처음 만든 날이 리포트 날짜와 같으면 시각만, 다르면 월/일까지 적는다.
-        const [day, time] = entry.written.split(" ");
-        const when = day === entry.date ? time : `${+day.slice(5, 7)}/${+day.slice(8)} ${time}`;
-        document.getElementById("dated").textContent = `${entry.day} ${when} 작성`;
-        if (entry.moves) {
-          const pct = (v) => v === null ? "<b>—</b>"
-            : `<b class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}%</b>`;
-          document.getElementById("moves").innerHTML =
-            `정규장${pct(entry.moves.session)}<span class="sep"></span>(장 마감 후${pct(entry.moves.after)})`;
-        }
-      }
-      const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
-      report.innerHTML = body;
-      calendar(listing, date);
-      figures(date);
-      fold("1개월 지수 방향 예측");
-      // 이슈 제목의 방향 표식을 가려내 칠하고, 나머지 표식인 이벤트 중요도는 지운다. 중요도는 `build.py`가 소제목에 단 `data-level`로 그린다.
-      const tones = { "상승 요인": "tone-up", "하락 요인": "tone-down", "양방향": "tone-both" };
-      report.querySelectorAll("h3 code").forEach((tag) => {
-        const tone = tones[tag.textContent.trim()];
-        if (tone) tag.classList.add(tone);
-        else tag.remove();
-      });
-      fold("주요 이슈 해설", 4, ["이슈 해설"]);
-      section("주요 이슈 해설");
-      // 소제목의 방향 표식은 제목 끝으로 옮긴다. 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
-      report.querySelectorAll("h3").forEach((h3) => {
-        const codes = [...h3.querySelectorAll("code")];
-        if (codes.length) {
-          const tags = document.createElement("span");
-          tags.className = "tags";
-          tags.append(...codes);
-          h3.append(Object.assign(document.createElement("span"), { className: "gap", textContent: " " }), tags);
-        }
-        h3.normalize();
-        h3.childNodes.forEach((node) => { if (node.nodeType === 3) node.textContent = node.textContent.replace(/\s+$/, ""); });
-      });
-      events(date);
-      help();
-      jump([["예측", "1개월 지수 방향 예측"], ["이슈", "주요 이슈 해설"], ["이벤트", "다가오는 이벤트"]]);
-      // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
-      // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
-      // 손가락을 움직이지 않고 한 번 누르면 닫는다.
-      report.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => viewer(img)));
-    }).catch(() => fail("리포트를 찾지 못했다."));
+  // 머리말 달력 단추 왼쪽에 다른 지수의 리포트로 바꾸는 단추를 단다. 단추에는 바꿀 지수의 이름을 그 지수의 색으로 쓴다. 누르면 보고 있는 리포트와 같은 날짜의
+  // 그 지수 리포트를 열고, 그 날짜의 리포트가 없으면 그 지수의 가장 늦은 리포트를 연다. 지수는 `INDEX`의 순서로 돌고, 리포트가 있는 지수가 하나뿐이면 단추를 달지 않는다.
+  function switcher(listing, date) {
+    const index = key.split("-")[1];
+    const order = Object.keys(INDEX).filter((name) => latest(listing, name));
+    if (order.length < 2 || !order.includes(index)) return;
+    const other = order[(order.indexOf(index) + 1) % order.length];
+    const same = `${date.replaceAll("-", "")}-${other}`;
+    const target = listing[same] ? same : latest(listing, other);
+    const button = Object.assign(document.createElement("button"), {
+      className: "index-switch", textContent: listing[target].title.replace(/ 리포트$/, ""),
+    });
+    button.setAttribute("aria-label", `${listing[target].title} 열기`);
+    button.style.color = INDEX[other][0];
+    document.querySelector("header").append(button);
+    button.addEventListener("click", () => {
+      feelPress();
+      const params = new URLSearchParams(location.search);
+      params.set("r", target);
+      location.search = params.toString();
+    });
   }
+
+  // 리포트 키가 없거나 형식이 다르면 목록에서 가장 늦은 나스닥 리포트를 연다. 목록에 나스닥 리포트가 없으면 열 리포트를 찾지 못했다고 적는다.
+  const listed = fetch("r/index.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  (/^\d{8}-[a-z]+$/.test(key) ? Promise.resolve(key) : listed.then((listing) => latest(listing, "nasdaq"))).then((found) => {
+    if (!found) throw new Error("no report");
+    key = found;
+    paint();
+    return Promise.all([
+      fetch(`r/${key}/report.html`, { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); }),
+      listed,
+    ]);
+  }).then(([body, listing]) => {
+    const entry = listing[key];
+    if (entry) {
+      document.getElementById("title").textContent = entry.title;
+      document.title = `${entry.title} ${entry.day}`;
+      // 처음 만든 날이 리포트 날짜와 같으면 시각만, 다르면 월/일까지 적는다.
+      const [day, time] = entry.written.split(" ");
+      const when = day === entry.date ? time : `${+day.slice(5, 7)}/${+day.slice(8)} ${time}`;
+      document.getElementById("dated").textContent = `${entry.day} ${when} 작성`;
+      if (entry.moves) {
+        const pct = (v) => v === null ? "<b>—</b>"
+          : `<b class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}%</b>`;
+        document.getElementById("moves").innerHTML =
+          `정규장${pct(entry.moves.session)}<span class="sep"></span>(장 마감 후${pct(entry.moves.after)})`;
+      }
+    }
+    const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
+    report.innerHTML = body;
+    calendar(listing, date);
+    switcher(listing, date);
+    figures(date);
+    fold("1개월 지수 방향 예측");
+    // 이슈 제목의 방향 표식을 가려내 칠하고, 나머지 표식인 이벤트 중요도는 지운다. 중요도는 `build.py`가 소제목에 단 `data-level`로 그린다.
+    const tones = { "상승 요인": "tone-up", "하락 요인": "tone-down", "양방향": "tone-both" };
+    report.querySelectorAll("h3 code").forEach((tag) => {
+      const tone = tones[tag.textContent.trim()];
+      if (tone) tag.classList.add(tone);
+      else tag.remove();
+    });
+    fold("주요 이슈 해설", 4, ["이슈 해설"]);
+    section("주요 이슈 해설");
+    // 소제목의 방향 표식은 제목 끝으로 옮긴다. 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
+    report.querySelectorAll("h3").forEach((h3) => {
+      const codes = [...h3.querySelectorAll("code")];
+      if (codes.length) {
+        const tags = document.createElement("span");
+        tags.className = "tags";
+        tags.append(...codes);
+        h3.append(Object.assign(document.createElement("span"), { className: "gap", textContent: " " }), tags);
+      }
+      h3.normalize();
+      h3.childNodes.forEach((node) => { if (node.nodeType === 3) node.textContent = node.textContent.replace(/\s+$/, ""); });
+    });
+    events(date);
+    help();
+    jump([["예측", "1개월 지수 방향 예측"], ["이슈", "주요 이슈 해설"], ["이벤트", "다가오는 이벤트"]]);
+    // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
+    // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
+    // 손가락을 움직이지 않고 한 번 누르면 닫는다.
+    report.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => viewer(img)));
+  }).catch(() => fail("리포트를 찾지 못했다."));
   // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 보던 위치에서 절 제목 글자가 문서 맨 위에서 본 첫 절 제목 글자보다 40px 높은 높이에 올 때까지
   // 화면을 부드럽게 움직인다. 제목 위의 띠는 화면 위쪽에 보인다. 문서 끝이 모자라 제목이 그 높이까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
   // 단추를 만들 때 절마다 여백을 미리 늘려, 처음부터 마지막 절 제목까지 손으로 밀어 올릴 수 있다.
