@@ -26,6 +26,11 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 발표 시각이 수집기가 채운 기본값(`PLACEHOLDER_TIMES`)이거나 사안 나무에 없으면 장전·장중·장후만 적는다.
 중요도는 `data-level`로 달아 `invest-reports` 미니 앱이 날짜 띠에 점으로 그린다.
 
+`주요 시장 지표` 절의 지표 소제목에는 그날 지수 폴더의 `market-data.json`·`macro-data.json`에서 뽑은 카드 값을 `data-card`로 단다.
+카드 값은 탭 이름, 값과 단위, 상태 이름과 색, 기준일, 앞 값이나 보조 값을 적은 한 줄, 그림 종류와 그림 입력이다.
+앞 값은 `LOOKBACK`일 안의 앞 배치 가운데 기준일이 그날 값보다 이른 가장 늦은 배치에서 읽는다. 값이 없는 지표에는 카드 값을 달지 않는다.
+`invest-reports` 미니 앱은 카드 값으로 지표마다 카드를 그려 한 장씩 넘기게 하고, 카드 값이 없는 소제목은 지운다.
+
 `r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 처음 만든 시각(`written`, 서울 시각)을 적는다. `invest-reports` 미니 앱은 제목 아래
 작은 글씨로 날짜 줄과 처음 만든 시각을 그린다. 같은 리포트를 다시 만들어도 처음 만든 시각은 그대로 둔다.
 `invest-reports` 미니 앱의 달력은 같은 목록에서 그 지수의 리포트 날짜를 찾아 흰 글자로 쓰고, 날짜 아래에 `moves`의 `session`을 적는다.
@@ -67,7 +72,7 @@ EVENT_DAY_RE = re.compile(r"^(?:(\d{4})-)?(\d{1,2})[-/](\d{1,2})\([^)]*\)(?:~\S+
 LEVEL_RE = re.compile(r"\s*`중요도 ([^`]*)`")
 LEVELS = {"높음": "high", "보통": "mid", "낮음": "low"}  # 소제목 중요도 표식의 말과 `data-level` 값
 PAST_DAYS = 2  # 리포트 날짜 전 며칠 동안 발표된 이벤트를 넣는지
-LOOKBACK = 7  # 지난 이벤트의 표를 찾을 때 거슬러 보는 리포트 날짜 수
+LOOKBACK = 7  # 지난 이벤트의 표와 지표의 앞 값을 찾을 때 거슬러 보는 리포트 날짜 수
 REGULAR_OPEN, REGULAR_CLOSE = "09:30", "16:00"  # 뉴욕 정규장 시각. 발표 시각을 장전·장중·장후로 나눈다
 # 발표 시각을 모를 때 채우는 뉴욕 시각. 실적의 장전(bmo)·장후(amc) 단서는 `calendar_store.py`가 08:00·16:05로,
 # 장중(dmh)은 `render_inputs.py`가 12:00으로 채우고, 단서가 없는 발표는 16:00으로 적는다. 이 시각은 장 구분만 적는다.
@@ -76,6 +81,17 @@ NEW_YORK, SEOUL = ZoneInfo("America/New_York"), ZoneInfo("Asia/Seoul")
 # 리포트 제목 끝의 날짜 줄. `나스닥 리포트 2026-10-22 (목)` 꼴이다.
 TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
+INDICATORS_TITLE = "주요 시장 지표"
+UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#4a4f58"  # 오름·내림·중립 색. `app.html`의 등락 색과 같다
+# 지표 카드의 구간. [구간 끝값, 색, 구간 이름]이고, 지금 값이 든 구간의 이름과 색이 카드의 상태다.
+FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, "#3b5d93", "공포"], [55, NEUTRAL, "중립"], [75, "#8e4747", "탐욕"],
+                    [100, UP, "극단 탐욕"]]
+PUT_CALL_ZONES = [[0.8, UP, "낙관"], [1.2, NEUTRAL, "중립"], [1.5, DOWN, "비관"]]
+GOOD, WARN, CRIT = "#0ca30c", "#fab219", "#d03b3b"  # 정상·경계·위기 색
+VIX_ZONES = [[25, GOOD, "정상"], [40, WARN, "경계"], [50, CRIT, "위기"]]
+HIGH_YIELD_ZONES = [[5, GOOD, "정상"], [8, WARN, "경계"], [10, CRIT, "위기"]]
+POSITION_CROWDED = 80  # 선물 순매수 1년 백분위가 이 값 이상이면 매수 쏠림, 100에서 뺀 값 이하면 매도 쏠림
+RATE_MOVE_BP = 12.5  # 다음 회의까지 누적 변화가 이 bp 이상이면 인상 예상, 음수로 이 값 이하면 인하 예상
 
 
 def report_pdf(vault: Path):
@@ -430,6 +446,174 @@ def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[
     return body[:head.end()] + section + body[end:]
 
 
+def batch_data(vault: Path, index: str, day: dt.date) -> tuple[dict, dict] | None:
+    """그날 지수 폴더의 (`market-data.json`, `macro-data.json`). `market-data.json`이 없으면 None."""
+    folder = report_path(vault, day, index).parent
+    market = folder / "market-data.json"
+    if not market.is_file():
+        return None
+    macro = folder / "macro-data.json"
+    return (json.loads(market.read_text(encoding="utf-8")),
+            json.loads(macro.read_text(encoding="utf-8")) if macro.is_file() else {})
+
+
+def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:
+    """`report-template.md` `주요 시장 지표` 표의 지표 이름마다 (기준일, 원값). 값을 수집하지 못한 지표는 뺀다."""
+    as_of = market.get("as_of")
+    options, flows = market.get("options") or {}, market.get("flows") or {}
+    position = (market.get("positioning") or {}).get("index") or {}
+    vix = (market.get("market") or {}).get("VIX") or {}
+    high_yield = (macro.get("fred") or {}).get("하이일드 스프레드") or {}
+    path = (macro.get("policy") or {}).get("연방기금 선물 내재 경로") or {}
+    earnings = market.get("earnings") or {}
+    bio = {name: flows[name] for name in ("IBB", "XBI") if isinstance(flows.get(name), dict) and flows[name].get("5d")}
+    found = {
+        "공포·탐욕 지수": (as_of, macro.get("fear_greed"), "score"),
+        "VIX 변동성 지수": (vix.get("date"), vix, "value"),
+        "QQQ 풋/콜 거래 비율": (as_of, options.get("QQQ"), "put_call"),
+        "IBB 풋/콜 거래 비율": (as_of, options.get("IBB"), "put_call"),
+        "QQQ 자금 흐름": ((flows.get("QQQ") or {}).get("source_as_of"), flows.get("QQQ"), "5d"),
+        "바이오 ETF 자금 흐름": (max((flow["source_as_of"] for flow in bio.values()), default=None), bio, None),
+        "나스닥100 선물 순매수": (position.get("report_date"), position, "pct_1y"),
+        "나스닥100 시장 폭": (as_of, market.get("breadth"), "advancing"),
+        "바이오 이익 전망 수정": (earnings.get("date"), earnings, "next_year_revision_30d_pct"),
+        "하이일드 스프레드": (high_yield.get("date"), high_yield, "value"),
+        "연준 금리 경로": (path.get("date"), path, "meetings"),
+    }
+    return {name: (date, value) for name, (date, value, key) in found.items()
+            if date and isinstance(value, dict) and value and (key is None or value.get(key) is not None)}
+
+
+def signed(value: float, digits: int = 1) -> str:
+    """부호를 붙인 숫자. 빼기는 `−`로 쓰고, 반올림해 0이 되면 부호를 붙이지 않는다."""
+    text = f"{value:+.{digits}f}"
+    return text[1:] if float(text) == 0 else text.replace("-", "−")
+
+
+def zone(zones: list[list], value: float) -> list:
+    """`value`가 든 구간의 [이름, 색]."""
+    found = next((item for item in zones if value <= item[0]), zones[-1])
+    return [found[2], found[1]]
+
+
+def indicator_card(name: str, date: str, value: dict, prev: tuple[str, dict] | None) -> dict:
+    """지표 하나의 카드 값. `prev`는 앞 배치의 (기준일, 원값)이다."""
+    day = dt.date.fromisoformat(date)
+    when = f"{day.month}/{day.day}"
+    before = None
+    if prev:
+        prev_day = dt.date.fromisoformat(prev[0])
+        before = "어제" if (day - prev_day).days == 1 else f"{prev_day.month}/{prev_day.day}"
+    old = prev[1] if prev else {}
+    if name == "공포·탐욕 지수":
+        score, last = value["score"], old.get("score")
+        return {"tab": "공포·탐욕", "asof": f"CNN · {when}", "value": f"{score:g}", "state": zone(FEAR_GREED_ZONES, score),
+                "prev": f"{before} {last:g}" if last is not None else "",
+                "figure": {"type": "semi", "min": 0, "max": 100, "zones": FEAR_GREED_ZONES, "value": score, "prev": last,
+                           "ends": ["공포", "탐욕"]}}
+    if name == "VIX 변동성 지수":
+        level, last = value["value"], old.get("value")
+        return {"tab": "VIX", "asof": f"CBOE · {when}", "value": f"{level:.1f}", "state": zone(VIX_ZONES, level),
+                "prev": f"{before} {last:.1f}" if last is not None else "",
+                "figure": {"type": "zoneBar", "min": 10, "max": 50, "zones": VIX_ZONES, "value": level, "prev": last}}
+    if name in ("QQQ 풋/콜 거래 비율", "IBB 풋/콜 거래 비율"):
+        ratio, last = value["put_call"], old.get("put_call")
+        return {"tab": "풋/콜", "asof": f"옵션 · {when}", "value": f"{ratio:.2f}", "state": zone(PUT_CALL_ZONES, ratio),
+                "prev": f"{before} {last:.2f}" if last is not None else "",
+                "figure": {"type": "semi", "min": 0.5, "max": 1.5, "zones": PUT_CALL_ZONES, "value": ratio, "prev": last,
+                           "ends": ["낙관", "비관"]}}
+    if name in ("QQQ 자금 흐름", "바이오 ETF 자금 흐름"):
+        funds = {"QQQ": value} if name == "QQQ 자금 흐름" else value
+        windows = [("1d", "1일"), ("5d", "5일"), ("20d", "20일")] if len(funds) == 1 else [("5d", "5일"), ("20d", "20일")]
+        rows = [[label if len(funds) == 1 else f"{fund} {label}", flow[key]["pct_aum"], f"{signed(flow[key]['pct_aum'], 2)}%"]
+                for fund, flow in funds.items() for key, label in windows if (flow.get(key) or {}).get("pct_aum") is not None]
+        week = sum(flow["5d"]["usd"] for flow in funds.values()) / 1e8
+        month = sum((flow.get("20d") or {}).get("usd") or 0 for flow in funds.values()) / 1e8
+        return {"tab": "자금 흐름", "asof": f"{'·'.join(flow['source'] for flow in funds.values())} · {when}",
+                "value": signed(week), "unit": "억$", "state": ["5일 유입", UP] if week >= 0 else ["5일 유출", DOWN],
+                "prev": f"20일 {signed(month)}억$",
+                "figure": {"type": "diverge", "rows": rows, "max": max(2, max(abs(row[1]) for row in rows) * 1.25),
+                           "ends": ["유출", "유입"]}}
+    if name == "나스닥100 선물 순매수":
+        rank = value["pct_1y"]
+        state = (["매수 쏠림", UP] if rank >= POSITION_CROWDED else ["매도 쏠림", DOWN] if rank <= 100 - POSITION_CROWDED
+                 else ["중간", NEUTRAL])
+        change = value.get("net_change")
+        return {"tab": "선물 포지션", "asof": f"CFTC · {when}", "value": f"{rank:g}", "unit": "백분위", "state": state,
+                "prev": f"1주 전보다 {signed(change / 1e4)}만 계약" if change is not None else "",
+                "figure": {"type": "meter", "value": rank, "mid": 50, "ends": ["1년 최소", "중간", "1년 최대"]}}
+    if name == "나스닥100 시장 폭":
+        up, down = value["advancing"], value["declining"]
+        last = f"{before} {old['advancing']} : {old['declining']}" if old.get("advancing") is not None else ""
+        return {"tab": "시장 폭", "asof": f"구성 종목 · {when}", "value": f"{up} : {down}",
+                "state": ["상승 우위", UP] if up >= down else ["하락 우위", DOWN], "prev": last,
+                "figure": {"type": "split", "parts": [["상승", up, UP], ["하락", down, DOWN]],
+                           "sub": {"label": "200일 평균선 위 종목", "value": value.get("above_sma200_pct"),
+                                   "prev": old.get("above_sma200_pct")}}}
+    if name == "바이오 이익 전망 수정":
+        month = value["next_year_revision_30d_pct"]
+        rows = [[label, value[key], f"{signed(value[key], 2)}%"]
+                for key, label in [("next_year_revision_7d_pct", "7일"), ("next_year_revision_30d_pct", "30일"),
+                                   ("this_quarter_revision_30d_pct", "이번 분기")] if value.get(key) is not None]
+        return {"tab": "이익 전망", "asof": f"상위 {value.get('names', 20)}종목 · {when}", "value": signed(month),
+                "unit": "% · 30일", "state": ["상향", UP] if month >= 0 else ["하향", DOWN],
+                "prev": f"상향 {value.get('next_year_up_30d', 0)}곳 · 하향 {value.get('next_year_down_30d', 0)}곳",
+                "figure": {"type": "diverge", "rows": rows, "max": max(5, max(abs(row[1]) for row in rows) * 1.25),
+                           "ends": ["하향", "상향"]}}
+    if name == "하이일드 스프레드":
+        level, last = value["value"], old.get("value")
+        return {"tab": "신용", "asof": f"FRED · {when}", "value": f"{level:.2f}", "unit": "%",
+                "state": zone(HIGH_YIELD_ZONES, level), "prev": f"{before} {last:.2f}%" if last is not None else "",
+                "figure": {"type": "zoneBar", "min": 2, "max": 10, "zones": HIGH_YIELD_ZONES, "value": level, "prev": last,
+                           "unit": "%"}}
+    meetings = value["meetings"][:3]
+    first = meetings[0]
+    month = f"{int(first['meeting'][5:7])}월"
+    move = first["cumulative_bp"]
+    state = ([f"{month} 인상 예상", UP] if move >= RATE_MOVE_BP else [f"{month} 인하 예상", DOWN] if move <= -RATE_MOVE_BP
+             else [f"{month} 동결 예상", NEUTRAL])
+    rows = [[f"{int(item['meeting'][5:7])}월", item["cumulative_bp"], f"{signed(item['cumulative_bp'] / 100, 2)}%p"]
+            for item in meetings]
+    week = first.get("change_1w_bp")
+    return {"tab": "금리 경로", "asof": f"연방기금 선물 · {when}", "value": signed(move / 100, 2), "unit": "%p", "state": state,
+            "prev": f"1주 전 {signed((move - week) / 100, 2)}%p" if week is not None else "",
+            "figure": {"type": "diverge", "rows": rows, "max": max(50, max(abs(row[1]) for row in rows) * 1.25),
+                       "ends": ["인하", "인상"]}}
+
+
+def indicator_cards(vault: Path, index: str, date: dt.date) -> dict[str, dict]:
+    """그날 리포트의 지표 이름마다 카드 값. 앞 값은 `LOOKBACK`일 안의 앞 배치에서 기준일이 더 이른 가장 늦은 값이다."""
+    current = batch_data(vault, index, date)
+    if not current:
+        return {}
+    earlier = [readings(*batch) for back in range(1, LOOKBACK + 1)
+               if (batch := batch_data(vault, index, date - dt.timedelta(days=back)))]
+    cards = {}
+    for name, (day, value) in readings(*current).items():
+        prev = next((found[name] for found in earlier if name in found and found[name][0] < day), None)
+        cards[name] = indicator_card(name, day, value, prev)
+    return cards
+
+
+def mark_indicators(body: str, cards: dict[str, dict]) -> str:
+    """`주요 시장 지표` 절의 소제목 가운데 `cards`에 있는 지표에 카드 값(`data-card`)을 단다."""
+    head = re.search(rf'<h2 id="[^"]*">{INDICATORS_TITLE}</h2>', body)
+    if not head:
+        return body
+    end = body.find("<h2", head.end())
+    end = len(body) if end < 0 else end
+
+    def heading(match: re.Match) -> str:
+        name = html.unescape(re.sub(r"<[^>]+>", "", match.group(2))).strip()
+        if name not in cards:
+            return match.group(0)
+        card = html.escape(json.dumps(cards[name], ensure_ascii=False))
+        return f'<h3{match.group(1)} data-card="{card}">{match.group(2)}</h3>'
+
+    section = re.sub(r"<h3([^>]*)>(.*?)</h3>", heading, body[head.end():end], flags=re.DOTALL)
+    return body[:head.end()] + section + body[end:]
+
+
 def build(date: str, index: str, vault: Path, out: Path) -> str:
     source = vault / f"routine/invest/{date[:7]}/{date}/{index}/report.md"
     if not source.is_file():
@@ -454,6 +638,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     display = source.parent / "system" / "display.json"
     upcoming = json.loads(display.read_text(encoding="utf-8"))["next"] if display.is_file() else []
     body = mark_days(body, day, branches, timings(vault, index, day), upcoming)
+    body = mark_indicators(body, indicator_cards(vault, index, day))
     (target / "report.html").write_text(body, encoding="utf-8")
 
     listing = out / "r" / "index.json"

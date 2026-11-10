@@ -250,6 +250,28 @@
                               box-shadow: inset 3px 0 0 var(--accent); }
   .empty { border: 1px dashed var(--line); border-radius: 12px; padding: 22px 14px; text-align: center;
            color: var(--hint); font-size: 14px; }
+  /* 주요 시장 지표는 지표마다 한 장이고, 위 탭 띠는 그림 이름 탭과 같은 색으로 그린다. 탭이 화면 폭을 넘으므로 보고 있는 탭이 문단 왼쪽 끝에
+     오도록 띠를 옆으로 밀고, 마지막 탭이 오른쪽 끝에 닿으면 더 밀지 않는다. 카드 아래에는 점과 보고 있는 장의 순서를 둔다. */
+  .tabs.glide { display: block; overflow: hidden; margin: 0 -16px 12px; padding: 0 16px; }
+  .tabs.glide .strip { display: flex; gap: 8px; width: max-content; transition: transform var(--glide); }
+  .tabs.glide button { flex: 0 0 auto; }
+  .carousel.indicators .nav { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px; }
+  .carousel.indicators .nav .dots { margin: 0; }
+  .carousel.indicators .count { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .gauge { border-radius: 16px; background: rgba(255, 255, 255, .035); padding: 16px 18px; }
+  .gauge .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .gauge .name { font-size: 15.5px; font-weight: 700; color: var(--accent); }
+  .gauge .asof { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .gauge .val { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; margin-top: 2px; }
+  .gauge .val b { font-size: 30px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
+  .gauge .val b small { font-size: 16px; font-weight: 700; margin-left: 1px; }
+  .gauge .state { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+  .gauge .state i { width: 8px; height: 8px; border-radius: 50%; }
+  .gauge .prev { font-size: 12.5px; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .gauge svg { display: block; width: 100%; height: auto; margin: 6px 0 4px; overflow: visible; }
+  /* 해설은 세 줄까지 보이고, 장마다 높이가 같도록 세 줄 높이를 비워 둔다. */
+  .gauge p { margin: 8px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--hint); min-height: 4.8em;
+             display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   /* 화면 오른쪽 아래에 절 바로가기를 세로로 긴 반투명 유리 알약 하나에 담아 띄운다. 알약 뒤 본문은 흐리게 비친다. 누르면 그 절 제목이 화면 위쪽에 오도록 부드럽게 옮긴다. */
   nav.jump { position: fixed; z-index: 5; right: 16px; bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
              display: flex; flex-direction: column; padding: 6px; border-radius: 24px; touch-action: none; user-select: none; -webkit-user-select: none;
@@ -297,8 +319,8 @@
 <script>
   const tg = window.Telegram && window.Telegram.WebApp;
   // 텔레그램 앱 안에서만 기기를 진동시킨다. 이슈 상자·달력 단추·달력 날짜·지수 전환 단추·바로가기 단추를 누르거나 접기 상자를 펼치면 가벼운 충격 진동을 낸다.
-  // 접기, 목록으로 돌아가기, 밀어서 넘기기는 진동하지 않는다. 1개월 지수 방향 예측의 날짜 레버로 고른 날짜가 바뀔 때와
-  // 다가오는 이벤트에서 보는 날짜가 바뀔 때마다 선택 변경 진동을 낸다.
+  // 접기, 목록으로 돌아가기, 밀어서 넘기기는 진동하지 않는다. 1개월 지수 방향 예측의 날짜 레버로 고른 날짜,
+  // 주요 시장 지표에서 보는 지표, 다가오는 이벤트에서 보는 날짜가 바뀔 때마다 선택 변경 진동을 낸다.
   // 브라우저에서는 진동하지 않는다.
   const haptic = (tg && tg.initData && tg.HapticFeedback) || null;
   const feelPress = () => haptic?.impactOccurred("light");
@@ -1044,6 +1066,191 @@
     }));
   }
 
+  // 주요 시장 지표 카드의 그림. `build.py`가 소제목에 단 `data-card`의 `figure`를 받아 폭 320 단위의 SVG를 그린다.
+  // 흰 원과 흰 바늘은 오늘 값, 회색 눈금은 앞 배치 값이다. `zones`는 [끝값, 색, 이름]이고, 오늘 값이 든 구간만 진하게 칠한다.
+  const SVG = "http://www.w3.org/2000/svg";
+  const shape = (tag, attrs = {}, text) => {
+    const node = document.createElementNS(SVG, tag);
+    Object.entries(attrs).forEach(([name, value]) => node.setAttribute(name, value));
+    if (text != null) node.textContent = text;
+    return node;
+  };
+  const canvas = (height) => shape("svg", { viewBox: `0 0 320 ${height}` });
+  const zoneOf = (zones, value) => zones.find(([to]) => value <= to) || zones[zones.length - 1];
+  const KNOB = { fill: "#EAEAEA", stroke: "#1d1e21", "stroke-width": 3 };
+  const GAUGES = {
+    // 반원 속도계: 왼쪽 끝이 `min`, 오른쪽 끝이 `max`다. 구간 경계값을 바깥에 적고, 앞 배치 값은 안쪽 눈금으로 그린다.
+    semi({ min, max, zones, value, prev, ends }) {
+      const cx = 160, cy = 150, r = 118, sw = 18, s = canvas(178), now = zoneOf(zones, value);
+      const angle = (v) => Math.PI * (1 - (Math.min(max, Math.max(min, v)) - min) / (max - min));
+      const at = (a, rr) => [cx + rr * Math.cos(a), cy - rr * Math.sin(a)];
+      let from = min;
+      zones.forEach((zone) => {
+        const to = zone[0], a0 = angle(from) - (from === min ? 0 : 0.012), a1 = angle(to) + (to === max ? 0 : 0.012);
+        const [x0, y0] = at(a0, r), [x1, y1] = at(a1, r);
+        s.append(shape("path", { d: `M${x0} ${y0} A${r} ${r} 0 0 1 ${x1} ${y1}`, fill: "none", stroke: zone[1], "stroke-width": sw,
+                                 opacity: zone === now ? 1 : 0.38 }));
+        from = to;
+      });
+      zones.slice(0, -1).forEach(([to]) => {
+        const [x, y] = at(angle(to), r + sw / 2 + 11);
+        s.append(shape("text", { x, y: y + 4, "text-anchor": "middle", "font-size": 11, fill: "#7A828C" }, String(to)));
+      });
+      if (prev != null) {
+        const [x1, y1] = at(angle(prev), r - sw / 2 - 3), [x2, y2] = at(angle(prev), r - sw / 2 - 12);
+        s.append(shape("line", { x1, y1, x2, y2, stroke: "#7A828C", "stroke-width": 2.5, "stroke-linecap": "round" }));
+      }
+      const [nx, ny] = at(angle(value), r - sw / 2 - 6);
+      s.append(shape("line", { x1: cx, y1: cy, x2: nx, y2: ny, stroke: "#EAEAEA", "stroke-width": 3.5, "stroke-linecap": "round" }));
+      s.append(shape("circle", { cx, cy, r: 7, ...KNOB }));
+      ends.forEach((end, i) => s.append(shape("text", { x: cx + (i ? r : -r), y: cy + 24, "text-anchor": "middle", "font-size": 12,
+                                                         "font-weight": 600, fill: "#A7ABB0" }, end)));
+      return s;
+    },
+    // 구간 가로 바: 구간 이름을 막대 아래에, 경계값을 막대 위에 적는다.
+    zoneBar({ min, max, zones, value, prev, unit = "" }) {
+      const x0 = 6, x1 = 314, y = 26, h = 10, s = canvas(74), now = zoneOf(zones, value);
+      const X = (v) => x0 + (x1 - x0) * (Math.min(max, Math.max(min, v)) - min) / (max - min);
+      let from = min;
+      zones.forEach((zone, i) => {
+        const [to, color, name] = zone, last = i === zones.length - 1, on = zone === now;
+        const a = X(from) + (i ? 1.5 : 0), b = X(to) - (last ? 0 : 1.5);
+        s.append(shape("rect", { x: a, y, width: b - a, height: h, rx: i === 0 || last ? 5 : 1.5, fill: color, opacity: on ? 1 : 0.32 }));
+        s.append(shape("text", { x: (a + b) / 2, y: y + h + 20, "text-anchor": "middle", "font-size": 12, "font-weight": on ? 700 : 500,
+                                 fill: on ? "#EAEAEA" : "#7A828C" }, name));
+        if (!last) s.append(shape("text", { x: X(to), y: y - 8, "text-anchor": "middle", "font-size": 11, fill: "#7A828C" }, `${to}${unit}`));
+        from = to;
+      });
+      if (prev != null) s.append(shape("line", { x1: X(prev), y1: y - 4, x2: X(prev), y2: y + h + 4, stroke: "#7A828C", "stroke-width": 2, "stroke-linecap": "round" }));
+      s.append(shape("circle", { cx: X(value), cy: y + h / 2, r: 8, ...KNOB }));
+      return s;
+    },
+    // 1년 백분위 미터: 0부터 오늘 백분위까지 채우고, 가운데 50에 점선을 긋는다.
+    meter({ value, mid, ends }) {
+      const x0 = 6, x1 = 314, y = 18, h = 10, s = canvas(58), X = (v) => x0 + (x1 - x0) * v / 100;
+      s.append(shape("rect", { x: x0, y, width: x1 - x0, height: h, rx: 5, fill: "#EAEAEA", opacity: 0.16 }));
+      s.append(shape("rect", { x: x0, y, width: X(value) - x0, height: h, rx: 5, fill: "#EAEAEA", opacity: 0.85 }));
+      s.append(shape("line", { x1: X(mid), y1: y - 5, x2: X(mid), y2: y + h + 5, stroke: "#7A828C", "stroke-width": 1, "stroke-dasharray": "2 2" }));
+      s.append(shape("circle", { cx: X(value), cy: y + h / 2, r: 8, ...KNOB }));
+      [[x0, "start"], [X(mid), "middle"], [x1, "end"]].forEach(([x, anchor], i) => s.append(shape("text", {
+        x, y: y + h + 22, "font-size": 12, fill: "#7A828C", "text-anchor": anchor }, ends[i])));
+      return s;
+    },
+    // 0 기준 양방향 막대: 행마다 [이름, 값, 글자]이고, 양수는 오른쪽 빨강, 음수는 왼쪽 파랑이다. 막대가 길면 글자를 막대 안에 쓴다.
+    // 행 이름 칸은 가장 긴 이름의 폭으로 잡는다(한글 12px, 나머지 7px로 어림한다).
+    diverge({ rows, max, ends }) {
+      const label = Math.max(...rows.map(([name]) => [...name].reduce((w, c) => w + (/[가-힣]/.test(c) ? 12 : 7), 0)));
+      const rowH = 26, top = 6, x0 = Math.max(44, label + 6) + 4, x1 = 314, cx = (x0 + x1) / 2, half = (x1 - x0) / 2;
+      const height = top + rows.length * rowH + 22, s = canvas(height);
+      s.append(shape("rect", { x: x0, y: top - 2, width: x1 - x0, height: rows.length * rowH, rx: 6, fill: "#ffffff", opacity: 0.025 }));
+      rows.forEach(([name, v, text], i) => {
+        const y = top + i * rowH + 7, len = half * Math.min(1, Math.abs(v) / max), right = v >= 0, inside = len > half - 46;
+        s.append(shape("text", { x: 0, y: y + 9, "font-size": 12, fill: "#A7ABB0" }, name));
+        s.append(shape("rect", { x: right ? cx : cx - len, y, width: Math.max(len, 2), height: 12, rx: 3, fill: right ? "#ff5c5c" : "#5b9bff", opacity: 0.9 }));
+        const x = right ? cx + len + (inside ? -6 : 6) : cx - len + (inside ? 6 : -6);
+        s.append(shape("text", { x, y: y + 10, "font-size": 12, "font-weight": 700, "text-anchor": right !== inside ? "start" : "end",
+                                 fill: inside ? "#171719" : "#EAEAEA" }, text));
+      });
+      s.append(shape("line", { x1: cx, y1: top - 4, x2: cx, y2: top + rows.length * rowH, stroke: "#7A828C", "stroke-width": 1.2 }));
+      [[x0, "start", ends[0]], [cx, "middle", "0"], [x1, "end", ends[1]]].forEach(([x, anchor, text]) => s.append(shape("text", {
+        x, y: height - 4, "font-size": 12, fill: "#7A828C", "text-anchor": anchor }, text)));
+      return s;
+    },
+    // 분할 막대: 상승·하락 종목 수로 막대 하나를 나누고, 아래에 200일 평균선 위 종목 비율 미터를 둔다. 비율이 없으면 미터를 그리지 않는다.
+    split({ parts, sub }) {
+      const x0 = 6, x1 = 314, y = 20, h = 14, y2 = 70, s = canvas(sub.value == null ? 40 : 104);
+      const total = parts.reduce((sum, [, v]) => sum + v, 0) || 1;
+      let x = x0;
+      parts.forEach(([name, v, color], i) => {
+        const w = Math.max(0, (x1 - x0) * v / total - (i < parts.length - 1 ? 2 : 0));
+        s.append(shape("rect", { x, y, width: w, height: h, rx: 4, fill: color }));
+        s.append(shape("text", { x: i ? x1 : x0, y: y - 6, "font-size": 12.5, "font-weight": 700, fill: "#EAEAEA", "text-anchor": i ? "end" : "start" }, `${name} ${v}`));
+        x += w + 2;
+      });
+      if (sub.value == null) return s;
+      const X = (v) => x0 + (x1 - x0) * v / 100;
+      s.append(shape("text", { x: x0, y: y2 - 6, "font-size": 12, fill: "#A7ABB0" }, sub.label));
+      s.append(shape("text", { x: x1, y: y2 - 6, "font-size": 12, "font-weight": 700, fill: "#EAEAEA", "text-anchor": "end" }, `${sub.value}%`));
+      s.append(shape("rect", { x: x0, y: y2, width: x1 - x0, height: 8, rx: 4, fill: "#EAEAEA", opacity: 0.16 }));
+      s.append(shape("rect", { x: x0, y: y2, width: X(sub.value) - x0, height: 8, rx: 4, fill: "#EAEAEA", opacity: 0.85 }));
+      if (sub.prev != null) s.append(shape("line", { x1: X(sub.prev), y1: y2 - 3, x2: X(sub.prev), y2: y2 + 11, stroke: "#7A828C", "stroke-width": 2 }));
+      [[x0, "start", "0%"], [X(50), "middle", "50%"], [x1, "end", "100%"]].forEach(([x, anchor, text]) => s.append(shape("text", {
+        x, y: y2 + 26, "font-size": 12, fill: "#7A828C", "text-anchor": anchor }, text)));
+      return s;
+    },
+  };
+
+  // 주요 시장 지표를 지표마다 한 장의 카드로 바꿔 넘기는 묶음으로 만들고, 위에 지표 이름 탭 띠를 둔다. 카드 값은 `build.py`가
+  // 소제목에 단 `data-card`를 쓰고, 해설은 소제목 뒤 문단이다. 카드 값이 없는 소제목은 해설과 함께 지우고, 카드가 하나도 없으면 절을 지운다.
+  // 탭을 누르면 그 지표로 넘기고, 넘기면 보고 있는 지표의 탭을 밝힌다. 카드 아래 점과 순서는 보고 있는 장을 따른다.
+  function indicators() {
+    const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "주요 시장 지표");
+    if (!head) return;
+    // 첫 소제목 앞의 노드는 그대로 두고 묶음을 그 뒤에 둔다.
+    const cards = [];
+    let card = null, started = false, anchor = head;
+    for (let node = head.nextElementSibling; node && node.tagName !== "H2";) {
+      const next = node.nextElementSibling;
+      if (node.tagName === "H3") {
+        started = true;
+        card = node.dataset.card ? { name: node.textContent.trim(), ...JSON.parse(node.dataset.card), text: [] } : null;
+        if (card) cards.push(card);
+      } else if (card) card.text.push(node.textContent.trim());
+      if (started) node.remove(); else anchor = node;
+      node = next;
+    }
+    if (!cards.length) {
+      for (let node = head.nextElementSibling; node && node.tagName !== "H2";) { const next = node.nextElementSibling; node.remove(); node = next; }
+      head.remove();
+      return;
+    }
+    const slides = cards.map((c) => {
+      const box = Object.assign(document.createElement("div"), { className: "gauge" });
+      const top = box.appendChild(Object.assign(document.createElement("div"), { className: "top" }));
+      top.append(Object.assign(document.createElement("span"), { className: "name", textContent: c.name }),
+                 Object.assign(document.createElement("span"), { className: "asof", textContent: c.asof }));
+      const val = box.appendChild(Object.assign(document.createElement("div"), { className: "val" }));
+      const number = val.appendChild(Object.assign(document.createElement("b"), { textContent: c.value }));
+      if (c.unit) number.append(Object.assign(document.createElement("small"), { textContent: c.unit }));
+      const state = val.appendChild(Object.assign(document.createElement("span"), { className: "state" }));
+      state.append(Object.assign(document.createElement("i"), { style: `background:${c.state[1]}` }), c.state[0]);
+      if (c.prev) val.append(Object.assign(document.createElement("span"), { className: "prev", textContent: c.prev }));
+      box.append(GAUGES[c.figure.type](c.figure));
+      box.append(Object.assign(document.createElement("p"), { textContent: c.text.filter(Boolean).join(" ") }));
+      return [box];
+    });
+    const bar = document.createElement("div");
+    bar.className = "tabs glide";
+    bar.innerHTML = '<div class="strip"></div>';
+    const strip = bar.firstChild;
+    cards.forEach((c, i) => {
+      const button = Object.assign(document.createElement("button"), { textContent: c.tab });
+      button.addEventListener("click", () => box.go(i));
+      strip.appendChild(button);
+    });
+    const count = Object.assign(document.createElement("span"), { className: "count" });
+    let seen = 0;
+    const change = (i) => {
+      [...strip.children].forEach((button, j) => button.classList.toggle("on", i === j));
+      const room = Math.max(0, strip.scrollWidth - (bar.clientWidth - 32));
+      strip.style.transform = `translateX(${-Math.min(room, strip.children[(seen = i)].offsetLeft)}px)`;
+      count.textContent = `${i + 1} / ${cards.length}`;
+    };
+    anchor.after(bar);
+    const box = slider(slides, bar, { fit: true, change, dots: true, name: "indicators", area: head, feel: true });
+    box.prepend(bar);
+    const nav = Object.assign(document.createElement("div"), { className: "nav" });
+    nav.append(box.querySelector(".dots"), count);
+    box.append(nav);
+    change(seen);
+    new ResizeObserver(() => {
+      strip.style.transition = "none";
+      change(seen);
+      strip.getBoundingClientRect();
+      strip.style.transition = "";
+    }).observe(box);
+  }
+
   // 머리말에 달력 단추를 단다. `listing`은 `r/index.json`이다. 달력은 보고 있는 리포트의 달부터 보여 주고, 단추를 누르거나 달력을 옆으로 밀어 그림 넘기기와 같은 속도와 곡선으로 달을 넘기고, 리포트가 있는 첫 달과 마지막 달 밖으로는 넘기지 않는다.
   // 리포트가 있는 날짜를 누르면 같은 지수의 그날 리포트를 연다. 정규장 등락률이 `null`이면 `—`로 적는다.
   const CALENDAR = '<svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">'
@@ -1252,6 +1459,7 @@
     document.fonts?.ready.then(centerTitle);
     figures(date);
     fold("1개월 지수 방향 예측");
+    indicators();
     // 이슈 제목의 방향 표식을 가려내 칠하고, 나머지 표식인 이벤트 중요도는 지운다. 중요도는 `build.py`가 소제목에 단 `data-level`로 그린다.
     const tones = { "상승 요인": "tone-up", "하락 요인": "tone-down", "양방향": "tone-both" };
     report.querySelectorAll("h3 code").forEach((tag) => {
@@ -1275,7 +1483,7 @@
     });
     events(date);
     help();
-    jump([["예측", "1개월 지수 방향 예측"], ["이슈", "주요 이슈 해설"], ["이벤트", "다가오는 이벤트"]]);
+    jump([["예측", "1개월 지수 방향 예측"], ["지표", "주요 시장 지표"], ["이슈", "주요 이슈 해설"], ["이벤트", "다가오는 이벤트"]]);
     // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
     // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
     // 손가락을 움직이지 않고 한 번 누르면 닫는다.
@@ -1403,6 +1611,11 @@
       ["주가와 예측", "앞으로 25거래일의 예측을 그려요. 파란 실선은 예측 중앙값이고, 파란 면은 가격이 25~75% 확률로 들어올 범위예요. 회색 점과 면은 과거 시점에 예측한 25거래일 후 가격이에요."],
       ["몬테카를로", "이슈와 이벤트를 반영해 지수가 갈 수 있는 경로 2만 개를 그려요. 두 파란 선 사이에 경로의 가운데 50%가 들어와요."],
       ["권장 추종 배율", "경로 2만 개마다 한 달 동안 평균적으로 얼마나 오르거나 내렸는지를 배율로 바꿔 그린 분포예요. 파란 실선이 1.0(지수 추종)보다 왼쪽이면 하락 쪽 판단이고, 오른쪽이면 상승 쪽 판단이에요."],
+    ],
+    "주요 시장 지표": [
+      ["오늘 값과 앞 값", "큰 숫자와 그림의 흰 원·흰 바늘은 리포트를 쓸 때 받은 가장 최근 값이에요. 회색 눈금은 앞 리포트가 받은 값이에요. 오른쪽 위에 값을 낸 곳과 기준일을 적어요."],
+      ["색", "빨간색은 투자자가 상승 쪽으로 기운 값이고, 파란색은 하락 쪽으로 기운 값이에요. VIX와 하이일드 스프레드는 정상·경계·위기 구간을 초록·노랑·빨강으로 칠해요."],
+      ["해설", "카드 아래 두 문장은 오늘 값이 1개월 주가 예측에 어떤 뜻인지 풀어 써요."],
     ],
     "주요 이슈 해설": [
       ["이슈를 고르는 기준", "1개월 주가 예측에 영향이 큰 이슈부터 보여줘요. 이슈 하나를 예측에서 빼고 다시 계산했을 때 주가 예측이 크게 바뀔수록 영향이 큰 이슈예요."],
