@@ -33,7 +33,9 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 값이 없는 지표에는 카드 값을 달지 않는다.
 `invest-reports` 미니 앱은 카드 값으로 지표마다 카드를 그려 한 장씩 넘기게 하고, 카드 값이 없는 소제목은 지운다.
 
-`상세 이슈 해설` 절의 번호 붙은 이슈 소제목 뒤에는 리포트 폴더 `assets/issue-{번호}.webp`가 있을 때만 그 그림과
+`상세 이슈 해설` 절의 번호 붙은 이슈 소제목에는 리포트 폴더 `system/issues.json`에서 그 번호의 `id`를 `data-issue`로 단다.
+`id`는 Main이 그 이슈로 묶은 사안 나무 노드 가운데 반영 정도가 가장 큰 노드의 이름이므로, 날짜가 다른 리포트에서 같은 사안을 다룬 이슈는 같은 값을 갖는다.
+번호 붙은 이슈 소제목 뒤에는 리포트 폴더 `assets/issue-{번호}.webp`가 있을 때만 그 그림과
 `AI 생성 이미지` 캡션을 넣는다. 그림은 `run-with-notify.sh`가 ⑨의 이슈 이미지 선정 결과로 만든다. 그림마다 가운데를 잘라
 `THUMB`px 정사각 썸네일 `issue-{번호}-thumb.webp`를 만들어 그림의 `data-thumb`에 적는다. `invest-reports` 미니 앱은 이슈 목록 상자에 썸네일을 붙인다.
 이슈 해설 말머리 뒤 문단 사이에는 리포트 폴더 `system/issue-charts.json`의 카드 값을 `issue-chart` 그림의 `data-card`로 넣는다.
@@ -613,6 +615,26 @@ def mark_indicators(body: str, cards: dict[str, dict]) -> str:
 
 
 
+def mark_issue_ids(body: str, bundles: Path) -> str:
+    """`상세 이슈 해설` 절의 번호 붙은 이슈 소제목에 `system/issues.json`의 그 번호 `id`를 `data-issue`로 단다."""
+    head = re.search(rf'<h2 id="[^"]*">{ISSUES_TITLE}</h2>', body)
+    if not head or not bundles.is_file():
+        return body
+    ids = {bundle["issue"]: bundle["id"] for bundle in json.loads(bundles.read_text(encoding="utf-8"))["issues"]}
+    end = body.find("<h2", head.end())
+    end = len(body) if end < 0 else end
+
+    def heading(match: re.Match) -> str:
+        number = re.match(r"(\d+)\.\s", html.unescape(re.sub(r"<[^>]+>", "", match.group(2))).strip())
+        issue = ids.get(int(number.group(1))) if number else None
+        if not issue:
+            return match.group(0)
+        return f'<h3{match.group(1)} data-issue="{html.escape(issue)}">{match.group(2)}</h3>'
+
+    section = re.sub(r"<h3([^>]*)>(.*?)</h3>", heading, body[head.end():end], flags=re.DOTALL)
+    return body[:head.end()] + section + body[end:]
+
+
 def mark_issue_images(body: str, assets: Path, target: Path, out: Path) -> str:
     """`상세 이슈 해설` 절의 번호 붙은 이슈 소제목 뒤에 `assets/issue-{번호}.webp` 그림과 썸네일 주소를 넣는다. 그림이 없는 이슈는 그대로 둔다."""
     head = re.search(rf'<h2 id="[^"]*">{ISSUES_TITLE}</h2>', body)
@@ -692,6 +714,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     upcoming = json.loads(display.read_text(encoding="utf-8"))["next"] if display.is_file() else []
     body = mark_days(body, day, branches, timings(vault, index, day), upcoming)
     body = mark_indicators(body, indicator_cards(vault, index, day))
+    body = mark_issue_ids(body, source.parent / "system" / "issues.json")
     body = mark_issue_images(body, source.parent / "assets", target, out)
     body = mark_issue_charts(body, source.parent / "system" / "issue-charts.json")
     (target / "report.html").write_text(body, encoding="utf-8")
