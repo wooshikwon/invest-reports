@@ -250,15 +250,6 @@
                               box-shadow: inset 3px 0 0 var(--accent); }
   .empty { border: 1px dashed var(--line); border-radius: 12px; padding: 22px 14px; text-align: center;
            color: var(--hint); font-size: 14px; }
-  /* 거시 지표 절은 처음에 제목만 보이게 접어 두고, 제목 글자 바로 뒤의 꺾쇠는 펼치면 위를 향한다. 절 제목 아래 여백은 펼친 내용 안에 둔다. */
-  #report > h2.indicators { margin-bottom: 0; }
-  h2.indicators button { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0;
-                         background: none; color: inherit; font: inherit; cursor: pointer; }
-  h2.indicators svg { transition: transform var(--glide); }
-  h2.indicators.open svg { transform: rotate(180deg); }
-  .drawer { display: flow-root; margin: 0 -16px; padding: 0 16px; }
-  .drawer:not(.open) { height: 0; overflow: hidden; visibility: hidden; }
-  .drawer > .carousel { margin: 12px 0 0; }
   /* 거시 지표는 지표마다 한 장이고, 위 탭 띠는 그림 이름 탭과 같은 색으로 그린다. 탭이 화면 폭을 넘으므로 보고 있는 탭이 문단 왼쪽 끝에
      오도록 띠를 옆으로 밀고, 마지막 탭이 오른쪽 끝에 닿으면 더 밀지 않는다. 카드 아래에는 점을 둔다. */
   .tabs.glide { display: block; overflow: hidden; margin: 0 -16px 12px; padding: 0 16px; }
@@ -328,7 +319,7 @@
 </main>
 <script>
   const tg = window.Telegram && window.Telegram.WebApp;
-  // 텔레그램 앱 안에서만 기기를 진동시킨다. 이슈 상자·달력 단추·달력 날짜·지수 전환 단추·바로가기 단추를 누르거나 접기 상자나 거시 지표 절을 펼치면 가벼운 충격 진동을 낸다.
+  // 텔레그램 앱 안에서만 기기를 진동시킨다. 이슈 상자·달력 단추·달력 날짜·지수 전환 단추·바로가기 단추를 누르거나 접기 상자를 펼치면 가벼운 충격 진동을 낸다.
   // 접기, 목록으로 돌아가기, 밀어서 넘기기는 진동하지 않는다. 1개월 지수 방향 예측의 날짜 레버로 고른 날짜,
   // 거시 지표에서 보는 지표, 다가오는 이벤트에서 보는 날짜가 바뀔 때마다 선택 변경 진동을 낸다.
   // 브라우저에서는 진동하지 않는다.
@@ -470,14 +461,13 @@
     }
     box.go = (i) => slide(Math.min(slides.length - 1, Math.max(0, i)));
     // 절 제목 `area`를 받으면 그 제목부터 다음 절 제목 앞까지(마지막 절이면 문서 끝까지)를 넘기기 영역으로 쓴다. 넘기기 묶음 밖에서
-    // 가로로 40px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 민 방향의 다음 장으로 넘긴다. 묶음이 접혀 보이지 않으면 넘기지 않는다.
+    // 가로로 40px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 민 방향의 다음 장으로 넘긴다.
     if (area) {
       let begin = null;
       document.addEventListener("touchstart", (event) => {
         begin = null;
         const { target, touches } = event;
-        if (touches.length !== 1 || track.contains(target) || target.closest(".viewer, .help-card, .cal-layer, .cal, input")
-            || getComputedStyle(box).visibility === "hidden") return;
+        if (touches.length !== 1 || track.contains(target) || target.closest(".viewer, .help-card, .cal-layer, .cal, input")) return;
         let next = area.nextElementSibling;
         while (next && next.tagName !== "H2") next = next.nextElementSibling;
         const y = touches[0].clientY;
@@ -1174,14 +1164,12 @@
   // 소제목에 단 `data-card`를 쓰고, 해설은 소제목 뒤 문단이다. 카드 값이 없는 소제목은 해설과 함께 지우고, 카드가 하나도 없으면 절을 지운다.
   // 탭을 누르면 그 지표로 넘기고, 넘기면 보고 있는 지표의 탭을 밝힌다. 카드 아래 점은 보고 있는 장을 따른다.
   // 카드 이름 뒤의 물음표 단추는 그 지표의 `help` 문단을 보여 준다.
-  // 절은 처음에 제목만 보이게 접어 둔다. 절 제목을 누르면 펼치거나 접고, 접기 상자와 같은 시간과 곡선으로 높이와 투명도를 바꾼다.
-  // 움직이는 중에 다시 누르면 그 자리에서 방향을 바꾼다. 접힌 동안에도 묶음의 배치는 남겨 두어, 펼치면 보던 장이 그대로 보인다.
   function indicators() {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "거시 지표");
     if (!head) return;
-    // 첫 소제목 앞의 노드와 묶음을 접는 상자에 함께 넣는다.
-    const cards = [], lead = [];
-    let card = null, started = false;
+    // 첫 소제목 앞의 노드는 그대로 두고 묶음을 그 뒤에 둔다.
+    const cards = [];
+    let card = null, started = false, anchor = head;
     for (let node = head.nextElementSibling; node && node.tagName !== "H2";) {
       const next = node.nextElementSibling;
       if (node.tagName === "H3") {
@@ -1189,7 +1177,7 @@
         card = node.dataset.card ? { name: node.textContent.trim(), ...JSON.parse(node.dataset.card), text: [] } : null;
         if (card) cards.push(card);
       } else if (card) card.text.push(node.textContent.trim());
-      if (started) node.remove(); else lead.push(node);
+      if (started) node.remove(); else anchor = node;
       node = next;
     }
     if (!cards.length) {
@@ -1228,38 +1216,10 @@
       const room = Math.max(0, strip.scrollWidth - (bar.clientWidth - 32));
       strip.style.transform = `translateX(${-Math.min(room, strip.children[(seen = i)].offsetLeft)}px)`;
     };
-    const drawer = Object.assign(document.createElement("div"), { className: "drawer" });
-    head.after(drawer);
-    drawer.append(...lead, bar);
+    anchor.after(bar);
     const box = slider(slides, bar, { fit: true, change, dots: true, name: "indicators", area: head, feel: true });
     box.prepend(bar);
     change(seen);
-    const toggle = Object.assign(document.createElement("button"), { innerHTML: CHEVRON("M4 6l4 4 4-4") });
-    toggle.prepend(head.textContent.trim());
-    toggle.setAttribute("aria-expanded", "false");
-    head.classList.add("indicators");
-    head.replaceChildren(toggle);
-    let want = false, anim = null;
-    toggle.addEventListener("click", () => {
-      const open = (want = !want);
-      if (open) feelPress();
-      head.classList.toggle("open", open);
-      toggle.setAttribute("aria-expanded", String(open));
-      const start = drawer.getBoundingClientRect().height;
-      anim?.cancel();
-      drawer.classList.add("open");
-      const full = drawer.scrollHeight;
-      drawer.style.overflow = "hidden";
-      anim = drawer.animate(
-        [{ height: `${start}px`, opacity: full ? start / full : 1 }, { height: `${open ? full : 0}px`, opacity: open ? 1 : 0 }],
-        { duration: motion.matches ? 0 : 280, easing: "cubic-bezier(.25, .8, .25, 1)" },
-      );
-      anim.onfinish = () => {
-        anim = null;
-        drawer.style.overflow = "";
-        if (!open) drawer.classList.remove("open");
-      };
-    });
     new ResizeObserver(() => {
       strip.style.transition = "none";
       change(seen);
@@ -1500,7 +1460,7 @@
     });
     events(date);
     help();
-    jump([["예측", "1개월 지수 방향 예측"], ["이슈", "주요 이슈 해설"], ["이벤트", "다가오는 이벤트"]]);
+    jump([["예측", "1개월 지수 방향 예측"], ["지표", "거시 지표"], ["이슈", "주요 이슈 해설"], ["이벤트", "다가오는 이벤트"]]);
     // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
     // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
     // 손가락을 움직이지 않고 한 번 누르면 닫는다.
@@ -1508,8 +1468,7 @@
   }).catch(() => fail("리포트를 찾지 못했다."));
   // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 보던 위치에서 절 제목 글자가 문서 맨 위에서 본 첫 절 제목 글자보다 40px 높은 높이에 올 때까지
   // 화면을 부드럽게 움직인다. 제목 위의 띠는 화면 위쪽에 보인다. 문서 끝이 모자라 제목이 그 높이까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
-  // 리포트 내용 높이나 화면 높이가 바뀔 때마다 아래 여백을 모든 절 제목 글자가 그 높이에 올 수 있는 가장 작은 높이로 다시 맞춘다. 그래서 접힌 절을 펼치거나 접은 뒤에도
-  // 마지막 절 제목까지 손으로 밀어 올릴 수 있고, 읽는 절의 단추도 바뀐 높이로 다시 고른다.
+  // 단추를 만들 때 절마다 여백을 미리 늘려, 처음부터 마지막 절 제목까지 손으로 밀어 올릴 수 있다.
   // 화면을 움직일 때마다, 절 제목 글자가 화면 위에서 3분의 1 높이를 넘은 절 가운데 마지막 절의 단추를 굵게 쓰고 레버를 그 단추 뒤로 옮긴다.
   // 그 높이가 바로가기로 옮겼을 때의 높이보다 위에 있으면 바로가기로 옮겼을 때의 높이를 쓴다.
   // 문서 맨 위에서는 첫 절의 단추를, 문서 끝까지 내려 마지막 절 제목이 그 높이에 닿지 못하면 마지막 절의 단추를 굵게 쓴다.
@@ -1553,6 +1512,7 @@
     addEventListener("scroll", () => { if (!pending) { pending = true; requestAnimationFrame(mark); } }, { passive: true });
     addEventListener("wheel", settle, { passive: true });
     addEventListener("touchstart", (event) => { if (!nav.contains(event.target)) settle(); }, { passive: true });
+    addEventListener("resize", mark);
     // 절 제목 글자가 바로가기 높이에 오는 화면 위치를 돌려준다. 문서 끝이 모자라면 리포트 아래를 늘린다.
     const reach = (head) => {
       const top = Math.max(0, textTop(head) + scrollY - gap());
@@ -1618,14 +1578,8 @@
     nav.addEventListener("pointercancel", end);
     if (!marks.length) return;
     document.body.append(nav);
-    const room = () => {
-      const pad = parseFloat(report.style.paddingBottom) || 0, scroll = document.documentElement.scrollHeight;
-      const lack = Math.max(...marks.map(([head]) => Math.max(0, textTop(head) + scrollY - gap()) + innerHeight - scroll));
-      report.style.paddingBottom = `${Math.max(0, pad + lack)}px`;
-      mark();
-    };
-    new ResizeObserver(room).observe(report);
-    addEventListener("resize", room);
+    marks.forEach(([head]) => reach(head));
+    mark();
   }
 
   // 절 제목마다 설명 상자에 쓸 항목을 둔다. 항목마다 이름을 굵게 쓰고 그 아래에 설명을 쓴다.
