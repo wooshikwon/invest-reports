@@ -1070,7 +1070,7 @@
   // 주요 시장 지표 카드의 그림. `build.py`가 소제목에 단 `data-card`의 `figure`를 받아 폭 320, 높이 `FIGURE` 단위의 SVG를 그린다.
   // 그림마다 필요한 높이로 그리고, 보이는 칸은 높이 `FIGURE`로 같게 잡아 그림을 가운데에 둔다.
   // 흰 바늘은 오늘 값이고, 반원 속도계는 `before`(직전 기준일 값)를 연한 회색 바늘로 함께 그린다. `zones`는 [끝값, 색, 이름]이고, 오늘 값이 든 구간만 진하게 칠하고 나머지 구간은 `DIM` 불투명도로 흐리게 칠한다.
-  // 지수가 하락할 쪽의 값은 왼쪽에, 상승할 쪽의 값은 오른쪽에 그린다. 값이 클수록 하락 쪽인 지표는 `reverse`로 축을 뒤집는다.
+  // 반원 속도계는 작은 값을 왼쪽에, 큰 값을 오른쪽에 그린다.
   // 주별 세로 막대만 가로축이 시간이므로 지난주를 왼쪽에, 오늘을 오른쪽에 그린다.
   const SVG = "http://www.w3.org/2000/svg", FIGURE = 178;
   const shape = (tag, attrs = {}, text) => {
@@ -1081,16 +1081,13 @@
   };
   const canvas = (height) => shape("svg", { viewBox: `0 ${(height - FIGURE) / 2} 320 ${FIGURE}` });
   const zoneOf = (zones, value) => zones.find(([to]) => value <= to) || zones[zones.length - 1];
-  // `min`에서 `max` 사이 값이 축 왼쪽 끝에서 얼마나 떨어졌는지를 0에서 1로 돌려준다.
-  const share = (min, max, reverse) => (v) => {
-    const p = (Math.min(max, Math.max(min, v)) - min) / (max - min);
-    return reverse ? 1 - p : p;
-  };
   const KNOB = { fill: "#EAEAEA", stroke: "#1d1e21", "stroke-width": 3 }, BEFORE = "#5C6169", DIM = 0.35;
   const GAUGES = {
     // 반원 속도계: 구간 경계값을 바깥에 적는다.
-    semi({ min, max, zones, value, before, ends, reverse = false }) {
-      const cx = 160, cy = 150, r = 118, sw = 18, s = canvas(178), now = zoneOf(zones, value), P = share(min, max, reverse);
+    semi({ min, max, zones, value, before, ends }) {
+      const cx = 160, cy = 150, r = 118, sw = 18, s = canvas(178), now = zoneOf(zones, value);
+      // `min`에서 `max` 사이 값이 축 왼쪽 끝에서 얼마나 떨어졌는지를 0에서 1로 돌려준다.
+      const P = (v) => (Math.min(max, Math.max(min, v)) - min) / (max - min);
       const angle = (v) => Math.PI * (1 - P(v));
       const at = (a, rr) => [cx + rr * Math.cos(a), cy - rr * Math.sin(a)];
       let from = min;

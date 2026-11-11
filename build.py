@@ -503,7 +503,7 @@ def month_day(day: str) -> str:
 def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dict]], before: tuple[str, dict] | None) -> dict:
     """지표 하나의 카드 값. `weeks`는 앞 `WEEKS`주 동안 주마다 마지막 (기준일, 원값)이고 마지막 항목이 오늘 값이다.
     `before`는 오늘 기준일 바로 앞 기준일의 (기준일, 원값)이고, 반원 속도계는 그 값을 연한 회색으로 함께 그린다.
-    그림은 지수가 하락할 쪽의 값을 왼쪽에, 상승할 쪽의 값을 오른쪽에 둔다. 값이 클수록 하락 쪽인 지표는 `reverse`로 뒤집는다.
+    반원 속도계는 작은 값을 왼쪽에, 큰 값을 오른쪽에 둔다.
     주별 막대 그림(`columns`)은 가로축이 시간이므로 지난주를 왼쪽에, 오늘을 오른쪽에 둔다. 연준 금리 경로는 금리가 움직일 방향대로 인상을 오른쪽에 둔다.
     `help`는 카드 이름 뒤의 물음표 단추가 띄우는 설명 상자의 문단 목록이고, 지표를 무엇으로 계산하는지와 값을 읽는 법을 쓴다."""
     when = month_day(date)
@@ -524,8 +524,8 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
                  "하락에 대비하는 투자자가 많을수록 값이 커져요. 값이 1이면 그날 풋옵션과 콜옵션이 같은 수만큼 거래됐어요. "
                  "0.8 이하면 낙관, 1.2 이하면 중립, 그보다 크면 비관이에요."]
         return {"tab": "풋/콜", "help": guide, "asof": f"옵션 · {when}", "value": f"{ratio:.2f}", "state": zone(PUT_CALL_ZONES, ratio),
-                "figure": {"type": "semi", "min": 0.4, "max": 2, "zones": PUT_CALL_ZONES, "value": ratio, "reverse": True,
-                           "before": before and before[1]["put_call"], "ends": ["비관", "낙관"]}}
+                "figure": {"type": "semi", "min": 0.4, "max": 2, "zones": PUT_CALL_ZONES, "value": ratio,
+                           "before": before and before[1]["put_call"], "ends": ["낙관", "비관"]}}
     if name == "하이일드 스프레드":
         level = value["value"]
         guide = ["미국 하이일드 회사채의 금리에서 만기가 비슷한 미국 국채의 금리를 뺀 값이에요. 하이일드 회사채는 신용등급이 투자 적격 등급보다 낮은 회사채예요. "
