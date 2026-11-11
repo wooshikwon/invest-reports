@@ -35,12 +35,8 @@
     word-break: keep-all; overflow-wrap: anywhere; -webkit-text-size-adjust: 100%;
   }
   /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 탭 막대 높이와 그만큼의 여백을 더해 마지막 줄까지 탭 막대 위로 올려 볼 수 있게 한다. */
-  main { max-width: 720px; margin: 0 auto; padding: 0 16px calc(92px + env(safe-area-inset-bottom) + var(--offscreen, 0px)); }
-  /* 머리말은 화면 맨 위에 고정하고 화면 폭 전체를 바탕색으로 칠해, 본문을 내리면 본문이 머리말 밑으로 들어간다. 본문이 머리말 밑에 들어가 있는 동안에는 머리말 아래에 구분선을 긋는다. */
-  header { position: sticky; top: 0; z-index: 6; padding: 20px 44px 12px 0; }
-  header::before { content: ""; position: absolute; z-index: -1; inset: 0 calc(50% - 50vw); background: var(--bg); transition: box-shadow .2s ease; }
-  header.under::before { box-shadow: 0 1px 0 var(--line); }
-  header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 0 0 2px; color: var(--accent); }
+  main { max-width: 720px; margin: 0 auto; padding: 16px 16px calc(92px + env(safe-area-inset-bottom) + var(--offscreen, 0px)); }
+  header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 4px 0 2px; color: var(--accent); }
   header p { margin: 0; font-size: 12.5px; color: var(--hint); }
   header #dated { color: var(--dim); }
   /* 날짜 줄 아래 등락률 줄은 같은 회색 글씨로 쓰고, 제목과 날짜 줄 사이만큼 띄운다. 장 마감 후 등락률은 그날 리포트의 기준 가격에만 쓰이므로 괄호로 묶는다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다. */
@@ -50,11 +46,12 @@
   header #moves .up { color: #ff5c5c; }
   header #moves .down { color: #5b9bff; }
   header #moves .sep { margin-left: 8px; }
-  header:has(#moves:not(:empty)) + #report .page > h2:first-child { margin-top: 24px; }
-  /* 제목 줄 오른쪽 끝에 달력 단추를 두고, 단추의 세로 가운데를 제목 글자가 칠해진 높이의 가운데(`--title-mid`, `centerTitle`이 잰다)에 맞춘다. 달력 단추와 지수 전환 단추는 얇은 외곽선과 둥근 모서리를 두른 같은 높이의 상자로 그린다. 누르면 단추 바로 아래에 같은 지수의 리포트 날짜를 고르는 달력을 띄운다. 달력은 머리말 안에 그려 화면을 넘겨도 단추 아래에 붙어 있다.
+  header:has(#moves:not(:empty)) + #report .page > h2:first-child { margin-top: 36px; }
+  /* 제목 줄 오른쪽 끝에 달력 단추를 두고, 단추의 세로 가운데를 제목 글자가 칠해진 높이의 가운데(`--title-mid`, `centerTitle`이 잰다)에 맞춘다. 달력 단추와 지수 전환 단추는 얇은 외곽선과 둥근 모서리를 두른 같은 높이의 상자로 그린다. 누르면 단추 바로 아래에 같은 지수의 리포트 날짜를 고르는 달력을 띄우고, 화면을 넘겨도 달력은 단추 아래에 붙어 함께 움직인다.
      달력 상자는 설명 상자와 같은 색으로 그리고, 리포트가 있는 날짜는 흰 글자로 쓰고 그 아래에 그 리포트의 정규장 등락률을 머리말과 같은 색으로 적는다.
      리포트가 없는 날짜는 회색으로 쓰고 누를 수 없다. 보고 있는 리포트의 날짜는 날짜 띠의 고른 상자와 같은 색으로 칠하고, 다른 리포트를 볼 때 오늘 날짜에는 테두리를 두른다. */
-  header .cal-open { position: absolute; top: calc(var(--title-mid, 20px + 19px * 1.4 / 2) - 14px); right: 0; display: grid; place-items: center; width: 36px; height: 28px;
+  header { position: relative; padding-right: 44px; }
+  header .cal-open { position: absolute; top: calc(var(--title-mid, 19px * 1.4 / 2) - 14px); right: 0; display: grid; place-items: center; width: 36px; height: 28px;
                      padding: 0; border: 1px solid rgba(255, 255, 255, .12); border-radius: 10px; background: none; color: var(--hint); cursor: pointer; }
   header .cal-open.on { background: rgba(255, 255, 255, .08); color: var(--accent); }
   /* 지수 전환 단추는 달력 단추 왼쪽에 두고 세로 가운데를 달력 단추와 같은 `--title-mid`에 맞춘다. 단추가 있으면 제목이 단추 밑으로 들어가지 않게 머리말 오른쪽 여백을 늘린다. */
@@ -89,7 +86,7 @@
   .cal .grid button small.up { color: #ff5c5c; }
   .cal .grid button small.down { color: #5b9bff; }
   h2 { font-size: 15.5px; font-weight: 700; color: var(--dim); margin: 46px 0 10px; }
-  .page > h2:first-child { margin-top: 16px; }
+  .page > h2:first-child { margin-top: 28px; }
   /* 한 페이지 안의 절과 절 사이에는 화면 폭 전체에 바탕보다 짙은 띠를 두어 절을 나눈다. 띠 위아래는 같은 폭으로 띄운다. */
   html { overflow-x: clip; }
   .page > h2:not(:first-child) { margin-top: 0; }
@@ -351,9 +348,6 @@
   // 홈 화면 바로가기는 `start_param` 없이 미니 앱을 열므로, 키가 없으면 리포트를 받기 전에 `r/index.json`에서 키를 정한다.
   let key = query.get("r") || (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || "";
   const report = document.getElementById("report");
-  // 본문이 고정한 머리말 밑으로 들어가 있는 동안 머리말 아래에 구분선을 긋는다.
-  const header = document.querySelector("header");
-  addEventListener("scroll", () => header.classList.toggle("under", scrollY > 0), { passive: true });
   // 소제목 위 말머리와 이벤트 시각은 지수마다 리포트 그림의 판단 색 계열에서 채도를 낮춘 색으로 쓴다(conviction_chart.py JUDGMENT_COLORS).
   // 두 번째 색은 그라데이션이 끝나는 색으로, 지수색에서 색상환을 따라 보라 쪽으로 조금 옮긴 색이다.
   const INDEX = { nasdaq: ["#8FBCE6", "#AFA6EC"], biotech: ["#AE9CE6", "#E09DCB"] };
@@ -1393,7 +1387,8 @@
       const close = () => { aligning?.(); layer.remove(); card.remove(); opener.classList.remove("on"); };
       layer.addEventListener("click", (event) => { if (event.target === layer) close(); });
       opener.classList.add("on");
-      opener.after(layer, card);
+      document.body.append(layer);
+      opener.after(card);
       draw();
     });
   }
