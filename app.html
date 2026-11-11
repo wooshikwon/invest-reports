@@ -164,7 +164,7 @@
      펼친 이벤트 표는 열 제목을 소제목 색, 칸 글자를 펼친 문단 색으로 쓴다. 펼치고 접을 때는 내용 높이가 이어서 바뀐다. */
   /* 상세 이슈 해설의 이슈 해설 문단은 소제목 없이 말머리 아래에 펼친 문단처럼 여백과 색을 쓴다. 이슈 해설 대신 현재 상태·주요 분기와 예측·종합 시나리오 소제목 세 개를 단 리포트는 세 문단을 접는다.
      검토했지만 비중을 낮춘 이슈는 접지 않고, 굵은 이슈 이름은 소제목 색, 설명은 펼친 문단 색으로 쓴다.
-     AI 생성 그림은 이슈 문단의 이슈 제목 위에만 싣고 목록 상자에는 싣지 않으며, 그림 아래에 흐린 작은 글씨로 캡션을 단다. */
+     AI 생성 그림은 이슈 문단의 이슈 제목 위에 싣고, 그림 아래에 흐린 작은 글씨로 캡션을 단다. */
   .issue-page > h4 { margin-top: 15.5px; }
   .issue-page > :is(p, ul, ol) { color: var(--hint); }
   .issue-page > figure.issue-image { margin: 12px 0 0; }
@@ -183,6 +183,7 @@
   .carousel.fit.folding .track { transition: none; }
   .carousel.fit .slide :is(h3, ul):first-child { margin-top: 0; }
   /* 상세 이슈 해설은 이슈 제목 목록으로 시작한다. 이슈마다 아주 연한 둥근 상자에 왼쪽부터 순위 번호, 방향 표식을 끝에 붙인 제목, 오른쪽 끝 꺾쇠를 놓고, 제목 아래에 이슈 해설(이전 리포트는 현재 상태)의 소제목을 흐린 글씨로 붙인다.
+     AI 생성 그림이 있는 이슈는 꺾쇠 앞에 그 그림의 64px 정사각 썸네일을 둔다.
      제목과 소제목은 같은 폭으로 쓰고, 글자 오른쪽 끝과 꺾쇠 사이는 꺾쇠와 상자 오른쪽 끝 사이만큼 띄운다.
      소제목은 짧은 폭에서 줄 끝이 들쭉날쭉하지 않게 단어 대신 글자 단위로 줄을 바꾼다.
      마지막 상자에는 검토했지만 비중을 낮춘 이슈의 건수를 제목 "외 N건"으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 문단을 보이거나
@@ -203,6 +204,8 @@
   .issue-list .pick h3 { margin: 0; }
   .issue-list .pick p { margin: 6px 0 0; color: var(--dim); font-size: 14px; line-height: 1.5; word-break: normal; }
   .issue-list .pick svg { flex: none; margin-left: 8px; color: var(--dim); }
+  .issue-list .pick .thumb { flex: none; width: 64px; height: 64px; margin: 0; border-radius: 10px; object-fit: cover; cursor: inherit; }
+  .issue-list .pick .thumb + svg { margin-left: 0; }
   .issue-box { position: relative; margin-top: 12px; }
   .issue-box.moving { overflow-x: clip; }
   .issue-box .leaving { display: block; position: absolute; top: 0; left: 0; right: 0; }
@@ -777,6 +780,7 @@
     const list = box.appendChild(document.createElement("div"));
     list.className = "issue-list";
     const pages = items.map((nodes, i) => {
+      const image = nodes.find((node) => node.matches?.("figure.issue-image"));
       const pick = list.appendChild(document.createElement("div"));
       const text = document.createElement("div");
       text.className = "text";
@@ -800,6 +804,7 @@
         title.querySelectorAll("code").forEach((code) => code.remove());
         if (tone) num.insertAdjacentHTML("beforeend", arrow(tone));
         pick.append(num, text);
+        if (image?.dataset.thumb) pick.append(Object.assign(document.createElement("img"), { className: "thumb", src: image.dataset.thumb, alt: "" }));
       }
       pick.insertAdjacentHTML("beforeend", chevron);
       // 이슈 상자를 누르고 있는 동안 상자를 3% 줄인다. 손을 떼면 원래 크기로 돌리고, 누름으로 판정되면 진동을 내고 그 이슈를 연다.
@@ -815,7 +820,6 @@
       page.className = "issue-page";
       page.append(...nodes);
       // `build.py`가 이슈 제목 뒤에 둔 AI 생성 그림을 이슈 문단의 맨 위로 옮긴다.
-      const image = page.querySelector(":scope > figure.issue-image");
       if (image) page.prepend(image);
       return page;
     });
@@ -1494,7 +1498,8 @@
     // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
     // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
     // 손가락을 움직이지 않고 한 번 누르면 닫는다.
-    report.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => viewer(img)));
+    // 이슈 목록 상자의 썸네일은 누르면 이슈를 열므로 띄우지 않는다.
+    report.querySelectorAll("img:not(.thumb)").forEach((img) => img.addEventListener("click", () => viewer(img)));
   }).catch(() => fail("리포트를 찾지 못했다."));
   // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 보던 위치에서 절 제목 글자가 문서 맨 위에서 본 첫 절 제목 글자보다 40px 높은 높이에 올 때까지
   // 화면을 부드럽게 움직인다. 제목 위의 띠는 화면 위쪽에 보인다. 문서 끝이 모자라 제목이 그 높이까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
