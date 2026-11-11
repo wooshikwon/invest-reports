@@ -268,9 +268,9 @@
                  font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* 그림은 모두 같은 높이의 칸에 가운데로 그려, 장마다 그림과 해설의 위치가 같다. */
   .gauge svg { display: block; width: 100%; height: auto; margin: 10px 0 6px; overflow: visible; }
-  /* 해설은 여덟 줄까지 보이고, 장마다 높이가 같도록 여덟 줄 높이를 비워 둔다. */
-  .gauge p { margin: 16px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--hint); min-height: 12.8em;
-             display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; overflow: hidden; }
+  .gauge p { margin: 20px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--hint); }
+  /* 해설과 장 번호 점 사이를 그림과 해설 사이 20px와 같게 둔다. 카드 아래 안쪽 여백 16px에 4px를 더한다. */
+  .carousel.indicators .dots { margin-top: 4px; }
   /* 화면 오른쪽 아래에 절 바로가기를 세로로 긴 반투명 유리 알약 하나에 담아 띄운다. 알약 뒤 본문은 흐리게 비친다. 누르면 그 절 제목이 화면 위쪽에 오도록 부드럽게 옮긴다. */
   nav.jump { position: fixed; z-index: 5; right: 16px; bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
              display: flex; flex-direction: column; padding: 6px; border-radius: 24px; touch-action: none; user-select: none; -webkit-user-select: none;
@@ -284,7 +284,7 @@
                      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
                      -webkit-mask-composite: xor; mask-composite: exclude; }
   nav.jump button { appearance: none; border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--accent);
-                    padding: 6px 8px; cursor: pointer; }
+                    padding: 7.5px 8px; cursor: pointer; }
   nav.jump button:active { color: #fff; }
   /* 지금 읽는 절의 단추만 굵게 쓴다. 굵기가 바뀌어도 알약 폭이 변하지 않도록 굵은 글자 폭을 숨겨 둔다. */
   nav.jump button { display: flex; flex-direction: column; align-items: center; font-weight: 500; color: var(--hint); }
