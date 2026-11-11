@@ -89,6 +89,7 @@ UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#ffffff"  # 오름·내림·중립 �
 FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, DOWN, "공포"], [55, NEUTRAL, "중립"], [75, UP, "탐욕"], [100, UP, "극단 탐욕"]]
 WEEKS = 12  # 하이일드 스프레드의 막대 그림이 거슬러 그리는 주 수
 RATE_MOVE_BP = 12.5  # 다음 회의까지 누적 변화가 이 bp 이상이면 인상 예상, 음수로 이 값 이하면 인하 예상
+RATE_STEP_BP = 25  # 연준이 기준금리를 한 번에 바꾸는 폭. 금리 경로 그림의 세로축 눈금 간격이다
 
 
 def report_pdf(vault: Path):
@@ -501,6 +502,8 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
     `before`는 오늘 기준일 바로 앞 기준일의 (기준일, 원값)이고, 반원 속도계는 그 값을 연한 회색으로 함께 그린다.
     반원 속도계는 작은 값을 왼쪽에, 큰 값을 오른쪽에 둔다.
     주별 막대 그림(`columns`)은 가로축이 시간이므로 지난주를 왼쪽에, 오늘을 오른쪽에 둔다. 연준 금리 경로(`diverge`)도 가로축이 시간이므로 가까운 회의를 왼쪽에 두고, 0 가로선 위에 인상을, 아래에 인하를 둔다.
+    금리 경로의 세로축 상한(`max`)은 가장 큰 누적 변화를 금리 한 번 변경 폭(`RATE_STEP_BP`)의 배수로 올린 값이고, 그 폭마다 점선(`lines`)을 긋는다.
+    상한이 금리 변경 네 번을 넘으면 점선은 두 번마다 긋는다.
     `help`는 카드 이름 뒤의 물음표 단추가 띄우는 설명 상자의 문단 목록이고, 지표를 무엇으로 계산하는지와 값을 읽는 법을 쓴다."""
     when = month_day(date)
     if name == "공포·탐욕 지수":
@@ -531,14 +534,16 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
              else [f"{month} 동결 예상", NEUTRAL])
     rows = [[f"{int(item['meeting'][5:7])}월", item["cumulative_bp"], f"{signed(item['cumulative_bp'] / 100, 2)}%p"]
             for item in meetings]
+    step = RATE_STEP_BP if max(abs(row[1]) for row in rows) <= 4 * RATE_STEP_BP else 2 * RATE_STEP_BP
+    top = max(2 * RATE_STEP_BP, math.ceil(max(abs(row[1]) for row in rows) / step) * step)
     guide = ["연방기금 금리 선물은 미국 기준금리의 한 달 평균에 거는 계약이에요. 선물 가격에서 시장이 예상하는 기준금리를 계산해요. "
              "카드는 앞으로 열리는 연준 회의 세 번마다 기준금리의 누적 변화를 %p로 보여 줘요. 누적 변화는 지금 기준금리와 그 회의 뒤 예상 기준금리의 차이예요.",
              "값이 +0.25%p면 시장은 그 회의까지 0.25%p 인상 한 번을 예상해요. "
              f"다음 회의까지 누적 변화가 +{RATE_MOVE_BP / 100:g}%p 이상이면 인상 예상, −{RATE_MOVE_BP / 100:g}%p 이하면 인하 예상, 그 사이면 동결 예상이에요. "
              "기준금리가 오르면 기업의 차입 비용이 커져요. 그래서 인상 예상은 주가에 부정적이에요."]
     return {"tab": "금리 경로", "help": guide, "asof": f"연방기금 선물 · {when}", "value": signed(move / 100, 2), "unit": "%p", "state": state,
-            "figure": {"type": "diverge", "rows": rows, "max": max(50, max(abs(row[1]) for row in rows) * 1.25),
-                       "ends": ["인하", "인상"]}}
+            "figure": {"type": "diverge", "rows": rows, "max": top,
+                       "lines": [[sign * bp, f"{signed(sign * bp / 100, 2)}%p"] for bp in range(step, top + 1, step) for sign in (1, -1)]}}
 
 
 def indicator_cards(vault: Path, index: str, date: dt.date) -> dict[str, dict]:
