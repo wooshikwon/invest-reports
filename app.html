@@ -1122,9 +1122,9 @@
       let from = min;
       zones.forEach((zone, i) => {
         const [to, color, name] = zone, on = zone === now;
-        const [left, right] = [X(from), X(to)].sort((a, b) => a - b), edge = left <= x0 || right >= x1;
+        const [left, right] = [X(from), X(to)].sort((a, b) => a - b);
         const a = left + (left <= x0 ? 0 : 1.5), b = right - (right >= x1 ? 0 : 1.5);
-        s.append(shape("rect", { x: a, y, width: b - a, height: h, rx: edge ? 6 : 1.5, fill: color, opacity: on ? 1 : DIM }));
+        s.append(shape("rect", { x: a, y, width: b - a, height: h, rx: 6, fill: color, opacity: on ? 1 : DIM }));
         s.append(shape("text", { x: (a + b) / 2, y: y + h + 24, "text-anchor": "middle", "font-size": 12.5, "font-weight": on ? 700 : 500,
                                  fill: on ? "#EAEAEA" : "#7A828C" }, name));
         if (i < zones.length - 1) s.append(shape("text", { x: X(to), y: y - 10, "text-anchor": "middle", "font-size": 11, fill: "#7A828C" }, `${to}${unit}`));
