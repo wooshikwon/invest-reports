@@ -250,7 +250,7 @@
                               box-shadow: inset 3px 0 0 var(--accent); }
   .empty { border: 1px dashed var(--line); border-radius: 12px; padding: 22px 14px; text-align: center;
            color: var(--hint); font-size: 14px; }
-  /* 거시 지표는 지표마다 한 장이고, 위 탭 띠는 그림 이름 탭과 같은 색으로 그린다. 탭이 화면 폭을 넘으므로 보고 있는 탭이 문단 왼쪽 끝에
+  /* 미국 거시 지표는 지표마다 한 장이고, 위 탭 띠는 그림 이름 탭과 같은 색으로 그린다. 탭이 화면 폭을 넘으므로 보고 있는 탭이 문단 왼쪽 끝에
      오도록 띠를 옆으로 밀고, 마지막 탭이 오른쪽 끝에 닿으면 더 밀지 않는다. 카드 아래에는 점을 둔다. */
   .tabs.glide { display: block; overflow: hidden; margin: 0 -16px 12px; padding: 0 16px; }
   .tabs.glide .strip { display: flex; gap: 8px; width: max-content; transition: transform var(--glide); }
@@ -321,7 +321,7 @@
   const tg = window.Telegram && window.Telegram.WebApp;
   // 텔레그램 앱 안에서만 기기를 진동시킨다. 이슈 상자·달력 단추·달력 날짜·지수 전환 단추·바로가기 단추를 누르거나 접기 상자를 펼치면 가벼운 충격 진동을 낸다.
   // 접기, 목록으로 돌아가기, 밀어서 넘기기는 진동하지 않는다. 1개월 지수 방향 예측의 날짜 레버로 고른 날짜,
-  // 거시 지표에서 보는 지표, 다가오는 이벤트에서 보는 날짜가 바뀔 때마다 선택 변경 진동을 낸다.
+  // 미국 거시 지표에서 보는 지표, 다가오는 이벤트에서 보는 날짜가 바뀔 때마다 선택 변경 진동을 낸다.
   // 브라우저에서는 진동하지 않는다.
   const haptic = (tg && tg.initData && tg.HapticFeedback) || null;
   const feelPress = () => haptic?.impactOccurred("light");
@@ -1067,11 +1067,11 @@
     }));
   }
 
-  // 거시 지표 카드의 그림. `build.py`가 소제목에 단 `data-card`의 `figure`를 받아 폭 320, 높이 `FIGURE` 단위의 SVG를 그린다.
+  // 미국 거시 지표 카드의 그림. `build.py`가 소제목에 단 `data-card`의 `figure`를 받아 폭 320, 높이 `FIGURE` 단위의 SVG를 그린다.
   // 그림마다 필요한 높이로 그리고, 보이는 칸은 높이 `FIGURE`로 같게 잡아 그림을 가운데에 둔다.
   // 흰 바늘은 오늘 값이고, 반원 속도계는 `before`(직전 기준일 값)를 연한 회색 바늘로 함께 그린다. `zones`는 [끝값, 색, 이름]이고, 오늘 값이 든 구간만 진하게 칠하고 나머지 구간은 `DIM` 불투명도로 흐리게 칠한다.
   // 반원 속도계는 작은 값을 왼쪽에, 큰 값을 오른쪽에 그린다.
-  // 주별 세로 막대만 가로축이 시간이므로 지난주를 왼쪽에, 오늘을 오른쪽에 그린다.
+  // 세로 막대는 가로축이 시간이므로 앞선 값을 왼쪽에 그린다. 주별 세로 막대는 지난주를 왼쪽에, 오늘을 오른쪽에 그리고, 0 기준 위아래 막대는 가까운 회의를 왼쪽에 그린다.
   const SVG = "http://www.w3.org/2000/svg", FIGURE = 178;
   const shape = (tag, attrs = {}, text) => {
     const node = document.createElementNS(SVG, tag);
@@ -1137,35 +1137,36 @@
         x, y: base + 20, "font-size": 12, fill: "#7A828C", "text-anchor": anchor }, text)));
       return s;
     },
-    // 0 기준 양방향 막대: 행마다 [이름, 값, 글자]이고, 첫 행 막대와 글자는 흰색, 나머지 행은 회색이다. 양수는 오른쪽에 그리고,
-    // 막대가 길면 글자를 막대 안에 쓴다.
-    // 행 이름 칸은 가장 긴 이름의 폭으로 잡는다(한글 12px, 나머지 7px로 어림한다).
+    // 0 기준 위아래 막대: 열마다 [이름, 값, 글자]이고, 가운데 0 가로선에서 양수는 위로, 음수는 아래로 그린다. 첫 열 막대와 글자는 흰색,
+    // 나머지 열은 회색이다. 값 글자는 막대 끝 바깥에, 열 이름은 그림 아래에 적는다. `ends`는 [아래쪽 이름, 위쪽 이름]이고 오른쪽 여백에 적는다.
     diverge({ rows, max, ends }) {
-      const label = Math.max(...rows.map(([name]) => [...name].reduce((w, c) => w + (/[가-힣]/.test(c) ? 12 : 7), 0)));
-      const rowH = rows.length > 3 ? 36 : 42, bar = 14, top = 4, x0 = Math.max(44, label + 6) + 4, x1 = 314, cx = (x0 + x1) / 2, half = (x1 - x0) / 2;
-      const height = top + rows.length * rowH + 26, s = canvas(height);
-      s.append(shape("rect", { x: x0, y: top, width: x1 - x0, height: rows.length * rowH, rx: 6, fill: "#ffffff", opacity: 0.025 }));
+      const x0 = 6, x1 = 262, top = 26, base = 146, mid = (top + base) / 2, half = (base - top) / 2, s = canvas(FIGURE);
+      const slot = (x1 - x0) / rows.length, w = Math.min(40, slot * 0.5);
+      s.append(shape("rect", { x: x0, y: top, width: x1 - x0, height: base - top, rx: 6, fill: "#ffffff", opacity: 0.025 }));
       rows.forEach(([name, v, text], i) => {
-        const y = top + i * rowH + (rowH - bar) / 2, len = half * Math.min(1, Math.abs(v) / max), right = v >= 0, inside = len > half - 46, first = i === 0;
-        s.append(shape("text", { x: 0, y: y + bar / 2 + 4.5, "font-size": 12.5, fill: "#A7ABB0" }, name));
-        s.append(shape("rect", { x: right ? cx : cx - len, y, width: Math.max(len, 2), height: bar, rx: 3, fill: first ? "#EAEAEA" : "#7A828C", opacity: first ? 1 : 0.55 }));
-        const x = right ? cx + len + (inside ? -6 : 6) : cx - len + (inside ? 6 : -6);
-        s.append(shape("text", { x, y: y + bar / 2 + 4.5, "font-size": 12.5, "font-weight": 700, "text-anchor": right !== inside ? "start" : "end",
-                                 fill: first ? (inside ? "#171719" : "#EAEAEA") : inside ? "#C8CCD2" : "#7A828C" }, text));
+        const x = x0 + slot * i + (slot - w) / 2, len = Math.max(2, half * Math.min(1, Math.abs(v) / max)), up = v >= 0, first = i === 0;
+        const r = Math.min(4, len / 2), end = up ? mid - len : mid + len, tip = up ? r : -r;
+        const bar = shape("path", { d: `M${x} ${mid}V${end + tip}Q${x} ${end} ${x + r} ${end}H${x + w - r}Q${x + w} ${end} ${x + w} ${end + tip}V${mid}Z`,
+                                    fill: first ? "#EAEAEA" : "#7A828C", opacity: first ? 1 : 0.55 });
+        bar.append(shape("title", {}, `${name} ${text}`));
+        s.append(bar);
+        s.append(shape("text", { x: x + w / 2, y: up ? end - 8 : end + 17, "text-anchor": "middle", "font-size": 12.5, "font-weight": 700,
+                                 fill: first ? "#EAEAEA" : "#7A828C" }, text));
+        s.append(shape("text", { x: x + w / 2, y: base + 20, "text-anchor": "middle", "font-size": 12, fill: "#A7ABB0" }, name));
       });
-      s.append(shape("line", { x1: cx, y1: top - 2, x2: cx, y2: top + rows.length * rowH + 2, stroke: "#7A828C", "stroke-width": 1.2 }));
-      [[x0, "start", ends[0]], [cx, "middle", "0"], [x1, "end", ends[1]]].forEach(([x, anchor, text]) => s.append(shape("text", {
-        x, y: height - 4, "font-size": 12, fill: "#7A828C", "text-anchor": anchor }, text)));
+      s.append(shape("line", { x1: x0, y1: mid, x2: x1, y2: mid, stroke: "#7A828C", "stroke-width": 1.2 }));
+      [[top + 12, ends[1]], [mid + 4, "0"], [base - 4, ends[0]]].forEach(([y, text]) => s.append(shape("text", {
+        x: x1 + 10, y, "font-size": 12, fill: "#7A828C" }, text)));
       return s;
     },
   };
 
-  // 거시 지표를 지표마다 한 장의 카드로 바꿔 넘기는 묶음으로 만들고, 위에 지표 이름 탭 띠를 둔다. 카드 값은 `build.py`가
+  // 미국 거시 지표를 지표마다 한 장의 카드로 바꿔 넘기는 묶음으로 만들고, 위에 지표 이름 탭 띠를 둔다. 카드 값은 `build.py`가
   // 소제목에 단 `data-card`를 쓰고, 해설은 소제목 뒤 문단이다. 카드 값이 없는 소제목은 해설과 함께 지우고, 카드가 하나도 없으면 절을 지운다.
   // 탭을 누르면 그 지표로 넘기고, 넘기면 보고 있는 지표의 탭을 밝힌다. 카드 아래 점은 보고 있는 장을 따른다.
   // 카드 이름 뒤의 물음표 단추는 그 지표의 `help` 문단을 보여 준다.
   function indicators() {
-    const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "거시 지표");
+    const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "미국 거시 지표");
     if (!head) return;
     // 첫 소제목 앞의 노드는 그대로 두고 묶음을 그 뒤에 둔다.
     const cards = [];
@@ -1460,7 +1461,7 @@
     });
     events(date);
     help();
-    jump([["예측", "1개월 지수 방향 예측"], ["지표", "거시 지표"], ["이슈", "주요 이슈 해설"], ["이벤트", "다가오는 이벤트"]]);
+    jump([["예측", "1개월 지수 방향 예측"], ["지표", "미국 거시 지표"], ["이슈", "주요 이슈 해설"], ["이벤트", "다가오는 이벤트"]]);
     // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
     // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
     // 손가락을 움직이지 않고 한 번 누르면 닫는다.
