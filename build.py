@@ -502,8 +502,8 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
     `before`는 오늘 기준일 바로 앞 기준일의 (기준일, 원값)이고, 반원 속도계는 그 값을 연한 회색으로 함께 그린다.
     반원 속도계는 작은 값을 왼쪽에, 큰 값을 오른쪽에 둔다.
     주별 막대 그림(`columns`)은 가로축이 시간이므로 지난주를 왼쪽에, 오늘을 오른쪽에 둔다. 연준 금리 경로(`diverge`)도 가로축이 시간이므로 가까운 회의를 왼쪽에 두고, 0 가로선 위에 인상을, 아래에 인하를 둔다.
-    금리 경로의 세로축 상한(`max`)은 가장 큰 누적 변화를 금리 한 번 변경 폭(`RATE_STEP_BP`)의 배수로 올린 값이고, 그 폭마다 점선(`lines`)을 긋는다.
-    상한이 금리 변경 네 번을 넘으면 점선은 두 번마다 긋는다.
+    금리 경로의 세로축 상한(`max`)은 가장 큰 누적 변화를 금리 한 번 변경 폭(`RATE_STEP_BP`)의 배수로 올린 값이고, 그 폭마다 눈금 값(`ticks`)을 적는다.
+    상한이 금리 변경 네 번을 넘으면 눈금 값은 두 번마다 적는다.
     `help`는 카드 이름 뒤의 물음표 단추가 띄우는 설명 상자의 문단 목록이고, 지표를 무엇으로 계산하는지와 값을 읽는 법을 쓴다."""
     when = month_day(date)
     if name == "공포·탐욕 지수":
@@ -543,7 +543,7 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
              "기준금리가 오르면 기업의 차입 비용이 커져요. 그래서 인상 예상은 주가에 부정적이에요."]
     return {"tab": "금리 경로", "help": guide, "asof": f"연방기금 선물 · {when}", "value": signed(move / 100, 2), "unit": "%p", "state": state,
             "figure": {"type": "diverge", "rows": rows, "max": top,
-                       "lines": [[sign * bp, f"{signed(sign * bp / 100, 2)}%p"] for bp in range(step, top + 1, step) for sign in (1, -1)]}}
+                       "ticks": [[sign * bp, f"{signed(sign * bp / 100, 2)}%p"] for bp in range(step, top + 1, step) for sign in (1, -1)]}}
 
 
 def indicator_cards(vault: Path, index: str, date: dt.date) -> dict[str, dict]:
