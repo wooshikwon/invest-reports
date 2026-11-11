@@ -256,12 +256,17 @@
   /* 미국 거시 지표는 지표마다 한 장이고, 위 탭 띠는 그림 이름 탭과 같은 색으로 그린다. 탭이 화면 폭을 넘으므로 보고 있는 탭이 문단 왼쪽 끝에
      오도록 띠를 옆으로 밀고, 마지막 탭이 오른쪽 끝에 닿으면 더 밀지 않는다. 카드 아래에는 점을 둔다. */
   /* 미국 거시 지표 절은 처음에 접혀 있고 절 제목을 누르면 펼친다. 제목 오른쪽 끝의 꺾쇠는 접혀 있으면 아래를, 펼치면 위를 가리킨다.
-     접힌 내용은 높이 0으로 숨겨 넘기는 묶음이 카드 폭과 높이를 계속 잴 수 있게 한다. */
-  h2.drawer-head { position: relative; padding-right: 28px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+     접힌 내용은 높이 0으로 숨겨 넘기는 묶음이 카드 폭과 높이를 계속 잴 수 있게 한다. 제목 아래 여백은 위 절 구분 띠와 제목 사이 여백(36px)과
+     같게 둔다. 펼치면 제목과 탭 띠 사이가, 접으면 제목과 다음 절 구분 띠 사이가 36px이다. 펼친 내용과 다음 절 구분 띠 사이는
+     다른 절처럼 40px이다. */
+  h2.drawer-head { position: relative; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   h2.drawer-head .chevron { position: absolute; right: 0; bottom: 0; display: grid; place-items: center; height: 1lh; color: var(--dim);
                             transform: rotate(180deg); transition: transform var(--glide); }
   h2.drawer-head.shut .chevron { transform: none; }
-  .drawer { display: flow-root; }
+  .drawer { display: flow-root; margin-bottom: -14px; }
+  .drawer::before { content: ""; display: block; height: 26px; }
+  .drawer::after { content: ""; display: block; height: 10px; }
+  .drawer > :first-child { margin-top: 0; }
   .drawer.shut { height: 0; overflow: hidden; opacity: 0; }
   .tabs.glide { display: block; overflow: hidden; margin: 0 -16px 12px; padding: 0 16px; }
   .tabs.glide .strip { display: flex; gap: 8px; width: max-content; transition: transform var(--glide); }
