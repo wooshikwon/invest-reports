@@ -34,8 +34,8 @@
     font: 15px/1.7 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
     word-break: keep-all; overflow-wrap: anywhere; -webkit-text-size-adjust: 100%;
   }
-  /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 탭 막대 높이와 그만큼의 여백을 더해 마지막 줄까지 탭 막대 위로 올려 볼 수 있게 한다. */
-  main { max-width: 720px; margin: 0 auto; padding: 16px 16px calc(92px + env(safe-area-inset-bottom) + var(--offscreen, 0px)); }
+  /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
+  main { max-width: 720px; margin: 0 auto; padding: 16px 16px calc(40px + var(--offscreen, 0px)); }
   header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 4px 0 2px; color: var(--accent); }
   header p { margin: 0; font-size: 12.5px; color: var(--hint); }
   header #dated { color: var(--dim); }
@@ -46,7 +46,7 @@
   header #moves .up { color: #ff5c5c; }
   header #moves .down { color: #5b9bff; }
   header #moves .sep { margin-left: 8px; }
-  header:has(#moves:not(:empty)) + #report .page > h2:first-child { margin-top: 36px; }
+  header:has(#moves:not(:empty)) + #report > h2:first-child { margin-top: 36px; }
   /* 제목 줄 오른쪽 끝에 달력 단추를 두고, 단추의 세로 가운데를 제목 글자가 칠해진 높이의 가운데(`--title-mid`, `centerTitle`이 잰다)에 맞춘다. 달력 단추와 지수 전환 단추는 얇은 외곽선과 둥근 모서리를 두른 같은 높이의 상자로 그린다. 누르면 단추 바로 아래에 같은 지수의 리포트 날짜를 고르는 달력을 띄우고, 화면을 넘겨도 달력은 단추 아래에 붙어 함께 움직인다.
      달력 상자는 설명 상자와 같은 색으로 그리고, 리포트가 있는 날짜는 흰 글자로 쓰고 그 아래에 그 리포트의 정규장 등락률을 머리말과 같은 색으로 적는다.
      리포트가 없는 날짜는 회색으로 쓰고 누를 수 없다. 보고 있는 리포트의 날짜는 날짜 띠의 고른 상자와 같은 색으로 칠하고, 다른 리포트를 볼 때 오늘 날짜에는 테두리를 두른다. */
@@ -86,11 +86,11 @@
   .cal .grid button small.up { color: #ff5c5c; }
   .cal .grid button small.down { color: #5b9bff; }
   h2 { font-size: 15.5px; font-weight: 700; color: var(--dim); margin: 46px 0 10px; }
-  .page > h2:first-child { margin-top: 28px; }
-  /* 한 페이지 안의 절과 절 사이에는 화면 폭 전체에 바탕보다 짙은 띠를 두어 절을 나눈다. 띠 위아래는 같은 폭으로 띄운다. */
+  #report > h2:first-child { margin-top: 28px; }
+  /* 절과 절 사이에는 화면 폭 전체에 바탕보다 짙은 띠를 두어 절을 나눈다. 띠 위아래는 같은 폭으로 띄운다. */
   html { overflow-x: clip; }
-  .page > h2:not(:first-child) { margin-top: 0; }
-  .page > h2:not(:first-child)::before { content: ""; display: block; height: 12px; margin: 40px calc(50% - 50vw) 36px; background: var(--band); }
+  #report > h2:not(:first-child) { margin-top: 0; }
+  #report > h2:not(:first-child)::before { content: ""; display: block; height: 12px; margin: 40px calc(50% - 50vw) 36px; background: var(--band); }
   h3, h4 { font-size: 15.5px; line-height: 1.5; margin: 22px 0 6px; color: var(--accent); }
   p { margin: 0 0 12px; }
   ul { padding-left: 1.2em; margin: 0 0 12px; }
@@ -270,31 +270,31 @@
   /* 그림은 모두 같은 높이의 칸에 가운데로 그려, 장마다 그림과 해설의 위치가 같다. */
   .gauge > svg { display: block; width: 100%; height: auto; margin: 10px 0 6px; overflow: visible; }
   .gauge p { margin: 20px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--hint); }
-  /* 리포트는 예측·이슈·캘린더 세 페이지로 나눠 한 번에 한 페이지만 보여 준다. */
-  .page:not(.on) { display: none; }
-  /* 화면 아래 가운데에 페이지 단추를 가로로 긴 반투명 유리 알약 하나에 담아 띄운다. 알약 뒤 본문은 흐리게 비친다. */
-  nav.tabs { position: fixed; z-index: 5; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px)); transform: translateX(-50%);
-             display: flex; padding: 6px; border-radius: 24px; touch-action: none; user-select: none; -webkit-user-select: none;
+  /* 화면 오른쪽 아래에 절 바로가기를 세로로 긴 반투명 유리 알약 하나에 담아 띄운다. 알약 뒤 본문은 흐리게 비친다. 누르면 그 절 제목이 화면 위쪽에 오도록 부드럽게 옮긴다. */
+  nav.jump { position: fixed; z-index: 5; right: 16px; bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
+             display: flex; flex-direction: column; padding: 6px; border-radius: 24px; touch-action: none; user-select: none; -webkit-user-select: none;
              background: linear-gradient(160deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, .01) 55%, rgba(255, 255, 255, .02));
              box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
              -webkit-backdrop-filter: blur(4px) saturate(150%); backdrop-filter: blur(4px) saturate(150%); }
   /* 알약 가장자리에 1px 빛줄기를 그린다. 왼쪽 위 모서리가 가장 밝고 가운데로 갈수록 사라지며, 오른쪽 아래 모서리에서 약하게 다시 밝아진다. */
-  nav.tabs::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+  nav.jump::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
                      background: linear-gradient(150deg, rgba(255, 255, 255, .42), rgba(255, 255, 255, .08) 28%, rgba(255, 255, 255, 0) 55%,
                                  rgba(255, 255, 255, .06) 80%, rgba(255, 255, 255, .22));
                      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
                      -webkit-mask-composite: xor; mask-composite: exclude; }
-  /* 보고 있는 페이지의 단추만 굵게 쓴다. 굵기가 바뀌어도 알약 폭이 변하지 않도록 굵은 글자 폭을 숨겨 둔다. */
-  nav.tabs button { appearance: none; position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; min-width: 68px;
-                    padding: 8px 14px; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 500; line-height: 1.5; color: var(--hint); cursor: pointer; }
-  nav.tabs button::after { content: attr(data-name); height: 0; overflow: hidden; visibility: hidden; font-weight: 800; }
-  nav.tabs button:active { color: #fff; }
-  nav.tabs button.on { font-weight: 800; color: var(--accent); }
-  /* 보고 있는 페이지의 단추 뒤에 밝은 레버를 깔고, 페이지가 바뀌면 레버를 그 단추로 미끄러뜨린다. 레버를 끌면 손가락을 따라 움직이고, 놓으면 가장 가까운 단추의 페이지로 바꾼다. */
-  nav.tabs .lever { position: absolute; top: 6px; bottom: 6px; left: 0; border-radius: 18px; pointer-events: none;
+  nav.jump button { appearance: none; border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--accent);
+                    padding: 7.5px 8px; cursor: pointer; }
+  nav.jump button:active { color: #fff; }
+  /* 지금 읽는 절의 단추만 굵게 쓴다. 굵기가 바뀌어도 알약 폭이 변하지 않도록 굵은 글자 폭을 숨겨 둔다. */
+  nav.jump button { display: flex; flex-direction: column; align-items: center; font-weight: 500; color: var(--hint); }
+  nav.jump button::after { content: attr(data-name); height: 0; overflow: hidden; visibility: hidden; font-weight: 800; }
+  nav.jump button.on { font-weight: 800; color: var(--accent); }
+  /* 지금 읽는 절의 단추 뒤에 밝은 레버를 깔고, 굵게 쓰는 단추가 바뀌면 레버를 그 단추로 미끄러뜨린다. 레버를 끌면 손가락을 따라 움직이고, 놓으면 가장 가까운 단추로 옮겨 그 절로 간다. */
+  nav.jump button { position: relative; z-index: 1; }
+  nav.jump .lever { position: absolute; top: 0; left: 6px; right: 6px; border-radius: 18px; pointer-events: none;
                     background: rgba(255, 255, 255, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
-                    transition: transform .25s ease, width .25s ease; }
-  nav.tabs .lever.drag { transition: none; background: rgba(255, 255, 255, .18); }
+                    transition: transform .25s ease, height .25s ease, opacity .2s ease; }
+  nav.jump .lever.drag { transition: none; background: rgba(255, 255, 255, .18); }
   /* 설명이 있는 절 제목과 지표 카드 이름은 글자 바로 뒤에 원 안 물음표 단추를 둔다. 단추를 누르면 화면 가운데에 설명 상자를 띄우고, 닫기 단추나 상자 바깥을 누르면 닫는다. */
   .help { display: inline-grid; place-items: center; vertical-align: top; width: 26px; height: 1lh; margin-left: 2px; padding: 0; border: 0; font: inherit;
              background: none; color: var(--dim); cursor: pointer; }
@@ -318,7 +318,7 @@
 </main>
 <script>
   const tg = window.Telegram && window.Telegram.WebApp;
-  // 텔레그램 앱 안에서만 기기를 진동시킨다. 이슈 상자·달력 단추·달력 날짜·지수 전환 단추·탭 막대 단추를 누르거나 접기 상자를 펼치면 가벼운 충격 진동을 낸다.
+  // 텔레그램 앱 안에서만 기기를 진동시킨다. 이슈 상자·달력 단추·달력 날짜·지수 전환 단추·바로가기 단추를 누르거나 접기 상자를 펼치면 가벼운 충격 진동을 낸다.
   // 접기, 목록으로 돌아가기, 밀어서 넘기기는 진동하지 않는다. 1개월 지수 방향 예측의 날짜 레버로 고른 날짜,
   // 미국 거시 지표에서 보는 지표, 다가오는 이벤트에서 보는 날짜가 바뀔 때마다 선택 변경 진동을 낸다.
   // 브라우저에서는 진동하지 않는다.
@@ -394,12 +394,9 @@
       track.appendChild(slide);
     });
     after.after(box);
-    // 묶음이 숨은 페이지에 있으면 장 사이 거리가 0이므로 1로 셈해 장 번호를 0번으로 둔다.
-    const step = () => (slides.length > 1 ? track.children[1].offsetLeft - track.children[0].offsetLeft : 1) || 1;
+    const step = () => (slides.length > 1 ? track.children[1].offsetLeft - track.children[0].offsetLeft : 1);
     const current = () => Math.min(slides.length - 1, Math.max(0, Math.round(track.scrollLeft / step())));
-    // 묶음이 숨은 페이지에 있으면 장 높이가 0으로 재지므로 묶음 높이를 그대로 두어, 페이지를 다시 보일 때 문서 길이와 스크롤 위치가 바뀌지 않게 한다.
-    const shownNow = () => track.getClientRects().length > 0;
-    const fitHeight = () => { if (fit && shownNow()) track.style.height = `${track.children[current()].offsetHeight}px`; };
+    const fitHeight = () => { if (fit) track.style.height = `${track.children[current()].offsetHeight}px`; };
     // 손가락을 뗀 뒤 넘기기가 멈추면, 손을 댄 장에서 민 방향으로 지나간 장의 폭 1/5을 넘긴 만큼 장을 넘기고, 1/5을 넘기지 못하면
     // 손을 댄 장으로 맞춘다. 맞추는 동안 손을 다시 대면 맞추기를 그 위치에서 멈추고 새로 민 거리로 다시 정한다.
     let timer, shown = start, felt = start, from = null, touching = false, aligning = null;
@@ -448,7 +445,6 @@
       track.style.transition = "";
     };
     track.addEventListener("scroll", () => {
-      if (!shownNow()) return;
       if (fit) reveal();
       const now = current();
       if (feel && now !== felt) { felt = now; feelSlide(); }
@@ -461,14 +457,14 @@
       [...track.children].forEach((slide) => watch.observe(slide));
     }
     box.go = (i) => slide(Math.min(slides.length - 1, Math.max(0, i)));
-    // 절 제목 `area`를 받으면 그 제목부터 다음 절 제목 앞까지(페이지의 마지막 절이면 문서 끝까지)를 넘기기 영역으로 쓴다. 절이 숨은 페이지에 있으면 넘기지 않는다. 넘기기 묶음 밖에서
+    // 절 제목 `area`를 받으면 그 제목부터 다음 절 제목 앞까지(마지막 절이면 문서 끝까지)를 넘기기 영역으로 쓴다. 넘기기 묶음 밖에서
     // 가로로 40px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 민 방향의 다음 장으로 넘긴다.
     if (area) {
       let begin = null;
       document.addEventListener("touchstart", (event) => {
         begin = null;
         const { target, touches } = event;
-        if (touches.length !== 1 || !area.getClientRects().length || track.contains(target) || target.closest(".viewer, .help-card, .cal-layer, .cal, input, nav.tabs")) return;
+        if (touches.length !== 1 || track.contains(target) || target.closest(".viewer, .help-card, .cal-layer, .cal, input")) return;
         let next = area.nextElementSibling;
         while (next && next.tagName !== "H2") next = next.nextElementSibling;
         const y = touches[0].clientY;
@@ -738,8 +734,8 @@
   // 상세 이슈 해설을 이슈 목록으로 바꾼다. 이슈는 `###` 제목부터 다음 `###`·`##` 앞까지다.
   // 템플릿이 검토했지만 비중을 낮춘 이슈를 번호 이슈 뒤에 두므로, 그 항목은 목록 끝의 "외 N건" 상자가 된다.
   // 상자를 누르면 이슈 내용이 오른쪽에서 들어오고, 이슈를 보는 중에 오른쪽으로 밀거나 돌아가는 단추를 누르면 목록이 왼쪽에서 들어온다.
-  // 들어갈 때와 돌아갈 때 모두 화면을 이슈 페이지 맨 위로 옮긴다.
-  // 검토했지만 비중을 낮춘 이슈를 보는 동안에는 절 제목을 "검토했지만 비중을 낮춘 이슈"로 바꾼다. 다른 페이지에 갔다 돌아와도 보던 이슈를 그대로 둔다.
+  // 들어갈 때와 돌아갈 때 모두 바로가기에서 이슈를 누를 때의 위치로 화면을 옮긴다.
+  // 검토했지만 비중을 낮춘 이슈를 보는 동안에는 절 제목을 "검토했지만 비중을 낮춘 이슈"로 바꾼다. 바로가기에서 이슈를 누르면 보던 이슈를 그대로 두고 화면만 옮긴다.
   function section(title) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
     if (!head) return;
@@ -848,7 +844,7 @@
       label.animate([{ opacity: 0 }, { opacity: 1 }], { duration: motion.matches ? 0 : GLIDE });
     };
     // `change`로 내용을 바꾸고, 나가는 `out`과 들어오는 내용을 장 사이 10px을 두고 나란히 `dir` 방향(1이면 왼쪽, -1이면 오른쪽)으로 옮긴다.
-    // 동시에 화면을 이슈 페이지 맨 위로 옮긴다. 옮기는 동안 묶음 높이를 지금 높이 아래로 줄이지 않아 화면이 튀지 않는다.
+    // 동시에 바로가기에서 이슈를 누를 때의 위치로 화면을 옮긴다. 옮기는 동안 묶음 높이를 지금 높이 아래로 줄이지 않아 화면이 튀지 않는다.
     const swap = (out, change, dir) => {
       busy = true;
       box.style.minHeight = `${box.offsetHeight}px`;
@@ -1490,89 +1486,110 @@
     });
     events(date);
     help();
-    pages([["예측", "", ["1개월 지수 방향 예측", "미국 거시 지표"]], ["이슈", "issues", ["상세 이슈 해설"]], ["캘린더", "events", ["다가오는 이벤트"]]]);
+    jump([["예측", "1개월 지수 방향 예측"], ["이슈", "상세 이슈 해설"], ["지표", "미국 거시 지표"], ["이벤트", "다가오는 이벤트"]]);
     // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
     // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
     // 손가락을 움직이지 않고 한 번 누르면 닫는다.
     // 이슈 목록 상자의 썸네일은 누르면 이슈를 열므로 띄우지 않는다.
     report.querySelectorAll("img:not(.thumb)").forEach((img) => img.addEventListener("click", () => viewer(img)));
   }).catch(() => fail("리포트를 찾지 못했다."));
-  // 리포트를 페이지로 나누고 화면 아래 탭 막대로 페이지를 바꾼다. `groups`의 항목마다 단추 이름, 주소의 `p` 값, 그 페이지에 넣을 절 제목을 차례로 둔다.
-  // 절은 `##` 제목부터 다음 `##` 앞까지이고, 어느 페이지에도 들지 않은 절은 첫 페이지 끝에 넣는다. 다른 절 변환을 모두 마친 뒤에 부른다.
-  // 리포트는 주소의 `p`가 가리키는 페이지로 열고, `p`가 없거나 맞는 페이지가 없으면 첫 페이지로 연다. 페이지를 바꾸면 주소의 `p`도 바꿔,
-  // 달력이나 지수 전환 단추로 다른 리포트를 열어도 같은 페이지로 연다.
-  // 단추를 누르면 진동을 내고 그 페이지로 바꾼다. 페이지마다 보던 위치를 기억해 돌아오면 그 위치로 열고, 보고 있는 페이지의 단추를 누르면 페이지 맨 위로 부드럽게 옮긴다.
-  // 알약 위에서 누른 채 6px 넘게 움직이면 레버가 손가락을 따라 움직이고, 레버 가운데에서 가장 가까운 단추를 굵게 쓴다. 손을 떼면 그 단추의 페이지로 바꾼다.
+  // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 보던 위치에서 절 제목 글자가 문서 맨 위에서 본 첫 절 제목 글자보다 40px 높은 높이에 올 때까지
+  // 화면을 부드럽게 움직인다. 제목 위의 띠는 화면 위쪽에 보인다. 문서 끝이 모자라 제목이 그 높이까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
+  // 단추를 만들 때 절마다 여백을 미리 늘려, 처음부터 마지막 절 제목까지 손으로 밀어 올릴 수 있다.
+  // 화면을 움직일 때마다, 절 제목 글자가 화면 위에서 3분의 1 높이를 넘은 절 가운데 마지막 절의 단추를 굵게 쓰고 레버를 그 단추 뒤로 옮긴다.
+  // 그 높이가 바로가기로 옮겼을 때의 높이보다 위에 있으면 바로가기로 옮겼을 때의 높이를 쓴다.
+  // 문서 맨 위에서는 첫 절의 단추를, 문서 끝까지 내려 마지막 절 제목이 그 높이에 닿지 못하면 마지막 절의 단추를 굵게 쓴다.
+  // 바로가기로 화면이 움직이는 동안에는 지나가는 절의 단추 대신 고른 단추를 굵게 쓴다. 고른 절에 닿거나, 알약 밖을 누르거나 휠을 굴리거나, 3초가 지나면 다시 읽는 절을 따른다.
+  // 알약 위에서 누른 채 6px 넘게 움직이면 레버가 손가락을 따라 움직이고, 레버 가운데에서 가장 가까운 단추를 굵게 쓴다. 손을 떼면 그 단추를 누른 것과 같이 그 절로 간다.
   // 끈 뒤 손을 뗄 때 따라오는 단추 누름은 다음에 알약을 누를 때까지 무시한다.
-  function pages(groups) {
-    const heads = [...report.querySelectorAll(":scope > h2")];
-    const block = (head) => {
-      const nodes = [head];
-      for (let node = head.nextElementSibling; node && node.tagName !== "H2"; node = node.nextElementSibling) nodes.push(node);
-      return nodes;
-    };
-    const tabs = groups.map(([name, id, titles]) => {
-      const found = titles.map((title) => heads.find((h) => h.textContent.trim() === title)).filter(Boolean);
-      return found.length ? { name, id, heads: found } : null;
-    }).filter(Boolean);
-    if (!tabs.length) return;
-    const blocks = tabs.map((tab) => tab.heads.map(block));
-    const rest = heads.filter((head) => !tabs.some((tab) => tab.heads.includes(head))).map(block);
-    blocks[0].push(...rest);
+  function jump(pairs) {
     const nav = document.createElement("nav");
-    nav.className = "tabs";
-    const lever = nav.appendChild(Object.assign(document.createElement("i"), { className: "lever" }));
-    tabs.forEach((tab, i) => {
-      tab.page = Object.assign(document.createElement("div"), { className: "page" });
-      blocks[i].forEach((nodes) => tab.page.append(...nodes));
-      report.append(tab.page);
-      // 페이지 첫 절 제목은 페이지 맨 위에 있으므로, 이슈 목록과 이슈 사이를 오갈 때 화면을 페이지 맨 위로 옮긴다.
-      tab.page.firstElementChild.reach = () => 0;
-      tab.button = nav.appendChild(Object.assign(document.createElement("button"), { textContent: tab.name }));
-      tab.button.dataset.name = tab.name;
-      tab.button.addEventListener("click", () => { if (!nav.dataset.dragged) { feelPress(); go(i); } });
-    });
-    const spots = new Map();
-    let on = Math.max(0, tabs.findIndex((tab) => tab.id && tab.id === query.get("p")));
-    const place = (i) => {
-      lever.style.width = `${tabs[i].button.offsetWidth}px`;
-      lever.style.transform = `translateX(${tabs[i].button.offsetLeft}px)`;
+    nav.className = "jump";
+    const lever = document.createElement("i");
+    lever.className = "lever";
+    nav.append(lever);
+    const marks = [];
+    const textTop = (head) => {
+      const band = getComputedStyle(head, "::before");
+      return head.getBoundingClientRect().top + (band.content === "none" ? 0 : parseFloat(band.height) + parseFloat(band.marginBottom));
     };
-    const show = (i) => {
-      tabs.forEach((tab, j) => { tab.page.classList.toggle("on", i === j); tab.button.classList.toggle("on", i === j); });
-      place(i);
+    const gap = () => textTop(marks[0][0]) + scrollY - 40;
+    const show = (on) => {
+      marks.forEach(([, button], i) => button.classList.toggle("on", i === on));
+      const button = marks[on]?.[1];
+      lever.style.opacity = button ? 1 : 0;
+      if (!button) return;
+      lever.style.height = `${button.offsetHeight}px`;
+      lever.style.transform = `translateY(${button.offsetTop}px)`;
+    };
+    let pending = false, held = null, release = 0, drag = null;
+    const mark = () => {
+      pending = false;
+      if (drag?.moved) return;
+      const end = scrollY + innerHeight >= document.documentElement.scrollHeight - 2;
+      let on = -1;
+      const line = Math.max(gap() + 1, innerHeight / 3);
+      marks.forEach(([head], i) => { if (textTop(head) <= line) on = i; });
+      if (scrollY <= 0) on = 0;
+      else if (end) on = marks.length - 1;
+      if (held !== null && on === held) held = null;
+      show(held ?? on);
+    };
+    const settle = () => { held = null; mark(); };
+    addEventListener("scroll", () => { if (!pending) { pending = true; requestAnimationFrame(mark); } }, { passive: true });
+    addEventListener("wheel", settle, { passive: true });
+    addEventListener("touchstart", (event) => { if (!nav.contains(event.target)) settle(); }, { passive: true });
+    addEventListener("resize", mark);
+    // 절 제목 글자가 바로가기 높이에 오는 화면 위치를 돌려준다. 문서 끝이 모자라면 리포트 아래를 늘린다.
+    const reach = (head) => {
+      const top = Math.max(0, textTop(head) + scrollY - gap());
+      const lack = top + innerHeight - document.documentElement.scrollHeight;
+      if (lack > 0) report.style.paddingBottom = `${(parseFloat(report.style.paddingBottom) || 0) + lack}px`;
+      return top;
     };
     const go = (i) => {
-      if (i === on) { scrollTo({ top: 0, behavior: motion.matches ? "auto" : "smooth" }); place(i); return; }
-      spots.set(on, scrollY);
-      on = i;
+      const top = reach(marks[i][0]);
+      held = i;
+      clearTimeout(release);
+      release = setTimeout(settle, 3000);
       show(i);
-      scrollTo(0, spots.get(i) ?? 0);
-      tabs[i].page.animate([{ opacity: 0 }, { opacity: 1 }], { duration: motion.matches ? 0 : 180 });
-      const params = new URLSearchParams(location.search);
-      if (tabs[i].id) params.set("p", tabs[i].id);
-      else params.delete("p");
-      const search = params.toString();
-      history.replaceState(null, "", search ? `?${search}` : location.pathname);
+      scrollTo({ top, behavior: "smooth" });
     };
-    const nearest = (x) => {
-      const centre = (b) => b.offsetLeft + b.offsetWidth / 2;
-      return tabs.reduce((best, tab, i) => (Math.abs(centre(tab.button) - x) < Math.abs(centre(tabs[best].button) - x) ? i : best), 0);
+    pairs.forEach(([name, title]) => {
+      const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
+      if (!head) return;
+      const button = document.createElement("button");
+      button.textContent = name;
+      button.dataset.name = name;
+      const i = marks.length;
+      marks.push([head, button]);
+      head.reach = () => reach(head);
+      button.addEventListener("click", () => { if (!nav.dataset.dragged) { feelPress(); go(i); } });
+      nav.append(button);
+    });
+    const nearest = (y) => {
+      let best = 0;
+      marks.forEach(([, button], i) => {
+        const centre = (b) => b.offsetTop + b.offsetHeight / 2;
+        if (Math.abs(centre(button) - y) < Math.abs(centre(marks[best][1]) - y)) best = i;
+      });
+      return best;
     };
-    let drag = null;
     nav.addEventListener("pointerdown", (event) => {
       delete nav.dataset.dragged;
-      drag = { x: event.clientX, left: nav.getBoundingClientRect().left + nav.clientLeft, moved: false, id: event.pointerId };
+      drag = { y: event.clientY, top: nav.getBoundingClientRect().top + nav.clientTop, moved: false, id: event.pointerId };
     });
     nav.addEventListener("pointermove", (event) => {
       if (!drag || event.pointerId !== drag.id) return;
-      if (!drag.moved && Math.abs(event.clientX - drag.x) <= 6) return;
+      if (!drag.moved && Math.abs(event.clientY - drag.y) <= 6) return;
       if (!drag.moved) { drag.moved = true; nav.setPointerCapture(event.pointerId); lever.classList.add("drag"); }
-      const first = tabs[0].button, last = tabs[tabs.length - 1].button, width = lever.offsetWidth;
-      const x = Math.min(last.offsetLeft + last.offsetWidth - width, Math.max(first.offsetLeft, event.clientX - drag.left - width / 2));
-      lever.style.transform = `translateX(${x}px)`;
-      const near = nearest(x + width / 2);
-      tabs.forEach((tab, i) => tab.button.classList.toggle("on", i === near));
+      const first = marks[0][1], last = marks[marks.length - 1][1];
+      const height = lever.offsetHeight;
+      const y = Math.min(last.offsetTop + last.offsetHeight - height, Math.max(first.offsetTop, event.clientY - drag.top - height / 2));
+      lever.style.opacity = 1;
+      lever.style.transform = `translateY(${y}px)`;
+      const on = nearest(y + height / 2);
+      marks.forEach(([, button], i) => button.classList.toggle("on", i === on));
     });
     const end = (event) => {
       if (!drag || event.pointerId !== drag.id) return;
@@ -1582,16 +1599,14 @@
       nav.dataset.dragged = "1";
       lever.classList.remove("drag");
       const rect = lever.getBoundingClientRect();
-      const near = nearest(rect.left - nav.getBoundingClientRect().left - nav.clientLeft + rect.width / 2);
-      if (near === on) show(on);
-      else go(near);
+      go(nearest(rect.top - nav.getBoundingClientRect().top - nav.clientTop + rect.height / 2));
     };
     nav.addEventListener("pointerup", end);
     nav.addEventListener("pointercancel", end);
+    if (!marks.length) return;
     document.body.append(nav);
-    show(on);
-    addEventListener("resize", () => place(on));
-    document.fonts?.ready.then(() => place(on));
+    marks.forEach(([head]) => reach(head));
+    mark();
   }
 
   // 절 제목마다 설명 상자에 쓸 항목을 둔다. 항목마다 이름을 굵게 쓰고 그 아래에 설명을 쓴다.
@@ -1614,7 +1629,7 @@
   const QUESTION = '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1"/>'
     + '<path d="M6.2 6.2a1.8 1.8 0 1 1 2.6 1.6c-.5.3-.8.6-.8 1.2v.4" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
     + '<circle cx="8" cy="11.6" r=".8" fill="currentColor"/></svg>';
-  // 설명이 있는 절 제목 뒤에 물음표 단추를 넣는다. 단추는 글자를 담지 않으므로 절 제목 글자로 절을 찾는 `pages`가 그대로 동작한다. `section`이 절 제목 안을 바꿔 쓴 뒤에 부른다.
+  // 설명이 있는 절 제목 뒤에 물음표 단추를 넣는다. 단추는 글자를 담지 않으므로 절 제목 글자로 절을 찾는 `jump`가 그대로 동작한다. `section`이 절 제목 안을 바꿔 쓴 뒤에 부른다.
   function help() {
     report.querySelectorAll("h2").forEach((head) => {
       const title = head.textContent.trim();
