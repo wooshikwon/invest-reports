@@ -87,7 +87,6 @@ INDICATORS_TITLE = "주요 시장 지표"
 UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#ffffff"  # 오름·내림·중립 색. 오름·내림 색은 `app.html`의 등락 색과 같다
 # 지표 카드의 구간. [구간 끝값, 색, 구간 이름]이고, 지금 값이 든 구간의 이름과 색이 카드의 상태다.
 FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, DOWN, "공포"], [55, NEUTRAL, "중립"], [75, UP, "탐욕"], [100, UP, "극단 탐욕"]]
-PUT_CALL_ZONES = [[0.8, UP, "낙관"], [1.2, NEUTRAL, "중립"], [2, DOWN, "비관"]]
 WEEKS = 12  # 하이일드 스프레드의 막대 그림이 거슬러 그리는 주 수
 RATE_MOVE_BP = 12.5  # 다음 회의까지 누적 변화가 이 bp 이상이면 인상 예상, 음수로 이 값 이하면 인하 예상
 
@@ -461,13 +460,10 @@ def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:
     수집기는 미국 장의 날짜를 적는다. 미국 장은 한국 시각으로 다음 날 아침에 마감하므로 기준일은 그 날짜에 하루를 더한 한국 날짜다.
     """
     as_of = market.get("as_of")
-    options = market.get("options") or {}
     high_yield = (macro.get("fred") or {}).get("하이일드 스프레드") or {}
     path = (macro.get("policy") or {}).get("연방기금 선물 내재 경로") or {}
     found = {
         "공포·탐욕 지수": (as_of, macro.get("fear_greed"), "score"),
-        "QQQ 풋/콜 거래 비율": (as_of, options.get("QQQ"), "put_call"),
-        "IBB 풋/콜 거래 비율": (as_of, options.get("IBB"), "put_call"),
         "연준 금리 경로": (path.get("date"), path, "meetings"),
         "하이일드 스프레드": (high_yield.get("date"), high_yield, "pct_1y"),
     }
@@ -516,16 +512,6 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
         return {"tab": "공포·탐욕", "help": guide, "asof": f"CNN · {when}", "value": f"{score:g}", "state": zone(FEAR_GREED_ZONES, score),
                 "figure": {"type": "semi", "min": 0, "max": 100, "zones": FEAR_GREED_ZONES, "value": score,
                            "before": before and before[1]["score"], "ends": ["공포", "탐욕"]}}
-    if name in ("QQQ 풋/콜 거래 비율", "IBB 풋/콜 거래 비율"):
-        ratio, fund = value["put_call"], name.split()[0]
-        kind = {"QQQ": "나스닥100", "IBB": "바이오"}[fund]
-        guide = [f"그날 거래된 {kind} ETF {fund}의 풋옵션 계약 수를 콜옵션 계약 수로 나눈 값이에요. "
-                 f"풋옵션은 {fund} 가격이 내려갈 때 이익을 내는 계약이에요. 콜옵션은 {fund} 가격이 오를 때 이익을 내는 계약이에요.",
-                 "하락에 대비하는 투자자가 많을수록 값이 커져요. 값이 1이면 그날 풋옵션과 콜옵션이 같은 수만큼 거래됐어요. "
-                 "0.8 이하면 낙관, 1.2 이하면 중립, 그보다 크면 비관이에요."]
-        return {"tab": "풋/콜", "help": guide, "asof": f"옵션 · {when}", "value": f"{ratio:.2f}", "state": zone(PUT_CALL_ZONES, ratio),
-                "figure": {"type": "semi", "min": 0.4, "max": 2, "zones": PUT_CALL_ZONES, "value": ratio,
-                           "before": before and before[1]["put_call"], "ends": ["낙관", "비관"]}}
     if name == "하이일드 스프레드":
         level = value["value"]
         guide = ["미국 하이일드 회사채의 금리에서 만기가 비슷한 미국 국채의 금리를 뺀 값이에요. 하이일드 회사채는 신용등급이 투자 적격 등급보다 낮은 회사채예요. "
