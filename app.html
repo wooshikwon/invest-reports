@@ -1139,11 +1139,10 @@
     },
     // 0 기준 위아래 막대: 열마다 [이름, 값, 글자]이고, 가운데 0 가로선에서 양수는 위로, 음수는 아래로 그린다. 첫 열 막대와 글자는 흰색,
     // 나머지 열은 회색이다. 값 글자는 막대 끝 바깥에, 열 이름은 그림 아래에 적는다. 세로축은 위아래로 `max`까지이고, 그 끝에서 그림 끝까지는
-    // 값 글자 한 줄을 적을 여백으로 남긴다. `ticks`는 [값, 이름]이고, 선은 긋지 않고 그 높이의 오른쪽 여백에 이름만 적는다.
-    diverge({ rows, max, ticks }) {
+    // 값 글자 한 줄을 적을 여백으로 남긴다. 세로축에는 0만 오른쪽 여백에 적는다.
+    diverge({ rows, max }) {
       const x0 = 6, x1 = 262, top = 8, base = 148, mid = (top + base) / 2, reach = (base - top) / 2 - 18, s = canvas(FIGURE);
       const slot = (x1 - x0) / rows.length, w = Math.min(40, slot * 0.5), Y = (v) => mid - reach * Math.min(1, Math.max(-1, v / max));
-      ticks.forEach(([v, name]) => s.append(shape("text", { x: x1 + 10, y: Y(v) + 4, "font-size": 11, fill: "#7A828C" }, name)));
       rows.forEach(([name, v, text], i) => {
         const x = x0 + slot * i + (slot - w) / 2, up = v >= 0, end = Math.abs(Y(v) - mid) < 2 ? mid + (up ? -2 : 2) : Y(v), first = i === 0;
         const r = Math.min(4, Math.abs(end - mid) / 2), tip = up ? r : -r;
