@@ -139,9 +139,6 @@
   .carousel .track::-webkit-scrollbar { display: none; }
   .carousel .slide { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; }
   .carousel .slide img { margin: 0; }
-  .carousel .dots { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
-  .carousel .dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
-  .carousel .dots span.on { background: var(--accent); }
   .carousel .slide canvas.live { display: block; width: 100%; height: auto; border-radius: 10px; background: var(--bg); cursor: zoom-in; }
   /* 날짜 슬라이더는 그림 폭의 80%로 가운데에 둔다. */
   .carousel .rewind { position: relative; width: 80%; margin: 12px auto 18px; }
@@ -162,10 +159,10 @@
   .carousel .rewind.held span { opacity: 1; }
   /* 절 제목 아래 첫 요소는 절 제목의 아래 여백만큼 띄우고, 절 안의 항목 사이는 30px씩 띄운다.
      1개월 지수 방향 예측 절의 세 소제목 사이는 이슈 문단 사이만큼 띄운다. */
-  /* 1개월 지수 방향 예측 절의 세 문단은 소제목만 보이고, 주요 이슈 해설의 이슈 해설 문단과 다가오는 이벤트의 이벤트마다 표는 펼쳐 둔다.
+  /* 1개월 지수 방향 예측 절의 세 문단은 소제목만 보이고, 상세 이슈 해설의 이슈 해설 문단과 다가오는 이벤트의 이벤트마다 표는 펼쳐 둔다.
      소제목을 누르면 문단이나 표가 펼쳐지거나 접히고, 펼친 문단이나 표를 눌러도 접힌다. 펼친 소제목과 문단 사이는 표식이 없는 소제목의 아래 여백만큼 띄우고, 펼친 문단은 `--hint` 색으로 쓰고,
      펼친 이벤트 표는 열 제목을 소제목 색, 칸 글자를 펼친 문단 색으로 쓴다. 펼치고 접을 때는 내용 높이가 이어서 바뀐다. */
-  /* 주요 이슈 해설의 이슈 해설 문단은 소제목 없이 말머리 아래에 펼친 문단처럼 여백과 색을 쓴다. 이슈 해설 대신 현재 상태·주요 분기와 예측·종합 시나리오 소제목 세 개를 단 리포트는 세 문단을 접는다.
+  /* 상세 이슈 해설의 이슈 해설 문단은 소제목 없이 말머리 아래에 펼친 문단처럼 여백과 색을 쓴다. 이슈 해설 대신 현재 상태·주요 분기와 예측·종합 시나리오 소제목 세 개를 단 리포트는 세 문단을 접는다.
      검토했지만 비중을 낮춘 이슈는 접지 않고, 굵은 이슈 이름은 소제목 색, 설명은 펼친 문단 색으로 쓴다. */
   .issue-page > h4 { margin-top: 15.5px; }
   .issue-page > :is(p, ul, ol) { color: var(--hint); }
@@ -180,7 +177,7 @@
   .carousel.fit .track { align-items: flex-start; transition: height .2s ease; }
   .carousel.fit.folding .track { transition: none; }
   .carousel.fit .slide :is(h3, ul):first-child { margin-top: 0; }
-  /* 주요 이슈 해설은 이슈 제목 목록으로 시작한다. 이슈마다 아주 연한 둥근 상자에 왼쪽부터 순위 번호, 방향 표식을 끝에 붙인 제목, 오른쪽 끝 꺾쇠를 놓고, 제목 아래에 이슈 해설(이전 리포트는 현재 상태)의 소제목을 흐린 글씨로 붙인다.
+  /* 상세 이슈 해설은 이슈 제목 목록으로 시작한다. 이슈마다 아주 연한 둥근 상자에 왼쪽부터 순위 번호, 방향 표식을 끝에 붙인 제목, 오른쪽 끝 꺾쇠를 놓고, 제목 아래에 이슈 해설(이전 리포트는 현재 상태)의 소제목을 흐린 글씨로 붙인다.
      제목과 소제목은 같은 폭으로 쓰고, 글자 오른쪽 끝과 꺾쇠 사이는 꺾쇠와 상자 오른쪽 끝 사이만큼 띄운다.
      소제목은 짧은 폭에서 줄 끝이 들쭉날쭉하지 않게 단어 대신 글자 단위로 줄을 바꾼다.
      마지막 상자에는 검토했지만 비중을 낮춘 이슈의 건수를 제목 "외 N건"으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 문단을 보이거나
@@ -269,8 +266,6 @@
   /* 그림은 모두 같은 높이의 칸에 가운데로 그려, 장마다 그림과 해설의 위치가 같다. */
   .gauge > svg { display: block; width: 100%; height: auto; margin: 10px 0 6px; overflow: visible; }
   .gauge p { margin: 20px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--hint); }
-  /* 해설과 장 번호 점 사이를 그림과 해설 사이 20px와 같게 둔다. 카드 아래 안쪽 여백 16px에 4px를 더한다. */
-  .carousel.indicators .dots { margin-top: 4px; }
   /* 화면 오른쪽 아래에 절 바로가기를 세로로 긴 반투명 유리 알약 하나에 담아 띄운다. 알약 뒤 본문은 흐리게 비친다. 누르면 그 절 제목이 화면 위쪽에 오도록 부드럽게 옮긴다. */
   nav.jump { position: fixed; z-index: 5; right: 16px; bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
              display: flex; flex-direction: column; padding: 6px; border-radius: 24px; touch-action: none; user-select: none; -webkit-user-select: none;
@@ -381,19 +376,18 @@
 
   // 슬라이드마다 노드 목록을 받아 좌우로 넘기는 묶음을 만들고 `after` 뒤에 둔다. 묶음 상자를 돌려준다.
   // `fit`이면 넘기기가 멈춘 뒤와 슬라이드 높이가 바뀐 뒤 묶음 높이를 보고 있는 슬라이드에 맞춘다. `change`가 있으면 보고 있는
-  // 슬라이드가 바뀔 때마다 그 번호로 `change`를 부르고, `dots`를 켜지 않으면 아래 점을 두지 않는다. `start`번 슬라이드부터 보여 준다.
+  // 슬라이드가 바뀔 때마다 그 번호로 `change`를 부른다. `start`번 슬라이드부터 보여 준다.
   // `feel`이면 보고 있는 슬라이드가 바뀔 때마다 선택 변경 진동을 낸다. 상자의 `go(i)`는 i번 슬라이드로 넘긴다.
-  function slider(slides, after, { fit = false, start = 0, change = null, dots: dotted = !change, name = "", area = null, feel = false } = {}) {
+  function slider(slides, after, { fit = false, start = 0, change = null, name = "", area = null, feel = false } = {}) {
     const box = document.createElement("div");
     box.className = ["carousel", fit && "fit", name].filter(Boolean).join(" ");
-    box.innerHTML = dotted ? '<div class="track"></div><div class="dots"></div>' : '<div class="track"></div>';
-    const track = box.querySelector(".track"), dots = box.querySelector(".dots");
-    slides.forEach((nodes, i) => {
+    box.innerHTML = '<div class="track"></div>';
+    const track = box.querySelector(".track");
+    slides.forEach((nodes) => {
       const slide = document.createElement("div");
       slide.className = "slide";
       nodes.forEach((node) => slide.appendChild(node));
       track.appendChild(slide);
-      if (dots) dots.appendChild(Object.assign(document.createElement("span"), { className: i ? "" : "on" }));
     });
     after.after(box);
     const step = () => (slides.length > 1 ? track.children[1].offsetLeft - track.children[0].offsetLeft : 1);
@@ -450,7 +444,6 @@
       if (fit) reveal();
       const now = current();
       if (feel && now !== felt) { felt = now; feelSlide(); }
-      if (dots) [...dots.children].forEach((dot, i) => dot.classList.toggle("on", i === now));
       if (change && now !== shown) change((shown = now));
       wait();
     }, { passive: true });
@@ -734,7 +727,7 @@
     }).catch(() => {});
   }
 
-  // 주요 이슈 해설을 이슈 목록으로 바꾼다. 이슈는 `###` 제목부터 다음 `###`·`##` 앞까지다.
+  // 상세 이슈 해설을 이슈 목록으로 바꾼다. 이슈는 `###` 제목부터 다음 `###`·`##` 앞까지다.
   // 템플릿이 검토했지만 비중을 낮춘 이슈를 번호 이슈 뒤에 두므로, 그 항목은 목록 끝의 "외 N건" 상자가 된다.
   // 상자를 누르면 이슈 내용이 오른쪽에서 들어오고, 이슈를 보는 중에 오른쪽으로 밀거나 돌아가는 단추를 누르면 목록이 왼쪽에서 들어온다.
   // 들어갈 때와 돌아갈 때 모두 바로가기에서 이슈를 누를 때의 위치로 화면을 옮긴다.
@@ -1246,7 +1239,7 @@
       strip.style.transform = `translateX(${-Math.min(room, strip.children[(seen = i)].offsetLeft)}px)`;
     };
     anchor.after(bar);
-    const box = slider(slides, bar, { fit: true, change, dots: true, name: "indicators", area: head, feel: true });
+    const box = slider(slides, bar, { fit: true, change, name: "indicators", area: head, feel: true });
     box.prepend(bar);
     change(seen);
     new ResizeObserver(() => {
@@ -1473,8 +1466,8 @@
       if (tone) tag.classList.add(tone);
       else tag.remove();
     });
-    fold("주요 이슈 해설", 4, ["이슈 해설"]);
-    section("주요 이슈 해설");
+    fold("상세 이슈 해설", 4, ["이슈 해설"]);
+    section("상세 이슈 해설");
     // 소제목의 방향 표식은 제목 끝으로 옮긴다. 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
     report.querySelectorAll("h3").forEach((h3) => {
       const codes = [...h3.querySelectorAll("code")];
@@ -1489,7 +1482,7 @@
     });
     events(date);
     help();
-    jump([["예측", "1개월 지수 방향 예측"], ["지표", "미국 거시 지표"], ["이슈", "주요 이슈 해설"], ["이벤트", "다가오는 이벤트"]]);
+    jump([["예측", "1개월 지수 방향 예측"], ["지표", "미국 거시 지표"], ["이슈", "상세 이슈 해설"], ["이벤트", "다가오는 이벤트"]]);
     // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
     // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
     // 손가락을 움직이지 않고 한 번 누르면 닫는다.
@@ -1618,7 +1611,7 @@
       ["몬테카를로", "이슈와 이벤트를 반영해 지수가 갈 수 있는 경로 2만 개를 그려요. 두 파란 선 사이에 경로의 가운데 50%가 들어와요."],
       ["권장 추종 배율", "경로 2만 개마다 한 달 동안 평균적으로 얼마나 오르거나 내렸는지를 배율로 바꿔 그린 분포예요. 파란 실선이 1.0(지수 추종)보다 왼쪽이면 하락 쪽 판단이고, 오른쪽이면 상승 쪽 판단이에요."],
     ],
-    "주요 이슈 해설": [
+    "상세 이슈 해설": [
       ["이슈를 고르는 기준", "1개월 주가 예측에 영향이 큰 이슈부터 보여줘요. 이슈 하나를 예측에서 빼고 다시 계산했을 때 주가 예측이 크게 바뀔수록 영향이 큰 이슈예요."],
       ["상승 요인과 하락 요인", "이슈가 1개월 주가 예측을 상승 쪽으로 바꿨는지 하락 쪽으로 바꿨는지 보여줘요. 뉴스의 좋고 나쁨과는 달라요. 나쁜 소식도 반등 가능성을 높이면 상승 요인이에요."],
     ],
