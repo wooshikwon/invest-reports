@@ -36,6 +36,10 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `상세 이슈 해설` 절의 번호 붙은 이슈 소제목 뒤에는 리포트 폴더 `assets/issue-{번호}.webp`가 있을 때만 그 그림과
 `AI 생성 이미지` 캡션을 넣는다. 그림은 `run-with-notify.sh`가 ⑨의 이슈 이미지 선정 결과로 만든다. 그림마다 가운데를 잘라
 `THUMB`px 정사각 썸네일 `issue-{번호}-thumb.webp`를 만들어 그림의 `data-thumb`에 적는다. `invest-reports` 미니 앱은 이슈 목록 상자에 썸네일을 붙인다.
+이슈 해설 말머리 뒤 문단 사이에는 리포트 폴더 `system/issue-charts.json`의 카드 값을 `issue-chart` 그림의 `data-card`로 넣는다.
+카드 값은 ⑨의 이슈 그래프 agent가 설계하고 `issue_charts.py fill`이 채우며, 카드 값이 없는 그래프는 넣지 않는다.
+그래프는 설계의 `after`번째 문단 다음에 들어가고, 문단이 그보다 적으면 마지막 문단 다음에 들어간다.
+`invest-reports` 미니 앱은 카드 값으로 `미국 거시 지표` 카드와 같은 모양의 선 그래프·막대 그래프·표 카드를 그린다.
 
 `r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 처음 만든 시각(`written`, 서울 시각)을 적는다. `invest-reports` 미니 앱은 제목 아래
 작은 글씨로 날짜 줄과 처음 만든 시각을 그린다. 같은 리포트를 다시 만들어도 처음 만든 시각은 그대로 둔다.
@@ -636,6 +640,33 @@ def mark_issue_images(body: str, assets: Path, target: Path, out: Path) -> str:
     return body[:head.end()] + section + body[end:]
 
 
+def mark_issue_charts(body: str, plan: Path) -> str:
+    """`상세 이슈 해설` 절의 번호 붙은 이슈마다 `system/issue-charts.json`의 카드 값을 이슈 해설 말머리 뒤 `after`번째 문단 다음에 넣는다."""
+    head = re.search(rf'<h2 id="[^"]*">{ISSUES_TITLE}</h2>', body)
+    if not head or not plan.is_file():
+        return body
+    cards = {chart["card"]["issue"]: chart["card"] for chart in json.loads(plan.read_text(encoding="utf-8")).get("charts", [])
+             if "card" in chart}
+    end = body.find("<h2", head.end())
+    end = len(body) if end < 0 else end
+    section = body[head.end():end]
+    starts = [match.start() for match in re.finditer(r"<h3[^>]*>", section)] + [len(section)]
+    parts = [section[:starts[0]]]
+    for start, stop in zip(starts, starts[1:]):
+        issue = section[start:stop]
+        number = re.match(r"(\d+)\.\s", html.unescape(re.sub(r"<[^>]+>", "", issue[:issue.find("</h3>")])).strip())
+        lead = issue.find("</h4>")
+        card = cards.get(int(number.group(1))) if number else None
+        if card and lead >= 0:
+            closes = [match.end() for match in re.finditer(r"</p>", issue[lead:])]
+            if closes:
+                at = lead + closes[min(card["after"], len(closes)) - 1]
+                figure = f'\n<figure class="issue-chart" data-card="{html.escape(json.dumps(card, ensure_ascii=False))}"></figure>'
+                issue = issue[:at] + figure + issue[at:]
+        parts.append(issue)
+    return body[:head.end()] + "".join(parts) + body[end:]
+
+
 def build(date: str, index: str, vault: Path, out: Path) -> str:
     source = vault / f"routine/invest/{date[:7]}/{date}/{index}/report.md"
     if not source.is_file():
@@ -662,6 +693,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     body = mark_days(body, day, branches, timings(vault, index, day), upcoming)
     body = mark_indicators(body, indicator_cards(vault, index, day))
     body = mark_issue_images(body, source.parent / "assets", target, out)
+    body = mark_issue_charts(body, source.parent / "system" / "issue-charts.json")
     (target / "report.html").write_text(body, encoding="utf-8")
 
     listing = out / "r" / "index.json"
