@@ -33,6 +33,9 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 값이 없는 지표에는 카드 값을 달지 않는다.
 `invest-reports` 미니 앱은 카드 값으로 지표마다 카드를 그려 한 장씩 넘기게 하고, 카드 값이 없는 소제목은 지운다.
 
+`상세 이슈 해설` 절의 번호 붙은 이슈 소제목 뒤에는 리포트 폴더 `assets/issue-{번호}.webp`가 있을 때만 그 그림과
+`AI 생성 이미지` 캡션을 넣는다. 그림은 `run-with-notify.sh`가 ⑨의 이슈 이미지 선정 결과로 만든다.
+
 `r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 처음 만든 시각(`written`, 서울 시각)을 적는다. `invest-reports` 미니 앱은 제목 아래
 작은 글씨로 날짜 줄과 처음 만든 시각을 그린다. 같은 리포트를 다시 만들어도 처음 만든 시각은 그대로 둔다.
 `invest-reports` 미니 앱의 달력은 같은 목록에서 그 지수의 리포트 날짜를 찾아 흰 글자로 쓰고, 날짜 아래에 `moves`의 `session`을 적는다.
@@ -85,6 +88,7 @@ NEW_YORK, SEOUL = ZoneInfo("America/New_York"), ZoneInfo("Asia/Seoul")
 TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
 INDICATORS_TITLE = "미국 거시 지표"
+ISSUES_TITLE = "상세 이슈 해설"
 UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#ffffff"  # 오름·내림·중립 색. 오름·내림 색은 `app.html`의 등락 색과 같다
 # 지표 카드의 구간. [구간 끝값, 색, 구간 이름]이고, 지금 값이 든 구간의 이름과 색이 카드의 상태다.
 FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, DOWN, "공포"], [55, NEUTRAL, "중립"], [75, UP, "탐욕"], [100, UP, "극단 탐욕"]]
@@ -600,6 +604,28 @@ def mark_indicators(body: str, cards: dict[str, dict]) -> str:
     return body[:head.end()] + section + body[end:]
 
 
+
+def mark_issue_images(body: str, assets: Path, target: Path, out: Path) -> str:
+    """`상세 이슈 해설` 절의 번호 붙은 이슈 소제목 뒤에 `assets/issue-{번호}.webp` 그림을 넣는다. 그림이 없는 이슈는 그대로 둔다."""
+    head = re.search(rf'<h2 id="[^"]*">{ISSUES_TITLE}</h2>', body)
+    if not head:
+        return body
+    end = body.find("<h2", head.end())
+    end = len(body) if end < 0 else end
+
+    def heading(match: re.Match) -> str:
+        number = re.match(r"(\d+)\.\s", html.unescape(re.sub(r"<[^>]+>", "", match.group(1))).strip())
+        image = assets / f"issue-{number.group(1)}.webp" if number else None
+        if not image or not image.is_file():
+            return match.group(0)
+        shutil.copy2(image, target / image.name)
+        return (f'{match.group(0)}\n<figure class="issue-image"><img src="{versioned(target / image.name, out)}" alt="">'
+                f"<figcaption>AI 생성 이미지</figcaption></figure>")
+
+    section = re.sub(r"<h3[^>]*>(.*?)</h3>", heading, body[head.end():end], flags=re.DOTALL)
+    return body[:head.end()] + section + body[end:]
+
+
 def build(date: str, index: str, vault: Path, out: Path) -> str:
     source = vault / f"routine/invest/{date[:7]}/{date}/{index}/report.md"
     if not source.is_file():
@@ -625,6 +651,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     upcoming = json.loads(display.read_text(encoding="utf-8"))["next"] if display.is_file() else []
     body = mark_days(body, day, branches, timings(vault, index, day), upcoming)
     body = mark_indicators(body, indicator_cards(vault, index, day))
+    body = mark_issue_images(body, source.parent / "assets", target, out)
     (target / "report.html").write_text(body, encoding="utf-8")
 
     listing = out / "r" / "index.json"
