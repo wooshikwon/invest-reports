@@ -27,7 +27,6 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 중요도는 `data-level`로 달아 `invest-reports` 미니 앱이 날짜 띠에 점으로 그린다.
 
 `주요 시장 지표` 절의 지표 소제목에는 그날 지수 폴더의 `market-data.json`·`macro-data.json`에서 뽑은 카드 값을 `data-card`로 단다.
-하이일드 스프레드와 선물 순매수는 앞 12주 지수 폴더의 같은 JSON에서 주마다 마지막 값을 함께 뽑아 막대 그림으로 그린다.
 카드 값은 탭 이름, 값과 단위, 상태 이름과 색, 기준일, 보조 값을 적은 한 줄, 그림 종류와 그림 입력, 물음표 단추의 설명이다.
 값이 없는 지표에는 카드 값을 달지 않는다.
 `invest-reports` 미니 앱은 카드 값으로 지표마다 카드를 그려 한 장씩 넘기게 하고, 카드 값이 없는 소제목은 지운다.
@@ -53,7 +52,6 @@ import datetime as dt
 import hashlib
 import html
 import json
-import math
 import re
 import shutil
 import sqlite3
@@ -90,8 +88,7 @@ FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, DOWN, "공포"], [55, NEUT
 GOOD, WARN, CRIT = "#0ca30c", "#fab219", "#d03b3b"  # 안정·불안·공포 색
 VIX_ZONES = [[15, GOOD, "안정"], [20, NEUTRAL, "보통"], [30, WARN, "불안"], [50, CRIT, "공포"]]
 PUT_CALL_ZONES = [[0.8, UP, "낙관"], [1.2, NEUTRAL, "중립"], [2, DOWN, "비관"]]
-POSITION_CROWDED = 80  # 선물 순매수 1년 백분위가 이 값 이상이면 매수 쏠림, 100에서 뺀 값 이하면 매도 쏠림
-WEEKS = 12  # 하이일드 스프레드와 선물 순매수의 막대 그림이 거슬러 그리는 주 수
+BEFORE_DAYS = 10  # 이전 값을 찾으려고 거슬러 읽는 배치 날짜 수
 RATE_MOVE_BP = 12.5  # 다음 회의까지 누적 변화가 이 bp 이상이면 인상 예상, 음수로 이 값 이하면 인하 예상
 
 
@@ -461,27 +458,20 @@ def batch_data(vault: Path, index: str, day: dt.date) -> tuple[dict, dict] | Non
 def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:
     """`report-template.md` `주요 시장 지표` 표의 지표 이름마다 (기준일, 원값). 값을 수집하지 못한 지표는 뺀다."""
     as_of = market.get("as_of")
-    flows = market.get("flows") or {}
     options = market.get("options") or {}
-    position = (market.get("positioning") or {}).get("index") or {}
     vix = (market.get("market") or {}).get("VIX") or {}
-    high_yield = (macro.get("fred") or {}).get("하이일드 스프레드") or {}
     path = (macro.get("policy") or {}).get("연방기금 선물 내재 경로") or {}
     earnings = market.get("earnings") or {}
-    bio = {name: flows[name] for name in ("IBB", "XBI") if isinstance(flows.get(name), dict) and flows[name].get("5d")}
     found = {
         "공포·탐욕 지수": (as_of, macro.get("fear_greed"), "score"),
         "VIX 변동성 지수": (vix.get("date"), vix, "value"),
         "QQQ 풋/콜 거래 비율": (as_of, options.get("QQQ"), "put_call"),
         "IBB 풋/콜 거래 비율": (as_of, options.get("IBB"), "put_call"),
-        "바이오 ETF 자금 흐름": (max((flow["source_as_of"] for flow in bio.values()), default=None), bio, None),
-        "나스닥100 선물 순매수": (position.get("report_date"), position, "pct_1y"),
-        "바이오 이익 전망 수정": (earnings.get("date"), earnings, "next_year_revision_30d_pct"),
-        "하이일드 스프레드": (high_yield.get("date"), high_yield, "pct_1y"),
+        "바이오 이익 전망 수정": (as_of, earnings, "next_year_revision_30d_pct"),
         "연준 금리 경로": (path.get("date"), path, "meetings"),
     }
     return {name: (date, value) for name, (date, value, key) in found.items()
-            if date and isinstance(value, dict) and value and (key is None or value.get(key) is not None)}
+            if date and isinstance(value, dict) and value.get(key) is not None}
 
 
 def signed(value: float, digits: int = 1) -> str:
@@ -496,23 +486,15 @@ def zone(zones: list[list], value: float) -> list:
     return [found[2], found[1]]
 
 
-def year_rank(rank: float) -> list:
-    """1년 백분위 `rank`를 `1년 상위 N%`·`1년 하위 N%`로 적은 상태. 값이 클수록 하락 쪽인 지표에 쓰므로 상위 20% 안은 파랑, 하위 20% 안은 빨강이다."""
-    name = ("1년 최고" if rank >= 100 else "1년 최저" if rank <= 0 else
-            f"1년 상위 {100 - rank:g}%" if rank >= 50 else f"1년 하위 {rank:g}%")
-    return [name, DOWN if rank >= 80 else UP if rank <= 20 else NEUTRAL]
-
-
 def month_day(day: str) -> str:
     """`2026-11-06`을 `11/6`으로 적는다."""
     return f"{int(day[5:7])}/{int(day[8:10])}"
 
 
-def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dict]], before: tuple[str, dict] | None) -> dict:
-    """지표 하나의 카드 값. `weeks`는 앞 `WEEKS`주 동안 주마다 마지막 (기준일, 원값)이고 마지막 항목이 오늘 값이다.
-    `before`는 오늘 기준일 바로 앞 기준일의 (기준일, 원값)이고, 반원 속도계와 구간 가로 바는 그 값을 연한 회색으로 함께 그린다.
+def indicator_card(name: str, date: str, value: dict, before: tuple[str, dict] | None) -> dict:
+    """지표 하나의 카드 값. `before`는 오늘 기준일 바로 앞 기준일의 (기준일, 원값)이고, 반원 속도계와 구간 가로 바는 그 값을 연한 회색으로 함께 그린다.
     그림은 지수가 하락할 쪽의 값을 왼쪽에, 상승할 쪽의 값을 오른쪽에 둔다. 값이 클수록 하락 쪽인 지표는 `reverse`로 뒤집는다.
-    주별 막대 그림(`columns`)은 가로축이 시간이므로 지난주를 왼쪽에, 오늘을 오른쪽에 둔다. 연준 금리 경로는 금리가 움직일 방향대로 인상을 오른쪽에 둔다.
+    연준 금리 경로는 금리가 움직일 방향대로 인상을 오른쪽에 둔다.
     `help`는 카드의 물음표 단추가 띄우는 [이름, 설명] 목록이고, 지표가 무엇인지와 그림을 읽는 법을 쓴다."""
     when = month_day(date)
     earlier = f" 연한 회색 {{}}은 {month_day(before[0])} 값이에요." if before else ""
@@ -538,28 +520,6 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
         return {"tab": "풋/콜", "help": guide, "asof": f"옵션 · {when}", "value": f"{ratio:.2f}", "state": zone(PUT_CALL_ZONES, ratio),
                 "figure": {"type": "semi", "min": 0.4, "max": 2, "zones": PUT_CALL_ZONES, "value": ratio, "reverse": True,
                            "before": before and before[1]["put_call"], "ends": ["비관", "낙관"]}}
-    if name == "바이오 ETF 자금 흐름":
-        rows = [[f"{fund} {label}", flow[key]["pct_aum"], f"{signed(flow[key]['pct_aum'], 2)}%"]
-                for fund, flow in value.items() for key, label in [("5d", "5일"), ("20d", "20일")]
-                if (flow.get(key) or {}).get("pct_aum") is not None]
-        week = sum(flow["5d"]["usd"] for flow in value.values()) / 1e8
-        month = sum((flow.get("20d") or {}).get("usd") or 0 for flow in value.values()) / 1e8
-        guide = [["지표", "바이오 ETF IBB와 XBI에 새로 들어오거나 빠져나간 투자금이에요. 운용사가 공개한 발행 주식 수의 변화에 주당 순자산가치를 곱해 계산해요."],
-                 ["그림 읽기", "막대는 5일·20일 동안의 순유입액을 펀드 순자산 대비 %로 그려요. 0보다 오른쪽의 빨간 막대는 유입, 왼쪽의 파란 막대는 유출이에요."]]
-        return {"tab": "자금 흐름", "help": guide, "asof": f"{'·'.join(flow['source'] for flow in value.values())} · {when}",
-                "value": signed(week), "unit": "억$", "state": ["5일 유입", UP] if week >= 0 else ["5일 유출", DOWN],
-                "note": f"20일 {signed(month)}억$",
-                "figure": {"type": "diverge", "rows": rows, "max": max(2, max(abs(row[1]) for row in rows) * 1.25),
-                           "ends": ["유출", "유입"]}}
-    if name == "나스닥100 선물 순매수":
-        rank = value["pct_1y"]
-        state = (["매수 쏠림", UP] if rank >= POSITION_CROWDED else ["매도 쏠림", DOWN] if rank <= 100 - POSITION_CROWDED
-                 else ["중간", NEUTRAL])
-        guide = [["지표", "미국 상품선물거래위원회(CFTC)가 매주 발표하는 나스닥100 선물·옵션 포지션이에요. 자산운용사와 레버리지 펀드의 순매수 계약 수를 지난 1년 범위 안의 백분위로 바꿔요."],
-                 ["그림 읽기", f"막대는 최근 {WEEKS}주 동안 매주 발표된 백분위예요. 맨 오른쪽 흰 막대가 이번 발표예요. 위 점선을 넘으면 매수 쏠림, 아래 점선보다 낮으면 매도 쏠림이에요."]]
-        return {"tab": "선물 포지션", "help": guide, "asof": f"CFTC · {when}", "value": f"{rank:g}", "unit": "백분위", "state": state,
-                "figure": {"type": "columns", "bars": [[month_day(day), item["pct_1y"], f"{item['pct_1y']:g}"] for day, item in weeks],
-                           "max": 100, "lines": [[POSITION_CROWDED, "매수 쏠림"], [100 - POSITION_CROWDED, "매도 쏠림"]]}}
     if name == "바이오 이익 전망 수정":
         month = value["next_year_revision_30d_pct"]
         rows = [[label, value[key], f"{signed(value[key], 2)}%"]
@@ -572,15 +532,6 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
                 "note": f"상향 {value.get('next_year_up_30d', 0)}곳 · 하향 {value.get('next_year_down_30d', 0)}곳",
                 "figure": {"type": "diverge", "rows": rows, "max": max(5, max(abs(row[1]) for row in rows) * 1.25),
                            "ends": ["하향", "상향"]}}
-    if name == "하이일드 스프레드":
-        level = value["value"]
-        guide = [["지표", "신용등급이 낮은 미국 회사채의 금리에서 국채 금리를 뺀 값이에요. 채권 투자자가 부도 위험에 대한 보상으로 더 요구하는 금리예요."],
-                 ["그림 읽기", f"막대는 최근 {WEEKS}주 동안 주마다 마지막 스프레드예요. 맨 오른쪽 흰 막대가 오늘 값이에요. 막대가 오른쪽으로 갈수록 높아지면 채권 시장이 부도 위험을 더 크게 본다는 뜻이에요."]]
-        top = math.ceil(max(item["value"] for _, item in weeks) + 0.3)
-        return {"tab": "신용", "help": guide, "asof": f"FRED · {when}", "value": f"{level:.2f}", "unit": "%",
-                "state": year_rank(value["pct_1y"]),
-                "figure": {"type": "columns", "bars": [[month_day(day), item["value"], f"{item['value']:.2f}%"] for day, item in weeks],
-                           "max": top, "lines": [[step, f"{step}%"] for step in range(1, top + 1)]}}
     meetings = value["meetings"][:3]
     first = meetings[0]
     month = f"{int(first['meeting'][5:7])}월"
@@ -597,21 +548,19 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
 
 
 def indicator_cards(vault: Path, index: str, date: dt.date) -> dict[str, dict]:
-    """그날 리포트의 지표 이름마다 카드 값. 앞 `WEEKS`주 리포트의 값을 기준일마다 모아 주마다 마지막 값을 함께 넘긴다."""
+    """그날 리포트의 지표 이름마다 카드 값. 앞 `BEFORE_DAYS`일 리포트에서 오늘 기준일 바로 앞 기준일의 값을 함께 넘긴다."""
     current = batch_data(vault, index, date)
     if not current:
         return {}
     found: dict[str, dict[str, dict]] = {}
-    for back in range(WEEKS * 7 + 7, 0, -1):
+    for back in range(BEFORE_DAYS, 0, -1):
         past = batch_data(vault, index, date - dt.timedelta(days=back))
         for name, (day, value) in (readings(*past) if past else {}).items():
             found.setdefault(name, {})[day] = value
     cards = {}
     for name, (day, value) in readings(*current).items():
-        seen_values = sorted({**found.get(name, {}), day: value}.items())
-        weekly = {dt.date.fromisoformat(seen).isocalendar()[:2]: (seen, item) for seen, item in seen_values}
-        earlier = [(seen, item) for seen, item in seen_values if seen < day]
-        cards[name] = indicator_card(name, day, value, list(weekly.values())[-WEEKS:], earlier[-1] if earlier else None)
+        earlier = sorted((seen, item) for seen, item in found.get(name, {}).items() if seen < day)
+        cards[name] = indicator_card(name, day, value, earlier[-1] if earlier else None)
     return cards
 
 
