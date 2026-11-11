@@ -502,8 +502,8 @@ def month_day(day: str) -> str:
 
 def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dict]]) -> dict:
     """지표 하나의 카드 값. `weeks`는 앞 `WEEKS`주 동안 주마다 마지막 (기준일, 원값)이고 마지막 항목이 오늘 값이다.
-    그림은 지수가 하락할 쪽의 값을 왼쪽에, 상승할 쪽의 값을 오른쪽에 둔다. 값이 클수록 하락 쪽인 지표는 `reverse`나 `flip`으로 뒤집는다.
-    주별 막대 그림(`columns`)은 가로축이 시간이므로 지난주를 왼쪽에, 오늘을 오른쪽에 둔다.
+    그림은 지수가 하락할 쪽의 값을 왼쪽에, 상승할 쪽의 값을 오른쪽에 둔다. 값이 클수록 하락 쪽인 지표는 `reverse`로 뒤집는다.
+    주별 막대 그림(`columns`)은 가로축이 시간이므로 지난주를 왼쪽에, 오늘을 오른쪽에 둔다. 연준 금리 경로는 금리가 움직일 방향대로 인상을 오른쪽에 둔다.
     `help`는 카드의 물음표 단추가 띄우는 [이름, 설명] 목록이고, 지표가 무엇인지와 그림을 읽는 법을 쓴다."""
     when = month_day(date)
     if name == "공포·탐욕 지수":
@@ -575,15 +575,15 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
     first = meetings[0]
     month = f"{int(first['meeting'][5:7])}월"
     move = first["cumulative_bp"]
-    state = ([f"{month} 인상 예상", DOWN] if move >= RATE_MOVE_BP else [f"{month} 인하 예상", UP] if move <= -RATE_MOVE_BP
+    state = ([f"{month} 인상 예상", UP] if move >= RATE_MOVE_BP else [f"{month} 인하 예상", DOWN] if move <= -RATE_MOVE_BP
              else [f"{month} 동결 예상", NEUTRAL])
     rows = [[f"{int(item['meeting'][5:7])}월", item["cumulative_bp"], f"{signed(item['cumulative_bp'] / 100, 2)}%p"]
             for item in meetings]
     guide = [["지표", "연방기금 금리 선물의 가격으로 계산한 연준 기준금리의 예상 경로예요. 앞으로 열리는 연준 회의 세 번마다 지금 금리에서 얼마나 바뀔지를 누적 %p로 보여 줘요."],
-             ["그림 읽기", "금리 인상이 주가에 부정적이어서 인상을 왼쪽에 파란 막대로, 인하를 오른쪽에 빨간 막대로 그려요."]]
+             ["그림 읽기", "금리가 움직일 방향대로 인상을 오른쪽에 빨간 막대로, 인하를 왼쪽에 파란 막대로 그려요."]]
     return {"tab": "금리 경로", "help": guide, "asof": f"연방기금 선물 · {when}", "value": signed(move / 100, 2), "unit": "%p", "state": state,
             "figure": {"type": "diverge", "rows": rows, "max": max(50, max(abs(row[1]) for row in rows) * 1.25),
-                       "flip": True, "ends": ["인상", "인하"]}}
+                       "ends": ["인하", "인상"]}}
 
 
 def indicator_cards(vault: Path, index: str, date: dt.date) -> dict[str, dict]:

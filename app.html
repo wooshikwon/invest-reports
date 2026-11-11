@@ -1153,15 +1153,15 @@
       return s;
     },
     // 0 기준 양방향 막대: 행마다 [이름, 값, 글자]이고, 오른쪽 막대는 빨강, 왼쪽 막대는 파랑이다. 양수는 오른쪽에 그리고,
-    // 값이 클수록 하락 쪽인 지표는 `flip`으로 양수를 왼쪽에 그린다. 막대가 길면 글자를 막대 안에 쓴다.
+    // 막대가 길면 글자를 막대 안에 쓴다.
     // 행 이름 칸은 가장 긴 이름의 폭으로 잡는다(한글 12px, 나머지 7px로 어림한다).
-    diverge({ rows, max, ends, flip = false }) {
+    diverge({ rows, max, ends }) {
       const label = Math.max(...rows.map(([name]) => [...name].reduce((w, c) => w + (/[가-힣]/.test(c) ? 12 : 7), 0)));
       const rowH = rows.length > 3 ? 36 : 42, bar = 14, top = 4, x0 = Math.max(44, label + 6) + 4, x1 = 314, cx = (x0 + x1) / 2, half = (x1 - x0) / 2;
       const height = top + rows.length * rowH + 26, s = canvas(height);
       s.append(shape("rect", { x: x0, y: top, width: x1 - x0, height: rows.length * rowH, rx: 6, fill: "#ffffff", opacity: 0.025 }));
       rows.forEach(([name, v, text], i) => {
-        const y = top + i * rowH + (rowH - bar) / 2, len = half * Math.min(1, Math.abs(v) / max), right = flip ? v < 0 : v >= 0, inside = len > half - 46;
+        const y = top + i * rowH + (rowH - bar) / 2, len = half * Math.min(1, Math.abs(v) / max), right = v >= 0, inside = len > half - 46;
         s.append(shape("text", { x: 0, y: y + bar / 2 + 4.5, "font-size": 12.5, fill: "#A7ABB0" }, name));
         s.append(shape("rect", { x: right ? cx : cx - len, y, width: Math.max(len, 2), height: bar, rx: 3, fill: right ? "#ff5c5c" : "#5b9bff", opacity: 0.9 }));
         const x = right ? cx + len + (inside ? -6 : 6) : cx - len + (inside ? 6 : -6);
