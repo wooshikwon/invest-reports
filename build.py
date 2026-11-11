@@ -468,11 +468,11 @@ def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:
     path = (macro.get("policy") or {}).get("연방기금 선물 내재 경로") or {}
     found = {
         "공포·탐욕 지수": (as_of, macro.get("fear_greed"), "score"),
-        "VIX 변동성 지수": (vix.get("date"), vix, "value"),
         "QQQ 풋/콜 거래 비율": (as_of, options.get("QQQ"), "put_call"),
         "IBB 풋/콜 거래 비율": (as_of, options.get("IBB"), "put_call"),
-        "하이일드 스프레드": (high_yield.get("date"), high_yield, "pct_1y"),
+        "VIX 변동성 지수": (vix.get("date"), vix, "value"),
         "연준 금리 경로": (path.get("date"), path, "meetings"),
+        "하이일드 스프레드": (high_yield.get("date"), high_yield, "pct_1y"),
     }
     return {name: ((dt.date.fromisoformat(date) + dt.timedelta(days=1)).isoformat(), value)
             for name, (date, value, key) in found.items()
