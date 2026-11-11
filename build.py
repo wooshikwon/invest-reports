@@ -84,7 +84,7 @@ NEW_YORK, SEOUL = ZoneInfo("America/New_York"), ZoneInfo("Asia/Seoul")
 TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
 INDICATORS_TITLE = "주요 시장 지표"
-UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#4a4f58"  # 오름·내림·중립 색. `app.html`의 등락 색과 같다
+UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#9aa0a8"  # 오름·내림·중립 색. 오름·내림 색은 `app.html`의 등락 색과 같다
 # 지표 카드의 구간. [구간 끝값, 색, 구간 이름]이고, 지금 값이 든 구간의 이름과 색이 카드의 상태다.
 FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, DOWN, "공포"], [55, NEUTRAL, "중립"], [75, UP, "탐욕"], [100, UP, "극단 탐욕"]]
 GOOD, WARN, CRIT = "#0ca30c", "#fab219", "#d03b3b"  # 안정·불안·공포 색
