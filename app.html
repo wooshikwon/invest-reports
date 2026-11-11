@@ -262,8 +262,8 @@
   .gauge .val { display: flex; align-items: baseline; column-gap: 10px; margin-top: 2px; }
   .gauge .val b { font-size: 30px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
   .gauge .val b small { font-size: 16px; font-weight: 700; margin-left: 1px; }
-  .gauge .state { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; color: var(--accent); white-space: nowrap; }
-  .gauge .state i { width: 8px; height: 8px; border-radius: 50%; }
+  .gauge .state { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .gauge .state i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
   .gauge .note { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; color: var(--dim);
                  font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* 그림은 모두 같은 높이의 칸에 가운데로 그려, 장마다 그림과 해설의 위치가 같다. */
@@ -1213,8 +1213,8 @@
       const val = box.appendChild(Object.assign(document.createElement("div"), { className: "val" }));
       const number = val.appendChild(Object.assign(document.createElement("b"), { textContent: c.value }));
       if (c.unit) number.append(Object.assign(document.createElement("small"), { textContent: c.unit }));
-      const state = val.appendChild(Object.assign(document.createElement("span"), { className: "state" }));
-      state.append(Object.assign(document.createElement("i"), { style: `background:${c.state[1]}` }), c.state[0]);
+      const state = val.appendChild(Object.assign(document.createElement("span"), { className: "state", style: `color:${c.state[1]}` }));
+      state.append(document.createElement("i"), c.state[0]);
       if (c.note) val.append(Object.assign(document.createElement("span"), { className: "note", textContent: c.note }));
       box.append(GAUGES[c.figure.type](c.figure));
       box.append(Object.assign(document.createElement("p"), { textContent: c.text.filter(Boolean).join(" ") }));
