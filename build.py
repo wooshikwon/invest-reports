@@ -88,7 +88,7 @@ UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#4a4f58"  # 오름·내림·중립 �
 # 지표 카드의 구간. [구간 끝값, 색, 구간 이름]이고, 지금 값이 든 구간의 이름과 색이 카드의 상태다.
 FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, "#3b5d93", "공포"], [55, NEUTRAL, "중립"], [75, "#8e4747", "탐욕"],
                     [100, UP, "극단 탐욕"]]
-GOOD, WARN, CRIT = "#0ca30c", "#fab219", "#d03b3b"  # 정상·경계·위기 색
+GOOD, WARN, CRIT = "#0ca30c", "#fab219", "#d03b3b"  # 안정·불안·공포 색
 VIX_ZONES = [[15, GOOD, "안정"], [20, NEUTRAL, "보통"], [30, WARN, "불안"], [50, CRIT, "공포"]]
 PUT_CALL_ZONES = [[0.8, UP, "낙관"], [1.2, NEUTRAL, "중립"], [2, DOWN, "비관"]]
 POSITION_CROWDED = 80  # 선물 순매수 1년 백분위가 이 값 이상이면 매수 쏠림, 100에서 뺀 값 이하면 매도 쏠림
@@ -472,7 +472,7 @@ def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:
     bio = {name: flows[name] for name in ("IBB", "XBI") if isinstance(flows.get(name), dict) and flows[name].get("5d")}
     found = {
         "공포·탐욕 지수": (as_of, macro.get("fear_greed"), "score"),
-        "VIX 변동성 지수": (vix.get("date"), vix, "pct_1y"),
+        "VIX 변동성 지수": (vix.get("date"), vix, "value"),
         "QQQ 풋/콜 거래 비율": (as_of, options.get("QQQ"), "put_call"),
         "IBB 풋/콜 거래 비율": (as_of, options.get("IBB"), "put_call"),
         "바이오 ETF 자금 흐름": (max((flow["source_as_of"] for flow in bio.values()), default=None), bio, None),
@@ -509,34 +509,36 @@ def month_day(day: str) -> str:
     return f"{int(day[5:7])}/{int(day[8:10])}"
 
 
-def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dict]]) -> dict:
+def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dict]], before: tuple[str, dict] | None) -> dict:
     """지표 하나의 카드 값. `weeks`는 앞 `WEEKS`주 동안 주마다 마지막 (기준일, 원값)이고 마지막 항목이 오늘 값이다.
+    `before`는 오늘 기준일 바로 앞 기준일의 (기준일, 원값)이고, 반원 속도계와 구간 가로 바는 그 값을 연한 회색으로 함께 그린다.
     그림은 지수가 하락할 쪽의 값을 왼쪽에, 상승할 쪽의 값을 오른쪽에 둔다. 값이 클수록 하락 쪽인 지표는 `reverse`로 뒤집는다.
     주별 막대 그림(`columns`)은 가로축이 시간이므로 지난주를 왼쪽에, 오늘을 오른쪽에 둔다. 연준 금리 경로는 금리가 움직일 방향대로 인상을 오른쪽에 둔다.
     `help`는 카드의 물음표 단추가 띄우는 [이름, 설명] 목록이고, 지표가 무엇인지와 그림을 읽는 법을 쓴다."""
     when = month_day(date)
+    earlier = f" 연한 회색 {{}}은 {month_day(before[0])} 값이에요." if before else ""
     if name == "공포·탐욕 지수":
         score = value["score"]
         guide = [["지표", "CNN이 주가 추세, 신고가 종목 수, 옵션 거래, 안전자산 수요 같은 지표 7개로 투자 심리를 0~100점으로 매긴 값이에요."],
-                 ["그림 읽기", "바늘이 오늘 점수를 가리켜요. 왼쪽 끝이 공포, 오른쪽 끝이 탐욕이에요."]]
+                 ["그림 읽기", "흰 바늘이 오늘 점수를 가리켜요." + earlier.format("바늘") + " 왼쪽 끝이 공포, 오른쪽 끝이 탐욕이에요."]]
         return {"tab": "공포·탐욕", "help": guide, "asof": f"CNN · {when}", "value": f"{score:g}", "state": zone(FEAR_GREED_ZONES, score),
                 "figure": {"type": "semi", "min": 0, "max": 100, "zones": FEAR_GREED_ZONES, "value": score,
-                           "ends": ["공포", "탐욕"]}}
+                           "before": before and before[1]["score"], "ends": ["공포", "탐욕"]}}
     if name == "VIX 변동성 지수":
         level = value["value"]
         guide = [["지표", "S&P500 옵션 가격으로 계산한 앞으로 30일 동안의 예상 변동성이에요. 급락에 대비하는 옵션을 많이 살수록 값이 커져요."],
-                 ["그림 읽기", "값이 클수록 시장에 부정적이어서, 큰 값을 왼쪽에 그려요. 흰 원이 오늘 값이에요."]]
-        return {"tab": "VIX", "help": guide, "asof": f"CBOE · {when}", "value": f"{level:.1f}",
-                "state": year_rank(value["pct_1y"]),
+                 ["그림 읽기", "값이 클수록 시장에 부정적이어서, 큰 값을 왼쪽에 그려요. 흰 원이 오늘 값이에요." + earlier.format("원")
+                  + " 구간은 시장에서 흔히 쓰는 15·20·30을 경계로 나눠요."]]
+        return {"tab": "VIX", "help": guide, "asof": f"CBOE · {when}", "value": f"{level:.1f}", "state": zone(VIX_ZONES, level),
                 "figure": {"type": "zoneBar", "min": 10, "max": 50, "zones": VIX_ZONES, "value": level,
-                           "reverse": True}}
+                           "before": before and before[1]["value"], "reverse": True}}
     if name in ("QQQ 풋/콜 거래 비율", "IBB 풋/콜 거래 비율"):
         ratio, fund = value["put_call"], name.split()[0]
         guide = [["지표", f"그날 거래된 {fund} 풋옵션 계약 수를 콜옵션 계약 수로 나눈 값이에요. 하락에 대비하는 풋옵션을 많이 살수록 값이 커져요."],
-                 ["그림 읽기", "값이 클수록 시장에 부정적이어서, 큰 값을 왼쪽에 그려요. 바늘이 오늘 값을 가리켜요."]]
+                 ["그림 읽기", "값이 클수록 시장에 부정적이어서, 큰 값을 왼쪽에 그려요. 흰 바늘이 오늘 값을 가리켜요." + earlier.format("바늘")]]
         return {"tab": "풋/콜", "help": guide, "asof": f"옵션 · {when}", "value": f"{ratio:.2f}", "state": zone(PUT_CALL_ZONES, ratio),
                 "figure": {"type": "semi", "min": 0.4, "max": 2, "zones": PUT_CALL_ZONES, "value": ratio, "reverse": True,
-                           "ends": ["비관", "낙관"]}}
+                           "before": before and before[1]["put_call"], "ends": ["비관", "낙관"]}}
     if name == "바이오 ETF 자금 흐름":
         rows = [[f"{fund} {label}", flow[key]["pct_aum"], f"{signed(flow[key]['pct_aum'], 2)}%"]
                 for fund, flow in value.items() for key, label in [("5d", "5일"), ("20d", "20일")]
@@ -607,10 +609,10 @@ def indicator_cards(vault: Path, index: str, date: dt.date) -> dict[str, dict]:
             found.setdefault(name, {})[day] = value
     cards = {}
     for name, (day, value) in readings(*current).items():
-        weekly: dict[tuple[int, int], tuple[str, dict]] = {}
-        for seen, item in sorted({**found.get(name, {}), day: value}.items()):
-            weekly[dt.date.fromisoformat(seen).isocalendar()[:2]] = (seen, item)
-        cards[name] = indicator_card(name, day, value, list(weekly.values())[-WEEKS:])
+        seen_values = sorted({**found.get(name, {}), day: value}.items())
+        weekly = {dt.date.fromisoformat(seen).isocalendar()[:2]: (seen, item) for seen, item in seen_values}
+        earlier = [(seen, item) for seen, item in seen_values if seen < day]
+        cards[name] = indicator_card(name, day, value, list(weekly.values())[-WEEKS:], earlier[-1] if earlier else None)
     return cards
 
 
