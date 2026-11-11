@@ -180,13 +180,13 @@
   .carousel.fit .track { align-items: flex-start; transition: height .2s ease; }
   .carousel.fit.folding .track { transition: none; }
   .carousel.fit .slide :is(h3, ul):first-child { margin-top: 0; }
-  /* 주요 이슈 해설은 이슈 제목 목록으로 시작한다. 이슈마다 아주 연한 둥근 상자에 왼쪽부터 순위 번호, 방향 표식을 끝에 붙인 제목, 오른쪽 끝 꺾쇠를 놓고, 제목 아래에 이슈 해설(이전 리포트는 현재 상태)의 소제목을 흐린 글씨로 붙인다.
+  /* 주요 이슈 해설은 이슈 제목 목록으로 시작한다. 이슈마다 날짜 띠의 보고 있는 날짜 상자와 같은 색의 둥근 상자에 왼쪽부터 순위 번호, 방향 표식을 끝에 붙인 제목, 오른쪽 끝 꺾쇠를 놓고, 제목 아래에 이슈 해설(이전 리포트는 현재 상태)의 소제목을 흐린 글씨로 붙인다.
      제목과 소제목은 같은 폭으로 쓰고, 글자 오른쪽 끝과 꺾쇠 사이는 꺾쇠와 상자 오른쪽 끝 사이만큼 띄운다.
      소제목은 짧은 폭에서 줄 끝이 들쭉날쭉하지 않게 단어 대신 글자 단위로 줄을 바꾼다.
      마지막 상자에는 검토했지만 비중을 낮춘 이슈의 건수를 제목 "외 N건"으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 문단을 보이거나
      검토했지만 비중을 낮춘 이슈를 보이고, 절 제목 줄 오른쪽 끝에 이슈 목록으로 돌아가는 단추를 띄운다. 단추는 내용을 옮기는 동안 나타나거나 사라진다.
      목록과 내용을 바꾸는 동안에는 두 쪽을 넘기기 장처럼 장 사이만큼 띄워 나란히 옆으로 옮기고, 묶음 밖으로 나간 부분은 가린다. */
-  .issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px 22px 18px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); cursor: pointer;
+  .issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px 22px 18px 18px; border-radius: 16px; background: rgba(255, 255, 255, .16); cursor: pointer;
     transition: transform .1s ease-out; -webkit-tap-highlight-color: transparent; }
   .issue-list .pick.pressed { transform: scale(.97); }
   .issue-list .pick + .pick { margin-top: 10px; }
@@ -257,7 +257,7 @@
   .tabs.glide button { flex: 0 0 auto; }
   .gauge { padding: 16px 18px; }
   .gauge .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-  .gauge .name { display: inline-flex; align-items: center; font-size: 15.5px; font-weight: 700; color: var(--accent); }
+  .gauge .name { font-size: 15.5px; font-weight: 700; color: var(--accent); }
   .gauge .asof { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .gauge .val { display: flex; align-items: baseline; column-gap: 10px; margin-top: 2px; }
   .gauge .val b { font-size: 30px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
@@ -267,7 +267,7 @@
   .gauge .note { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; color: var(--dim);
                  font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* 그림은 모두 같은 높이의 칸에 가운데로 그려, 장마다 그림과 해설의 위치가 같다. */
-  .gauge svg { display: block; width: 100%; height: auto; margin: 10px 0 6px; overflow: visible; }
+  .gauge > svg { display: block; width: 100%; height: auto; margin: 10px 0 6px; overflow: visible; }
   .gauge p { margin: 20px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--hint); }
   /* 해설과 장 번호 점 사이를 그림과 해설 사이 20px와 같게 둔다. 카드 아래 안쪽 여백 16px에 4px를 더한다. */
   .carousel.indicators .dots { margin-top: 4px; }
@@ -299,7 +299,6 @@
   /* 설명이 있는 절 제목과 지표 카드 이름은 글자 바로 뒤에 원 안 물음표 단추를 둔다. 단추를 누르면 화면 가운데에 설명 상자를 띄우고, 닫기 단추나 상자 바깥을 누르면 닫는다. */
   .help { display: inline-grid; place-items: center; vertical-align: top; width: 26px; height: 1lh; margin-left: 2px; padding: 0; border: 0; font: inherit;
              background: none; color: var(--dim); cursor: pointer; }
-  .gauge .help { height: auto; width: 24px; margin-left: 4px; }
   .help-card { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 24px;
                background: rgba(0, 0, 0, .55); }
   .help-card .card { box-sizing: border-box; width: 100%; max-width: 360px; max-height: 70vh; overflow: auto; padding: 20px 20px 22px;
