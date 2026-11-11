@@ -87,7 +87,6 @@ INDICATORS_TITLE = "주요 시장 지표"
 UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#ffffff"  # 오름·내림·중립 색. 오름·내림 색은 `app.html`의 등락 색과 같다
 # 지표 카드의 구간. [구간 끝값, 색, 구간 이름]이고, 지금 값이 든 구간의 이름과 색이 카드의 상태다.
 FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, DOWN, "공포"], [55, NEUTRAL, "중립"], [75, UP, "탐욕"], [100, UP, "극단 탐욕"]]
-VIX_ZONES = [[15, UP, "안정"], [20, NEUTRAL, "보통"], [30, DOWN, "불안"], [50, DOWN, "공포"]]
 PUT_CALL_ZONES = [[0.8, UP, "낙관"], [1.2, NEUTRAL, "중립"], [2, DOWN, "비관"]]
 WEEKS = 12  # 하이일드 스프레드의 막대 그림이 거슬러 그리는 주 수
 RATE_MOVE_BP = 12.5  # 다음 회의까지 누적 변화가 이 bp 이상이면 인상 예상, 음수로 이 값 이하면 인하 예상
@@ -463,14 +462,12 @@ def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:
     """
     as_of = market.get("as_of")
     options = market.get("options") or {}
-    vix = (market.get("market") or {}).get("VIX") or {}
     high_yield = (macro.get("fred") or {}).get("하이일드 스프레드") or {}
     path = (macro.get("policy") or {}).get("연방기금 선물 내재 경로") or {}
     found = {
         "공포·탐욕 지수": (as_of, macro.get("fear_greed"), "score"),
         "QQQ 풋/콜 거래 비율": (as_of, options.get("QQQ"), "put_call"),
         "IBB 풋/콜 거래 비율": (as_of, options.get("IBB"), "put_call"),
-        "VIX 변동성 지수": (vix.get("date"), vix, "value"),
         "연준 금리 경로": (path.get("date"), path, "meetings"),
         "하이일드 스프레드": (high_yield.get("date"), high_yield, "pct_1y"),
     }
@@ -505,7 +502,7 @@ def month_day(day: str) -> str:
 
 def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dict]], before: tuple[str, dict] | None) -> dict:
     """지표 하나의 카드 값. `weeks`는 앞 `WEEKS`주 동안 주마다 마지막 (기준일, 원값)이고 마지막 항목이 오늘 값이다.
-    `before`는 오늘 기준일 바로 앞 기준일의 (기준일, 원값)이고, 반원 속도계와 구간 가로 바는 그 값을 연한 회색으로 함께 그린다.
+    `before`는 오늘 기준일 바로 앞 기준일의 (기준일, 원값)이고, 반원 속도계는 그 값을 연한 회색으로 함께 그린다.
     그림은 지수가 하락할 쪽의 값을 왼쪽에, 상승할 쪽의 값을 오른쪽에 둔다. 값이 클수록 하락 쪽인 지표는 `reverse`로 뒤집는다.
     주별 막대 그림(`columns`)은 가로축이 시간이므로 지난주를 왼쪽에, 오늘을 오른쪽에 둔다. 연준 금리 경로는 금리가 움직일 방향대로 인상을 오른쪽에 둔다.
     `help`는 카드 이름 뒤의 물음표 단추가 띄우는 설명 상자의 문단 목록이고, 지표를 무엇으로 계산하는지와 값을 읽는 법을 쓴다."""
@@ -519,15 +516,6 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
         return {"tab": "공포·탐욕", "help": guide, "asof": f"CNN · {when}", "value": f"{score:g}", "state": zone(FEAR_GREED_ZONES, score),
                 "figure": {"type": "semi", "min": 0, "max": 100, "zones": FEAR_GREED_ZONES, "value": score,
                            "before": before and before[1]["score"], "ends": ["공포", "탐욕"]}}
-    if name == "VIX 변동성 지수":
-        level = value["value"]
-        guide = ["미국 시카고옵션거래소(CBOE)가 S&P500 옵션 가격으로 계산하는 지수예요. VIX는 옵션 시장이 예상하는 앞으로 30일 동안의 "
-                 "S&P500 변동 폭을 1년 기준 %로 나타내요. VIX가 20이면 옵션 시장은 한 달 동안 S&P500의 변동 폭을 6% 안팎으로 예상해요.",
-                 "투자자가 급락에 대비해 풋옵션을 많이 사면 옵션 가격이 올라요. 옵션 가격이 오르면 VIX도 커져요. "
-                 "VIX가 15 이하면 안정, 20 이하면 보통, 30 이하면 불안, 그보다 크면 공포 구간이에요."]
-        return {"tab": "VIX", "help": guide, "asof": f"CBOE · {when}", "value": f"{level:.1f}", "state": zone(VIX_ZONES, level),
-                "figure": {"type": "zoneBar", "min": 10, "max": 50, "zones": VIX_ZONES, "value": level,
-                           "before": before and before[1]["value"], "reverse": True}}
     if name in ("QQQ 풋/콜 거래 비율", "IBB 풋/콜 거래 비율"):
         ratio, fund = value["put_call"], name.split()[0]
         kind = {"QQQ": "나스닥100", "IBB": "바이오"}[fund]
