@@ -1157,7 +1157,7 @@
         x, y: base + 20, "font-size": 12, fill: "#7A828C", "text-anchor": anchor }, text)));
       return s;
     },
-    // 0 기준 양방향 막대: 행마다 [이름, 값, 글자]이고, 오른쪽 막대는 빨강, 왼쪽 막대는 파랑이다. 양수는 오른쪽에 그리고,
+    // 0 기준 양방향 막대: 행마다 [이름, 값, 글자]이고, 막대는 방향과 상관없이 흰색이다. 양수는 오른쪽에 그리고,
     // 막대가 길면 글자를 막대 안에 쓴다.
     // 행 이름 칸은 가장 긴 이름의 폭으로 잡는다(한글 12px, 나머지 7px로 어림한다).
     diverge({ rows, max, ends }) {
@@ -1168,7 +1168,7 @@
       rows.forEach(([name, v, text], i) => {
         const y = top + i * rowH + (rowH - bar) / 2, len = half * Math.min(1, Math.abs(v) / max), right = v >= 0, inside = len > half - 46;
         s.append(shape("text", { x: 0, y: y + bar / 2 + 4.5, "font-size": 12.5, fill: "#A7ABB0" }, name));
-        s.append(shape("rect", { x: right ? cx : cx - len, y, width: Math.max(len, 2), height: bar, rx: 3, fill: right ? "#ff5c5c" : "#5b9bff", opacity: 0.9 }));
+        s.append(shape("rect", { x: right ? cx : cx - len, y, width: Math.max(len, 2), height: bar, rx: 3, fill: "#EAEAEA" }));
         const x = right ? cx + len + (inside ? -6 : 6) : cx - len + (inside ? 6 : -6);
         s.append(shape("text", { x, y: y + bar / 2 + 4.5, "font-size": 12.5, "font-weight": 700, "text-anchor": right !== inside ? "start" : "end",
                                  fill: inside ? "#171719" : "#EAEAEA" }, text));
