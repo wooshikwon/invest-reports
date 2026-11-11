@@ -91,6 +91,7 @@ FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, "#3b5d93", "공포"], [55,
 GOOD, WARN, CRIT = "#0ca30c", "#fab219", "#d03b3b"  # 정상·경계·위기 색
 VIX_ZONES = [[25, GOOD, "정상"], [40, WARN, "경계"], [50, CRIT, "위기"]]
 HIGH_YIELD_ZONES = [[5, GOOD, "정상"], [8, WARN, "경계"], [10, CRIT, "위기"]]
+PUT_CALL_ZONES = [[0.8, UP, "낙관"], [1.2, NEUTRAL, "중립"], [2, DOWN, "비관"]]
 POSITION_CROWDED = 80  # 선물 순매수 1년 백분위가 이 값 이상이면 매수 쏠림, 100에서 뺀 값 이하면 매도 쏠림
 WEEKS = 12  # 하이일드 스프레드와 선물 순매수의 막대 그림이 거슬러 그리는 주 수
 RATE_MOVE_BP = 12.5  # 다음 회의까지 누적 변화가 이 bp 이상이면 인상 예상, 음수로 이 값 이하면 인하 예상
@@ -463,6 +464,7 @@ def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:
     """`report-template.md` `주요 시장 지표` 표의 지표 이름마다 (기준일, 원값). 값을 수집하지 못한 지표는 뺀다."""
     as_of = market.get("as_of")
     flows = market.get("flows") or {}
+    options = market.get("options") or {}
     position = (market.get("positioning") or {}).get("index") or {}
     vix = (market.get("market") or {}).get("VIX") or {}
     high_yield = (macro.get("fred") or {}).get("하이일드 스프레드") or {}
@@ -472,9 +474,10 @@ def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:
     found = {
         "공포·탐욕 지수": (as_of, macro.get("fear_greed"), "score"),
         "VIX 변동성 지수": (vix.get("date"), vix, "value"),
+        "QQQ 풋/콜 거래 비율": (as_of, options.get("QQQ"), "put_call"),
+        "IBB 풋/콜 거래 비율": (as_of, options.get("IBB"), "put_call"),
         "바이오 ETF 자금 흐름": (max((flow["source_as_of"] for flow in bio.values()), default=None), bio, None),
         "나스닥100 선물 순매수": (position.get("report_date"), position, "pct_1y"),
-        "나스닥100 등락 종목": (as_of, market.get("breadth"), "advancing"),
         "바이오 이익 전망 수정": (earnings.get("date"), earnings, "next_year_revision_30d_pct"),
         "하이일드 스프레드": (high_yield.get("date"), high_yield, "value"),
         "연준 금리 경로": (path.get("date"), path, "meetings"),
@@ -520,6 +523,13 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
         return {"tab": "VIX", "help": guide, "asof": f"CBOE · {when}", "value": f"{level:.1f}", "state": zone(VIX_ZONES, level),
                 "figure": {"type": "zoneBar", "min": 10, "max": 50, "zones": VIX_ZONES, "value": level,
                            "reverse": True}}
+    if name in ("QQQ 풋/콜 거래 비율", "IBB 풋/콜 거래 비율"):
+        ratio, fund = value["put_call"], name.split()[0]
+        guide = [["지표", f"그날 거래된 {fund} 풋옵션 계약 수를 콜옵션 계약 수로 나눈 값이에요. 하락에 대비하는 풋옵션을 많이 살수록 값이 커져요."],
+                 ["그림 읽기", "값이 클수록 시장에 부정적이어서, 큰 값을 왼쪽에 그려요. 바늘이 오늘 값을 가리켜요."]]
+        return {"tab": "풋/콜", "help": guide, "asof": f"옵션 · {when}", "value": f"{ratio:.2f}", "state": zone(PUT_CALL_ZONES, ratio),
+                "figure": {"type": "semi", "min": 0.4, "max": 2, "zones": PUT_CALL_ZONES, "value": ratio, "reverse": True,
+                           "ends": ["비관", "낙관"]}}
     if name == "바이오 ETF 자금 흐름":
         rows = [[f"{fund} {label}", flow[key]["pct_aum"], f"{signed(flow[key]['pct_aum'], 2)}%"]
                 for fund, flow in value.items() for key, label in [("5d", "5일"), ("20d", "20일")]
@@ -542,14 +552,6 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
         return {"tab": "선물 포지션", "help": guide, "asof": f"CFTC · {when}", "value": f"{rank:g}", "unit": "백분위", "state": state,
                 "figure": {"type": "columns", "bars": [[month_day(day), item["pct_1y"], f"{item['pct_1y']:g}"] for day, item in weeks],
                            "max": 100, "lines": [[POSITION_CROWDED, "매수 쏠림"], [100 - POSITION_CROWDED, "매도 쏠림"]]}}
-    if name == "나스닥100 등락 종목":
-        up, down = value["advancing"], value["declining"]
-        guide = [["지표", "나스닥100 구성 종목 가운데 그날 오른 종목과 내린 종목의 수예요. 지수가 소수의 대형주 때문에 오르는지, 많은 종목이 함께 오르는지 알 수 있어요."],
-                 ["그림 읽기", "위 막대의 왼쪽 파란 부분이 하락 종목, 오른쪽 빨간 부분이 상승 종목이에요. 아래 막대는 200일 평균선 위 종목의 비율만큼 채워져요."]]
-        return {"tab": "등락 종목", "help": guide, "asof": f"구성 종목 · {when}", "value": f"{down} : {up}",
-                "state": ["상승 우위", UP] if up >= down else ["하락 우위", DOWN],
-                "figure": {"type": "split", "parts": [["하락", down, DOWN], ["상승", up, UP]],
-                           "sub": {"label": "200일 평균선 위 종목", "value": value.get("above_sma200_pct")}}}
     if name == "바이오 이익 전망 수정":
         month = value["next_year_revision_30d_pct"]
         rows = [[label, value[key], f"{signed(value[key], 2)}%"]

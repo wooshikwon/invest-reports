@@ -1087,8 +1087,8 @@
   const KNOB = { fill: "#EAEAEA", stroke: "#1d1e21", "stroke-width": 3 };
   const GAUGES = {
     // 반원 속도계: 구간 경계값을 바깥에 적는다.
-    semi({ min, max, zones, value, ends }) {
-      const cx = 160, cy = 150, r = 118, sw = 18, s = canvas(178), now = zoneOf(zones, value), P = share(min, max);
+    semi({ min, max, zones, value, ends, reverse = false }) {
+      const cx = 160, cy = 150, r = 118, sw = 18, s = canvas(178), now = zoneOf(zones, value), P = share(min, max, reverse);
       const angle = (v) => Math.PI * (1 - P(v));
       const at = (a, rr) => [cx + rr * Math.cos(a), cy - rr * Math.sin(a)];
       let from = min;
@@ -1171,27 +1171,6 @@
       s.append(shape("line", { x1: cx, y1: top - 2, x2: cx, y2: top + rows.length * rowH + 2, stroke: "#7A828C", "stroke-width": 1.2 }));
       [[x0, "start", ends[0]], [cx, "middle", "0"], [x1, "end", ends[1]]].forEach(([x, anchor, text]) => s.append(shape("text", {
         x, y: height - 4, "font-size": 12, fill: "#7A828C", "text-anchor": anchor }, text)));
-      return s;
-    },
-    // 분할 막대: 하락·상승 종목 수로 막대 하나를 나누고, 아래에 200일 평균선 위 종목 비율 미터를 둔다. 비율이 없으면 미터를 그리지 않는다.
-    split({ parts, sub }) {
-      const x0 = 6, x1 = 314, y = 26, h = 18, y2 = 100, h2 = 12, s = canvas(sub.value == null ? y + h + 4 : y2 + h2 + 28);
-      const total = parts.reduce((sum, [, v]) => sum + v, 0) || 1;
-      let x = x0;
-      parts.forEach(([name, v, color], i) => {
-        const w = Math.max(0, (x1 - x0) * v / total - (i < parts.length - 1 ? 2 : 0));
-        s.append(shape("rect", { x, y, width: w, height: h, rx: 4, fill: color }));
-        s.append(shape("text", { x: i ? x1 : x0, y: y - 9, "font-size": 12.5, "font-weight": 700, fill: "#EAEAEA", "text-anchor": i ? "end" : "start" }, `${name} ${v}`));
-        x += w + 2;
-      });
-      if (sub.value == null) return s;
-      const X = (v) => x0 + (x1 - x0) * v / 100;
-      s.append(shape("text", { x: x0, y: y2 - 10, "font-size": 12.5, fill: "#A7ABB0" }, sub.label));
-      s.append(shape("text", { x: x1, y: y2 - 10, "font-size": 12.5, "font-weight": 700, fill: "#EAEAEA", "text-anchor": "end" }, `${sub.value}%`));
-      s.append(shape("rect", { x: x0, y: y2, width: x1 - x0, height: h2, rx: 6, fill: "#EAEAEA", opacity: 0.16 }));
-      s.append(shape("rect", { x: x0, y: y2, width: X(sub.value) - x0, height: h2, rx: 6, fill: "#EAEAEA", opacity: 0.85 }));
-      [[x0, "start", "0%"], [X(50), "middle", "50%"], [x1, "end", "100%"]].forEach(([x, anchor, text]) => s.append(shape("text", {
-        x, y: y2 + h2 + 24, "font-size": 12, fill: "#7A828C", "text-anchor": anchor }, text)));
       return s;
     },
   };
