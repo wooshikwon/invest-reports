@@ -268,9 +268,9 @@
                  font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* 그림은 모두 같은 높이의 칸에 가운데로 그려, 장마다 그림과 해설의 위치가 같다. */
   .gauge svg { display: block; width: 100%; height: auto; margin: 10px 0 6px; overflow: visible; }
-  /* 해설은 세 줄까지 보이고, 장마다 높이가 같도록 세 줄 높이를 비워 둔다. */
-  .gauge p { margin: 8px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--hint); min-height: 4.8em;
-             display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  /* 해설은 여덟 줄까지 보이고, 장마다 높이가 같도록 여덟 줄 높이를 비워 둔다. */
+  .gauge p { margin: 8px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--hint); min-height: 12.8em;
+             display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; overflow: hidden; }
   /* 화면 오른쪽 아래에 절 바로가기를 세로로 긴 반투명 유리 알약 하나에 담아 띄운다. 알약 뒤 본문은 흐리게 비친다. 누르면 그 절 제목이 화면 위쪽에 오도록 부드럽게 옮긴다. */
   nav.jump { position: fixed; z-index: 5; right: 16px; bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
              display: flex; flex-direction: column; padding: 6px; border-radius: 24px; touch-action: none; user-select: none; -webkit-user-select: none;
