@@ -28,7 +28,7 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 
 `주요 시장 지표` 절의 지표 소제목에는 그날 지수 폴더의 `market-data.json`·`macro-data.json`에서 뽑은 카드 값을 `data-card`로 단다.
 하이일드 스프레드는 앞 12주 지수 폴더의 같은 JSON에서 주마다 마지막 값을 함께 뽑아 막대 그림으로 그린다.
-카드 값은 탭 이름, 값과 단위, 상태 이름과 색, 기준일, 보조 값을 적은 한 줄, 그림 종류와 그림 입력, 물음표 단추의 설명이다.
+카드 값은 탭 이름, 값과 단위, 상태 이름과 색, 기준일(미국 장이 마감한 한국 날짜), 보조 값을 적은 한 줄, 그림 종류와 그림 입력, 물음표 단추의 설명이다.
 값이 없는 지표에는 카드 값을 달지 않는다.
 `invest-reports` 미니 앱은 카드 값으로 지표마다 카드를 그려 한 장씩 넘기게 하고, 카드 값이 없는 소제목은 지운다.
 
@@ -458,7 +458,10 @@ def batch_data(vault: Path, index: str, day: dt.date) -> tuple[dict, dict] | Non
 
 
 def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:
-    """`report-template.md` `주요 시장 지표` 표의 지표 이름마다 (기준일, 원값). 값을 수집하지 못한 지표는 뺀다."""
+    """`report-template.md` `주요 시장 지표` 표의 지표 이름마다 (기준일, 원값). 값을 수집하지 못한 지표는 뺀다.
+
+    수집기는 미국 장의 날짜를 적는다. 미국 장은 한국 시각으로 다음 날 아침에 마감하므로 기준일은 그 날짜에 하루를 더한 한국 날짜다.
+    """
     as_of = market.get("as_of")
     options = market.get("options") or {}
     vix = (market.get("market") or {}).get("VIX") or {}
@@ -472,7 +475,8 @@ def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:
         "하이일드 스프레드": (high_yield.get("date"), high_yield, "pct_1y"),
         "연준 금리 경로": (path.get("date"), path, "meetings"),
     }
-    return {name: (date, value) for name, (date, value, key) in found.items()
+    return {name: ((dt.date.fromisoformat(date) + dt.timedelta(days=1)).isoformat(), value)
+            for name, (date, value, key) in found.items()
             if date and isinstance(value, dict) and value.get(key) is not None}
 
 
