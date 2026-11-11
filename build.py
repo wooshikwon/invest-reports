@@ -469,8 +469,8 @@ def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:
     found = {
         "공포·탐욕 지수": (as_of, macro.get("fear_greed"), "score"),
         "연준 금리 경로": (path.get("date"), path, "meetings"),
-        "하이일드 스프레드": (high_yield.get("date"), high_yield, "pct_1y"),
         "유가": (oil.get("date"), oil, "weekly_close"),
+        "하이일드 스프레드": (high_yield.get("date"), high_yield, "pct_1y"),
     }
     return {name: ((dt.date.fromisoformat(date) + dt.timedelta(days=1)).isoformat(), value)
             for name, (date, value, key) in found.items()
@@ -541,7 +541,7 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
         points = [[month_day((dt.date.fromisoformat(day) + dt.timedelta(days=1)).isoformat()), price, f"{price:.2f}"]
                   for day, price in value["weekly_close"]]
         return {"tab": "유가", "help": guide, "asof": f"WTI 정산가 · {when}", "value": f"{level:.2f}", "unit": "달러",
-                "state": year_rank(value["pct_1y"]), "note": f"전일 {signed(value['change_pct'], 2)}%",
+                "state": year_rank(value["pct_1y"]),
                 "figure": {"type": "line", "points": points, "min": low, "max": high,
                            "lines": [[step, f"{step}달러"] for step in range(low, high + 1, OIL_STEP)]}}
     meetings = value["meetings"][:3]
