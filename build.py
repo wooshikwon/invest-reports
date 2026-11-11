@@ -468,8 +468,8 @@ def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:
     path = (macro.get("policy") or {}).get("연방기금 선물 내재 경로") or {}
     found = {
         "공포·탐욕 지수": (as_of, macro.get("fear_greed"), "score"),
+        "WTI 유가": (oil.get("date"), oil, "weekly_close"),
         "연준 금리 경로": (path.get("date"), path, "meetings"),
-        "유가": (oil.get("date"), oil, "weekly_close"),
         "하이일드 스프레드": (high_yield.get("date"), high_yield, "pct_1y"),
     }
     return {name: ((dt.date.fromisoformat(date) + dt.timedelta(days=1)).isoformat(), value)
@@ -530,7 +530,7 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
                 "state": year_rank(value["pct_1y"]),
                 "figure": {"type": "columns", "bars": [[month_day(day), item["value"], f"{item['value']:.2f}%"] for day, item in weeks],
                            "max": top, "lines": [[step, f"{step}%"] for step in range(1, top + 1)]}}
-    if name == "유가":
+    if name == "WTI 유가":
         level = value["value"]
         guide = ["미국 텍사스산 원유(WTI)의 선물 가격이에요. 뉴욕상업거래소에서 거래하는 가장 가까운 만기 계약의 1배럴 값을 달러로 적어요. "
                  "카드의 값은 CME가 발표한 그날의 정산가이고, 그림은 지난 12주 동안 주마다 마지막 정산가를 이어 그려요.",
