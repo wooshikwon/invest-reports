@@ -508,35 +508,42 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
     `before`는 오늘 기준일 바로 앞 기준일의 (기준일, 원값)이고, 반원 속도계와 구간 가로 바는 그 값을 연한 회색으로 함께 그린다.
     그림은 지수가 하락할 쪽의 값을 왼쪽에, 상승할 쪽의 값을 오른쪽에 둔다. 값이 클수록 하락 쪽인 지표는 `reverse`로 뒤집는다.
     주별 막대 그림(`columns`)은 가로축이 시간이므로 지난주를 왼쪽에, 오늘을 오른쪽에 둔다. 연준 금리 경로는 금리가 움직일 방향대로 인상을 오른쪽에 둔다.
-    `help`는 카드의 물음표 단추가 띄우는 [이름, 설명] 목록이고, 지표가 무엇인지와 그림을 읽는 법을 쓴다."""
+    `help`는 카드 이름 뒤의 물음표 단추가 띄우는 설명 상자의 문단 목록이고, 지표를 무엇으로 계산하는지와 값을 읽는 법을 쓴다."""
     when = month_day(date)
-    earlier = f" 연한 회색 {{}}은 {month_day(before[0])} 값이에요." if before else ""
     if name == "공포·탐욕 지수":
         score = value["score"]
-        guide = [["지표", "CNN이 주가 추세, 신고가 종목 수, 옵션 거래, 안전자산 수요 같은 지표 7개로 투자 심리를 0~100점으로 매긴 값이에요."],
-                 ["그림 읽기", "흰 바늘이 오늘 점수를 가리켜요." + earlier.format("바늘") + " 왼쪽 끝이 공포, 오른쪽 끝이 탐욕이에요."]]
+        guide = ["CNN이 미국 주식시장의 투자 심리를 0점에서 100점 사이로 매긴 점수예요. CNN은 지표 7개를 합쳐 점수를 계산해요: S&P500의 추세, "
+                 "52주 신고가와 신저가 종목 수, 상승 종목과 하락 종목의 거래량, 풋옵션과 콜옵션의 거래 비율, VIX, 주식과 국채의 수익률 차이, 정크본드 수요.",
+                 "점수가 25 이하면 극단 공포, 45 이하면 공포, 55 이하면 중립, 75 이하면 탐욕, 그보다 크면 극단 탐욕이에요. "
+                 "점수가 낮을수록 투자자는 주식을 팔고 국채 같은 안전자산을 더 많이 사요. 시장에서는 극단 공포를 매도가 지나쳤다는 신호로 보기도 해요."]
         return {"tab": "공포·탐욕", "help": guide, "asof": f"CNN · {when}", "value": f"{score:g}", "state": zone(FEAR_GREED_ZONES, score),
                 "figure": {"type": "semi", "min": 0, "max": 100, "zones": FEAR_GREED_ZONES, "value": score,
                            "before": before and before[1]["score"], "ends": ["공포", "탐욕"]}}
     if name == "VIX 변동성 지수":
         level = value["value"]
-        guide = [["지표", "S&P500 옵션 가격으로 계산한 앞으로 30일 동안의 예상 변동성이에요. 급락에 대비하는 옵션을 많이 살수록 값이 커져요."],
-                 ["그림 읽기", "값이 클수록 시장에 부정적이어서, 큰 값을 왼쪽에 그려요. 흰 원이 오늘 값이에요." + earlier.format("원")
-                  + " 구간은 시장에서 흔히 쓰는 15·20·30을 경계로 나눠요."]]
+        guide = ["미국 시카고옵션거래소(CBOE)가 S&P500 옵션 가격으로 계산하는 지수예요. VIX는 옵션 시장이 예상하는 앞으로 30일 동안의 "
+                 "S&P500 변동 폭을 1년 기준 %로 나타내요. VIX가 20이면 옵션 시장은 한 달 동안 S&P500의 변동 폭을 6% 안팎으로 예상해요.",
+                 "투자자가 급락에 대비해 풋옵션을 많이 사면 옵션 가격이 올라요. 옵션 가격이 오르면 VIX도 커져요. "
+                 "VIX가 15 이하면 안정, 20 이하면 보통, 30 이하면 불안, 그보다 크면 공포 구간이에요."]
         return {"tab": "VIX", "help": guide, "asof": f"CBOE · {when}", "value": f"{level:.1f}", "state": zone(VIX_ZONES, level),
                 "figure": {"type": "zoneBar", "min": 10, "max": 50, "zones": VIX_ZONES, "value": level,
                            "before": before and before[1]["value"], "reverse": True}}
     if name in ("QQQ 풋/콜 거래 비율", "IBB 풋/콜 거래 비율"):
         ratio, fund = value["put_call"], name.split()[0]
-        guide = [["지표", f"그날 거래된 {fund} 풋옵션 계약 수를 콜옵션 계약 수로 나눈 값이에요. 하락에 대비하는 풋옵션을 많이 살수록 값이 커져요."],
-                 ["그림 읽기", "값이 클수록 시장에 부정적이어서, 큰 값을 왼쪽에 그려요. 흰 바늘이 오늘 값을 가리켜요." + earlier.format("바늘")]]
+        kind = {"QQQ": "나스닥100", "IBB": "바이오"}[fund]
+        guide = [f"그날 거래된 {kind} ETF {fund}의 풋옵션 계약 수를 콜옵션 계약 수로 나눈 값이에요. "
+                 f"풋옵션은 {fund} 가격이 내려갈 때 이익을 내는 계약이에요. 콜옵션은 {fund} 가격이 오를 때 이익을 내는 계약이에요.",
+                 "하락에 대비하는 투자자가 많을수록 값이 커져요. 값이 1이면 그날 풋옵션과 콜옵션이 같은 수만큼 거래됐어요. "
+                 "0.8 이하면 낙관, 1.2 이하면 중립, 그보다 크면 비관이에요."]
         return {"tab": "풋/콜", "help": guide, "asof": f"옵션 · {when}", "value": f"{ratio:.2f}", "state": zone(PUT_CALL_ZONES, ratio),
                 "figure": {"type": "semi", "min": 0.4, "max": 2, "zones": PUT_CALL_ZONES, "value": ratio, "reverse": True,
                            "before": before and before[1]["put_call"], "ends": ["비관", "낙관"]}}
     if name == "하이일드 스프레드":
         level = value["value"]
-        guide = [["지표", "신용등급이 낮은 미국 회사채의 금리에서 국채 금리를 뺀 값이에요. 채권 투자자가 부도 위험에 대한 보상으로 더 요구하는 금리예요."],
-                 ["그림 읽기", f"막대는 최근 {WEEKS}주 동안 주마다 마지막 스프레드예요. 맨 오른쪽 흰 막대가 오늘 값이에요. 막대가 오른쪽으로 갈수록 높아지면 채권 시장이 부도 위험을 더 크게 본다는 뜻이에요."]]
+        guide = ["미국 하이일드 회사채의 금리에서 만기가 비슷한 미국 국채의 금리를 뺀 값이에요. 하이일드 회사채는 신용등급이 투자 적격 등급보다 낮은 회사채예요. "
+                 "스프레드는 채권 투자자가 회사의 부도 위험을 떠안는 대가로 국채보다 더 요구하는 금리예요.",
+                 "투자자는 경기가 나빠질 것으로 보면 하이일드 회사채를 팔아요. 그러면 회사채 금리가 올라 스프레드가 커져요. "
+                 "상태의 1년 상위 %는 지난 1년 가운데 오늘보다 스프레드가 높았던 날의 비율이에요. 1년 상위 3%면 오늘보다 높았던 날이 3%뿐이에요."]
         top = math.ceil(max(item["value"] for _, item in weeks) + 0.3)
         return {"tab": "신용", "help": guide, "asof": f"FRED · {when}", "value": f"{level:.2f}", "unit": "%",
                 "state": year_rank(value["pct_1y"]),
@@ -550,8 +557,11 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
              else [f"{month} 동결 예상", NEUTRAL])
     rows = [[f"{int(item['meeting'][5:7])}월", item["cumulative_bp"], f"{signed(item['cumulative_bp'] / 100, 2)}%p"]
             for item in meetings]
-    guide = [["지표", "연방기금 금리 선물의 가격으로 계산한 연준 기준금리의 예상 경로예요. 앞으로 열리는 연준 회의 세 번마다 지금 금리에서 얼마나 바뀔지를 누적 %p로 보여 줘요."],
-             ["그림 읽기", "금리가 움직일 방향대로 인상을 오른쪽에, 인하를 왼쪽에 막대로 그려요. 맨 위 흰 막대가 가장 가까운 회의예요."]]
+    guide = ["연방기금 금리 선물은 미국 기준금리의 한 달 평균에 거는 계약이에요. 선물 가격에서 시장이 예상하는 기준금리를 계산해요. "
+             "카드는 앞으로 열리는 연준 회의 세 번마다 기준금리의 누적 변화를 %p로 보여 줘요. 누적 변화는 지금 기준금리와 그 회의 뒤 예상 기준금리의 차이예요.",
+             "값이 +0.25%p면 시장은 그 회의까지 0.25%p 인상 한 번을 예상해요. "
+             f"다음 회의까지 누적 변화가 +{RATE_MOVE_BP / 100:g}%p 이상이면 인상 예상, −{RATE_MOVE_BP / 100:g}%p 이하면 인하 예상, 그 사이면 동결 예상이에요. "
+             "기준금리가 오르면 기업의 차입 비용이 커져요. 그래서 인상 예상은 주가에 부정적이에요."]
     return {"tab": "금리 경로", "help": guide, "asof": f"연방기금 선물 · {when}", "value": signed(move / 100, 2), "unit": "%p", "state": state,
             "figure": {"type": "diverge", "rows": rows, "max": max(50, max(abs(row[1]) for row in rows) * 1.25),
                        "ends": ["인하", "인상"]}}

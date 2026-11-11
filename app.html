@@ -257,7 +257,7 @@
   .tabs.glide button { flex: 0 0 auto; }
   .gauge { padding: 16px 18px; }
   .gauge .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-  .gauge .name { font-size: 15.5px; font-weight: 700; color: var(--accent); }
+  .gauge .name { display: inline-flex; align-items: center; font-size: 15.5px; font-weight: 700; color: var(--accent); }
   .gauge .asof { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .gauge .val { display: flex; align-items: baseline; column-gap: 10px; margin-top: 2px; }
   .gauge .val b { font-size: 30px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
@@ -296,9 +296,10 @@
                     background: rgba(255, 255, 255, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
                     transition: transform .25s ease, height .25s ease, opacity .2s ease; }
   nav.jump .lever.drag { transition: none; background: rgba(255, 255, 255, .18); }
-  /* 설명이 있는 절 제목은 제목 글자 바로 뒤에 원 안 물음표 단추를 둔다. 단추를 누르면 화면 가운데에 설명 상자를 띄우고, 닫기 단추나 상자 바깥을 누르면 닫는다. */
-  h2 .help { display: inline-grid; place-items: center; vertical-align: top; width: 26px; height: 1lh; margin-left: 2px; padding: 0; border: 0; font: inherit;
+  /* 설명이 있는 절 제목과 지표 카드 이름은 글자 바로 뒤에 원 안 물음표 단추를 둔다. 단추를 누르면 화면 가운데에 설명 상자를 띄우고, 닫기 단추나 상자 바깥을 누르면 닫는다. */
+  .help { display: inline-grid; place-items: center; vertical-align: top; width: 26px; height: 1lh; margin-left: 2px; padding: 0; border: 0; font: inherit;
              background: none; color: var(--dim); cursor: pointer; }
+  .gauge .help { height: auto; width: 24px; margin-left: 4px; }
   .help-card { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 24px;
                background: rgba(0, 0, 0, .55); }
   .help-card .card { box-sizing: border-box; width: 100%; max-width: 360px; max-height: 70vh; overflow: auto; padding: 20px 20px 22px;
@@ -308,6 +309,8 @@
   .help-card ul { margin: 0; padding-left: 18px; color: var(--hint); font-size: 13.5px; line-height: 1.65; }
   .help-card li + li { margin-top: 8px; }
   .help-card li b { display: block; margin-bottom: 2px; color: var(--text); font-weight: 600; }
+  .help-card p { margin: 0; color: var(--hint); font-size: 13.5px; line-height: 1.65; }
+  .help-card p + p { margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -1183,7 +1186,7 @@
   // 주요 시장 지표를 지표마다 한 장의 카드로 바꿔 넘기는 묶음으로 만들고, 위에 지표 이름 탭 띠를 둔다. 카드 값은 `build.py`가
   // 소제목에 단 `data-card`를 쓰고, 해설은 소제목 뒤 문단이다. 카드 값이 없는 소제목은 해설과 함께 지우고, 카드가 하나도 없으면 절을 지운다.
   // 탭을 누르면 그 지표로 넘기고, 넘기면 보고 있는 지표의 탭을 밝힌다. 카드 아래 점은 보고 있는 장을 따른다.
-  // 절 제목의 물음표 단추는 보고 있는 지표의 `help`를 보여 준다.
+  // 카드 이름 뒤의 물음표 단추는 그 지표의 `help` 문단을 보여 준다.
   function indicators() {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "주요 시장 지표");
     if (!head) return;
@@ -1208,8 +1211,9 @@
     const slides = cards.map((c) => {
       const box = Object.assign(document.createElement("div"), { className: "gauge" });
       const top = box.appendChild(Object.assign(document.createElement("div"), { className: "top" }));
-      top.append(Object.assign(document.createElement("span"), { className: "name", textContent: c.name }),
-                 Object.assign(document.createElement("span"), { className: "asof", textContent: c.asof }));
+      const name = top.appendChild(Object.assign(document.createElement("span"), { className: "name", textContent: c.name }));
+      name.append(question(c.name, () => c.help.map((text) => Object.assign(document.createElement("p"), { textContent: text }))));
+      top.append(Object.assign(document.createElement("span"), { className: "asof", textContent: c.asof }));
       const val = box.appendChild(Object.assign(document.createElement("div"), { className: "val" }));
       const number = val.appendChild(Object.assign(document.createElement("b"), { textContent: c.value }));
       if (c.unit) number.append(Object.assign(document.createElement("small"), { textContent: c.unit }));
@@ -1230,7 +1234,6 @@
       strip.appendChild(button);
     });
     let seen = 0;
-    head.help = () => [cards[seen].name, cards[seen].help];
     const change = (i) => {
       [...strip.children].forEach((button, j) => button.classList.toggle("on", i === j));
       const room = Math.max(0, strip.scrollWidth - (bar.clientWidth - 32));
@@ -1602,8 +1605,7 @@
     mark();
   }
 
-  // 절 제목마다 설명 상자에 쓸 항목을 둔다. 항목마다 이름을 굵게 쓰고 그 아래에 설명을 쓴다. 주요 시장 지표의 항목은 지표마다 `build.py`가
-  // 카드 값의 `help`로 쓰고, `indicators`가 절 제목의 `help`로 단다.
+  // 절 제목마다 설명 상자에 쓸 항목을 둔다. 항목마다 이름을 굵게 쓰고 그 아래에 설명을 쓴다.
   const HELP = {
     "1개월 지수 방향 예측": [
       ["주가와 예측", "앞으로 25거래일의 예측을 그려요. 파란 실선은 예측 중앙값이고, 파란 면은 가격이 25~75% 확률로 들어올 범위예요. 회색 점과 면은 과거 시점에 예측한 25거래일 후 가격이에요."],
@@ -1623,37 +1625,42 @@
   const QUESTION = '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1"/>'
     + '<path d="M6.2 6.2a1.8 1.8 0 1 1 2.6 1.6c-.5.3-.8.6-.8 1.2v.4" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
     + '<circle cx="8" cy="11.6" r=".8" fill="currentColor"/></svg>';
-  // 설명이 있는 절 제목 앞에 물음표 단추를 넣는다. 단추는 글자를 담지 않으므로 절 제목 글자로 절을 찾는 `jump`가 그대로 동작한다.
-  // 절 제목에 `help`가 있으면 단추를 누를 때 그 함수가 돌려준 [제목, 항목]으로 설명 상자를 만든다. `section`이 절 제목 안을 바꿔 쓴 뒤에 부른다.
+  // 설명이 있는 절 제목 뒤에 물음표 단추를 넣는다. 단추는 글자를 담지 않으므로 절 제목 글자로 절을 찾는 `jump`가 그대로 동작한다. `section`이 절 제목 안을 바꿔 쓴 뒤에 부른다.
   function help() {
     report.querySelectorAll("h2").forEach((head) => {
       const title = head.textContent.trim();
-      const content = head.help || (HELP[title] && (() => [title, HELP[title]]));
-      if (!content) return;
-      const button = document.createElement("button");
-      button.className = "help";
-      button.setAttribute("aria-label", `${title} 설명`);
-      button.innerHTML = QUESTION;
-      button.addEventListener("click", () => {
-        const box = document.createElement("div");
-        box.className = "help-card";
-        const card = box.appendChild(document.createElement("div"));
-        card.className = "card";
-        const [heading, items] = content();
-        const h3 = card.appendChild(document.createElement("h3"));
-        h3.append(heading);
-        const close = h3.appendChild(Object.assign(document.createElement("button"), { textContent: "✕" }));
-        close.setAttribute("aria-label", "닫기");
-        const list = card.appendChild(document.createElement("ul"));
-        items.forEach(([name, text]) => {
+      if (!HELP[title]) return;
+      head.append(question(title, () => {
+        const list = document.createElement("ul");
+        HELP[title].forEach(([name, text]) => {
           const li = list.appendChild(document.createElement("li"));
           li.append(Object.assign(document.createElement("b"), { textContent: name }), text);
         });
-        box.addEventListener("click", (event) => { if (event.target === box || close.contains(event.target)) box.remove(); });
-        document.body.append(box);
-      });
-      head.append(button);
+        return [list];
+      }));
     });
+  }
+
+  // 누르면 `title`을 제목으로, `body`가 돌려준 노드를 본문으로 쓴 설명 상자를 띄우는 물음표 단추.
+  function question(title, body) {
+    const button = document.createElement("button");
+    button.className = "help";
+    button.setAttribute("aria-label", `${title} 설명`);
+    button.innerHTML = QUESTION;
+    button.addEventListener("click", () => {
+      const box = document.createElement("div");
+      box.className = "help-card";
+      const card = box.appendChild(document.createElement("div"));
+      card.className = "card";
+      const h3 = card.appendChild(document.createElement("h3"));
+      h3.append(title);
+      const close = h3.appendChild(Object.assign(document.createElement("button"), { textContent: "✕" }));
+      close.setAttribute("aria-label", "닫기");
+      card.append(...body());
+      box.addEventListener("click", (event) => { if (event.target === box || close.contains(event.target)) box.remove(); });
+      document.body.append(box);
+    });
+    return button;
   }
 
   function viewer(img) {
