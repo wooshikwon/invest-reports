@@ -1139,10 +1139,13 @@
     },
     // 0 기준 위아래 막대: 열마다 [이름, 값, 글자]이고, 가운데 0 가로선에서 양수는 위로, 음수는 아래로 그린다. 첫 열 막대와 글자는 흰색,
     // 나머지 열은 회색이다. 값 글자는 막대 끝 바깥에, 열 이름은 그림 아래에 적는다. 세로축은 위아래로 `max`까지이고, 그 끝에서 그림 끝까지는
-    // 값 글자 한 줄을 적을 여백으로 남긴다. 세로축 오른쪽 여백에는 0 가로선 높이에 0을, 위쪽 끝에 인상을, 아래쪽 끝에 인하를 적는다.
-    diverge({ rows, max }) {
+    // 값 글자 한 줄을 적을 여백으로 남긴다. `step` 높이와 `-step` 높이에는 막대 뒤에 점선 가로선을 긋고, 세로축 오른쪽 여백에는
+    // 0 가로선 높이에 0을, `step` 높이에 인상을, `-step` 높이에 인하를 적는다. `max`가 커서 `step` 높이가 0 가로선과 13px보다 가까우면
+    // 인상과 인하 글자가 0 글자와 겹치지 않게 0 가로선에서 13px 떨어진 높이에 적는다.
+    diverge({ rows, max, step }) {
       const x0 = 6, x1 = 262, top = 8, base = 148, mid = (top + base) / 2, reach = (base - top) / 2 - 18, s = canvas(FIGURE);
       const slot = (x1 - x0) / rows.length, w = Math.min(40, slot * 0.5), Y = (v) => mid - reach * Math.min(1, Math.max(-1, v / max));
+      [step, -step].forEach((v) => s.append(shape("line", { x1: x0, y1: Y(v), x2: x1, y2: Y(v), stroke: "#7A828C", "stroke-width": 1, "stroke-dasharray": "3 3", opacity: 0.7 })));
       rows.forEach(([name, v, text], i) => {
         const x = x0 + slot * i + (slot - w) / 2, up = v >= 0, end = Math.abs(Y(v) - mid) < 2 ? mid + (up ? -2 : 2) : Y(v), first = i === 0;
         const r = Math.min(4, Math.abs(end - mid) / 2), tip = up ? r : -r;
@@ -1155,7 +1158,7 @@
         s.append(shape("text", { x: x + w / 2, y: base + 20, "text-anchor": "middle", "font-size": 12, fill: "#A7ABB0" }, name));
       });
       s.append(shape("line", { x1: x0, y1: mid, x2: x1, y2: mid, stroke: "#7A828C", "stroke-width": 1.2 }));
-      [[mid, "0"], [Y(max), "인상"], [Y(-max), "인하"]].forEach(([y, name]) =>
+      [[mid, "0"], [Math.min(Y(step), mid - 13), "인상"], [Math.max(Y(-step), mid + 13), "인하"]].forEach(([y, name]) =>
         s.append(shape("text", { x: x1 + 10, y: y + 4, "font-size": 11, fill: "#7A828C" }, name)));
       return s;
     },

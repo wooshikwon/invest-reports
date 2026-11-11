@@ -89,7 +89,7 @@ UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#ffffff"  # 오름·내림·중립 �
 FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, DOWN, "공포"], [55, NEUTRAL, "중립"], [75, UP, "탐욕"], [100, UP, "극단 탐욕"]]
 WEEKS = 12  # 하이일드 스프레드의 막대 그림이 거슬러 그리는 주 수
 RATE_MOVE_BP = 12.5  # 다음 회의까지 누적 변화가 이 bp 이상이면 인상 예상, 음수로 이 값 이하면 인하 예상
-RATE_STEP_BP = 25  # 연준이 기준금리를 한 번에 바꾸는 폭. 금리 경로 그림의 세로축 상한을 이 폭의 배수로 잡는다
+RATE_STEP_BP = 25  # 연준이 기준금리를 한 번에 바꾸는 폭. 금리 경로 그림의 세로축 상한을 이 폭의 배수로 잡고, 이 폭의 위아래 높이에 점선 가로선을 긋는다
 
 
 def report_pdf(vault: Path):
@@ -502,7 +502,7 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
     `before`는 오늘 기준일 바로 앞 기준일의 (기준일, 원값)이고, 반원 속도계는 그 값을 연한 회색으로 함께 그린다.
     반원 속도계는 작은 값을 왼쪽에, 큰 값을 오른쪽에 둔다.
     주별 막대 그림(`columns`)은 가로축이 시간이므로 지난주를 왼쪽에, 오늘을 오른쪽에 둔다. 연준 금리 경로(`diverge`)도 가로축이 시간이므로 가까운 회의를 왼쪽에 두고, 0 가로선 위에 인상을, 아래에 인하를 둔다.
-    금리 경로의 세로축 상한(`max`)은 가장 큰 누적 변화를 금리 한 번 변경 폭(`RATE_STEP_BP`)의 배수로 올린 값이다.
+    금리 경로의 세로축 상한(`max`)은 가장 큰 누적 변화를 금리 한 번 변경 폭(`RATE_STEP_BP`)의 배수로 올린 값이고, 그림은 그 폭(`step`)의 위아래 높이에 점선 가로선을 긋는다.
     `help`는 카드 이름 뒤의 물음표 단추가 띄우는 설명 상자의 문단 목록이고, 지표를 무엇으로 계산하는지와 값을 읽는 법을 쓴다."""
     when = month_day(date)
     if name == "공포·탐욕 지수":
@@ -540,7 +540,7 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
              f"다음 회의까지 누적 변화가 +{RATE_MOVE_BP / 100:g}%p 이상이면 인상 예상, −{RATE_MOVE_BP / 100:g}%p 이하면 인하 예상, 그 사이면 동결 예상이에요. "
              "기준금리가 오르면 기업의 차입 비용이 커져요. 그래서 인상 예상은 주가에 부정적이에요."]
     return {"tab": "금리 경로", "help": guide, "asof": f"연방기금 선물 · {when}", "value": signed(move / 100, 2), "unit": "%p", "state": state,
-            "figure": {"type": "diverge", "rows": rows, "max": top}}
+            "figure": {"type": "diverge", "rows": rows, "max": top, "step": RATE_STEP_BP}}
 
 
 def indicator_cards(vault: Path, index: str, date: dt.date) -> dict[str, dict]:
