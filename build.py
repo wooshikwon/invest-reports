@@ -26,7 +26,7 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 발표 시각이 수집기가 채운 기본값(`PLACEHOLDER_TIMES`)이거나 사안 나무에 없으면 장전·장중·장후만 적는다.
 중요도는 `data-level`로 달아 `invest-reports` 미니 앱이 날짜 띠에 점으로 그린다.
 
-`주요 시장 지표` 절의 지표 소제목에는 그날 지수 폴더의 `market-data.json`·`macro-data.json`에서 뽑은 카드 값을 `data-card`로 단다.
+`거시 지표` 절의 지표 소제목에는 그날 지수 폴더의 `market-data.json`·`macro-data.json`에서 뽑은 카드 값을 `data-card`로 단다.
 하이일드 스프레드는 앞 12주 지수 폴더의 같은 JSON에서 주마다 마지막 값을 함께 뽑아 막대 그림으로 그린다.
 카드 값은 탭 이름, 값과 단위, 상태 이름과 색, 기준일(미국 장이 마감한 한국 날짜), 보조 값을 적은 한 줄, 그림 종류와 그림 입력, 물음표 단추의 설명이다.
 값이 없는 지표에는 카드 값을 달지 않는다.
@@ -83,7 +83,7 @@ NEW_YORK, SEOUL = ZoneInfo("America/New_York"), ZoneInfo("Asia/Seoul")
 # 리포트 제목 끝의 날짜 줄. `나스닥 리포트 2026-10-22 (목)` 꼴이다.
 TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
-INDICATORS_TITLE = "주요 시장 지표"
+INDICATORS_TITLE = "거시 지표"
 UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#ffffff"  # 오름·내림·중립 색. 오름·내림 색은 `app.html`의 등락 색과 같다
 # 지표 카드의 구간. [구간 끝값, 색, 구간 이름]이고, 지금 값이 든 구간의 이름과 색이 카드의 상태다.
 FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, DOWN, "공포"], [55, NEUTRAL, "중립"], [75, UP, "탐욕"], [100, UP, "극단 탐욕"]]
@@ -455,7 +455,7 @@ def batch_data(vault: Path, index: str, day: dt.date) -> tuple[dict, dict] | Non
 
 
 def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:
-    """`report-template.md` `주요 시장 지표` 표의 지표 이름마다 (기준일, 원값). 값을 수집하지 못한 지표는 뺀다.
+    """`report-template.md` `거시 지표` 표의 지표 이름마다 (기준일, 원값). 값을 수집하지 못한 지표는 뺀다.
 
     수집기는 미국 장의 날짜를 적는다. 미국 장은 한국 시각으로 다음 날 아침에 마감하므로 기준일은 그 날짜에 하루를 더한 한국 날짜다.
     """
@@ -561,7 +561,7 @@ def indicator_cards(vault: Path, index: str, date: dt.date) -> dict[str, dict]:
 
 
 def mark_indicators(body: str, cards: dict[str, dict]) -> str:
-    """`주요 시장 지표` 절의 소제목 가운데 `cards`에 있는 지표에 카드 값(`data-card`)을 단다."""
+    """`거시 지표` 절의 소제목 가운데 `cards`에 있는 지표에 카드 값(`data-card`)을 단다."""
     head = re.search(rf'<h2 id="[^"]*">{INDICATORS_TITLE}</h2>', body)
     if not head:
         return body
