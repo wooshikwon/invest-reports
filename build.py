@@ -551,7 +551,7 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
     rows = [[f"{int(item['meeting'][5:7])}월", item["cumulative_bp"], f"{signed(item['cumulative_bp'] / 100, 2)}%p"]
             for item in meetings]
     guide = [["지표", "연방기금 금리 선물의 가격으로 계산한 연준 기준금리의 예상 경로예요. 앞으로 열리는 연준 회의 세 번마다 지금 금리에서 얼마나 바뀔지를 누적 %p로 보여 줘요."],
-             ["그림 읽기", "금리가 움직일 방향대로 인상을 오른쪽에, 인하를 왼쪽에 흰 막대로 그려요."]]
+             ["그림 읽기", "금리가 움직일 방향대로 인상을 오른쪽에, 인하를 왼쪽에 막대로 그려요. 맨 위 흰 막대가 가장 가까운 회의예요."]]
     return {"tab": "금리 경로", "help": guide, "asof": f"연방기금 선물 · {when}", "value": signed(move / 100, 2), "unit": "%p", "state": state,
             "figure": {"type": "diverge", "rows": rows, "max": max(50, max(abs(row[1]) for row in rows) * 1.25),
                        "ends": ["인하", "인상"]}}

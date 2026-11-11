@@ -274,9 +274,9 @@
   /* 화면 오른쪽 아래에 절 바로가기를 세로로 긴 반투명 유리 알약 하나에 담아 띄운다. 알약 뒤 본문은 흐리게 비친다. 누르면 그 절 제목이 화면 위쪽에 오도록 부드럽게 옮긴다. */
   nav.jump { position: fixed; z-index: 5; right: 16px; bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
              display: flex; flex-direction: column; padding: 6px; border-radius: 24px; touch-action: none; user-select: none; -webkit-user-select: none;
-             background: linear-gradient(160deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, .02) 55%, rgba(255, 255, 255, .04));
-             box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
-             -webkit-backdrop-filter: blur(10px) saturate(170%); backdrop-filter: blur(10px) saturate(170%); }
+             background: linear-gradient(160deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, .01) 55%, rgba(255, 255, 255, .02));
+             box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+             -webkit-backdrop-filter: blur(4px) saturate(150%); backdrop-filter: blur(4px) saturate(150%); }
   /* 알약 가장자리에 1px 빛줄기를 그린다. 왼쪽 위 모서리가 가장 밝고 가운데로 갈수록 사라지며, 오른쪽 아래 모서리에서 약하게 다시 밝아진다. */
   nav.jump::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
                      background: linear-gradient(150deg, rgba(255, 255, 255, .42), rgba(255, 255, 255, .08) 28%, rgba(255, 255, 255, 0) 55%,
@@ -1157,7 +1157,7 @@
         x, y: base + 20, "font-size": 12, fill: "#7A828C", "text-anchor": anchor }, text)));
       return s;
     },
-    // 0 기준 양방향 막대: 행마다 [이름, 값, 글자]이고, 막대는 방향과 상관없이 흰색이다. 양수는 오른쪽에 그리고,
+    // 0 기준 양방향 막대: 행마다 [이름, 값, 글자]이고, 첫 행 막대와 글자는 흰색, 나머지 행은 회색이다. 양수는 오른쪽에 그리고,
     // 막대가 길면 글자를 막대 안에 쓴다.
     // 행 이름 칸은 가장 긴 이름의 폭으로 잡는다(한글 12px, 나머지 7px로 어림한다).
     diverge({ rows, max, ends }) {
@@ -1166,12 +1166,12 @@
       const height = top + rows.length * rowH + 26, s = canvas(height);
       s.append(shape("rect", { x: x0, y: top, width: x1 - x0, height: rows.length * rowH, rx: 6, fill: "#ffffff", opacity: 0.025 }));
       rows.forEach(([name, v, text], i) => {
-        const y = top + i * rowH + (rowH - bar) / 2, len = half * Math.min(1, Math.abs(v) / max), right = v >= 0, inside = len > half - 46;
+        const y = top + i * rowH + (rowH - bar) / 2, len = half * Math.min(1, Math.abs(v) / max), right = v >= 0, inside = len > half - 46, first = i === 0;
         s.append(shape("text", { x: 0, y: y + bar / 2 + 4.5, "font-size": 12.5, fill: "#A7ABB0" }, name));
-        s.append(shape("rect", { x: right ? cx : cx - len, y, width: Math.max(len, 2), height: bar, rx: 3, fill: "#EAEAEA" }));
+        s.append(shape("rect", { x: right ? cx : cx - len, y, width: Math.max(len, 2), height: bar, rx: 3, fill: first ? "#EAEAEA" : "#7A828C", opacity: first ? 1 : 0.55 }));
         const x = right ? cx + len + (inside ? -6 : 6) : cx - len + (inside ? 6 : -6);
         s.append(shape("text", { x, y: y + bar / 2 + 4.5, "font-size": 12.5, "font-weight": 700, "text-anchor": right !== inside ? "start" : "end",
-                                 fill: inside ? "#171719" : "#EAEAEA" }, text));
+                                 fill: first ? (inside ? "#171719" : "#EAEAEA") : inside ? "#C8CCD2" : "#7A828C" }, text));
       });
       s.append(shape("line", { x1: cx, y1: top - 2, x2: cx, y2: top + rows.length * rowH + 2, stroke: "#7A828C", "stroke-width": 1.2 }));
       [[x0, "start", ends[0]], [cx, "middle", "0"], [x1, "end", ends[1]]].forEach(([x, anchor, text]) => s.append(shape("text", {
