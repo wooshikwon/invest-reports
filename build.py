@@ -86,8 +86,7 @@ REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
 INDICATORS_TITLE = "주요 시장 지표"
 UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#4a4f58"  # 오름·내림·중립 색. `app.html`의 등락 색과 같다
 # 지표 카드의 구간. [구간 끝값, 색, 구간 이름]이고, 지금 값이 든 구간의 이름과 색이 카드의 상태다.
-FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, "#3b5d93", "공포"], [55, NEUTRAL, "중립"], [75, "#8e4747", "탐욕"],
-                    [100, UP, "극단 탐욕"]]
+FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, DOWN, "공포"], [55, NEUTRAL, "중립"], [75, UP, "탐욕"], [100, UP, "극단 탐욕"]]
 GOOD, WARN, CRIT = "#0ca30c", "#fab219", "#d03b3b"  # 안정·불안·공포 색
 VIX_ZONES = [[15, GOOD, "안정"], [20, NEUTRAL, "보통"], [30, WARN, "불안"], [50, CRIT, "공포"]]
 PUT_CALL_ZONES = [[0.8, UP, "낙관"], [1.2, NEUTRAL, "중립"], [2, DOWN, "비관"]]

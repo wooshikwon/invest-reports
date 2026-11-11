@@ -1067,7 +1067,7 @@
 
   // 주요 시장 지표 카드의 그림. `build.py`가 소제목에 단 `data-card`의 `figure`를 받아 폭 320, 높이 `FIGURE` 단위의 SVG를 그린다.
   // 그림마다 필요한 높이로 그리고, 보이는 칸은 높이 `FIGURE`로 같게 잡아 그림을 가운데에 둔다.
-  // 흰 원과 흰 바늘은 오늘 값이고, 반원 속도계와 구간 가로 바는 `before`(직전 기준일 값)를 연한 회색 바늘과 원으로 함께 그린다. `zones`는 [끝값, 색, 이름]이고, 오늘 값이 든 구간만 진하게 칠한다.
+  // 흰 원과 흰 바늘은 오늘 값이고, 반원 속도계와 구간 가로 바는 `before`(직전 기준일 값)를 연한 회색 바늘과 원으로 함께 그린다. `zones`는 [끝값, 색, 이름]이고, 오늘 값이 든 구간만 진하게 칠하고 나머지 구간은 `DIM` 불투명도로 흐리게 칠한다.
   // 지수가 하락할 쪽의 값은 왼쪽에, 상승할 쪽의 값은 오른쪽에 그린다. 값이 클수록 하락 쪽인 지표는 `reverse`로 축을 뒤집는다.
   // 주별 세로 막대만 가로축이 시간이므로 지난주를 왼쪽에, 오늘을 오른쪽에 그린다.
   const SVG = "http://www.w3.org/2000/svg", FIGURE = 178;
@@ -1084,7 +1084,7 @@
     const p = (Math.min(max, Math.max(min, v)) - min) / (max - min);
     return reverse ? 1 - p : p;
   };
-  const KNOB = { fill: "#EAEAEA", stroke: "#1d1e21", "stroke-width": 3 }, BEFORE = "#80868F";
+  const KNOB = { fill: "#EAEAEA", stroke: "#1d1e21", "stroke-width": 3 }, BEFORE = "#80868F", DIM = 0.35;
   const GAUGES = {
     // 반원 속도계: 구간 경계값을 바깥에 적는다.
     semi({ min, max, zones, value, before, ends, reverse = false }) {
@@ -1097,7 +1097,7 @@
         const a0 = Math.PI * (1 - left) - (left > 0 ? 0.012 : 0), a1 = Math.PI * (1 - right) + (right < 1 ? 0.012 : 0);
         const [x0, y0] = at(a0, r), [x1, y1] = at(a1, r);
         s.append(shape("path", { d: `M${x0} ${y0} A${r} ${r} 0 0 1 ${x1} ${y1}`, fill: "none", stroke: zone[1], "stroke-width": sw,
-                                 opacity: zone === now ? 1 : 0.38 }));
+                                 opacity: zone === now ? 1 : DIM }));
         from = zone[0];
       });
       zones.slice(0, -1).forEach(([to]) => {
@@ -1124,7 +1124,7 @@
         const [to, color, name] = zone, on = zone === now;
         const [left, right] = [X(from), X(to)].sort((a, b) => a - b), edge = left <= x0 || right >= x1;
         const a = left + (left <= x0 ? 0 : 1.5), b = right - (right >= x1 ? 0 : 1.5);
-        s.append(shape("rect", { x: a, y, width: b - a, height: h, rx: edge ? 6 : 1.5, fill: color, opacity: on ? 1 : 0.32 }));
+        s.append(shape("rect", { x: a, y, width: b - a, height: h, rx: edge ? 6 : 1.5, fill: color, opacity: on ? 1 : DIM }));
         s.append(shape("text", { x: (a + b) / 2, y: y + h + 24, "text-anchor": "middle", "font-size": 12.5, "font-weight": on ? 700 : 500,
                                  fill: on ? "#EAEAEA" : "#7A828C" }, name));
         if (i < zones.length - 1) s.append(shape("text", { x: X(to), y: y - 10, "text-anchor": "middle", "font-size": 11, fill: "#7A828C" }, `${to}${unit}`));
