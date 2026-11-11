@@ -1178,12 +1178,14 @@
     // 묶음 막대: 묶음마다 [이름, [[값, 글자], ...]]이고 막대는 0 가로선에서 위나 아래로 그린다. 세로축은 `min`에서 `max`까지다.
     // 묶음 안 막대가 여럿이면 묶음마다 마지막 막대를 흰색, 나머지를 회색으로 칠하고 `items`의 막대 이름을 그림 위에 범례로 적는다.
     // 묶음마다 막대가 하나면 마지막 묶음의 막대만 흰색이다. 값 글자는 막대 끝 바깥에 적고, 막대가 하나인 묶음이 다섯 개를 넘으면 흰 막대에만 적는다.
+    // 묶음 안 막대가 여럿이고 값 글자가 막대 하나의 폭과 간격을 합친 길이보다 길면 값 뒤 단위를 떼고 숫자만 적는다. 단위는 카드 머리의 값 뒤에 있다.
     // 묶음 이름은 그림 아래에 적는다.
     bars({ items = [], groups, min, max }) {
       const x0 = 6, x1 = 314, top = items.length > 1 ? 44 : 30, bottom = 146, s = canvas(FIGURE), n = groups[0][1].length;
       const Y = (v) => top + (bottom - top) * (max - Math.min(max, Math.max(min, v))) / (max - min), zero = Y(0);
       const slot = (x1 - x0) / groups.length, gap = 4, w = Math.min(40, (slot * 0.62 - gap * (n - 1)) / n);
       const lit = (g, k) => (n > 1 ? k === n - 1 : g === groups.length - 1), every = n > 1 || groups.length <= 5;
+      const short = n > 1 && groups.some(([, bars]) => bars.some(([, text]) => [...text].reduce((sum, c) => sum + (/[\x00-\x7f]/.test(c) ? 7.5 : 12.5), 0) > w + gap));
       groups.forEach(([name, bars], g) => {
         const left = x0 + slot * g + (slot - (w * n + gap * (n - 1))) / 2;
         bars.forEach(([v, text], k) => {
@@ -1194,7 +1196,7 @@
           bar.append(shape("title", {}, `${name} ${items[k] ?? ""} ${text}`.replace(/\s+/g, " ")));
           s.append(bar);
           if (every || on) s.append(shape("text", { x: x + w / 2, y: up ? end - 8 : end + 17, "text-anchor": "middle", "font-size": 12.5,
-                                                    "font-weight": 700, fill: on ? "#EAEAEA" : "#7A828C" }, text));
+                                                    "font-weight": 700, fill: on ? "#EAEAEA" : "#7A828C" }, short ? text.replace(/[^\d.%]+$/, "") : text));
         });
         s.append(shape("text", { x: x0 + slot * (g + 0.5), y: bottom + 20, "text-anchor": "middle", "font-size": 12, fill: "#A7ABB0" }, name));
       });
