@@ -89,8 +89,7 @@ UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#4a4f58"  # 오름·내림·중립 �
 FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, "#3b5d93", "공포"], [55, NEUTRAL, "중립"], [75, "#8e4747", "탐욕"],
                     [100, UP, "극단 탐욕"]]
 GOOD, WARN, CRIT = "#0ca30c", "#fab219", "#d03b3b"  # 정상·경계·위기 색
-VIX_ZONES = [[25, GOOD, "정상"], [40, WARN, "경계"], [50, CRIT, "위기"]]
-HIGH_YIELD_ZONES = [[5, GOOD, "정상"], [8, WARN, "경계"], [10, CRIT, "위기"]]
+VIX_ZONES = [[15, GOOD, "안정"], [20, NEUTRAL, "보통"], [30, WARN, "불안"], [50, CRIT, "공포"]]
 PUT_CALL_ZONES = [[0.8, UP, "낙관"], [1.2, NEUTRAL, "중립"], [2, DOWN, "비관"]]
 POSITION_CROWDED = 80  # 선물 순매수 1년 백분위가 이 값 이상이면 매수 쏠림, 100에서 뺀 값 이하면 매도 쏠림
 WEEKS = 12  # 하이일드 스프레드와 선물 순매수의 막대 그림이 거슬러 그리는 주 수
@@ -473,13 +472,13 @@ def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:
     bio = {name: flows[name] for name in ("IBB", "XBI") if isinstance(flows.get(name), dict) and flows[name].get("5d")}
     found = {
         "공포·탐욕 지수": (as_of, macro.get("fear_greed"), "score"),
-        "VIX 변동성 지수": (vix.get("date"), vix, "value"),
+        "VIX 변동성 지수": (vix.get("date"), vix, "pct_1y"),
         "QQQ 풋/콜 거래 비율": (as_of, options.get("QQQ"), "put_call"),
         "IBB 풋/콜 거래 비율": (as_of, options.get("IBB"), "put_call"),
         "바이오 ETF 자금 흐름": (max((flow["source_as_of"] for flow in bio.values()), default=None), bio, None),
         "나스닥100 선물 순매수": (position.get("report_date"), position, "pct_1y"),
         "바이오 이익 전망 수정": (earnings.get("date"), earnings, "next_year_revision_30d_pct"),
-        "하이일드 스프레드": (high_yield.get("date"), high_yield, "value"),
+        "하이일드 스프레드": (high_yield.get("date"), high_yield, "pct_1y"),
         "연준 금리 경로": (path.get("date"), path, "meetings"),
     }
     return {name: (date, value) for name, (date, value, key) in found.items()
@@ -496,6 +495,13 @@ def zone(zones: list[list], value: float) -> list:
     """`value`가 든 구간의 [이름, 색]."""
     found = next((item for item in zones if value <= item[0]), zones[-1])
     return [found[2], found[1]]
+
+
+def year_rank(rank: float) -> list:
+    """1년 백분위 `rank`를 `1년 상위 N%`·`1년 하위 N%`로 적은 상태. 값이 클수록 하락 쪽인 지표에 쓰므로 상위 20% 안은 파랑, 하위 20% 안은 빨강이다."""
+    name = ("1년 최고" if rank >= 100 else "1년 최저" if rank <= 0 else
+            f"1년 상위 {100 - rank:g}%" if rank >= 50 else f"1년 하위 {rank:g}%")
+    return [name, DOWN if rank >= 80 else UP if rank <= 20 else NEUTRAL]
 
 
 def month_day(day: str) -> str:
@@ -520,7 +526,8 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
         level = value["value"]
         guide = [["지표", "S&P500 옵션 가격으로 계산한 앞으로 30일 동안의 예상 변동성이에요. 급락에 대비하는 옵션을 많이 살수록 값이 커져요."],
                  ["그림 읽기", "값이 클수록 시장에 부정적이어서, 큰 값을 왼쪽에 그려요. 흰 원이 오늘 값이에요."]]
-        return {"tab": "VIX", "help": guide, "asof": f"CBOE · {when}", "value": f"{level:.1f}", "state": zone(VIX_ZONES, level),
+        return {"tab": "VIX", "help": guide, "asof": f"CBOE · {when}", "value": f"{level:.1f}",
+                "state": year_rank(value["pct_1y"]),
                 "figure": {"type": "zoneBar", "min": 10, "max": 50, "zones": VIX_ZONES, "value": level,
                            "reverse": True}}
     if name in ("QQQ 풋/콜 거래 비율", "IBB 풋/콜 거래 비율"):
@@ -570,7 +577,7 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
                  ["그림 읽기", f"막대는 최근 {WEEKS}주 동안 주마다 마지막 스프레드예요. 맨 오른쪽 흰 막대가 오늘 값이에요. 막대가 오른쪽으로 갈수록 높아지면 채권 시장이 부도 위험을 더 크게 본다는 뜻이에요."]]
         top = math.ceil(max(item["value"] for _, item in weeks) + 0.3)
         return {"tab": "신용", "help": guide, "asof": f"FRED · {when}", "value": f"{level:.2f}", "unit": "%",
-                "state": zone(HIGH_YIELD_ZONES, level),
+                "state": year_rank(value["pct_1y"]),
                 "figure": {"type": "columns", "bars": [[month_day(day), item["value"], f"{item['value']:.2f}%"] for day, item in weeks],
                            "max": top, "lines": [[step, f"{step}%"] for step in range(1, top + 1)]}}
     meetings = value["meetings"][:3]
