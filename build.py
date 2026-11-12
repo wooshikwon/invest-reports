@@ -55,13 +55,13 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 12M + Predictions 그림의 종가 선과 기준 가격 차이와 같다. `invest-reports` 미니 앱은 날짜 줄 아래 회색 글씨로
 `정규장`과 `장 마감 후` 등락률을 적고 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. `null`은 `—`로 적는다.
 
-`r/rewind-{지수}/`에는 지난 판단으로 되감는 슬라이더의 값을 쓴다. 되감기 날짜는 공개본이 있는 그 지수 리포트 가운데
-가장 늦은 날짜에서 `REWIND_DAYS`일 안이고, `system/simulation.json`의 `quantiles`와 `system/tree-axes.json`이 있는
-날짜다. `predict.png`는 가장 늦은 날짜의 12M + Predictions 그림에서 종가 선과 오늘 판단을 지운 바탕이고
-(`predictions_chart.rewind`), `frames.json`은 바탕의 축 위치·종가와 날짜마다 12M + Predictions 범위, 그날 Montecarlo 그림과
-축 위치, 그날 기준 가격 뒤의 실제 종가 수익률(%), 그날 권장 추종 배율 그림을 담는다. Montecarlo·권장 추종 배율 그림은
-그날 공개본 폴더의 그림을 그대로 가리킨다. `invest-reports` 미니 앱은 슬라이더를 옮길 때 바탕 위에 그날 범위를 그리고,
-그날 Montecarlo 그림 위에 실제 종가 선을 그린다.
+`system/simulation.json`의 `quantiles`에 5% 값이 있는 리포트는 요약 절 세 그림을 그림 파일 대신 값으로 그린다.
+그런 리포트의 공개본에서는 12M + Predictions·Montecarlo·권장 추종 배율 그림을 빼고, `report.html` 끝에 카드 값을
+`<script type="application/json" id="cards">`로 붙인다. 카드 값은 12개월 종가와 날짜, 지난 리포트가 예측한 25거래일 뒤 가격,
+그날 25·50·75% 가격, 5~95% 수익률 분위수와 사안 일정, 체류 적분 밀도를 담는다(`summary_cards`). 공개본이 있는 그 지수 리포트
+가운데 가장 늦은 날짜에서 `REWIND_DAYS`일 안의 카드 값 리포트는 되감기 날짜가 되고, `r/rewind-{지수}/cards.json`에 날짜마다
+같은 판단 값과 그날 기준 가격 뒤의 실제 종가 수익률(%)을 쓴다. `invest-reports` 미니 앱은 카드 값으로 그림 카드를
+그리고, 슬라이더를 옮기면 그날 판단 값으로 세 카드를 다시 그린다.
 """
 import argparse
 import datetime as dt
@@ -100,6 +100,8 @@ NEW_YORK, SEOUL = ZoneInfo("America/New_York"), ZoneInfo("Asia/Seoul")
 # 리포트 제목 끝의 날짜 줄. `나스닥 리포트 2026-10-22 (목)` 꼴이다.
 TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
+CARD_QUANTILES = (5, 10, 25, 50, 75, 90, 95)  # Montecarlo 카드가 그리는 수익률 분위수
+TICK_STEP = 5  # Montecarlo 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
 ISSUES_TITLE = "상세 이슈 해설"
 HISTORY_RE = re.compile(r'<template class="issue-history">.*?</template>\s*', re.DOTALL)
@@ -171,45 +173,75 @@ def moves(vault: Path, index: str, date: str) -> dict | None:
             "after": round((float(bands["price_base"]) / close - 1) * 100, 2) + 0.0}
 
 
+def card_frame(date: str, folder: Path) -> dict | None:
+    """그날 판단의 그림 카드 값. `system/simulation.json`의 `quantiles`에 5% 값이 없는 리포트는 `None`이다.
+
+    `days`는 기준 가격 날짜에서 시작하는 거래일, `predict`는 그 거래일마다 25·50·75% 가격, `tree`는 수익률 분위수(%)와 발표일이 같은 사안의 묶음·가로축 날짜,
+    `chart`는 체류 적분 밀도다. 가로축의 첫 날짜는 기준 가격 날짜가 아니라 리포트 날짜로 적는다.
+    """
+    path = folder / "system" / "simulation.json"
+    simulation = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    quantiles = simulation.get("quantiles") or {}
+    if "q5" not in quantiles:
+        return None
+    base = float(json.loads((folder / "path-bands.json").read_text(encoding="utf-8"))["price_base"])
+    days = quantiles["days"]
+    horizon = len(days) - 1
+    same = {}
+    for issue in simulation["issues"]:
+        if 0 < issue.get("day", 0) <= horizon:
+            same.setdefault(issue["day"], []).append(issue["name"])
+    density = simulation["density"]
+    return {"day": date, "base_date": days[0], "base": base, "days": days,
+            "predict": {f"q{q}": [round(base * (1 + v), 2) for v in quantiles[f"q{q}"]] for q in (25, 50, 75)},
+            "tree": {"pct": {str(q): [round(v * 100, 2) for v in quantiles[f"q{q}"]] for q in CARD_QUANTILES},
+                     "events": [[day, names, month_day(days[day])] for day, names in sorted(same.items())],
+                     "ticks": [[t, month_day(days[t] if t else date)] for t in range(0, horizon + 1, TICK_STEP)]},
+            "chart": {**{k: density[k] for k in ("low", "high", "points", "mean")},
+                      **{k: [round(v, 4) for v in density[k]] for k in ("today", "quiet")}}}
+
+
+def summary_cards(index: str, date: str, folder: Path, vault: Path) -> dict | None:
+    """요약 절 그림 카드 값. `card_frame`이 `None`인 리포트는 `None`이다.
+
+    카드 값은 그날 판단(`card_frame`)에 판단 색, 기준 가격 날짜까지 12개월 종가와 날짜, 기준 가격의 가로 거리,
+    지난 리포트가 예측한 25거래일 뒤 가격(`past`, 가로 위치·25·50·75% 가격)을 더한다. 지난 예측은 12M + Predictions 그림과
+    같은 줄을 고르고, 오늘 판단과 같은 기준 가격 날짜의 줄과 오늘 판단의 끝보다 오른쪽 줄은 뺀다.
+    """
+    frame = card_frame(date, folder)
+    if not frame:
+        return None
+    chart = predictions_chart(vault)
+    history = chart.price_history(index, dt.date.fromisoformat(frame["base_date"]), chart.path_bands.REFERENCE_DB_PATH)
+    dates = [day for day, _ in history]
+    x0, horizon = len(dates) - 1, len(frame["predict"]["q50"]) - 1
+    past = {}
+    for base_date, (base, ahead, values) in chart.past_judgments(
+            chart.read_ledger(chart.LEDGER_DIR / f"predictions-{index}.jsonl"), date).items():
+        if base_date in dates and base_date != frame["base_date"] and dates.index(base_date) + ahead <= x0 + horizon:
+            past[dates.index(base_date) + ahead] = [round(base * (1 + v), 2) for v in values]
+    return {"color": chart.chart.JUDGMENT_COLORS.get(index, chart.chart.JUDGMENT_COLORS["nasdaq"])["line"],
+            "start_offset": chart.START_OFFSET, "dates": dates, "history": [round(c, 2) for _, c in history],
+            "past": [[x, *values] for x, values in sorted(past.items())], **frame}
+
+
 def rewind(index: str, vault: Path, out: Path) -> Path | None:
-    """`r/rewind-{지수}/`에 되감기 바탕 그림과 `frames.json`을 쓴다. 되감을 날짜가 없으면 폴더를 지운다."""
+    """`r/rewind-{지수}/cards.json`에 되감기 날짜마다 카드 값을 쓴다. 되감을 날짜가 없으면 폴더를 지운다."""
     target = out / "r" / f"rewind-{index}"
     published = sorted(dt.date.fromisoformat(f"{p.name[:4]}-{p.name[4:6]}-{p.name[6:8]}")
                        for p in (out / "r").glob(f"*-{index}") if p.name[:8].isdigit())
-    folders = {}
-    for day in published:
-        if published[-1] - day >= dt.timedelta(days=REWIND_DAYS):
-            continue
-        folder = vault / f"routine/invest/{day:%Y-%m}/{day}/{index}"
-        key = out / "r" / f"{day:%Y%m%d}-{index}"
-        if all(path.is_file() for path in (folder / "system" / "simulation.json", folder / "system" / "tree-axes.json",
-                                          key / f"tree-{index}.png", key / f"chart-{index}.png")):
-            folders[day.isoformat()] = folder
-    if not folders:
+    frames = [frame for day in published if published[-1] - day < dt.timedelta(days=REWIND_DAYS)
+              if (frame := card_frame(day.isoformat(), vault / f"routine/invest/{day:%Y-%m}/{day}/{index}"))]
+    if not frames:
         shutil.rmtree(target, ignore_errors=True)
         return None
     chart = predictions_chart(vault)
+    until = frames[-1]["base_date"]
+    for frame in frames:
+        frame["tree"]["actual"] = actual_returns(chart.path_bands.REFERENCE_DB_PATH, chart.path_bands.SECTOR_DB_TICKERS[index],
+                                                 frame["days"], frame["base"], until)
     target.mkdir(parents=True, exist_ok=True)
-    latest = max(folders)
-    base = chart.rewind(index, latest, folders, target / "predict.png",
-                        chart.LEDGER_DIR / f"predictions-{index}.jsonl", chart.path_bands.REFERENCE_DB_PATH)
-    predict = {item["day"]: item for item in base.pop("frames")}
-    until = json.loads((folders[latest] / "path-bands.json").read_text(encoding="utf-8"))["price_base_date"]
-    frames = []
-    for day, folder in sorted(folders.items()):
-        if day not in predict:
-            continue
-        key = out / "r" / f"{day.replace('-', '')}-{index}"
-        bands = json.loads((folder / "path-bands.json").read_text(encoding="utf-8"))
-        days = json.loads((folder / "system" / "simulation.json").read_text(encoding="utf-8"))["quantiles"]["days"]
-        actual = actual_returns(chart.path_bands.REFERENCE_DB_PATH, chart.path_bands.SECTOR_DB_TICKERS[index], days,
-                                float(bands["price_base"]), until)
-        axes = json.loads((folder / "system" / "tree-axes.json").read_text(encoding="utf-8"))
-        frames.append({"day": day, "predict": {k: v for k, v in predict[day].items() if k != "day"},
-                       "tree": {"src": versioned(key / f"tree-{index}.png", out), **axes, "actual": actual},
-                       "chart": {"src": versioned(key / f"chart-{index}.png", out)}})
-    data = {"predict": {"src": versioned(target / "predict.png", out), **base}, "frames": frames}
-    (target / "frames.json").write_text(json.dumps(data, ensure_ascii=False) + "\n", encoding="utf-8")
+    (target / "cards.json").write_text(json.dumps({"frames": frames}, ensure_ascii=False) + "\n", encoding="utf-8")
     return target
 
 
@@ -765,7 +797,11 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
         shutil.rmtree(target)
     target.mkdir(parents=True)
 
-    markdown = public_markdown(source.read_text(encoding="utf-8"), vault, target, f"r/{key}")
+    text = source.read_text(encoding="utf-8")
+    card = summary_cards(index, date, source.parent, vault)
+    if card:
+        text = re.sub(rf"^!\[\[[^\]]*/(?:chart|tree|predict)-{index}\.png\]\]\s*\n", "", text, flags=re.MULTILINE)
+    markdown = public_markdown(text, vault, target, f"r/{key}")
     day = dt.date.fromisoformat(date)
     past, branches = past_events(vault, index, day)
     if past:
@@ -777,13 +813,17 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
                           capture_output=True, text=True, check=True).stdout
     body = TABLE_RE.sub(lambda m: mark_events(m.group(0)), body)
     display = source.parent / "system" / "display.json"
-    upcoming = json.loads(display.read_text(encoding="utf-8"))["next"] if display.is_file() else []
+    # 10/21까지의 `display.json`은 `next`에 이슈 이름만 적어 갈래 값이 없으므로, 갈래를 적은 항목만 갈래 변화 표시에 쓴다.
+    upcoming = [issue for issue in json.loads(display.read_text(encoding="utf-8"))["next"] if isinstance(issue, dict)] if display.is_file() else []
     body = mark_days(body, day, branches, timings(vault, index, day), upcoming)
     body = mark_indicators(body, indicator_cards(vault, index, day))
     body = mark_issue_ids(body, source.parent / "system" / "issues.json")
     body = mark_issue_images(body, source.parent / "assets", target, out)
     body = mark_issue_charts(body, source.parent / "system" / "issue-charts.json")
     body = mark_issue_history(body, issue_history(vault, index, day, out), day)
+    if card:
+        data = json.dumps(card, ensure_ascii=False).replace("</", "<\\/")
+        body += f'<script type="application/json" id="cards">{data}</script>\n'
     (target / "report.html").write_text(body, encoding="utf-8")
 
     listing = out / "r" / "index.json"
