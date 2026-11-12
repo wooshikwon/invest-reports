@@ -41,11 +41,11 @@
   header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 0 0 2px; color: var(--accent); }
   /* 제목 바로 아래에 등락률 줄을, 그 아래에 작성 시각 줄을 쓴다. 두 줄은 같은 크기의 회색 글씨로 쓰고, 작성 시각 줄은 제목과 등락률 줄 사이만큼 띄운다. 장 마감 후 등락률은 그날 리포트의 기준 가격에만 쓰이므로 괄호로 묶는다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다.
      제목 줄(지수 전환 단추와 달력 단추 포함)과 등락률 줄은 머리 상자(`#masthead`)로 묶어 화면을 내려도 화면 맨 위에 붙어 남게 한다. 상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 절 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다. 흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
-  #masthead { position: sticky; top: calc(2px + var(--top-inset)); z-index: 4; }
+  #masthead { position: sticky; top: calc(5px + var(--top-inset)); z-index: 4; }
   #berth { height: 4px; }
   #moves { margin: 0; font-size: 12.5px; color: var(--hint); }
   #dated { margin: 1.5px 0 0; font-size: 12.5px; color: var(--dim); }
-  #masthead::before { content: ""; position: absolute; inset: calc(-2px - var(--top-inset)) -16px -6px; z-index: -1;
+  #masthead::before { content: ""; position: absolute; inset: calc(-5px - var(--top-inset)) -16px -9px; z-index: -1;
                   background: linear-gradient(160deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, .01) 55%, rgba(255, 255, 255, .02));
                   border-bottom: 1px solid rgba(255, 255, 255, .06);
                   -webkit-backdrop-filter: blur(4px) saturate(150%); backdrop-filter: blur(4px) saturate(150%);
@@ -1267,7 +1267,7 @@
         const moved = down && Math.hypot(event.clientX - down[0], event.clientY - down[1]) > 10;
         down = null;
         if (moved || event.target.closest("img, a, button") || String(getSelection()).trim()) return;
-        const cover = masthead.getBoundingClientRect().bottom + 6, above = summary.getBoundingClientRect().top - cover;
+        const cover = masthead.getBoundingClientRect().bottom + 9, above = summary.getBoundingClientRect().top - cover;
         if (above < 0) scrollBy({ top: above, behavior: motion.matches ? "instant" : "smooth" });
         setFold(box, false);
       });
