@@ -57,8 +57,8 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 
 `system/simulation.json`의 `quantiles`에 5% 값이 있는 리포트는 요약 절 세 그림을 그림 파일 대신 값으로 그린다.
 그런 리포트의 공개본에서는 12M + Predictions·Montecarlo·권장 추종 배율 그림을 빼고, `report.html` 끝에 카드 값을
-`<script type="application/json" id="cards">`로 붙인다. 카드 값은 12개월 종가와 날짜, 지난 리포트가 예측한 25거래일 뒤 가격,
-그날 25·50·75% 가격, 5~95% 수익률 분위수와 사안 일정, 체류 적분 밀도를 담는다(`summary_cards`). 공개본이 있는 그 지수 리포트
+`<script type="application/json" id="cards">`로 붙인다. 카드 값은 `PRICE_YEARS`년 종가와 날짜, 지난 리포트가 예측한 25거래일 뒤 가격,
+그날 25·50·75% 가격, 10~90% 수익률 분위수와 사안 일정, 체류 적분 밀도를 담는다(`summary_cards`). 공개본이 있는 그 지수 리포트
 가운데 가장 늦은 날짜에서 `REWIND_DAYS`일 안의 카드 값 리포트는 되감기 날짜가 되고, `r/rewind-{지수}/cards.json`에 날짜마다
 같은 판단 값과 그날 기준 가격 뒤의 실제 종가 수익률(%)을 쓴다. `invest-reports` 미니 앱은 카드 값으로 그림 카드를
 그리고, 슬라이더를 옮기면 그날 판단 값으로 세 카드를 다시 그린다.
@@ -100,7 +100,8 @@ NEW_YORK, SEOUL = ZoneInfo("America/New_York"), ZoneInfo("Asia/Seoul")
 # 리포트 제목 끝의 날짜 줄. `나스닥 리포트 2026-10-22 (목)` 꼴이다.
 TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
-CARD_QUANTILES = (5, 10, 25, 50, 75, 90, 95)  # Montecarlo 카드가 그리는 수익률 분위수
+CARD_QUANTILES = (10, 25, 50, 75, 90)  # Montecarlo 카드가 그리는 수익률 분위수
+PRICE_YEARS = 3  # 주가와 예측 카드가 그리는 종가 기간(년)
 TICK_STEP = 5  # Montecarlo 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
 ISSUES_TITLE = "상세 이슈 해설"
@@ -204,7 +205,7 @@ def card_frame(date: str, folder: Path) -> dict | None:
 def summary_cards(index: str, date: str, folder: Path, vault: Path) -> dict | None:
     """요약 절 그림 카드 값. `card_frame`이 `None`인 리포트는 `None`이다.
 
-    카드 값은 그날 판단(`card_frame`)에 판단 색, 기준 가격 날짜까지 12개월 종가와 날짜, 기준 가격의 가로 거리,
+    카드 값은 그날 판단(`card_frame`)에 판단 색, 기준 가격 날짜까지 `PRICE_YEARS`년 종가와 날짜, 기준 가격의 가로 거리,
     지난 리포트가 예측한 25거래일 뒤 가격(`past`, 가로 위치·25·50·75% 가격)을 더한다. 지난 예측은 12M + Predictions 그림과
     같은 줄을 고르고, 오늘 판단과 같은 기준 가격 날짜의 줄과 오늘 판단의 끝보다 오른쪽 줄은 뺀다.
     """
@@ -212,7 +213,15 @@ def summary_cards(index: str, date: str, folder: Path, vault: Path) -> dict | No
     if not frame:
         return None
     chart = predictions_chart(vault)
-    history = chart.price_history(index, dt.date.fromisoformat(frame["base_date"]), chart.path_bands.REFERENCE_DB_PATH)
+    base_date = dt.date.fromisoformat(frame["base_date"])
+    con = sqlite3.connect(f"file:{chart.path_bands.REFERENCE_DB_PATH}?mode=ro", uri=True)
+    try:
+        history = con.execute(
+            "SELECT price_date, close FROM market_price WHERE ticker=? AND price_date BETWEEN ? AND ? ORDER BY price_date",
+            (chart.path_bands.SECTOR_DB_TICKERS[index], (base_date - dt.timedelta(days=round(365.25 * PRICE_YEARS))).isoformat(),
+             frame["base_date"])).fetchall()
+    finally:
+        con.close()
     dates = [day for day, _ in history]
     x0, horizon = len(dates) - 1, len(frame["predict"]["q50"]) - 1
     past = {}

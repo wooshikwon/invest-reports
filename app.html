@@ -341,26 +341,32 @@
   /* 그림은 모두 같은 높이의 칸에 가운데로 그려, 장마다 그림과 해설의 위치가 같다. */
   .gauge > svg { display: block; width: 100%; height: auto; margin: 10px 0 6px; overflow: visible; }
   .gauge p { margin: 20px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--hint); }
-  /* 요약 절 그림 카드는 위 줄에 회색 맥락 글씨와 기간 단추, 가운데 줄에 값과 상태를 두고, 그림은 카드 폭에 맞춘 SVG로 그린다.
-     판단 색(`--card-color`)은 지수마다 다르다. 기간 단추 묶음은 옅은 회색 칸에 두고, 고른 단추만 더 밝은 회색 칸으로 칠한다. */
+  /* 요약 절 그림 카드는 위 줄에 회색 맥락 글씨, 가운데 줄에 값과 상태를 두고, 그림은 카드 폭에 맞춘 SVG로 그린다. 세 카드의 그림은 높이와
+     가로축 높이가 같아, 카드를 넘겨도 가로축이 같은 높이에 있다. 판단 색(`--card-color`)은 지수마다 다르다. 범위 값의 물결표는 흐린 글씨로 띄어 쓴다. */
   .gauge .ctx { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
-  .gauge.summary .top { align-items: center; }
   .gauge.summary .state { color: var(--card-color); }
-  .gauge .seg { display: flex; gap: 2px; padding: 2px; margin: -2px -4px 0 0; border-radius: 8px; background: rgba(255, 255, 255, .05); }
-  .gauge .seg button { appearance: none; border: 0; border-radius: 6px; padding: 1px 8px; background: transparent; color: var(--dim); font: inherit;
-                       font-size: 11.5px; font-weight: 600; line-height: 1.6; cursor: pointer; }
-  .gauge .seg button.on { background: rgba(255, 255, 255, .14); color: #fff; }
+  .gauge.summary .state[hidden] { display: none; }
+  .gauge.summary .val b .sep { margin: 0 .28em; font-weight: 400; color: var(--dim); }
   .gauge .fig { margin: 10px 0 6px; }
   .gauge .fig svg { display: block; width: 100%; height: auto; overflow: visible; font-variant-numeric: tabular-nums; }
   /* 기간을 바꾸면 최고·최저 글씨는 그림이 멈춘 뒤 0.25초에 걸쳐 나타난다. */
   .gauge .marks { animation: marks-in .25s ease-out; }
   @keyframes marks-in { from { opacity: 0; } }
-  /* Montecarlo 카드 아래에는 고른 번호의 일정을 적는다. 같은 날 일정은 줄마다 하나씩 적고, 그 아래에 날짜를 적는다. */
-  .gauge .evbox { display: flex; align-items: flex-start; gap: 9px; min-height: 60px; margin-top: 12px; font-size: 13px; color: var(--text); }
-  .gauge .evbox em { flex: none; display: inline-grid; place-items: center; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%;
+  /* 그림 아래 줄은 세 카드가 같은 높이로 둔다. 주가와 예측 카드는 기간을 한 단계씩 줄이고 늘리는 단추와 네 단계 가운데 고른 단계의 점을,
+     Montecarlo 카드는 고른 번호의 일정을 둔다. 일정은 날짜를 위에 적고, 같은 날 일정은 쉼표로 이어 가로로 적는다. */
+  .gauge .foot { min-height: 60px; margin-top: 12px; }
+  .gauge .zoom { display: flex; align-items: center; gap: 10px; }
+  .gauge .zoom button { appearance: none; border: 0; padding: 0; width: 28px; height: 28px; background: transparent; color: var(--text);
+                        font: inherit; font-size: 22px; font-weight: 400; line-height: 28px; cursor: pointer; }
+  .gauge .zoom button:disabled { color: var(--dim); opacity: .45; cursor: default; }
+  .gauge .zoom .steps { display: flex; gap: 5px; }
+  .gauge .zoom .steps i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, .22); }
+  .gauge .zoom .steps i.on { background: #fff; }
+  .gauge .evbox { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; color: var(--text); }
+  .gauge .evbox em { flex: none; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
                      background: var(--card-color); color: #0b1a24; font-style: normal; font-size: 11px; font-weight: 600; }
-  .gauge .evbox .n { line-height: 1.45; }
-  .gauge .evbox .d { margin-top: 1px; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .gauge .evbox .d { font-size: 12px; line-height: 18px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .gauge .evbox .n { margin-top: 2px; line-height: 1.45; }
   /* 표 카드는 그림 칸 대신 표를 싣는다. 첫 열 이름은 소제목 색, 강조 열(`focus`)은 카드 값처럼 굵은 흰 글씨, 나머지 칸은 흐린 글씨로 쓴다. */
   .gauge table { margin: 12px 0 4px; font-variant-numeric: tabular-nums; }
   .gauge th { color: var(--dim); font-size: 12px; }
@@ -729,46 +735,50 @@
   // 돌려준 `show(frame)`은 되감기 슬라이더가 고른 날짜의 판단(`cards.json`의 프레임)으로 세 장을 다시 그린다.
   // 주가와 예측의 종가 바탕(날짜·종가·지난 예측)은 늘 리포트 날짜의 값이고, 고른 날짜의 판단만 그 위에 바꿔 그린다.
   function summaryCards(data, date) {
-    const color = data.color, so = data.start_offset, dates = data.dates, hist = data.history, W = 320;
+    // 세 카드는 같은 높이(`H`)의 그림에 같은 높이(`B`)의 가로축을 긋는다.
+    const color = data.color, so = data.start_offset, dates = data.dates, hist = data.history, W = 320, H = 236, B = 212;
     const DIMS = "#7A828C", GRID = "rgba(122, 130, 140, .28)", PRICE = "#C9CDD3";
     const tint = (a) => `rgba(${[1, 3, 5].map((k) => parseInt(color.slice(k, k + 2), 16)).join(", ")}, ${a})`;
     const fmt = (v) => `$${Math.round(v).toLocaleString("en-US")}`;
-    const signed = (v) => `${v > 0 ? "+" : ""}${v.toFixed(1)}`;
+    const signed = (v, digits = 1) => `${v > 0 ? "+" : v < 0 ? "\u2212" : ""}${Math.abs(v).toFixed(digits)}`;
     const md = (day) => `${day.slice(5, 7)}/${day.slice(8, 10)}`;
     const path = (points) => `M${points.map(([x, y]) => `${x} ${y}`).join("L")}`;
     const last = dates.length - 1;
-    // 카드 틀. 위 줄 맥락 글씨, 가운데 줄 값과 상태, 아래 그림 칸을 둔다. 맥락 글씨는 지난 날짜를 고르면 그 리포트 날짜를 앞에 붙인다.
+    // 카드 틀. 위 줄 맥락 글씨, 가운데 줄 값과 상태, 그림 칸, 그림 아래 줄을 둔다. 맥락 글씨는 지난 날짜를 고르면 그 리포트 날짜를 앞에 붙인다.
+    // 값은 글씨나 노드 목록으로 받고, 상태 글씨가 없으면 상태 칸을 숨긴다.
     const card = (ctx) => {
       const box = Object.assign(document.createElement("div"), { className: "gauge summary" });
       box.style.setProperty("--card-color", color);
-      box.innerHTML = '<div class="top"><span class="ctx"></span></div><div class="val"><b></b><span class="state"><i></i><span></span></span></div><div class="fig"></div>';
-      const [label, value, state] = [box.querySelector(".ctx"), box.querySelector(".val b"), box.querySelector(".state span")];
-      const svg = box.querySelector(".fig").appendChild(shape("svg"));
-      const head = (frame, text, big, unit = "") => {
+      box.innerHTML = '<div class="top"><span class="ctx"></span></div><div class="val"><b></b><span class="state"><i></i><span></span></span></div><div class="fig"></div><div class="foot"></div>';
+      const [label, value, state] = [box.querySelector(".ctx"), box.querySelector(".val b"), box.querySelector(".state")];
+      const svg = box.querySelector(".fig").appendChild(shape("svg", { viewBox: `0 0 ${W} ${H}` }));
+      const head = (frame, text, big) => {
         label.textContent = frame.day === date ? ctx : `${md(frame.day)} 리포트, ${ctx}`;
-        value.textContent = big;
-        if (unit) value.append(Object.assign(document.createElement("small"), { textContent: unit }));
-        state.textContent = text;
+        value.replaceChildren(...[big].flat());
+        state.querySelector("span").textContent = text;
+        state.hidden = !text;
       };
-      return { box, svg, head, top: box.querySelector(".top") };
+      return { box, svg, head, foot: box.querySelector(".foot") };
     };
 
-    // 주가와 예측: 오른쪽 위 단추로 고른 기간의 종가와 고른 날짜 판단의 25~75% 범위, 50% 선을 그린다. 회색 점선과 면은 지난 리포트의 예측이다.
+    // 주가와 예측: 그림 아래 −·+ 단추로 고른 기간의 종가와 고른 날짜 판단의 25~75% 범위, 50% 선을 그린다. 회색 점선과 면은 지난 리포트의 예측이다.
+    // 기간은 3년, 1년, 6개월, 3개월 네 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
     // 고른 날짜가 리포트 날짜보다 앞이면 종가 선은 그날 판단의 출발점에서 다시 이어 리포트 날짜 판단의 기준 가격 날짜 종가까지 그리고,
     // 그 오른쪽 `start_offset` 거래일에 리포트 날짜 판단의 기준 가격을 점으로 찍어 점선으로 잇는다.
     const predict = (() => {
       const c = card("25거래일 뒤 예측"), s = c.svg;
-      const H = 210, L = 4, R = W - 42, T = 22, B = H - 24, xmax = last + so + 25;
-      s.setAttribute("viewBox", `0 0 ${W} ${H}`);
-      const SPAN = { "3m": last - 63, "6m": last - 126, "1y": 0 };
-      let span = "1y", frame = null, raf = 0;
-      const seg = Object.assign(document.createElement("span"), { className: "seg" });
-      [["3m", "3개월"], ["6m", "6개월"], ["1y", "1년"]].forEach(([k, text]) => {
-        const button = Object.assign(document.createElement("button"), { textContent: text, className: k === span ? "on" : "" });
-        button.dataset.k = k;
-        seg.append(button);
-      });
-      c.top.append(seg);
+      const L = 4, R = W - 42, T = 22, xmax = last + so + 25;
+      const SPAN = [756, 252, 126, 63].map((days) => Math.max(0, last - days));
+      let span = 1, frame = null, raf = 0;
+      const zoom = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
+      zoom.innerHTML = `<button type="button" aria-label="기간 늘리기">\u2212</button><span class="steps">${"<i></i>".repeat(SPAN.length)}</span><button type="button" aria-label="기간 줄이기">+</button>`;
+      const [wider, narrower] = zoom.querySelectorAll("button");
+      const level = () => {
+        wider.disabled = span === 0;
+        narrower.disabled = span === SPAN.length - 1;
+        zoom.querySelectorAll(".steps i").forEach((dot, i) => dot.classList.toggle("on", i === span));
+      };
+      level();
       const past = data.past.map(([x, lo, mid, hi]) => ({ x, lo, mid, hi }));
       const at = (f) => dates.indexOf(f.base_date);
       const end = (f, q) => f.predict[q][f.predict[q].length - 1];
@@ -790,13 +800,13 @@
         clip.append(shape("rect", { x: L, y: 0, width: R - L, height: B }));
         s.append(clip);
         const g = s.appendChild(shape("g", { "clip-path": "url(#predict-clip)" }));
-        // 한 달 간격이 42px보다 좁아지면 분기 달만 남기고 나머지 달 이름은 흐리게 지운다.
-        const perMonth = 21 * (R - L) / (xmax - x0), fade = Math.max(0, Math.min(1, (perMonth - 30) / 12));
+        // 달 이름은 6월·12월, 분기 달, 나머지 달 순서로 남긴다. 이름 사이 간격이 42px보다 좁아지면 아래 단계의 달 이름부터 흐리게 지운다.
+        const perMonth = 21 * (R - L) / (xmax - x0), fade = (months) => Math.max(0, Math.min(1, (months * perMonth - 30) / 12));
         let month = "";
         dates.forEach((d, i) => {
           if (d.slice(0, 7) === month) return;
           month = d.slice(0, 7);
-          const x = X(i), m = +d.slice(5, 7), opacity = m % 3 === 0 ? 1 : fade;
+          const x = X(i), m = +d.slice(5, 7), opacity = fade(m % 6 === 0 ? 6 : m % 3 === 0 ? 3 : 1);
           if (x >= L + 12 && opacity > 0) s.append(shape("text", { x, y: B + 17, "font-size": 11, fill: DIMS, "text-anchor": "middle", opacity }, `${m}월`));
         });
         s.append(shape("line", { x1: L, x2: R, y1: B, y2: B, stroke: DIMS, "stroke-width": 1 }));
@@ -806,7 +816,7 @@
         }
         const xs = p.q50.map((_, k) => X(fx + (k ? k + so : so))), origin = [xs[0], Y(f.base)];
         g.append(shape("path", { d: `${path(xs.map((x, k) => [x, Y(p.q25[k])]))}L${xs.slice().reverse().map((x, k) => `${x} ${Y(p.q75[xs.length - 1 - k])}`).join("L")}Z`, fill: color, opacity: .22 }));
-        const i0 = Math.max(0, Math.floor(x0)), width = 1.4 - .3 * Math.max(0, Math.min(1, (last - x0 - 63) / 187));
+        const i0 = Math.max(0, Math.floor(x0)), width = 1.4 - .4 * Math.max(0, Math.min(1, (last - x0 - 63) / 693));
         const stroke = { fill: "none", stroke: PRICE, "stroke-width": width, "stroke-linejoin": "round" };
         g.append(shape("path", { d: path(hist.slice(i0, fx + 1).map((v, k) => [X(i0 + k), Y(v)])), ...stroke }));
         g.append(shape("path", { d: path([[X(fx), Y(hist[fx])], origin]), ...stroke, "stroke-dasharray": "2 2" }));
@@ -841,17 +851,18 @@
         const x0 = SPAN[from] + (SPAN[to] - SPAN[from]) * e, [c0, c1] = range(Math.max(0, Math.floor(x0)));
         draw(x0, Math.min(a0 + (b0 - a0) * e, c0), Math.max(a1 + (b1 - a1) * e, c1), t >= 1);
       };
-      seg.addEventListener("click", (event) => {
-        const k = event.target.dataset.k;
-        if (!k || k === span) return;
+      const move = (by) => {
         const from = span;
-        span = k;
-        seg.querySelectorAll("button").forEach((button) => button.classList.toggle("on", button.dataset.k === k));
+        span = Math.max(0, Math.min(SPAN.length - 1, span + by));
+        if (span === from) return;
+        level();
         cancelAnimationFrame(raf);
         const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 550, t0 = performance.now();
-        const step = (now) => { const t = duration ? Math.min(1, (now - t0) / duration) : 1; tween(from, k, t); if (t < 1) raf = requestAnimationFrame(step); };
+        const step = (now) => { const t = duration ? Math.min(1, (now - t0) / duration) : 1; tween(from, span, t); if (t < 1) raf = requestAnimationFrame(step); };
         raf = requestAnimationFrame(step);
-      });
+      };
+      wider.addEventListener("click", () => move(-1));
+      narrower.addEventListener("click", () => move(1));
       return {
         box: c.box,
         show(f) {
@@ -863,13 +874,12 @@
       };
     })();
 
-    // Montecarlo: 수익률 분위수의 5~95%, 10~90% 옅은 면과 25~75% 면·선, 50% 점선을 그린다. 위쪽 번호는 이슈 일정이 있는 날이고,
-    // 번호를 누르면 카드 아래에 그 일정을 적는다. 지난 날짜를 고르면 그날 기준 가격 뒤의 실제 종가 수익률을 흰 선으로 그린다.
+    // Montecarlo: 수익률 분위수의 10~90% 옅은 면과 25~75% 면·선, 50% 점선을 그린다. 위쪽 번호는 이슈 일정이 있는 날이고,
+    // 번호를 누르면 그림 아래 줄에 그 일정을 적는다. 지난 날짜를 고르면 그날 기준 가격 뒤의 실제 종가 수익률을 흰 선으로 그린다.
     const tree = (() => {
       const c = card("25거래일 뒤 수익률"), s = c.svg;
-      const H = 246, L = 4, R = W - 4, T = 38, B = H - 24;
-      s.setAttribute("viewBox", `0 0 ${W} ${H}`);
-      const box = c.box.appendChild(Object.assign(document.createElement("div"), { className: "evbox" }));
+      const L = 4, R = W - 4, T = 38;
+      const box = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "evbox" }));
       let frame = null, pick = 0;
       const mark = () => {
         s.querySelectorAll("[data-ev]").forEach((node) => {
@@ -882,8 +892,8 @@
         box.replaceChildren();
         if (!names) return;
         const text = document.createElement("div");
-        names.forEach((name) => text.append(Object.assign(document.createElement("div"), { className: "n", textContent: name })));
-        text.append(Object.assign(document.createElement("div"), { className: "d", textContent: day }));
+        text.append(Object.assign(document.createElement("div"), { className: "d", textContent: day }),
+          Object.assign(document.createElement("div"), { className: "n", textContent: names.join(", ") }));
         box.append(Object.assign(document.createElement("em"), { textContent: pick + 1 }), text);
       };
       const draw = () => {
@@ -892,14 +902,13 @@
         const actual = f.day === date ? [] : f.tree.actual.slice(0, (f.days.indexOf(data.base_date) + 1) || undefined);
         // 지난 날짜에서 실제 종가가 리포트 날짜 판단의 기준 가격 날짜까지 모두 있으면, 그 오른쪽 `start_offset` 거래일에 리포트 날짜 판단의 기준 가격을 놓고 점선으로 잇는다.
         const tail = actual.length && f.days[actual.length - 1] === data.base_date ? [actual.length - 1 + so, (data.base / f.base - 1) * 100] : null;
-        const reach = Math.max(15, ...[pct["5"], pct["95"], actual].flat().map(Math.abs), tail ? Math.abs(tail[1]) : 0);
+        const reach = Math.max(15, ...[pct["10"], pct["90"], actual].flat().map(Math.abs), tail ? Math.abs(tail[1]) : 0);
         const top = Math.ceil(reach / 5) * 5, step = top > 20 ? 10 : 5;
         const X = (d) => L + d / n * (R - L), Y = (v) => B - (Math.max(-top, Math.min(top, v)) + top) / (2 * top) * (B - T);
         const band = (a, b, opacity) => shape("path", { d: `${path(pct[a].map((v, d) => [X(d), Y(v)]))}L${pct[b].slice().reverse().map((v, d) => `${X(n - d)} ${Y(v)}`).join("L")}Z`, fill: color, opacity });
-        s.append(band("5", "95", .10), band("10", "90", .14));
+        s.append(band("10", "90", .14));
         for (let v = -top + step; v < top; v += step) {
           s.append(shape("line", { x1: L, x2: R, y1: Y(v), y2: Y(v), stroke: v ? GRID : "rgba(122, 130, 140, .55)", "stroke-dasharray": v ? "3 3" : "" }));
-          s.append(shape("text", { x: L, y: Y(v) - 4, "font-size": 11, fill: DIMS }, v ? `${v > 0 ? "+" : ""}${v}%` : "0%"));
         }
         // 이웃 번호와 16px보다 가까운 번호는 한 줄 위에 그린다.
         let before = -99, row = 0;
@@ -926,6 +935,8 @@
           if (tail) s.append(shape("path", { d: path([points[points.length - 1], dot]), ...lineStyle, stroke: PRICE, "stroke-width": 1.6, "stroke-dasharray": "2 2" }));
           s.append(shape("circle", { cx: dot[0], cy: dot[1], r: 2.5, fill: PRICE }));
         }
+        // 축 숫자는 띠와 일정 세로선에 덮이지 않게 마지막에 그린다.
+        for (let v = -top + step; v < top; v += step) s.append(shape("text", { x: L, y: Y(v) - 4, "font-size": 11, fill: DIMS, "pointer-events": "none" }, `${signed(v, 0)}%`));
         mark();
       };
       return {
@@ -934,7 +945,8 @@
           if (frame?.day !== f.day) pick = 0;
           frame = f;
           const p25 = f.tree.pct["25"], p75 = f.tree.pct["75"];
-          c.head(f, "가운데 50% 경로", `${signed(p25[p25.length - 1])}~${signed(p75[p75.length - 1])}`, "%");
+          const percent = (v) => [signed(v), Object.assign(document.createElement("small"), { textContent: "%" })];
+          c.head(f, "", [...percent(p25[p25.length - 1]), Object.assign(document.createElement("span"), { className: "sep", textContent: "~" }), ...percent(p75[p75.length - 1])]);
           draw();
         },
       };
@@ -943,13 +955,12 @@
     // 권장 추종 배율: 경로마다의 평균 배율 분포를 오늘 판단(판단 색)과 이슈가 없을 때의 기준(회색)으로 그리고, 평균 배율에 세로선을 긋는다.
     const chart = (() => {
       const c = card("지수 추종 = 1.0"), s = c.svg;
-      const H = 190, L = 6, R = W - 6, T = 14, B = H - 26;
-      s.setAttribute("viewBox", `0 0 ${W} ${H}`);
+      const L = 6, R = W - 6, T = 22;
       return {
         box: c.box,
         show(f) {
           const den = f.chart, n = den.points, m = 1 + den.mean;
-          c.head(f, m < 1 ? "하락 쪽 판단" : "상승 쪽 판단", m.toFixed(2));
+          c.head(f, "", m.toFixed(3));
           const xs = Array.from({ length: n }, (_, i) => 1 + den.low + (den.high - den.low) * i / (n - 1));
           const X = (v) => L + (v - xs[0]) / (xs[n - 1] - xs[0]) * (R - L), peak = Math.max(...den.today, ...den.quiet);
           const Y = (v) => B - v / peak * (B - T);
@@ -2148,8 +2159,8 @@
     + '<circle cx="8" cy="11.6" r=".8" fill="currentColor"/></svg>';
   // 그림 카드가 있는 리포트의 1개월 지수 방향 예측 설명. 판단 색 이름은 지수마다 다르다.
   const CARD_HELP = (ink) => [
-    ["주가와 예측", `흰 선은 오른쪽 위에서 고른 기간(3개월, 6개월, 1년)의 종가이고, 최고와 최저는 그 기간의 가장 높고 낮은 종가예요. ${ink} 실선은 예측 중앙값이고, ${ink} 면은 가격이 25~75% 확률로 들어올 범위예요. 오른쪽 ${ink} 값은 25거래일 뒤 75%, 50%, 25% 가격이에요. 회색 점선과 면은 지난 리포트가 예측한 가격이에요.`],
-    ["몬테카를로", `이슈와 이벤트를 반영해 지수가 갈 수 있는 경로 2만 개를 그려요. 두 ${ink} 선 사이에 경로의 가운데 50%가 들어오고, 옅은 면은 가운데 80%와 90% 범위예요. 흰 점선은 중앙값이에요. 위쪽 번호는 이슈 일정이 있는 날이고, 번호를 누르면 그림 아래에 그 일정이 나와요.`],
+    ["주가와 예측", `흰 선은 그림 아래 −와 + 단추로 고른 기간의 종가이고, 최고와 최저는 그 기간의 가장 높고 낮은 종가예요. ${ink} 실선은 예측 중앙값이고, ${ink} 면은 가격이 25~75% 확률로 들어올 범위예요. 오른쪽 ${ink} 값은 25거래일 뒤 75%, 50%, 25% 가격이에요. 회색 점선과 면은 지난 리포트가 예측한 가격이에요.`],
+    ["몬테카를로", `이슈와 이벤트를 반영해 지수가 갈 수 있는 경로 2만 개를 그려요. 두 ${ink} 선 사이에 경로의 가운데 50%가 들어오고, 옅은 면은 가운데 80% 범위예요. 흰 점선은 중앙값이에요. 위쪽 번호는 이슈 일정이 있는 날이고, 번호를 누르면 그림 아래에 그 일정이 나와요.`],
     ["권장 추종 배율", `경로 2만 개마다 한 달 동안 평균적으로 얼마나 오르거나 내렸는지를 배율로 바꿔 그린 분포예요. ${ink} 곡선은 오늘 판단이고, 회색 곡선은 이슈가 없을 때의 기준이에요. ${ink} 세로선이 권장 추종 배율이고, 회색 점선 1.0(지수 추종)보다 왼쪽이면 하락 쪽 판단이에요.`],
   ];
   const INK = { nasdaq: "파란", biotech: "보라" };
