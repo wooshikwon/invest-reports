@@ -211,8 +211,8 @@
   .history .entry.pressed { transform: scale(.97); }
   .history .entry .day { flex: none; min-width: 40px; font-variant-numeric: tabular-nums; }
   /* 이슈 문단 끝에 앞 이슈와 다음 이슈로 가는 두 칸을 나란히 둔다. 칸마다 그 이슈 그림을 가로로 긴 띠로 흐리게 잘라 보이고, 그림 아래 모서리에 이동 방향 꼬리표를,
-     그림 아래에 이슈 제목을 두 줄까지 쓴다. 그림이 없는 이슈는 같은 크기의 빈 띠를 둔다. 앞 칸은 왼쪽에, 다음 칸은 오른쪽에 붙여 쓰고, 첫 이슈의 앞 칸과 마지막 이슈의 다음 칸은 비운다. 누르고 있는 칸은 3% 줄인다. */
-  .issue-page > nav.step { display: flex; gap: 12px; margin: 32px 0 8px; }
+     그림 아래에 이슈 제목을 두 줄까지 쓴다. 두 칸은 위끝을 맞춰 제목 줄 수가 달라도 그림 높이가 같다. 그림이 없는 이슈는 같은 크기의 빈 띠를 둔다. 앞 칸은 왼쪽에, 다음 칸은 오른쪽에 붙여 쓰고, 첫 이슈의 앞 칸과 마지막 이슈의 다음 칸은 비운다. 누르고 있는 칸은 3% 줄인다. */
+  .issue-page > nav.step { display: flex; align-items: flex-start; gap: 12px; margin: 32px 0 8px; }
   .step > :is(button, span) { flex: 1; min-width: 0; }
   .step button { display: block; padding: 0; border: 0; background: none; color: var(--hint); font: inherit; text-align: left; cursor: pointer;
     transition: transform .1s ease-out; -webkit-tap-highlight-color: transparent; }
