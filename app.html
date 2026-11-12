@@ -40,30 +40,31 @@
   main { max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-inset)) 16px calc(40px + var(--offscreen, 0px)); }
   header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 4px 0 2px; color: var(--accent); }
   /* 제목 바로 아래에 등락률 줄을, 그 아래에 작성 시각 줄을 쓴다. 두 줄은 같은 크기의 회색 글씨로 쓰고, 작성 시각 줄은 제목과 등락률 줄 사이만큼 띄운다. 장 마감 후 등락률은 그날 리포트의 기준 가격에만 쓰이므로 괄호로 묶는다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다.
-     등락률 줄은 머리말 밖에 두어 화면을 내려도 화면 맨 위에 붙어 남게 한다. 줄이 화면 위에 붙으면(`stuck`) 줄 위아래로 배경색을 반투명하게 흐린 띠를 깔아 본문이 줄 밑으로 비쳐 지나가게 한다. 흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
-  #moves { position: sticky; top: calc(6px + var(--top-inset)); z-index: 4; margin: 0; font-size: 12.5px; color: var(--hint); }
+     제목 줄(지수 전환 단추와 달력 단추 포함)과 등락률 줄은 머리 상자(`#masthead`)로 묶어 화면을 내려도 화면 맨 위에 붙어 남게 한다. 상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 배경색을 반투명하게 흐린 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 한다. 흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
+  #masthead { position: sticky; top: calc(6px + var(--top-inset)); z-index: 4; }
+  #moves { margin: 0; font-size: 12.5px; color: var(--hint); }
   #dated { margin: 1.5px 0 0; font-size: 12.5px; color: var(--dim); }
-  #moves::before { content: ""; position: absolute; inset: calc(-6px - var(--top-inset)) -16px -6px; z-index: -1; background: color-mix(in srgb, var(--bg) 30%, transparent);
-                   -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%);
-                   opacity: 0; transition: opacity .15s; pointer-events: none; }
-  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #moves::before { background: var(--bg); } }
-  #moves.stuck::before { opacity: 1; }
-  /* 전체화면 위쪽 높이를 등락률 띠와 같은 유리로 덮는다. 등락률 띠가 고정되면 띠가 이 높이까지 함께 덮으므로 이 유리는 감춘다. */
+  #masthead::before { content: ""; position: absolute; inset: calc(-6px - var(--top-inset)) -16px -6px; z-index: -1; background: color-mix(in srgb, var(--bg) 30%, transparent);
+                  -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%);
+                  opacity: 0; transition: opacity .15s; pointer-events: none; }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #masthead::before { background: var(--bg); } }
+  #masthead.stuck::before { opacity: 1; }
+  /* 전체화면 위쪽 높이를 머리 상자의 띠와 같은 유리로 덮는다. 머리 상자가 고정되면 띠가 이 높이까지 함께 덮으므로 이 유리는 감춘다. */
   #top-glass { position: fixed; top: 0; left: 0; right: 0; z-index: 4; height: var(--top-inset); pointer-events: none;
                background: color-mix(in srgb, var(--bg) 30%, transparent);
                -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%); transition: opacity .15s; }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #top-glass { background: var(--bg); } }
-  body:has(#moves.stuck) #top-glass { opacity: 0; }
-  #moves.stuck { cursor: pointer; }
+  body:has(#masthead.stuck) #top-glass { opacity: 0; }
+  #masthead.stuck #moves { cursor: pointer; }
   #moves:empty { display: none; }
   #moves b { font-weight: 700; margin-left: 4px; }
   #moves .up { color: #ff5c5c; }
   #moves .down { color: #5b9bff; }
   #moves .up, #moves .down { transition: color .15s; }
-  #moves.stuck .up { color: color-mix(in srgb, #ff5c5c 30%, var(--dim)); }
-  #moves.stuck .down { color: color-mix(in srgb, #5b9bff 30%, var(--dim)); }
+  #masthead.stuck #moves .up { color: color-mix(in srgb, #ff5c5c 30%, var(--dim)); }
+  #masthead.stuck #moves .down { color: color-mix(in srgb, #5b9bff 30%, var(--dim)); }
   #moves .sep { margin-left: 8px; }
-  #moves:not(:empty) + #dated + #report > h2:first-child { margin-top: 36px; }
+  #masthead:has(#moves:not(:empty)) + #dated + #report > h2:first-child { margin-top: 36px; }
   /* 제목 줄 오른쪽 끝에 달력 단추를 두고, 단추의 세로 가운데를 제목 글자가 칠해진 높이의 가운데(`--title-mid`, `centerTitle`이 잰다)에 맞춘다. 달력 단추와 지수 전환 단추는 얇은 외곽선과 둥근 모서리를 두른 같은 높이의 상자로 그린다. 누르면 단추 바로 아래에 같은 지수의 리포트 날짜를 고르는 달력을 띄우고, 화면을 넘겨도 달력은 단추 아래에 붙어 함께 움직인다.
      달력 상자는 설명 상자와 같은 색으로 그리고, 리포트가 있는 날짜는 흰 글자로 쓰고 그 아래에 그 리포트의 정규장 등락률을 머리말과 같은 색으로 적는다.
      리포트가 없는 날짜는 회색으로 쓰고 누를 수 없다. 보고 있는 리포트의 날짜는 날짜 띠의 고른 상자와 같은 색으로 칠하고, 다른 리포트를 볼 때 오늘 날짜에는 테두리를 두른다. */
@@ -79,6 +80,8 @@
                          --index-ink: linear-gradient(100deg, var(--index-to) -25%, var(--index) 85%); }
   /* 지수 전환 단추의 글자는 절 제목과 같은 그라데이션으로 칠하되, 단추가 여는 지수의 두 색을 쓴다. */
   header .index-switch span { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  /* 달력을 띄운 가림막은 머리 상자 안에 두고, 달력이 떠 있는 동안 머리 상자를 가림막 높이 위로 올린다. 가림막이 머리 상자의 제목과 띠까지 덮고 달력만 그 위에 남는다. */
+  #masthead:has(.cal-layer) { z-index: 10; }
   .cal-layer { position: fixed; inset: 0; z-index: 10; background: rgba(0, 0, 0, .35); }
   .cal { position: absolute; z-index: 11; width: min(320px, calc(100vw - 24px)); padding: 14px 12px 12px; border-radius: 16px; background: #222226;
          box-shadow: 0 12px 32px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .06); touch-action: pan-y; }
@@ -380,7 +383,7 @@
 <body>
 <div id="top-glass"></div>
 <main>
-  <header><h1 id="title">투자 판단 리포트</h1></header><p id="moves"></p><p id="dated"></p>
+  <div id="masthead"><header><h1 id="title">투자 판단 리포트</h1></header><p id="moves"></p></div><p id="dated"></p>
   <article id="report"><p class="status">리포트를 불러오는 중이다.</p></article>
 </main>
 <script>
@@ -417,6 +420,10 @@
   // 홈 화면 바로가기는 `start_param` 없이 미니 앱을 열므로, 키가 없으면 리포트를 받기 전에 `r/index.json`에서 키를 정한다.
   let key = query.get("r") || (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || "";
   const report = document.getElementById("report");
+  // 머리 상자가 화면 위에 붙어 있으면 `stuck`을 단다. 문서 맨 위에서는 달지 않는다.
+  const masthead = document.getElementById("masthead");
+  const stick = () => masthead.classList.toggle("stuck", scrollY > 0 && masthead.getBoundingClientRect().top <= parseFloat(getComputedStyle(masthead).top) + .5);
+  addEventListener("scroll", stick, { passive: true });
   // 소제목 위 말머리와 이벤트 시각은 지수마다 리포트 그림의 판단 색 계열에서 채도를 낮춘 색으로 쓴다(conviction_chart.py JUDGMENT_COLORS).
   // 두 번째 색은 그라데이션이 끝나는 색으로, 지수색에서 색상환을 따라 보라 쪽으로 조금 옮긴 색이다.
   const INDEX = { nasdaq: ["#8FBCE6", "#AFA6EC"], biotech: ["#AE9CE6", "#E09DCB"] };
@@ -1183,14 +1190,15 @@
         setFold(box, !(box.want ?? box.open));
       });
       // 펼친 내용을 누르면 접는다. 그림과 링크를 누른 경우, 누른 채 10px 넘게 움직인 경우, 글자를 고른 경우는 접지 않는다.
-      // 소제목이 화면 위로 지나가 있으면 접기 전에 소제목을 화면 위로 옮긴다.
+      // 소제목이 머리 상자 띠 밑으로 지나가 있으면 접기 전에 소제목을 띠 바로 아래로 옮긴다.
       let down = null;
       body.addEventListener("pointerdown", (event) => { down = [event.clientX, event.clientY]; }, { passive: true });
       body.addEventListener("click", (event) => {
         const moved = down && Math.hypot(event.clientX - down[0], event.clientY - down[1]) > 10;
         down = null;
         if (moved || event.target.closest("img, a, button") || String(getSelection()).trim()) return;
-        if (summary.getBoundingClientRect().top < 0) summary.scrollIntoView({ block: "start", behavior: motion.matches ? "instant" : "smooth" });
+        const cover = masthead.getBoundingClientRect().bottom + 6, above = summary.getBoundingClientRect().top - cover;
+        if (above < 0) scrollBy({ top: above, behavior: motion.matches ? "instant" : "smooth" });
         setFold(box, false);
       });
     });
@@ -1697,7 +1705,7 @@
       const close = () => { aligning?.(); layer.remove(); card.remove(); opener.classList.remove("on"); };
       layer.addEventListener("click", (event) => { if (event.target === layer) close(); });
       opener.classList.add("on");
-      document.body.append(layer);
+      masthead.append(layer);
       opener.after(card);
       draw();
     });
@@ -1766,11 +1774,8 @@
           : `<b class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}%</b>`;
         const moves = document.getElementById("moves");
         moves.innerHTML = `정규장${pct(entry.moves.session)}<span class="sep"></span>(장 마감 후${pct(entry.moves.after)})`;
-        const stick = () => moves.classList.toggle("stuck", scrollY > 0 && moves.getBoundingClientRect().top <= parseFloat(getComputedStyle(moves).top) + .5);
-        addEventListener("scroll", stick, { passive: true });
-        stick();
         moves.onclick = () => {
-          if (!moves.classList.contains("stuck")) return;
+          if (!masthead.classList.contains("stuck")) return;
           feelPress();
           scrollTo({ top: 0, behavior: motion.matches ? "instant" : "smooth" });
         };
