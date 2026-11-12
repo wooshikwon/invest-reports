@@ -169,8 +169,8 @@
   .carousel .track::-webkit-scrollbar { display: none; }
   .carousel .slide { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; }
   .carousel .slide img { margin: 0; }
-  /* 날짜 슬라이더는 그림 폭의 80%로 가운데에 둔다. */
-  .carousel .rewind { position: relative; width: 80%; margin: 12px auto 18px; }
+  /* 날짜 슬라이더는 그림 폭의 48%로 가운데에 둔다. */
+  .carousel .rewind { position: relative; width: 48%; margin: 6px auto 18px; }
   .carousel .rewind input { display: block; width: 100%; height: 20px; margin: 0; background: none; -webkit-appearance: none; appearance: none; }
   .carousel .rewind input { --track: linear-gradient(to right, rgba(58, 63, 74, .35) calc(9px + var(--from, 0) * (100% - 18px)), var(--line) 0); }
   .carousel .rewind input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--track); }
@@ -352,10 +352,11 @@
   /* 기간을 바꾸면 최고·최저 글씨는 그림이 멈춘 뒤 0.25초에 걸쳐 나타난다. */
   .gauge .marks { animation: marks-in .25s ease-out; }
   @keyframes marks-in { from { opacity: 0; } }
-  /* 그림 아래 줄은 세 카드가 같은 높이로 둔다. 주가와 예측 카드는 기간을 한 단계씩 줄이고 늘리는 단추와 네 단계 가운데 고른 단계의 점을,
+  /* 그림 아래 줄은 세 카드가 같은 높이로 둔다. 주가와 예측 카드는 기간을 한 단계씩 줄이고 늘리는 단추와 다섯 단계 가운데 고른 단계의 점을,
      Montecarlo 카드는 고른 번호의 일정을 둔다. 일정은 날짜를 위에 적고, 같은 날 일정은 쉼표로 이어 가로로 적는다. */
   .gauge .foot { min-height: 60px; margin-top: 12px; }
-  .gauge .zoom { display: flex; align-items: center; gap: 10px; }
+  .gauge.summary { padding-bottom: 4px; }
+  .gauge .zoom { display: flex; justify-content: center; align-items: center; gap: 10px; }
   .gauge .zoom button { appearance: none; border: 0; padding: 0; width: 28px; height: 28px; background: transparent; color: var(--text);
                         font: inherit; font-size: 22px; font-weight: 400; line-height: 28px; cursor: pointer; }
   .gauge .zoom button:disabled { color: var(--dim); opacity: .45; cursor: default; }
@@ -762,13 +763,13 @@
     };
 
     // 주가와 예측: 그림 아래 −·+ 단추로 고른 기간의 종가와 고른 날짜 판단의 25~75% 범위, 50% 선을 그린다. 회색 점선과 면은 지난 리포트의 예측이다.
-    // 기간은 3년, 1년, 6개월, 3개월 네 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
+    // 기간은 3년, 1년, 6개월, 3개월, 1개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
     // 고른 날짜가 리포트 날짜보다 앞이면 종가 선은 그날 판단의 출발점에서 다시 이어 리포트 날짜 판단의 기준 가격 날짜 종가까지 그리고,
     // 그 오른쪽 `start_offset` 거래일에 리포트 날짜 판단의 기준 가격을 점으로 찍어 점선으로 잇는다.
     const predict = (() => {
       const c = card("25거래일 뒤 예측"), s = c.svg;
       const L = 4, R = W - 4, T = 22, xmax = last + so + 25;
-      const SPAN = [756, 252, 126, 63].map((days) => Math.max(0, last - days));
+      const SPAN = [756, 252, 126, 63, 21].map((days) => Math.max(0, last - days));
       let span = 1, frame = null, raf = 0;
       const zoom = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
       zoom.innerHTML = `<button type="button" aria-label="기간 늘리기">\u2212</button><span class="steps">${"<i></i>".repeat(SPAN.length)}</span><button type="button" aria-label="기간 줄이기">+</button>`;
@@ -835,12 +836,9 @@
             group.append(shape("text", { x: Math.min(Math.max(X(i), L + 30), R - 64), y: Y(hist[i]) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${fmt(hist[i])}`));
           });
         }
-        // 오른쪽 값은 그림 오른쪽 끝에 맞춰 75% 값을 면 위쪽 가장자리 위에, 50% 값을 중앙값 선 위에, 25% 값을 면 아래쪽 가장자리 아래에 적는다.
-        // 이웃 글씨와 13px보다 가까우면 50% 값에서 13px 떨어뜨리고, 면과 선 위에서도 읽히게 배경색 테두리를 두른다.
-        const y = { q75: Y(end(f, "q75")) - 5, q50: Y(end(f, "q50")) - 5, q25: Y(end(f, "q25")) + 13 };
-        if (y.q50 - y.q75 < 13) y.q75 = y.q50 - 13;
-        if (y.q25 - y.q50 < 13) y.q25 = y.q50 + 13;
-        ["q75", "q50", "q25"].forEach((q) => s.append(shape("text", { x: R, y: y[q], "font-size": q === "q50" ? 12.5 : 11, "font-weight": q === "q50" ? 700 : 400, fill: color, "text-anchor": "end",
+        // 오른쪽 값은 중앙값을 머리 줄에 크게 적으므로 75% 값과 25% 값만 그림 오른쪽 끝에 맞춰 적는다. 75% 값은 면 위쪽 가장자리 위에,
+        // 25% 값은 아래쪽 가장자리 아래에 두고, 선 위에서도 읽히게 배경색 테두리를 두른다.
+        [["q75", -5], ["q25", 13]].forEach(([q, dy]) => s.append(shape("text", { x: R, y: Y(end(f, q)) + dy, "font-size": 11, fill: color, "text-anchor": "end",
           stroke: "#171719", "stroke-width": 3, "stroke-linejoin": "round", "paint-order": "stroke" }, fmt(end(f, q)))));
         if (last > fx) s.append(shape("circle", { cx: today[0], cy: today[1], r: 2.5, fill: PRICE }));
         s.append(shape("circle", { cx: origin[0], cy: origin[1], r: 2.5, fill: "#EAEAEA", stroke: "#171719", "stroke-width": 1 }));
