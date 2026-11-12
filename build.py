@@ -35,6 +35,10 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 
 `상세 이슈 해설` 절의 번호 붙은 이슈 소제목에는 리포트 폴더 `system/issues.json`에서 그 번호의 `id`를 `data-issue`로 단다.
 `id`는 Main이 그 이슈로 묶은 사안 나무 노드 가운데 반영 정도가 가장 큰 노드의 이름이므로, 날짜가 다른 리포트에서 같은 사안을 다룬 이슈는 같은 값을 갖는다.
+번호 붙은 이슈 뒤에는 그 `id`를 노드로 묶은 앞 날짜 이슈를 `issue-history` 템플릿으로 넣는다. 앞 날짜 이슈는 그날 `system/issues.json`의
+`nodes`에 오늘 `id`가 든 이슈이고, 내용은 그날 공개본 `report.html`의 이슈 조각을 그대로 쓴다. 템플릿에는 앞 날짜부터 오늘까지
+날짜와 이슈 해설 소제목을 날짜 순으로 적고, 오늘 항목에는 내용을 넣지 않는다. 앞 날짜 이슈가 없는 이슈에는 템플릿을 넣지 않는다.
+`invest-reports` 미니 앱은 템플릿으로 이슈 문단 끝에 지난 해설 상자를 그리고, 소제목을 누르면 이슈 문단을 그날의 내용으로 바꾼다.
 번호 붙은 이슈 소제목 뒤에는 리포트 폴더 `assets/issue-{번호}.webp`가 있을 때만 그 그림과
 `AI 생성 이미지` 캡션을 넣는다. 그림은 `run-with-notify.sh`가 ⑨의 이슈 이미지 선정 결과로 만든다. 그림마다 가운데를 잘라
 `THUMB`px 정사각 썸네일 `issue-{번호}-thumb.webp`를 만들어 그림의 `data-thumb`에 적는다. `invest-reports` 미니 앱은 이슈 목록 상자에 썸네일을 붙인다.
@@ -98,6 +102,7 @@ TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
 INDICATORS_TITLE = "미국 거시 지표"
 ISSUES_TITLE = "상세 이슈 해설"
+HISTORY_RE = re.compile(r'<template class="issue-history">.*?</template>\s*', re.DOTALL)
 THUMB = 264
 UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#ffffff"  # 오름·내림·중립 색. 오름·내림 색은 `app.html`의 등락 색과 같다
 # 지표 카드의 구간. [구간 끝값, 색, 구간 이름]이고, 지금 값이 든 구간의 이름과 색이 카드의 상태다.
@@ -689,6 +694,67 @@ def mark_issue_charts(body: str, plan: Path) -> str:
     return body[:head.end()] + "".join(parts) + body[end:]
 
 
+def issue_segments(body: str) -> list[tuple[int, int]]:
+    """`상세 이슈 해설` 절에서 이슈 소제목마다 소제목부터 다음 소제목 앞까지의 위치."""
+    head = re.search(rf'<h2 id="[^"]*">{ISSUES_TITLE}</h2>', body)
+    if not head:
+        return []
+    end = body.find("<h2", head.end())
+    end = len(body) if end < 0 else end
+    starts = [match.start() for match in re.compile(r"<h3[^>]*>").finditer(body, head.end(), end)] + [end]
+    return list(zip(starts, starts[1:]))
+
+
+def explainer_title(segment: str) -> str:
+    """이슈 조각의 이슈 해설 말머리 뒤 소제목."""
+    title = re.search(r"<h4[^>]*><mark>이슈 해설</mark>(.*?)</h4>", segment, re.DOTALL)
+    return html.unescape(re.sub(r"<[^>]+>", "", title.group(1))).strip() if title else ""
+
+
+def issue_history(vault: Path, index: str, day: dt.date, out: Path) -> dict[str, list[tuple[dt.date, str]]]:
+    """오늘 이슈 `id`마다, 그 `id`를 노드로 묶은 앞 날짜 이슈의 날짜와 공개본 이슈 조각을 날짜 순으로."""
+    bundles = report_path(vault, day, index).parent / "system" / "issues.json"
+    if not bundles.is_file():
+        return {}
+    history = {bundle["id"]: [] for bundle in json.loads(bundles.read_text(encoding="utf-8"))["issues"]}
+    for source in sorted(vault.glob(f"routine/invest/*/*/{index}/system/issues.json")):
+        name = source.parent.parent.parent.name
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", name) or (past := dt.date.fromisoformat(name)) >= day:
+            continue
+        page = out / "r" / f"{past:%Y%m%d}-{index}" / "report.html"
+        if not page.is_file():
+            continue
+        body = HISTORY_RE.sub("", page.read_text(encoding="utf-8"))
+        segments = {}
+        for start, stop in issue_segments(body):
+            issue = re.match(r'<h3[^>]*data-issue="([^"]*)"', body[start:stop])
+            if issue:
+                segments[html.unescape(issue.group(1))] = body[start:stop]
+        for bundle in json.loads(source.read_text(encoding="utf-8"))["issues"]:
+            for issue in history:
+                if issue in bundle["nodes"] and bundle["id"] in segments:
+                    history[issue].append((past, segments[bundle["id"]]))
+    return history
+
+
+def mark_issue_history(body: str, history: dict[str, list[tuple[dt.date, str]]], day: dt.date) -> str:
+    """번호 붙은 이슈 뒤에 앞 날짜 이슈 조각과 날짜마다 이슈 해설 소제목을 담은 `issue-history` 템플릿을 넣는다."""
+    parts, last = [], 0
+    for start, stop in issue_segments(body):
+        segment = body[start:stop]
+        issue = re.match(r'<h3[^>]*data-issue="([^"]*)"', segment)
+        past = history.get(html.unescape(issue.group(1)), []) if issue else []
+        if not past:
+            continue
+        days = [(when, explainer_title(chunk), re.sub(r'\sid="[^"]*"', "", chunk)) for when, chunk in past]
+        days.append((day, explainer_title(segment), ""))
+        sections = "".join(f'<section data-day="{when}" data-title="{html.escape(title)}">{chunk}</section>'
+                           for when, title, chunk in days)
+        parts += [body[last:stop].rstrip(), f'\n<template class="issue-history">{sections}</template>\n']
+        last = stop
+    return "".join(parts) + body[last:]
+
+
 def build(date: str, index: str, vault: Path, out: Path) -> str:
     source = vault / f"routine/invest/{date[:7]}/{date}/{index}/report.md"
     if not source.is_file():
@@ -717,6 +783,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     body = mark_issue_ids(body, source.parent / "system" / "issues.json")
     body = mark_issue_images(body, source.parent / "assets", target, out)
     body = mark_issue_charts(body, source.parent / "system" / "issue-charts.json")
+    body = mark_issue_history(body, issue_history(vault, index, day, out), day)
     (target / "report.html").write_text(body, encoding="utf-8")
 
     listing = out / "r" / "index.json"

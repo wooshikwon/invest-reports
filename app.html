@@ -173,6 +173,16 @@
   .issue-page > figure.issue-image figcaption { margin-top: 6px; color: var(--dim); font-size: 12px; line-height: 1.4; text-align: right; }
   .issue-page > figure.issue-chart { margin: 0 0 12px; }
   .issue-chart .gauge .val { flex-wrap: wrap; }
+  /* 같은 이슈를 다룬 앞 날짜 리포트가 있으면 이슈 문단 끝에 지난 해설 말머리와 이슈 목록 상자 같은 연한 둥근 상자를 둔다. 상자에는 줄마다 날짜와 그날 이슈 해설 소제목을
+     날짜 순으로 쓰고, 줄 사이에 옅은 선을 긋는다. 보고 있는 날짜의 줄은 본문 색 굵은 글씨로, 나머지 줄은 흐린 글씨로 쓴다. 누르고 있는 줄은 3% 줄인다. */
+  .issue-page > h4.history { margin-top: 30px; }
+  .issue-page > div.history { margin-top: 8px; padding: 4px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); }
+  .history .entry { display: flex; gap: 12px; width: 100%; padding: 12px 0; border: 0; background: none; color: var(--dim); font: inherit; font-size: 14px;
+    line-height: 1.5; text-align: left; word-break: normal; cursor: pointer; transition: transform .1s ease-out; -webkit-tap-highlight-color: transparent; }
+  .history .entry + .entry { border-top: 1px solid rgba(255, 255, 255, .06); }
+  .history .entry.on { color: var(--text); font-weight: 600; }
+  .history .entry.pressed { transform: scale(.97); }
+  .history .entry .day { flex: none; min-width: 40px; font-variant-numeric: tabular-nums; }
   details.fold > summary { list-style: none; cursor: pointer; }
   details.fold > summary::-webkit-details-marker { display: none; }
   details.fold { margin-top: 15.5px; }
@@ -743,6 +753,28 @@
     }).catch(() => {});
   }
 
+  // 이슈 제목의 방향 표식을 가려내 칠하고, 나머지 표식인 이벤트 중요도는 지운다. 중요도는 `build.py`가 소제목에 단 `data-level`로 그린다.
+  const TONES = { "상승 요인": "tone-up", "하락 요인": "tone-down", "양방향": "tone-both" };
+  function toneTags(scope) {
+    scope.querySelectorAll("h3 code").forEach((tag) => {
+      const tone = TONES[tag.textContent.trim()];
+      if (tone) tag.classList.add(tone);
+      else tag.remove();
+    });
+  }
+  // 소제목의 방향 표식은 제목 끝으로 옮긴다.
+  function trail(h3) {
+    const codes = [...h3.querySelectorAll("code")];
+    if (codes.length) {
+      const tags = document.createElement("span");
+      tags.className = "tags";
+      tags.append(...codes);
+      h3.append(Object.assign(document.createElement("span"), { className: "gap", textContent: " " }), tags);
+    }
+    h3.normalize();
+    h3.childNodes.forEach((node) => { if (node.nodeType === 3) node.textContent = node.textContent.replace(/\s+$/, ""); });
+  }
+
   // 상세 이슈 해설을 이슈 목록으로 바꾼다. 이슈는 `###` 제목부터 다음 `###`·`##` 앞까지다.
   // 템플릿이 검토했지만 비중을 낮춘 이슈를 번호 이슈 뒤에 두므로, 그 항목은 목록 끝의 "외 N건" 상자가 된다.
   // 상자를 누르면 이슈 내용이 오른쪽에서 들어오고, 이슈를 보는 중에 오른쪽으로 밀거나 돌아가는 단추를 누르면 목록이 왼쪽에서 들어온다.
@@ -765,10 +797,11 @@
     }
     if (!items.length) return;
     // 이슈 제목 앞의 번호를 지운다.
-    items.forEach(([h3]) => {
+    const unnumber = (h3) => {
       const text = [...h3.childNodes].find((node) => node.nodeType === 3 && node.textContent.trim());
       if (text) text.textContent = text.textContent.replace(/^\s*\d+\.\s*/, "");
-    });
+    };
+    items.forEach(([h3]) => unnumber(h3));
     const other = "검토했지만 비중을 낮춘 이슈", reviewed = items[items.length - 1][0].textContent.trim() === other;
     if (reviewed) items[items.length - 1].shift().remove();
     // 방향 표식의 등락 화살표. 선의 끝 방향으로 화살촉을 단다.
@@ -827,8 +860,72 @@
       const page = box.appendChild(document.createElement("div"));
       page.className = "issue-page";
       page.append(...nodes);
+      const past = nodes.find((node) => node.matches?.("template.issue-history"));
+      if (past) page.restore = chronicle(page, past);
       return page;
     });
+    // 이슈 문단 끝에 지난 해설 상자를 붙인다. `build.py`가 넣은 `issue-history` 템플릿에는 같은 이슈를 다룬 앞 날짜 리포트의 이슈 조각과
+    // 날짜마다 이슈 해설 소제목이 날짜 순으로 들고, 마지막 항목이 오늘이다. 상자에는 날짜와 소제목을 한 줄씩 쓰고 보고 있는 날짜의 줄을 밝힌다.
+    // 줄을 누르면 진동을 내고, 이슈 문단의 제목·그림·해설·그래프를 그날 내용으로 바꿔 서서히 보이며 바로가기에서 이슈를 누를 때의 위치로 화면을 옮긴다.
+    // 앞 날짜 내용의 이슈 해설 말머리 앞에는 그 날짜를 쓴다. 돌려준 함수는 이슈 문단을 오늘 내용으로 돌리고, 이슈를 열 때마다 부른다.
+    function chronicle(page, template) {
+      const entries = [...template.content.children], today = entries.length - 1;
+      const contents = entries.map((_, k) => (k === today ? [...page.children].filter((node) => node !== template) : null));
+      const day = (k) => `${+entries[k].dataset.day.slice(5, 7)}/${+entries[k].dataset.day.slice(8)}`;
+      const prepare = (k) => {
+        const part = document.importNode(entries[k], true);
+        toneTags(part);
+        const h3 = part.querySelector("h3");
+        if (h3) { unnumber(h3); trail(h3); }
+        const lead = [...part.querySelectorAll("h4")].find((h4) => h4.querySelector("mark")?.textContent.trim() === "이슈 해설");
+        if (lead) {
+          [...lead.childNodes].filter((n) => n.nodeName !== "MARK").forEach((n) => n.remove());
+          lead.querySelector("mark").textContent = `${day(k)} 이슈 해설`;
+        }
+        part.querySelectorAll("figure.issue-chart[data-card]").forEach((figure) => figure.append(gauge(JSON.parse(figure.dataset.card))[0]));
+        part.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => viewer(img)));
+        return [...part.children];
+      };
+      const heading = document.createElement("h4");
+      heading.className = "history";
+      heading.append(Object.assign(document.createElement("mark"), { textContent: "지난 해설" }));
+      const shelf = document.createElement("div");
+      shelf.className = "history";
+      let current = today;
+      const show = (k, move) => {
+        contents[k] ??= prepare(k);
+        contents[current].forEach((node) => node.remove());
+        heading.before(...contents[k]);
+        rows[current].classList.remove("on");
+        rows[k].classList.add("on");
+        current = k;
+        if (!move) return;
+        const options = { duration: motion.matches ? 0 : GLIDE, easing: EASE };
+        contents[k].forEach((node) => node.animate([{ opacity: 0 }, { opacity: 1 }], options));
+        const stop = glide(scrollY, head.reach?.() ?? scrollY, (top) => scrollTo(0, top));
+        const cancel = () => { stop(); removeEventListener("touchstart", cancel); removeEventListener("wheel", cancel); };
+        addEventListener("touchstart", cancel, { passive: true });
+        addEventListener("wheel", cancel, { passive: true });
+        setTimeout(cancel, options.duration);
+      };
+      const rows = entries.map((entry, k) => {
+        const row = shelf.appendChild(document.createElement("button"));
+        row.type = "button";
+        row.className = k === today ? "entry on" : "entry";
+        row.append(Object.assign(document.createElement("span"), { className: "day", textContent: day(k) }),
+                   Object.assign(document.createElement("span"), { className: "title", textContent: entry.dataset.title }));
+        row.addEventListener("pointerdown", () => row.classList.add("pressed"), { passive: true });
+        ["pointerup", "pointercancel", "pointerleave"].forEach((type) => row.addEventListener(type, () => row.classList.remove("pressed"), { passive: true }));
+        row.addEventListener("click", () => {
+          if (busy || k === current) return;
+          feelPress();
+          show(k, true);
+        });
+        return row;
+      });
+      page.append(heading, shelf);
+      return () => { if (current !== today) show(today, false); };
+    }
     head.classList.add("issues");
     const back = head.appendChild(document.createElement("button"));
     back.className = "back";
@@ -886,6 +983,7 @@
       if (busy || box.classList.contains("inside")) return;
       swap(list, () => {
         pages.forEach((page, j) => page.classList.toggle("on", i === j));
+        pages[i].restore?.();
         pages[i].querySelectorAll("details.fold").forEach((fold) => {
           fold.anim?.cancel();
           fold.want = undefined;
@@ -1549,27 +1647,11 @@
     fold("1개월 지수 방향 예측");
     indicators();
     issueCharts();
-    // 이슈 제목의 방향 표식을 가려내 칠하고, 나머지 표식인 이벤트 중요도는 지운다. 중요도는 `build.py`가 소제목에 단 `data-level`로 그린다.
-    const tones = { "상승 요인": "tone-up", "하락 요인": "tone-down", "양방향": "tone-both" };
-    report.querySelectorAll("h3 code").forEach((tag) => {
-      const tone = tones[tag.textContent.trim()];
-      if (tone) tag.classList.add(tone);
-      else tag.remove();
-    });
+    toneTags(report);
     fold("상세 이슈 해설", 4, ["이슈 해설"]);
     section("상세 이슈 해설");
-    // 소제목의 방향 표식은 제목 끝으로 옮긴다. 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
-    report.querySelectorAll("h3").forEach((h3) => {
-      const codes = [...h3.querySelectorAll("code")];
-      if (codes.length) {
-        const tags = document.createElement("span");
-        tags.className = "tags";
-        tags.append(...codes);
-        h3.append(Object.assign(document.createElement("span"), { className: "gap", textContent: " " }), tags);
-      }
-      h3.normalize();
-      h3.childNodes.forEach((node) => { if (node.nodeType === 3) node.textContent = node.textContent.replace(/\s+$/, ""); });
-    });
+    // 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
+    report.querySelectorAll("h3").forEach(trail);
     events(date);
     help();
     jump([["예측", "1개월 지수 방향 예측"], ["이슈", "상세 이슈 해설"], ["지표", "미국 거시 지표"], ["이벤트", "다가오는 이벤트"]]);
@@ -1705,6 +1787,7 @@
     "상세 이슈 해설": [
       ["이슈를 고르는 기준", "1개월 주가 예측에 영향이 큰 이슈부터 보여줘요. 이슈 하나를 예측에서 빼고 다시 계산했을 때 주가 예측이 크게 바뀔수록 영향이 큰 이슈예요."],
       ["상승 요인과 하락 요인", "이슈가 1개월 주가 예측을 상승 쪽으로 바꿨는지 하락 쪽으로 바꿨는지 보여줘요. 뉴스의 좋고 나쁨과는 달라요. 나쁜 소식도 반등 가능성을 높이면 상승 요인이에요."],
+      ["지난 해설", "이슈 아래에는 같은 이슈를 다룬 지난 리포트의 해설 제목을 날짜 순으로 보여줘요. 제목을 누르면 그날의 해설로 바뀌고, 이슈 목록으로 돌아가면 오늘 해설로 돌아와요."],
     ],
     "다가오는 이벤트": [
       ["이벤트 확률표", "앞으로 7일 안에 발표되는 이벤트마다 가능한 결과와 그 확률을 보여줘요. 몬테카를로 그림은 이러한 1개월 이벤트의 확률로 경로 2만 개를 그린 결과예요."],
