@@ -192,6 +192,21 @@
   .history .entry.on { color: var(--text); font-weight: 600; }
   .history .entry.pressed { transform: scale(.97); }
   .history .entry .day { flex: none; min-width: 40px; font-variant-numeric: tabular-nums; }
+  /* 이슈 문단 끝에 앞 이슈와 다음 이슈로 가는 두 칸을 나란히 둔다. 칸마다 그 이슈 그림을 가로로 긴 띠로 흐리게 잘라 보이고, 그림 아래 모서리에 이동 방향 꼬리표를,
+     그림 아래에 이슈 제목을 두 줄까지 쓴다. 그림이 없는 이슈는 같은 크기의 빈 띠를 둔다. 앞 칸은 왼쪽에, 다음 칸은 오른쪽에 붙여 쓰고, 첫 이슈의 앞 칸과 마지막 이슈의 다음 칸은 비운다. 누르고 있는 칸은 3% 줄인다. */
+  .issue-page > nav.step { display: flex; gap: 12px; margin: 32px 0 8px; }
+  .step > :is(button, span) { flex: 1; min-width: 0; }
+  .step button { display: block; padding: 0; border: 0; background: none; color: var(--hint); font: inherit; text-align: left; cursor: pointer;
+    transition: transform .1s ease-out; -webkit-tap-highlight-color: transparent; }
+  .step button.next { text-align: right; }
+  .step button.pressed { transform: scale(.97); }
+  .step .shot { position: relative; aspect-ratio: 16 / 7; border-radius: 10px; background: rgba(255, 255, 255, .04); overflow: hidden; }
+  .step .shot .thumb { display: block; width: 100%; height: 100%; margin: 0; object-fit: cover; opacity: .75; }
+  .step .tag { display: inline-block; padding: 2px 7px; border-radius: 6px; background: rgba(255, 255, 255, .06); color: var(--dim); font-size: 11px; font-weight: 600; line-height: 1.5; }
+  .step .shot .tag { position: absolute; bottom: 6px; background: rgba(0, 0, 0, .55); color: #fff; }
+  .step .prev .shot .tag { left: 6px; }
+  .step .next .shot .tag { right: 6px; }
+  .step .title { display: -webkit-box; margin-top: 6px; font-size: 12.5px; line-height: 1.35; overflow: hidden; word-break: keep-all; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   details.fold > summary { list-style: none; cursor: pointer; }
   details.fold > summary::-webkit-details-marker { display: none; }
   details.fold { margin-top: 15.5px; }
@@ -873,6 +888,39 @@
       if (past) page.restore = chronicle(page, past);
       return page;
     });
+    // 이슈 문단마다 끝에 앞 이슈와 다음 이슈로 가는 칸을 붙인다. 검토했지만 비중을 낮춘 이슈 묶음은 이어 읽는 이슈에 넣지 않는다.
+    // 칸에는 그 이슈의 그림과 목록 상자의 제목을 쓰고, 그림이 없는 이슈는 같은 크기의 빈 띠를 두고, 그림이 하나도 없는 리포트는 꼬리표와 제목만 쓴다. 칸을 누르면 진동을 내고 그 이슈로 넘긴다.
+    const chain = reviewed ? pages.length - 1 : pages.length;
+    const framed = pages.slice(0, chain).some((page) => page.querySelector(":scope > figure.issue-image img"));
+    const pass = (i, k, side) => {
+      if (k < 0 || k >= chain) return document.createElement("span");
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = side;
+      const tag = Object.assign(document.createElement("span"), { className: "tag", textContent: side === "prev" ? "‹ 이전" : "다음 ›" });
+      const src = pages[k].querySelector(":scope > figure.issue-image img")?.getAttribute("src");
+      if (framed) {
+        const shot = cell.appendChild(Object.assign(document.createElement("div"), { className: "shot" }));
+        if (src) shot.append(Object.assign(document.createElement("img"), { className: "thumb", src, alt: "", loading: "lazy" }));
+        shot.append(tag);
+      } else {
+        cell.append(tag);
+      }
+      cell.append(Object.assign(document.createElement("span"), { className: "title", textContent: list.children[k].querySelector("h3").textContent.trim() }));
+      cell.addEventListener("pointerdown", () => cell.classList.add("pressed"), { passive: true });
+      ["pointerup", "pointercancel", "pointerleave"].forEach((type) => cell.addEventListener(type, () => cell.classList.remove("pressed"), { passive: true }));
+      cell.addEventListener("click", () => {
+        if (busy) return;
+        feelPress();
+        step(i, k);
+      });
+      return cell;
+    };
+    pages.slice(0, chain).forEach((page, i) => {
+      const nav = page.appendChild(document.createElement("nav"));
+      nav.className = "step";
+      nav.append(pass(i, i - 1, "prev"), pass(i, i + 1, "next"));
+    });
     // 이슈 해설 말머리 앞에 히스토리 상자를 넣는다. `build.py`가 넣은 `issue-history` 템플릿에는 같은 이슈를 다룬 앞 날짜 리포트의 이슈 조각과
     // 날짜마다 이슈 해설 소제목이 날짜 순으로 들고, 마지막 항목이 오늘이다. 상자에는 날짜와 소제목을 오늘부터 앞 날짜 순으로 한 줄씩 쓰고 보고 있는 날짜의 줄을 굵게 쓴다.
     // 최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝의 펼침 단추를 누르면 펼친다. 최근 세 줄을 누르면 앞선 줄을 다시 접고, 앞선 줄을 누르면 펼친 채 둔다.
@@ -1020,23 +1068,30 @@
         busy = false;
       }, options.duration);
     };
+    // `i`번째 이슈 문단을 보이고, 히스토리를 오늘 내용으로 돌리고 접기 상자를 모두 닫는다.
+    const enter = (i) => {
+      pages.forEach((page, j) => page.classList.toggle("on", i === j));
+      pages[i].restore?.();
+      pages[i].querySelectorAll("details.fold").forEach((fold) => {
+        fold.anim?.cancel();
+        fold.want = undefined;
+        fold.open = false;
+        fold.lastElementChild.style.overflow = "";
+      });
+      box.classList.add("inside");
+      head.classList.add("inside");
+      rename(reviewed && i === pages.length - 1 ? other : name);
+      align();
+      return pages[i];
+    };
     const open = (i) => {
       if (busy || box.classList.contains("inside")) return;
-      swap(list, () => {
-        pages.forEach((page, j) => page.classList.toggle("on", i === j));
-        pages[i].restore?.();
-        pages[i].querySelectorAll("details.fold").forEach((fold) => {
-          fold.anim?.cancel();
-          fold.want = undefined;
-          fold.open = false;
-          fold.lastElementChild.style.overflow = "";
-        });
-        box.classList.add("inside");
-        head.classList.add("inside");
-        rename(reviewed && i === pages.length - 1 ? other : name);
-        align();
-        return pages[i];
-      }, 1);
+      swap(list, () => enter(i), 1);
+    };
+    // 보고 있는 `i`번째 이슈에서 `k`번째 이슈로 넘긴다. 다음 이슈는 오른쪽에서, 앞 이슈는 왼쪽에서 들어온다.
+    const step = (i, k) => {
+      if (busy) return;
+      swap(pages[i], () => enter(k), k > i ? 1 : -1);
     };
     const close = () => {
       if (busy || !box.classList.contains("inside")) return;
