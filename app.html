@@ -27,6 +27,8 @@
     --line: #3A3F4A;
     --soft: #111318;
     --band: #0D0D0E;
+    /* 전체화면에서 상태 표시줄과 텔레그램의 닫기·메뉴 단추가 차지하는 위쪽 높이. 텔레그램 앱이 아니거나 전체화면이 아니면 0이다. */
+    --top-inset: calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px));
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: var(--bg); color: var(--text); }
@@ -35,17 +37,23 @@
     word-break: keep-all; overflow-wrap: anywhere; -webkit-text-size-adjust: 100%;
   }
   /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
-  main { max-width: 720px; margin: 0 auto; padding: 16px 16px calc(40px + var(--offscreen, 0px)); }
+  main { max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-inset)) 16px calc(40px + var(--offscreen, 0px)); }
   header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 4px 0 2px; color: var(--accent); }
   /* 제목 바로 아래에 등락률 줄을, 그 아래에 작성 시각 줄을 쓴다. 두 줄은 같은 크기의 회색 글씨로 쓰고, 작성 시각 줄은 제목과 등락률 줄 사이만큼 띄운다. 장 마감 후 등락률은 그날 리포트의 기준 가격에만 쓰이므로 괄호로 묶는다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다.
      등락률 줄은 머리말 밖에 두어 화면을 내려도 화면 맨 위에 붙어 남게 한다. 줄이 화면 위에 붙으면(`stuck`) 줄 위아래로 배경색을 반투명하게 흐린 띠를 깔아 본문이 줄 밑으로 비쳐 지나가게 한다. 흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
-  #moves { position: sticky; top: 6px; z-index: 4; margin: 0; font-size: 12.5px; color: var(--hint); }
+  #moves { position: sticky; top: calc(6px + var(--top-inset)); z-index: 4; margin: 0; font-size: 12.5px; color: var(--hint); }
   #dated { margin: 1.5px 0 0; font-size: 12.5px; color: var(--dim); }
-  #moves::before { content: ""; position: absolute; inset: -6px -16px; z-index: -1; background: color-mix(in srgb, var(--bg) 30%, transparent);
+  #moves::before { content: ""; position: absolute; inset: calc(-6px - var(--top-inset)) -16px -6px; z-index: -1; background: color-mix(in srgb, var(--bg) 30%, transparent);
                    -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%);
                    opacity: 0; transition: opacity .15s; pointer-events: none; }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #moves::before { background: var(--bg); } }
   #moves.stuck::before { opacity: 1; }
+  /* 전체화면 위쪽 높이를 등락률 띠와 같은 유리로 덮는다. 등락률 띠가 고정되면 띠가 이 높이까지 함께 덮으므로 이 유리는 감춘다. */
+  #top-glass { position: fixed; top: 0; left: 0; right: 0; z-index: 4; height: var(--top-inset); pointer-events: none;
+               background: color-mix(in srgb, var(--bg) 30%, transparent);
+               -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%); transition: opacity .15s; }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #top-glass { background: var(--bg); } }
+  body:has(#moves.stuck) #top-glass { opacity: 0; }
   #moves.stuck { cursor: pointer; }
   #moves:empty { display: none; }
   #moves b { font-weight: 700; margin-left: 4px; }
@@ -368,6 +376,7 @@
 </style>
 </head>
 <body>
+<div id="top-glass"></div>
 <main>
   <header><h1 id="title">투자 판단 리포트</h1></header><p id="moves"></p><p id="dated"></p>
   <article id="report"><p class="status">리포트를 불러오는 중이다.</p></article>
@@ -385,6 +394,8 @@
     tg.ready();
     // 리포트를 처음부터 시트를 끝까지 올린 높이로 연다.
     tg.expand();
+    // 휴대폰에서는 전체화면으로 연다. 데스크톱 텔레그램은 거절하고 시트 그대로 둔다.
+    if (tg.requestFullscreen && tg.isVersionAtLeast?.("8.0") && !tg.isFullscreen) tg.requestFullscreen();
     if (tg.setBackgroundColor) tg.setBackgroundColor("#171719");
     if (tg.setHeaderColor) tg.setHeaderColor("#171719");
     // 좌우로 넘기는 몸짓이 조금 기울어도 시트가 내려가지 않게, 세로로 끌어 닫는 동작을 끈다.
