@@ -37,11 +37,10 @@
   /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
   main { max-width: 720px; margin: 0 auto; padding: 16px 16px calc(40px + var(--offscreen, 0px)); }
   header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 4px 0 2px; color: var(--accent); }
-  header p { margin: 0; font-size: 12.5px; color: var(--hint); }
-  header #dated { color: var(--dim); }
-  /* 날짜 줄 아래 등락률 줄은 같은 회색 글씨로 쓰고, 제목과 날짜 줄 사이만큼 띄운다. 장 마감 후 등락률은 그날 리포트의 기준 가격에만 쓰이므로 괄호로 묶는다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다.
+  /* 제목 바로 아래에 등락률 줄을, 그 아래에 작성 시각 줄을 쓴다. 두 줄은 같은 크기의 회색 글씨로 쓰고, 작성 시각 줄은 제목과 등락률 줄 사이만큼 띄운다. 장 마감 후 등락률은 그날 리포트의 기준 가격에만 쓰이므로 괄호로 묶는다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다.
      등락률 줄은 머리말 밖에 두어 화면을 내려도 화면 맨 위에 붙어 남게 한다. 줄이 화면 위에 붙으면(`stuck`) 줄 위아래로 배경색을 반투명하게 흐린 띠를 깔아 본문이 줄 밑으로 비쳐 지나가게 한다. 흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
-  #moves { position: sticky; top: 6px; z-index: 4; margin: 1.5px 0 0; font-size: 12.5px; color: var(--hint); }
+  #moves { position: sticky; top: 6px; z-index: 4; margin: 0; font-size: 12.5px; color: var(--hint); }
+  #dated { margin: 1.5px 0 0; font-size: 12.5px; color: var(--dim); }
   #moves::before { content: ""; position: absolute; inset: -6px -16px; z-index: -1; background: color-mix(in srgb, var(--bg) 78%, transparent);
                    -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%);
                    opacity: 0; transition: opacity .15s; pointer-events: none; }
@@ -52,7 +51,7 @@
   #moves .up { color: #ff5c5c; }
   #moves .down { color: #5b9bff; }
   #moves .sep { margin-left: 8px; }
-  #moves:not(:empty) + #report > h2:first-child { margin-top: 36px; }
+  #moves:not(:empty) + #dated + #report > h2:first-child { margin-top: 36px; }
   /* 제목 줄 오른쪽 끝에 달력 단추를 두고, 단추의 세로 가운데를 제목 글자가 칠해진 높이의 가운데(`--title-mid`, `centerTitle`이 잰다)에 맞춘다. 달력 단추와 지수 전환 단추는 얇은 외곽선과 둥근 모서리를 두른 같은 높이의 상자로 그린다. 누르면 단추 바로 아래에 같은 지수의 리포트 날짜를 고르는 달력을 띄우고, 화면을 넘겨도 달력은 단추 아래에 붙어 함께 움직인다.
      달력 상자는 설명 상자와 같은 색으로 그리고, 리포트가 있는 날짜는 흰 글자로 쓰고 그 아래에 그 리포트의 정규장 등락률을 머리말과 같은 색으로 적는다.
      리포트가 없는 날짜는 회색으로 쓰고 누를 수 없다. 보고 있는 리포트의 날짜는 날짜 띠의 고른 상자와 같은 색으로 칠하고, 다른 리포트를 볼 때 오늘 날짜에는 테두리를 두른다. */
@@ -366,7 +365,7 @@
 </head>
 <body>
 <main>
-  <header><h1 id="title">투자 판단 리포트</h1><p id="dated"></p></header><p id="moves"></p>
+  <header><h1 id="title">투자 판단 리포트</h1></header><p id="moves"></p><p id="dated"></p>
   <article id="report"><p class="status">리포트를 불러오는 중이다.</p></article>
 </main>
 <script>
