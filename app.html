@@ -175,15 +175,16 @@
   .issue-chart .gauge .val { flex-wrap: wrap; }
   /* 같은 이슈를 다룬 앞 날짜 리포트가 있으면 이슈 그림과 이슈 해설 말머리 사이에 히스토리 말머리와 이슈 목록 상자 같은 연한 둥근 상자를 둔다. 상자에는 줄마다 날짜와
      그날 이슈 해설 소제목을 오늘부터 앞 날짜 순으로 쓰고, 줄 사이에 옅은 선을 긋는다. 보고 있는 날짜의 줄은 본문 색 굵은 글씨로, 나머지 줄은 흐린 글씨로 쓴다. 누르고 있는 줄은 3% 줄인다.
-     최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝에 위로 갈수록 투명해지는 띠와 펼침 단추를 둔다. 펼치면 앞선 줄의 높이를 늘려 보이고 띠를 지운다. */
+     최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝에 지수 색으로 칠하고 위로 갈수록 투명해지는 띠와 펼침 단추를 둔다. 펼치면 앞선 줄의 높이를 늘려 보이고 띠를 지운다. */
   .issue-page > div.history { margin-top: 8px; padding: 4px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); overflow: hidden; }
   .issue-page > div.history + h4 { margin-top: 26px; }
   .history .older { overflow: hidden; }
   .history .older.shut { height: 0; }
   .history .older .entry:first-child { border-top: 1px solid rgba(255, 255, 255, .06); }
-  .history .unfold { display: flex; align-items: center; justify-content: center; gap: 6px; width: calc(100% + 36px); margin: 0 -18px -4px; padding: 14px 0 12px; border: 0;
-    background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, .06)); color: var(--dim); font: inherit; font-size: 13px; cursor: pointer;
-    -webkit-tap-highlight-color: transparent; }
+  .history .unfold { position: relative; isolation: isolate; display: flex; align-items: center; justify-content: center; gap: 6px; width: calc(100% + 36px); margin: 0 -18px -4px;
+    padding: 14px 0 12px; border: 0; background: none; color: var(--dim); font: inherit; font-size: 13px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .history .unfold::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--index-ink); opacity: .2;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000); mask-image: linear-gradient(to bottom, transparent, #000); }
   .history .unfold svg { flex: none; }
   .history .unfold[hidden] { display: none; }
   .history .entry { display: flex; gap: 12px; width: 100%; padding: 12px 0; border: 0; background: none; color: var(--dim); font: inherit; font-size: 14px;
