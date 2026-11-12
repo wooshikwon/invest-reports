@@ -767,7 +767,7 @@
     // 그 오른쪽 `start_offset` 거래일에 리포트 날짜 판단의 기준 가격을 점으로 찍어 점선으로 잇는다.
     const predict = (() => {
       const c = card("25거래일 뒤 예측"), s = c.svg;
-      const L = 4, R = W - 4, T = 22, E = R - 40, xmax = last + so + 25;
+      const L = 4, R = W - 4, T = 22, xmax = last + so + 25;
       const SPAN = [756, 252, 126, 63].map((days) => Math.max(0, last - days));
       let span = 1, frame = null, raf = 0;
       const zoom = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
@@ -795,13 +795,13 @@
       const draw = (x0, lo, hi, marks) => {
         s.replaceChildren();
         const f = frame, fx = at(f), p = f.predict;
-        const X = (i) => L + (i - x0) / (xmax - x0) * (E - L), Y = (v) => B - (v - lo) / (hi - lo) * (B - T);
+        const X = (i) => L + (i - x0) / (xmax - x0) * (R - L), Y = (v) => B - (v - lo) / (hi - lo) * (B - T);
         const clip = shape("clipPath", { id: "predict-clip" });
         clip.append(shape("rect", { x: L, y: 0, width: R - L, height: B }));
         s.append(clip);
         const g = s.appendChild(shape("g", { "clip-path": "url(#predict-clip)" }));
         // 달 이름은 6월·12월, 분기 달, 나머지 달 순서로 남긴다. 이름 사이 간격이 42px보다 좁아지면 아래 단계의 달 이름부터 흐리게 지운다.
-        const perMonth = 21 * (E - L) / (xmax - x0), fade = (months) => Math.max(0, Math.min(1, (months * perMonth - 30) / 12));
+        const perMonth = 21 * (R - L) / (xmax - x0), fade = (months) => Math.max(0, Math.min(1, (months * perMonth - 30) / 12));
         let month = "";
         dates.forEach((d, i) => {
           if (d.slice(0, 7) === month) return;
@@ -826,22 +826,24 @@
           g.append(shape("path", { d: path([[X(last), Y(hist[last])], today]), ...stroke, "stroke-dasharray": "2 2" }));
         }
         s.append(shape("path", { d: path(xs.map((x, k) => [x, Y(p.q50[k])])), fill: "none", stroke: color, "stroke-width": 1.4, "stroke-linejoin": "round" }));
-        if (last > fx) s.append(shape("circle", { cx: today[0], cy: today[1], r: 2.5, fill: PRICE }));
-        s.append(shape("circle", { cx: origin[0], cy: origin[1], r: 2.5, fill: "#EAEAEA", stroke: "#171719", "stroke-width": 1 }));
-        // 최고·최저 글씨는 기간이 정해진 뒤에만 그린다.
+        // 최고·최저 글씨는 기간이 정해진 뒤에만 그리고, 오른쪽 값이 차지하는 그림 오른쪽 끝 34px을 비운다.
         if (marks) {
           const group = s.appendChild(shape("g", { class: "marks" }));
           const shown = hist.slice(i0, last + 1);
           [[i0 + shown.indexOf(Math.max(...shown)), -7, "최고"], [i0 + shown.indexOf(Math.min(...shown)), 15, "최저"]].forEach(([i, dy, text]) => {
             group.append(shape("circle", { cx: X(i), cy: Y(hist[i]), r: 2.5, fill: PRICE }));
-            group.append(shape("text", { x: Math.min(Math.max(X(i), L + 30), R - 30), y: Y(hist[i]) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${fmt(hist[i])}`));
+            group.append(shape("text", { x: Math.min(Math.max(X(i), L + 30), R - 64), y: Y(hist[i]) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${fmt(hist[i])}`));
           });
         }
-        // 오른쪽 값은 예측 면 오른쪽 `E`부터 그림 오른쪽 끝 `R`까지의 여백에 75%, 50%, 25% 순서로 적고, 이웃 글씨와 13px보다 가까우면 50% 값에서 13px 떨어뜨린다.
-        const y = Object.fromEntries(["q75", "q50", "q25"].map((q) => [q, Y(end(f, q)) + 4]));
+        // 오른쪽 값은 그림 오른쪽 끝에 맞춰 75% 값을 면 위쪽 가장자리 위에, 50% 값을 중앙값 선 위에, 25% 값을 면 아래쪽 가장자리 아래에 적는다.
+        // 이웃 글씨와 13px보다 가까우면 50% 값에서 13px 떨어뜨리고, 면과 선 위에서도 읽히게 배경색 테두리를 두른다.
+        const y = { q75: Y(end(f, "q75")) - 5, q50: Y(end(f, "q50")) - 5, q25: Y(end(f, "q25")) + 13 };
         if (y.q50 - y.q75 < 13) y.q75 = y.q50 - 13;
         if (y.q25 - y.q50 < 13) y.q25 = y.q50 + 13;
-        ["q75", "q50", "q25"].forEach((q) => s.append(shape("text", { x: R, y: y[q], "font-size": q === "q50" ? 12.5 : 11, "font-weight": q === "q50" ? 700 : 400, fill: color, "text-anchor": "end" }, fmt(end(f, q)))));
+        ["q75", "q50", "q25"].forEach((q) => s.append(shape("text", { x: R, y: y[q], "font-size": q === "q50" ? 12.5 : 11, "font-weight": q === "q50" ? 700 : 400, fill: color, "text-anchor": "end",
+          stroke: "#171719", "stroke-width": 3, "stroke-linejoin": "round", "paint-order": "stroke" }, fmt(end(f, q)))));
+        if (last > fx) s.append(shape("circle", { cx: today[0], cy: today[1], r: 2.5, fill: PRICE }));
+        s.append(shape("circle", { cx: origin[0], cy: origin[1], r: 2.5, fill: "#EAEAEA", stroke: "#171719", "stroke-width": 1 }));
       };
       // `from` 기간에서 `to` 기간으로 가는 도중 `t`(0~1) 지점의 그림. 왼쪽 끝과 세로 범위를 같은 곡선으로 옮기고, 넓히는 동안 새로 들어온
       // 과거 종가가 범위 밖이면 범위를 그만큼 먼저 넓혀 선이 가로축 아래로 내려가지 않게 한다.
@@ -910,6 +912,7 @@
         s.append(shape("line", { x1: L, x2: R, y1: Y(0), y2: Y(0), stroke: "rgba(122, 130, 140, .55)" }));
         // 이웃 번호와 16px보다 가까운 번호는 한 줄 위에 그린다.
         let before = -99, row = 0;
+        const hits = [];
         f.tree.events.forEach(([d], i) => {
           row = X(d) - before < 16 && row === 0 ? 1 : 0;
           before = X(d);
@@ -917,8 +920,12 @@
           s.append(shape("line", { x1: X(d), x2: X(d), y1: cy, y2: B, "stroke-width": 1, "data-ev": i }));
           s.append(shape("circle", { cx: X(d), cy, r: 7.5, "data-ev": i }));
           s.append(shape("text", { x: X(d), y: cy + 3.5, "font-size": 9.5, "font-weight": 600, "text-anchor": "middle", "pointer-events": "none", "data-ev": i }, i + 1));
-          const hit = s.appendChild(shape("circle", { cx: X(d), cy, r: 13, fill: "transparent", style: "cursor:pointer" }));
-          hit.addEventListener("click", () => { pick = i; mark(); });
+          // 번호 원과 그 아래 세로선 양옆 7px까지를 누르면 그 일정을 고른다. 누르는 면은 범위 띠에 가리지 않게 맨 마지막에 붙인다.
+          const touch = { fill: "transparent", style: "cursor:pointer" };
+          [shape("circle", { cx: X(d), cy, r: 13, ...touch }), shape("rect", { x: X(d) - 7, y: cy, width: 14, height: B - cy, ...touch })].forEach((hit) => {
+            hit.addEventListener("click", () => { pick = i; mark(); });
+            hits.push(hit);
+          });
         });
         s.append(shape("line", { x1: L, x2: R, y1: B, y2: B, stroke: DIMS }));
         f.tree.ticks.forEach(([t, day]) => s.append(shape("text", { x: X(t), y: B + 17, "font-size": 11, fill: DIMS, "text-anchor": t === 0 ? "start" : t === n ? "end" : "middle" }, day)));
@@ -935,6 +942,7 @@
         }
         // 축 숫자는 띠와 일정 세로선에 덮이지 않게 마지막에 그린다.
         for (let v = -top + step; v < top; v += step) s.append(shape("text", { x: L, y: Y(v) - 4, "font-size": 11, fill: DIMS, "pointer-events": "none" }, `${signed(v, 0)}%`));
+        s.append(...hits);
         mark();
       };
       return {
@@ -2158,7 +2166,7 @@
   // 그림 카드가 있는 리포트의 1개월 지수 방향 예측 설명. 판단 색 이름은 지수마다 다르다.
   const CARD_HELP = (ink) => [
     ["주가와 예측", `흰 선은 그림 아래 −와 + 단추로 고른 기간의 종가이고, 최고와 최저는 그 기간의 가장 높고 낮은 종가예요. ${ink} 실선은 예측 중앙값이고, ${ink} 면은 가격이 25~75% 확률로 들어올 범위예요. 오른쪽 ${ink} 값은 25거래일 뒤 75%, 50%, 25% 가격이에요. 회색 점선과 면은 지난 리포트가 예측한 가격이에요.`],
-    ["몬테카를로", `이슈와 이벤트를 반영해 지수가 갈 수 있는 경로 2만 개를 그려요. 두 ${ink} 선 사이에 경로의 가운데 50%가 들어오고, 옅은 면은 가운데 80% 범위예요. 흰 점선은 중앙값이에요. 위쪽 번호는 이슈 일정이 있는 날이고, 번호를 누르면 그림 아래에 그 일정이 나와요.`],
+    ["몬테카를로", `이슈와 이벤트를 반영해 지수가 갈 수 있는 경로 2만 개를 그려요. 두 ${ink} 선 사이에 경로의 가운데 50%가 들어오고, 옅은 면은 가운데 80% 범위예요. 흰 점선은 중앙값이에요. 위쪽 번호는 이슈 일정이 있는 날이고, 번호나 번호에 달린 세로선을 누르면 그림 아래에 그 일정이 나와요.`],
     ["권장 추종 배율", `경로 2만 개마다 한 달 동안 평균적으로 얼마나 오르거나 내렸는지를 배율로 바꿔 그린 분포예요. ${ink} 곡선은 오늘 판단이고, 회색 곡선은 이슈가 없을 때의 기준이에요. ${ink} 세로선이 권장 추종 배율이고, 회색 점선 1.0(지수 추종)보다 왼쪽이면 하락 쪽 판단이에요.`],
   ];
   const INK = { nasdaq: "파란", biotech: "보라" };
