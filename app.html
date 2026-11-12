@@ -46,6 +46,7 @@
                    opacity: 0; transition: opacity .15s; pointer-events: none; }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #moves::before { background: var(--bg); } }
   #moves.stuck::before { opacity: 1; }
+  #moves.stuck { cursor: pointer; }
   #moves:empty { display: none; }
   #moves b { font-weight: 700; margin-left: 4px; }
   #moves .up { color: #ff5c5c; }
@@ -1743,6 +1744,11 @@
         const stick = () => moves.classList.toggle("stuck", scrollY > 0 && moves.getBoundingClientRect().top <= parseFloat(getComputedStyle(moves).top) + .5);
         addEventListener("scroll", stick, { passive: true });
         stick();
+        moves.onclick = () => {
+          if (!moves.classList.contains("stuck")) return;
+          feelPress();
+          scrollTo({ top: 0, behavior: motion.matches ? "instant" : "smooth" });
+        };
       }
     }
     const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
