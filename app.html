@@ -192,12 +192,14 @@
   .issue-chart .gauge .val { flex-wrap: wrap; }
   /* 같은 이슈를 다룬 앞 날짜 리포트가 있으면 이슈 그림과 이슈 해설 말머리 사이에 히스토리 말머리와 이슈 목록 상자 같은 연한 둥근 상자를 둔다. 상자에는 줄마다 날짜와
      그날 이슈 해설 소제목을 오늘부터 앞 날짜 순으로 쓰고, 줄 사이에 옅은 선을 긋는다. 보고 있는 날짜의 줄은 본문 색 굵은 글씨로, 나머지 줄은 흐린 글씨로 쓴다. 누르고 있는 줄은 3% 줄인다.
-     최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝에 지수 색으로 칠하고 위로 갈수록 투명해지는 띠와 펼침 단추를 둔다. 펼치면 앞선 줄의 높이를 늘려 보이고 띠를 지운다. */
+     최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝에 지수 색으로 칠하고 위로 갈수록 투명해지는 띠와 펼침 단추를 둔다. 펼치면 띠를 지우고 줄 목록의 높이를
+     다섯 줄과 여섯째 줄 윗부분까지 늘리며, 그보다 많은 줄은 목록 안에서 스크롤해 본다. */
   .issue-page > div.history { margin-top: 8px; padding: 4px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); overflow: hidden; }
   .issue-page > div.history + h4 { margin-top: 26px; }
-  .history .older { overflow: hidden; }
-  .history .older.shut { height: 0; }
-  .history .older .entry:first-child { border-top: 1px solid rgba(255, 255, 255, .06); }
+  .history .rows { position: relative; overflow: hidden; }
+  .history .rows.open { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+  .history .rows.open::-webkit-scrollbar { display: none; }
+  .history .rows.shut > .entry:nth-child(n + 4) { display: none; }
   .history .unfold { position: relative; isolation: isolate; display: flex; align-items: center; justify-content: center; gap: 6px; width: calc(100% + 36px); margin: 0 -18px -4px;
     padding: 14px 0 12px; border: 0; background: none; color: var(--dim); font: inherit; font-size: 13px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   .history .unfold::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--index-ink); opacity: .2;
@@ -944,7 +946,8 @@
     });
     // 이슈 해설 말머리 앞에 히스토리 상자를 넣는다. `build.py`가 넣은 `issue-history` 템플릿에는 같은 이슈를 다룬 앞 날짜 리포트의 이슈 조각과
     // 날짜마다 이슈 해설 소제목이 날짜 순으로 들고, 마지막 항목이 오늘이다. 상자에는 날짜와 소제목을 오늘부터 앞 날짜 순으로 한 줄씩 쓰고 보고 있는 날짜의 줄을 굵게 쓴다.
-    // 최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝의 펼침 단추를 누르면 펼친다. 최근 세 줄을 누르면 앞선 줄을 다시 접고, 앞선 줄을 누르면 펼친 채 둔다.
+    // 최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝의 펼침 단추를 누르면 다섯 줄과 여섯째 줄 윗부분까지 펼친 뒤 나머지 줄은 목록 안에서 스크롤하게 한다.
+    // 최근 세 줄을 누르면 앞선 줄을 다시 접고, 앞선 줄을 누르면 펼친 채 둔다.
     // 줄을 누르면 진동을 내고, 상자 위의 제목·그림과 상자 아래의 해설·그래프를 그날 내용으로 바꿔 서서히 보이며 바로가기에서 이슈를 누를 때의 위치로 화면을 옮긴다.
     // 돌려준 함수는 이슈 문단을 오늘 내용으로 돌리고 앞선 줄을 다시 접으며, 이슈를 열 때마다 부른다.
     function chronicle(page, template) {
@@ -973,14 +976,22 @@
       heading.append(Object.assign(document.createElement("mark"), { textContent: "히스토리" }));
       const shelf = document.createElement("div");
       shelf.className = "history";
-      const older = entries.length > 3 ? Object.assign(document.createElement("div"), { className: "older shut" }) : null;
+      const list = shelf.appendChild(Object.assign(document.createElement("div"), { className: entries.length > 3 ? "rows shut" : "rows" }));
       let current = today;
-      // 앞선 줄을 다시 접고 펼침 단추를 보인다. 펼쳐 둔 상태에서 최근 세 줄을 누르면 접히는 높이를 서서히 줄인다.
+      // 펼친 목록의 높이. 여섯 줄이 넘으면 여섯째 줄의 윗부분까지만 보인다.
+      const PEEK = 22;
+      const reach = () => (list.children.length > 6 ? list.children[5].offsetTop + PEEK : list.scrollHeight);
+      // 앞선 줄을 다시 접고 펼침 단추를 보인다. 펼쳐 둔 상태에서 최근 세 줄을 누르면 목록을 맨 위로 돌리고 높이를 서서히 줄인 뒤 앞선 줄을 감춘다.
       const fold = (move) => {
-        if (!older || older.classList.contains("shut")) return;
-        if (move) older.animate([{ height: `${older.scrollHeight}px` }, { height: "0px" }], { duration: motion.matches ? 0 : GLIDE, easing: EASE });
-        older.classList.add("shut");
+        if (!list.classList.contains("open")) return;
+        const from = list.offsetHeight;
+        list.scrollTop = 0;
+        list.classList.remove("open");
+        list.style.height = "";
         unfold.hidden = false;
+        if (!move || motion.matches) return list.classList.add("shut");
+        list.animate([{ height: `${from}px` }, { height: `${list.children[3].offsetTop}px` }], { duration: GLIDE, easing: EASE })
+          .finished.then(() => list.classList.contains("open") || list.classList.add("shut"));
       };
       const show = (k, move) => {
         contents[k] ??= prepare(k);
@@ -1015,19 +1026,22 @@
         });
         return row;
       });
-      // 오늘부터 앞 날짜 순으로 줄을 쌓고, 넷째 줄부터는 접는 칸에 넣는다.
-      [...rows].reverse().forEach((row, i) => (i < 3 ? shelf : older).append(row));
-      if (older) shelf.append(older);
-      const unfold = older && shelf.appendChild(document.createElement("button"));
+      // 오늘부터 앞 날짜 순으로 줄을 쌓는다. 접어 둔 목록은 넷째 줄부터 감춘다.
+      list.append(...[...rows].reverse());
+      const unfold = entries.length > 3 && shelf.appendChild(document.createElement("button"));
       if (unfold) {
         unfold.type = "button";
         unfold.className = "unfold";
         unfold.innerHTML = `이전 해설 ${today - 2}개 펼치기<svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
         unfold.addEventListener("click", () => {
           feelPress();
-          older.classList.remove("shut");
+          const from = list.offsetHeight;
+          list.classList.remove("shut");
+          list.classList.add("open");
           unfold.hidden = true;
-          older.animate([{ height: "0px" }, { height: `${older.scrollHeight}px` }], { duration: motion.matches ? 0 : GLIDE, easing: EASE });
+          const to = reach();
+          list.style.height = `${to}px`;
+          list.animate([{ height: `${from}px` }, { height: `${to}px` }], { duration: motion.matches ? 0 : GLIDE, easing: EASE });
         });
       }
       contents[today][0].at(-1).after(heading, shelf);
