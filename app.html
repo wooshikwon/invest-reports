@@ -875,8 +875,8 @@
     });
     // 이슈 해설 말머리 앞에 히스토리 상자를 넣는다. `build.py`가 넣은 `issue-history` 템플릿에는 같은 이슈를 다룬 앞 날짜 리포트의 이슈 조각과
     // 날짜마다 이슈 해설 소제목이 날짜 순으로 들고, 마지막 항목이 오늘이다. 상자에는 날짜와 소제목을 오늘부터 앞 날짜 순으로 한 줄씩 쓰고 보고 있는 날짜의 줄을 굵게 쓴다.
-    // 최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝의 펼침 단추를 누르면 펼친다. 줄을 누르면 진동을 내고, 상자 위의 제목·그림과
-    // 상자 아래의 해설·그래프를 그날 내용으로 바꿔 서서히 보이며 바로가기에서 이슈를 누를 때의 위치로 화면을 옮긴다.
+    // 최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝의 펼침 단추를 누르면 펼친다. 최근 세 줄을 누르면 앞선 줄을 다시 접고, 앞선 줄을 누르면 펼친 채 둔다.
+    // 줄을 누르면 진동을 내고, 상자 위의 제목·그림과 상자 아래의 해설·그래프를 그날 내용으로 바꿔 서서히 보이며 바로가기에서 이슈를 누를 때의 위치로 화면을 옮긴다.
     // 돌려준 함수는 이슈 문단을 오늘 내용으로 돌리고 앞선 줄을 다시 접으며, 이슈를 열 때마다 부른다.
     function chronicle(page, template) {
       const entries = [...template.content.children], today = entries.length - 1;
@@ -906,6 +906,13 @@
       shelf.className = "history";
       const older = entries.length > 3 ? Object.assign(document.createElement("div"), { className: "older shut" }) : null;
       let current = today;
+      // 앞선 줄을 다시 접고 펼침 단추를 보인다. 펼쳐 둔 상태에서 최근 세 줄을 누르면 접히는 높이를 서서히 줄인다.
+      const fold = (move) => {
+        if (!older || older.classList.contains("shut")) return;
+        if (move) older.animate([{ height: `${older.scrollHeight}px` }, { height: "0px" }], { duration: motion.matches ? 0 : GLIDE, easing: EASE });
+        older.classList.add("shut");
+        unfold.hidden = false;
+      };
       const show = (k, move) => {
         contents[k] ??= prepare(k);
         contents[current].flat().forEach((node) => node.remove());
@@ -934,6 +941,7 @@
         row.addEventListener("click", () => {
           if (busy || k === current) return;
           feelPress();
+          if (k > today - 3) fold(true);
           show(k, true);
         });
         return row;
@@ -956,7 +964,7 @@
       contents[today][0].at(-1).after(heading, shelf);
       return () => {
         if (current !== today) show(today, false);
-        if (older) { older.classList.add("shut"); unfold.hidden = false; }
+        fold(false);
       };
     }
     head.classList.add("issues");
