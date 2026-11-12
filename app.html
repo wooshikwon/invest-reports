@@ -738,7 +738,7 @@
   function summaryCards(data, date) {
     // 세 카드는 같은 높이(`H`)의 그림에 같은 높이(`B`)의 가로축을 긋는다.
     const color = data.color, so = data.start_offset, dates = data.dates, hist = data.history, W = 320, H = 236, B = 212;
-    const DIMS = "#7A828C", GRID = "rgba(122, 130, 140, .28)", PRICE = "#C9CDD3";
+    const DIMS = "#7A828C", PRICE = "#C9CDD3";
     const tint = (a) => `rgba(${[1, 3, 5].map((k) => parseInt(color.slice(k, k + 2), 16)).join(", ")}, ${a})`;
     const fmt = (v) => `$${Math.round(v).toLocaleString("en-US")}`;
     const signed = (v, digits = 1) => `${v > 0 ? "+" : v < 0 ? "\u2212" : ""}${Math.abs(v).toFixed(digits)}`;
@@ -903,7 +903,7 @@
         // 지난 날짜에서 실제 종가가 리포트 날짜 판단의 기준 가격 날짜까지 모두 있으면, 그 오른쪽 `start_offset` 거래일에 리포트 날짜 판단의 기준 가격을 놓고 점선으로 잇는다.
         const tail = actual.length && f.days[actual.length - 1] === data.base_date ? [actual.length - 1 + so, (data.base / f.base - 1) * 100] : null;
         const reach = Math.max(15, ...[pct["10"], pct["90"], actual].flat().map(Math.abs), tail ? Math.abs(tail[1]) : 0);
-        const top = Math.ceil(reach / 5) * 5, step = top > 20 ? 10 : 5;
+        const top = Math.ceil(reach / 5) * 5;
         const X = (d) => L + d / n * (R - L), Y = (v) => B - (Math.max(-top, Math.min(top, v)) + top) / (2 * top) * (B - T);
         const band = (a, b, opacity) => shape("path", { d: `${path(pct[a].map((v, d) => [X(d), Y(v)]))}L${pct[b].slice().reverse().map((v, d) => `${X(n - d)} ${Y(v)}`).join("L")}Z`, fill: color, opacity });
         s.append(band("10", "90", .14));
@@ -938,8 +938,6 @@
           if (tail) s.append(shape("path", { d: path([points[points.length - 1], dot]), ...lineStyle, stroke: PRICE, "stroke-width": 1.6, "stroke-dasharray": "2 2" }));
           s.append(shape("circle", { cx: dot[0], cy: dot[1], r: 2.5, fill: PRICE }));
         }
-        // 축 숫자는 띠와 일정 세로선에 덮이지 않게 마지막에 그린다.
-        for (let v = -top + step; v < top; v += step) s.append(shape("text", { x: L, y: Y(v) - 4, "font-size": 11, fill: DIMS, "pointer-events": "none" }, `${signed(v, 0)}%`));
         s.append(...hits);
         mark();
       };
@@ -971,7 +969,6 @@
           const curve = (values) => path(values.map((v, i) => [X(xs[i]), Y(v)]));
           const area = (values) => `M${X(xs[0])} ${B}L${values.map((v, i) => `${X(xs[i])} ${Y(v)}`).join("L")}L${X(xs[n - 1])} ${B}Z`;
           s.replaceChildren();
-          [0.625, 0.875, 1.125, 1.375].forEach((v) => s.append(shape("line", { x1: X(v), x2: X(v), y1: T, y2: B, stroke: GRID, "stroke-dasharray": "3 3" })));
           s.append(shape("path", { d: area(den.quiet), fill: "rgba(167, 171, 176, .14)" }));
           s.append(shape("path", { d: curve(den.quiet), fill: "none", stroke: "rgba(167, 171, 176, .5)", "stroke-width": 1 }));
           s.append(shape("path", { d: area(den.today), fill: color, opacity: .2 }));
@@ -2163,7 +2160,7 @@
     + '<circle cx="8" cy="11.6" r=".8" fill="currentColor"/></svg>';
   // 그림 카드가 있는 리포트의 1개월 지수 방향 예측 설명. 판단 색 이름은 지수마다 다르다.
   const CARD_HELP = (ink) => [
-    ["주가와 예측", `흰 선은 그림 아래 −와 + 단추로 고른 기간의 종가이고, 최고와 최저는 그 기간의 가장 높고 낮은 종가예요. ${ink} 실선은 예측 중앙값이고, ${ink} 면은 가격이 25~75% 확률로 들어올 범위예요. 오른쪽 ${ink} 값은 25거래일 뒤 75%, 50%, 25% 가격이에요. 회색 점선과 면은 지난 리포트가 예측한 가격이에요.`],
+    ["주가와 예측", `흰 선은 그림 아래 −와 + 단추로 고른 기간의 종가이고, 최고와 최저는 그 기간의 가장 높고 낮은 종가예요. ${ink} 실선은 예측 중앙값이고, ${ink} 면은 가격이 25~75% 확률로 들어올 범위예요. 오른쪽 ${ink} 값은 25거래일 뒤 75%와 25% 가격이에요. 회색 점선과 면은 지난 리포트가 예측한 가격이에요.`],
     ["몬테카를로", `이슈와 이벤트를 반영해 지수가 갈 수 있는 경로 2만 개를 그려요. 두 ${ink} 선 사이에 경로의 가운데 50%가 들어오고, 옅은 면은 가운데 80% 범위예요. 흰 점선은 중앙값이에요. 위쪽 번호는 이슈 일정이 있는 날이고, 번호나 번호에 달린 세로선을 누르면 그림 아래에 그 일정이 나와요.`],
     ["권장 추종 배율", `경로 2만 개마다 한 달 동안 평균적으로 얼마나 오르거나 내렸는지를 배율로 바꿔 그린 분포예요. ${ink} 곡선은 오늘 판단이고, 회색 곡선은 이슈가 없을 때의 기준이에요. ${ink} 세로선이 권장 추종 배율이고, 회색 점선 1.0(지수 추종)보다 왼쪽이면 하락 쪽 판단이에요.`],
   ];
