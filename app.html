@@ -764,14 +764,14 @@
     };
 
     // 주가와 예측: 그림 아래 −·+ 단추로 고른 기간의 종가와 고른 날짜 판단의 25~75% 범위, 50% 선을 그린다. 회색 점선과 면은 지난 리포트의 예측이다.
-    // 기간은 3년, 1년, 6개월, 3개월, 1개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
+    // 기간은 3년, 2년, 1년, 6개월, 3개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
     // 고른 날짜가 리포트 날짜보다 앞이면 종가 선은 그날 판단의 출발점에서 다시 이어 리포트 날짜 판단의 기준 가격 날짜 종가까지 그리고,
     // 그 오른쪽 `start_offset` 거래일에 리포트 날짜 판단의 기준 가격을 점으로 찍어 점선으로 잇는다.
     const predict = (() => {
       const c = card("25거래일 뒤 예측"), s = c.svg;
       const L = 4, R = W - 4, T = 22, xmax = last + so + 25;
-      const SPAN = [756, 252, 126, 63, 21].map((days) => Math.max(0, last - days));
-      let span = 1, frame = null, raf = 0;
+      const SPAN = [756, 504, 252, 126, 63].map((days) => Math.max(0, last - days));
+      let span = 2, frame = null, raf = 0;
       const zoom = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
       zoom.innerHTML = `<button type="button" aria-label="기간 늘리기">\u2212</button><span class="steps">${"<i></i>".repeat(SPAN.length)}</span><button type="button" aria-label="기간 줄이기">+</button>`;
       const [wider, narrower] = zoom.querySelectorAll("button");
