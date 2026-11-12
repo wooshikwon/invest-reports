@@ -41,7 +41,7 @@
      등락률 줄은 머리말 밖에 두어 화면을 내려도 화면 맨 위에 붙어 남게 한다. 줄이 화면 위에 붙으면(`stuck`) 줄 위아래로 배경색을 반투명하게 흐린 띠를 깔아 본문이 줄 밑으로 비쳐 지나가게 한다. 흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
   #moves { position: sticky; top: 6px; z-index: 4; margin: 0; font-size: 12.5px; color: var(--hint); }
   #dated { margin: 1.5px 0 0; font-size: 12.5px; color: var(--dim); }
-  #moves::before { content: ""; position: absolute; inset: -6px -16px; z-index: -1; background: color-mix(in srgb, var(--bg) 40%, transparent);
+  #moves::before { content: ""; position: absolute; inset: -6px -16px; z-index: -1; background: color-mix(in srgb, var(--bg) 30%, transparent);
                    -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%);
                    opacity: 0; transition: opacity .15s; pointer-events: none; }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #moves::before { background: var(--bg); } }
