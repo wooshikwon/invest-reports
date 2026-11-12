@@ -39,14 +39,18 @@
   header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 4px 0 2px; color: var(--accent); }
   header p { margin: 0; font-size: 12.5px; color: var(--hint); }
   header #dated { color: var(--dim); }
-  /* 날짜 줄 아래 등락률 줄은 같은 회색 글씨로 쓰고, 제목과 날짜 줄 사이만큼 띄운다. 장 마감 후 등락률은 그날 리포트의 기준 가격에만 쓰이므로 괄호로 묶는다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다. */
-  header #moves { margin-top: 1.5px; }
-  header #moves:empty { display: none; }
-  header #moves b { font-weight: 700; margin-left: 4px; }
-  header #moves .up { color: #ff5c5c; }
-  header #moves .down { color: #5b9bff; }
-  header #moves .sep { margin-left: 8px; }
-  header:has(#moves:not(:empty)) + #report > h2:first-child { margin-top: 36px; }
+  /* 날짜 줄 아래 등락률 줄은 같은 회색 글씨로 쓰고, 제목과 날짜 줄 사이만큼 띄운다. 장 마감 후 등락률은 그날 리포트의 기준 가격에만 쓰이므로 괄호로 묶는다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다.
+     등락률 줄은 머리말 밖에 두어 화면을 내려도 화면 맨 위에 붙어 남게 한다. 줄이 화면 위에 붙으면(`stuck`) 줄 위아래로 배경색 띠와 얇은 아래 선을 깔아 본문이 줄 밑으로 지나가게 한다. */
+  #moves { position: sticky; top: 10px; z-index: 4; margin: 1.5px 0 0; font-size: 12.5px; color: var(--hint); }
+  #moves::before { content: ""; position: absolute; inset: -10px -16px; z-index: -1; background: var(--bg); border-bottom: 1px solid rgba(255, 255, 255, .06);
+                   opacity: 0; transition: opacity .15s; pointer-events: none; }
+  #moves.stuck::before { opacity: 1; }
+  #moves:empty { display: none; }
+  #moves b { font-weight: 700; margin-left: 4px; }
+  #moves .up { color: #ff5c5c; }
+  #moves .down { color: #5b9bff; }
+  #moves .sep { margin-left: 8px; }
+  #moves:not(:empty) + #report > h2:first-child { margin-top: 36px; }
   /* 제목 줄 오른쪽 끝에 달력 단추를 두고, 단추의 세로 가운데를 제목 글자가 칠해진 높이의 가운데(`--title-mid`, `centerTitle`이 잰다)에 맞춘다. 달력 단추와 지수 전환 단추는 얇은 외곽선과 둥근 모서리를 두른 같은 높이의 상자로 그린다. 누르면 단추 바로 아래에 같은 지수의 리포트 날짜를 고르는 달력을 띄우고, 화면을 넘겨도 달력은 단추 아래에 붙어 함께 움직인다.
      달력 상자는 설명 상자와 같은 색으로 그리고, 리포트가 있는 날짜는 흰 글자로 쓰고 그 아래에 그 리포트의 정규장 등락률을 머리말과 같은 색으로 적는다.
      리포트가 없는 날짜는 회색으로 쓰고 누를 수 없다. 보고 있는 리포트의 날짜는 날짜 띠의 고른 상자와 같은 색으로 칠하고, 다른 리포트를 볼 때 오늘 날짜에는 테두리를 두른다. */
@@ -360,7 +364,7 @@
 </head>
 <body>
 <main>
-  <header><h1 id="title">투자 판단 리포트</h1><p id="dated"></p><p id="moves"></p></header>
+  <header><h1 id="title">투자 판단 리포트</h1><p id="dated"></p></header><p id="moves"></p>
   <article id="report"><p class="status">리포트를 불러오는 중이다.</p></article>
 </main>
 <script>
@@ -1730,8 +1734,11 @@
       if (entry.moves) {
         const pct = (v) => v === null ? "<b>—</b>"
           : `<b class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}%</b>`;
-        document.getElementById("moves").innerHTML =
-          `정규장${pct(entry.moves.session)}<span class="sep"></span>(장 마감 후${pct(entry.moves.after)})`;
+        const moves = document.getElementById("moves");
+        moves.innerHTML = `정규장${pct(entry.moves.session)}<span class="sep"></span>(장 마감 후${pct(entry.moves.after)})`;
+        const stick = () => moves.classList.toggle("stuck", scrollY > 0 && moves.getBoundingClientRect().top <= parseFloat(getComputedStyle(moves).top) + .5);
+        addEventListener("scroll", stick, { passive: true });
+        stick();
       }
     }
     const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
