@@ -51,8 +51,8 @@
   #moves .up { color: #ff5c5c; }
   #moves .down { color: #5b9bff; }
   #moves .up, #moves .down { transition: color .15s; }
-  #moves.stuck .up { color: color-mix(in srgb, #ff5c5c 45%, var(--dim)); }
-  #moves.stuck .down { color: color-mix(in srgb, #5b9bff 45%, var(--dim)); }
+  #moves.stuck .up { color: color-mix(in srgb, #ff5c5c 30%, var(--dim)); }
+  #moves.stuck .down { color: color-mix(in srgb, #5b9bff 30%, var(--dim)); }
   #moves .sep { margin-left: 8px; }
   #moves:not(:empty) + #dated + #report > h2:first-child { margin-top: 36px; }
   /* 제목 줄 오른쪽 끝에 달력 단추를 두고, 단추의 세로 가운데를 제목 글자가 칠해진 높이의 가운데(`--title-mid`, `centerTitle`이 잰다)에 맞춘다. 달력 단추와 지수 전환 단추는 얇은 외곽선과 둥근 모서리를 두른 같은 높이의 상자로 그린다. 누르면 단추 바로 아래에 같은 지수의 리포트 날짜를 고르는 달력을 띄우고, 화면을 넘겨도 달력은 단추 아래에 붙어 함께 움직인다.
