@@ -49,12 +49,19 @@
                   opacity: 0; transition: opacity .15s; pointer-events: none; }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #masthead::before { background: var(--bg); } }
   #masthead.stuck::before { opacity: 1; }
-  /* 전체화면 위쪽 높이를 머리 상자의 띠와 같은 유리로 덮는다. 머리 상자가 고정되면 띠가 이 높이까지 함께 덮으므로 이 유리는 감춘다. */
+  /* 붙어 있는 머리 상자는 절 바로가기 알약처럼 화면이 0.8초 동안 움직이지 않으면 0.8초에 걸쳐 서서히 감추고(`idle`), 화면이 움직이면 0.4초에 걸쳐 다시 띄운다.
+     상자에 투명도를 주면 띠의 흐림이 사라지므로 제목 줄·등락률 줄·띠의 투명도를 따로 낮춘다. 감춘 상자는 누를 수 없고, 달력 창이 열려 있으면 감추지 않는다. */
+  #masthead { transition: visibility 0s; }
+  #masthead > :is(header, #moves) { transition: opacity .4s ease; }
+  #masthead.stuck.idle:not(:has(.cal-layer)) { visibility: hidden; transition: visibility 0s .8s; }
+  #masthead.stuck.idle:not(:has(.cal-layer)) > :is(header, #moves),
+  #masthead.stuck.idle:not(:has(.cal-layer))::before { opacity: 0; transition: opacity .8s ease; }
+  /* 전체화면 위쪽 높이를 머리 상자의 띠와 같은 유리로 덮는다. 머리 상자가 고정되면 띠가 이 높이까지 함께 덮으므로 이 유리는 감추고, 고정된 머리 상자를 감추면 이 유리를 다시 띄운다. */
   #top-glass { position: fixed; top: 0; left: 0; right: 0; z-index: 4; height: var(--top-inset); pointer-events: none;
                background: color-mix(in srgb, var(--bg) 30%, transparent);
                -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%); transition: opacity .15s; }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #top-glass { background: var(--bg); } }
-  body:has(#masthead.stuck) #top-glass { opacity: 0; }
+  body:has(#masthead.stuck:not(.idle)) #top-glass, body:has(#masthead.stuck .cal-layer) #top-glass { opacity: 0; }
   #masthead.stuck { cursor: pointer; }
   #moves:empty { display: none; }
   #moves b { font-weight: 700; margin-left: 4px; }
@@ -428,6 +435,13 @@
   const masthead = document.getElementById("masthead");
   const stick = () => masthead.classList.toggle("stuck", scrollY > 0 && masthead.getBoundingClientRect().top <= parseFloat(getComputedStyle(masthead).top) + .5);
   addEventListener("scroll", stick, { passive: true });
+  // 화면이 움직일 때마다 머리 상자의 `idle`을 떼고, 0.8초 동안 움직이지 않으면 다시 단다. `idle`은 상자가 붙어 있을 때만 상자를 감춘다.
+  let still = 0;
+  addEventListener("scroll", () => {
+    masthead.classList.remove("idle");
+    clearTimeout(still);
+    still = setTimeout(() => masthead.classList.add("idle"), 800);
+  }, { passive: true });
   // 붙어 있는 머리 상자를 누르면 문서 맨 위로 올라간다. 지수 전환 단추·달력 단추와 달력 창을 누르면 그 단추의 동작만 한다.
   masthead.addEventListener("click", (event) => {
     if (!masthead.classList.contains("stuck") || event.target.closest("button, .cal-layer")) return;
