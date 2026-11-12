@@ -167,7 +167,7 @@
   .carousel .track { display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory;
                      overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
   .carousel .track::-webkit-scrollbar { display: none; }
-  .carousel .slide { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; }
+  .carousel .slide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; }
   .carousel .slide img { margin: 0; }
   /* 날짜 슬라이더는 그림 폭의 48%로 가운데에 둔다. */
   .carousel .rewind { position: relative; width: 48%; margin: 6px auto 18px; }
@@ -353,8 +353,9 @@
   .gauge .marks { animation: marks-in .25s ease-out; }
   @keyframes marks-in { from { opacity: 0; } }
   /* 그림 아래 줄은 세 카드가 같은 높이로 둔다. 주가와 예측 카드는 기간을 한 단계씩 줄이고 늘리는 단추와 다섯 단계 가운데 고른 단계의 점을,
-     Montecarlo 카드는 고른 번호의 일정을 둔다. 일정은 날짜를 위에 적고, 같은 날 일정은 쉼표로 이어 가로로 적는다. */
-  .gauge .foot { min-height: 60px; margin-top: 12px; }
+     Montecarlo 카드는 고른 번호의 일정을 둔다. 일정은 번호, 날짜, 이름을 한 줄에 가운데 맞춰 적고, 같은 날 일정은 쉼표로 잇는다.
+     한 줄을 넘는 이름은 말줄임표로 줄인다. */
+  .gauge .foot { min-height: 28px; margin-top: 12px; }
   .gauge.summary { padding-bottom: 4px; }
   .gauge .zoom { display: flex; justify-content: center; align-items: center; gap: 10px; }
   .gauge .zoom button { appearance: none; border: 0; padding: 0; width: 28px; height: 28px; background: transparent; color: var(--text);
@@ -363,11 +364,11 @@
   .gauge .zoom .steps { display: flex; gap: 5px; }
   .gauge .zoom .steps i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, .22); }
   .gauge .zoom .steps i.on { background: #fff; }
-  .gauge .evbox { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; color: var(--text); }
+  .gauge .evbox { display: flex; justify-content: center; align-items: center; gap: 8px; height: 28px; font-size: 13px; color: var(--text); white-space: nowrap; }
   .gauge .evbox em { flex: none; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
                      background: var(--card-color); color: #0b1a24; font-style: normal; font-size: 11px; font-weight: 600; }
-  .gauge .evbox .d { font-size: 12px; line-height: 18px; color: var(--dim); font-variant-numeric: tabular-nums; }
-  .gauge .evbox .n { margin-top: 2px; line-height: 1.45; }
+  .gauge .evbox .d { flex: none; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .gauge .evbox .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   /* 표 카드는 그림 칸 대신 표를 싣는다. 첫 열 이름은 소제목 색, 강조 열(`focus`)은 카드 값처럼 굵은 흰 글씨, 나머지 칸은 흐린 글씨로 쓴다. */
   .gauge table { margin: 12px 0 4px; font-variant-numeric: tabular-nums; }
   .gauge th { color: var(--dim); font-size: 12px; }
@@ -746,15 +747,15 @@
     const path = (points) => `M${points.map(([x, y]) => `${x} ${y}`).join("L")}`;
     const last = dates.length - 1;
     // 카드 틀. 위 줄 맥락 글씨, 가운데 줄 값과 상태, 그림 칸, 그림 아래 줄을 둔다. 맥락 글씨는 지난 날짜를 고르면 그 리포트 날짜를 앞에 붙인다.
-    // 값은 글씨나 노드 목록으로 받고, 상태 글씨가 없으면 상태 칸을 숨긴다.
+    // 값은 글씨나 노드 목록으로 받고, 상태 글씨가 없으면 상태 칸을 숨긴다. 맥락 글씨를 따로 받으면 카드를 만들 때의 맥락 글씨 대신 쓴다.
     const card = (ctx) => {
       const box = Object.assign(document.createElement("div"), { className: "gauge summary" });
       box.style.setProperty("--card-color", color);
       box.innerHTML = '<div class="top"><span class="ctx"></span></div><div class="val"><b></b><span class="state"><i></i><span></span></span></div><div class="fig"></div><div class="foot"></div>';
       const [label, value, state] = [box.querySelector(".ctx"), box.querySelector(".val b"), box.querySelector(".state")];
       const svg = box.querySelector(".fig").appendChild(shape("svg", { viewBox: `0 0 ${W} ${H}` }));
-      const head = (frame, text, big) => {
-        label.textContent = frame.day === date ? ctx : `${md(frame.day)} 리포트, ${ctx}`;
+      const head = (frame, text, big, context = ctx) => {
+        label.textContent = frame.day === date ? context : `${md(frame.day)} 리포트, ${context}`;
         value.replaceChildren(...[big].flat());
         state.querySelector("span").textContent = text;
         state.hidden = !text;
@@ -874,13 +875,15 @@
       };
     })();
 
-    // Montecarlo: 수익률 분위수의 10~90% 옅은 면과 25~75% 면·선, 50% 점선을 그린다. 위쪽 번호는 이슈 일정이 있는 날이고,
-    // 번호를 누르면 그림 아래 줄에 그 일정을 적는다. 지난 날짜를 고르면 그날 기준 가격 뒤의 실제 종가 수익률을 흰 선으로 그린다.
+    // Montecarlo: 수익률 분위수의 10~90% 옅은 면과 25~75% 면, 50% 실선을 주가와 예측 카드와 같은 판단 색으로 그린다. 위쪽 번호는 이슈 일정이 있는 날이고,
+    // 마지막 거래일에는 일정이 없어도 번호를 달고, 처음에는 마지막 번호를 고른다. 번호를 누르면 위 값을 그날의 25~75% 수익률로 바꾸고
+    // 그림 아래 줄에 그 일정을 적는다. 지난 날짜를 고르면 그날 기준 가격 뒤의 실제 종가 수익률을 흰 선으로 그린다.
     const tree = (() => {
       const c = card("25거래일 뒤 수익률"), s = c.svg;
       const L = 4, R = W - 4, T = 38;
       const box = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "evbox" }));
-      let frame = null, pick = 0;
+      let frame = null, pick = null, events = [];
+      const percent = (v) => [signed(v), Object.assign(document.createElement("small"), { textContent: "%" })];
       const mark = () => {
         s.querySelectorAll("[data-ev]").forEach((node) => {
           const on = +node.dataset.ev === pick;
@@ -888,17 +891,18 @@
           else if (node.tagName === "circle") node.setAttribute("fill", on ? color : "#2A2D33");
           else node.setAttribute("fill", on ? "#0b1a24" : "#EAEAEA");
         });
-        const [, names, day] = frame.tree.events[pick] || [];
-        box.replaceChildren();
-        if (!names) return;
-        const text = document.createElement("div");
-        text.append(Object.assign(document.createElement("div"), { className: "d", textContent: day }),
-          Object.assign(document.createElement("div"), { className: "n", textContent: names.join(", ") }));
-        box.append(Object.assign(document.createElement("em"), { textContent: pick + 1 }), text);
+        const [d, names, day] = events[pick], pct = frame.tree.pct;
+        c.head(frame, "", [...percent(pct["25"][d]), Object.assign(document.createElement("span"), { className: "sep", textContent: "~" }), ...percent(pct["75"][d])],
+          `${d}거래일 뒤 수익률`);
+        box.replaceChildren(Object.assign(document.createElement("em"), { textContent: pick + 1 }),
+          Object.assign(document.createElement("span"), { className: "d", textContent: day }),
+          Object.assign(document.createElement("span"), { className: "n", textContent: names.length ? names.join(", ") : "예측 마지막 날" }));
       };
       const draw = () => {
         s.replaceChildren();
         const f = frame, pct = f.tree.pct, n = pct["50"].length - 1;
+        events = f.tree.events.at(-1)?.[0] === n ? f.tree.events : [...f.tree.events, [n, [], f.days[n].slice(5).split("-").map(Number).join("/")]];
+        pick ??= events.length - 1;
         const actual = f.day === date ? [] : f.tree.actual.slice(0, (f.days.indexOf(data.base_date) + 1) || undefined);
         // 지난 날짜에서 실제 종가가 리포트 날짜 판단의 기준 가격 날짜까지 모두 있으면, 그 오른쪽 `start_offset` 거래일에 리포트 날짜 판단의 기준 가격을 놓고 점선으로 잇는다.
         const tail = actual.length && f.days[actual.length - 1] === data.base_date ? [actual.length - 1 + so, (data.base / f.base - 1) * 100] : null;
@@ -911,7 +915,7 @@
         // 이웃 번호와 16px보다 가까운 번호는 한 줄 위에 그린다.
         let before = -99, row = 0;
         const hits = [];
-        f.tree.events.forEach(([d], i) => {
+        events.forEach(([d], i) => {
           row = X(d) - before < 16 && row === 0 ? 1 : 0;
           before = X(d);
           const cy = T - 9 - row * 17;
@@ -928,8 +932,7 @@
         s.append(shape("line", { x1: L, x2: R, y1: B, y2: B, stroke: DIMS }));
         f.tree.ticks.forEach(([t, day]) => s.append(shape("text", { x: X(t), y: B + 17, "font-size": 11, fill: DIMS, "text-anchor": t === 0 ? "start" : t === n ? "end" : "middle" }, day)));
         s.append(shape("path", { d: `${path(pct["25"].map((v, d) => [X(d), Y(v)]))}L${pct["75"].slice().reverse().map((v, d) => `${X(n - d)} ${Y(v)}`).join("L")}Z`, fill: color, opacity: .22 }));
-        ["25", "75"].forEach((q) => s.append(shape("path", { d: path(pct[q].map((v, d) => [X(d), Y(v)])), fill: "none", stroke: color, "stroke-width": 1.4, "stroke-linejoin": "round" })));
-        s.append(shape("path", { d: path(pct["50"].map((v, d) => [X(d), Y(v)])), fill: "none", stroke: "#EAEAEA", "stroke-width": 1.2, "stroke-dasharray": "3 3" }));
+        s.append(shape("path", { d: path(pct["50"].map((v, d) => [X(d), Y(v)])), fill: "none", stroke: color, "stroke-width": 1.4, "stroke-linejoin": "round" }));
         if (actual.length) {
           const points = actual.map((v, d) => [X(d), Y(v)]), lineStyle = { fill: "none", "stroke-linejoin": "round", "stroke-linecap": "round" };
           s.append(shape("path", { d: path(points), ...lineStyle, stroke: "rgba(0, 0, 0, .6)", "stroke-width": 3.2 }));
@@ -938,17 +941,15 @@
           if (tail) s.append(shape("path", { d: path([points[points.length - 1], dot]), ...lineStyle, stroke: PRICE, "stroke-width": 1.6, "stroke-dasharray": "2 2" }));
           s.append(shape("circle", { cx: dot[0], cy: dot[1], r: 2.5, fill: PRICE }));
         }
+        s.append(shape("text", { x: L, y: Y(0) - 4, "font-size": 11, fill: DIMS, "pointer-events": "none" }, "0%"));
         s.append(...hits);
         mark();
       };
       return {
         box: c.box,
         show(f) {
-          if (frame?.day !== f.day) pick = 0;
+          if (frame?.day !== f.day) pick = null;
           frame = f;
-          const p25 = f.tree.pct["25"], p75 = f.tree.pct["75"];
-          const percent = (v) => [signed(v), Object.assign(document.createElement("small"), { textContent: "%" })];
-          c.head(f, "", [...percent(p25[p25.length - 1]), Object.assign(document.createElement("span"), { className: "sep", textContent: "~" }), ...percent(p75[p75.length - 1])]);
           draw();
         },
       };
@@ -2161,7 +2162,7 @@
   // 그림 카드가 있는 리포트의 1개월 지수 방향 예측 설명. 판단 색 이름은 지수마다 다르다.
   const CARD_HELP = (ink) => [
     ["주가와 예측", `흰 선은 그림 아래 −와 + 단추로 고른 기간의 종가이고, 최고와 최저는 그 기간의 가장 높고 낮은 종가예요. ${ink} 실선은 예측 중앙값이고, ${ink} 면은 가격이 25~75% 확률로 들어올 범위예요. 오른쪽 ${ink} 값은 25거래일 뒤 75%와 25% 가격이에요. 회색 점선과 면은 지난 리포트가 예측한 가격이에요.`],
-    ["몬테카를로", `이슈와 이벤트를 반영해 지수가 갈 수 있는 경로 2만 개를 그려요. 두 ${ink} 선 사이에 경로의 가운데 50%가 들어오고, 옅은 면은 가운데 80% 범위예요. 흰 점선은 중앙값이에요. 위쪽 번호는 이슈 일정이 있는 날이고, 번호나 번호에 달린 세로선을 누르면 그림 아래에 그 일정이 나와요.`],
+    ["몬테카를로", `이슈와 이벤트를 반영해 지수가 갈 수 있는 경로 2만 개를 그려요. ${ink} 실선은 중앙값이고, 진한 ${ink} 면에 경로의 가운데 50%가, 옅은 면에 가운데 80%가 들어와요. 위쪽 번호는 이슈 일정이 있는 날과 예측 마지막 날이에요. 번호나 번호에 달린 세로선을 누르면 위 숫자가 그날까지의 25~75% 수익률 범위로 바뀌고, 그림 아래에 그 일정이 나와요.`],
     ["권장 추종 배율", `경로 2만 개마다 한 달 동안 평균적으로 얼마나 오르거나 내렸는지를 배율로 바꿔 그린 분포예요. ${ink} 곡선은 오늘 판단이고, 회색 곡선은 이슈가 없을 때의 기준이에요. ${ink} 세로선이 권장 추종 배율이고, 회색 점선 1.0(지수 추종)보다 왼쪽이면 하락 쪽 판단이에요.`],
   ];
   const INK = { nasdaq: "파란", biotech: "보라" };
