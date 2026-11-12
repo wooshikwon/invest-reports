@@ -36,7 +36,7 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `상세 이슈 해설` 절의 번호 붙은 이슈 소제목에는 리포트 폴더 `system/issues.json`에서 그 번호의 `id`를 `data-issue`로 단다.
 `id`는 Main이 그 이슈로 묶은 사안 나무 노드 가운데 반영 정도가 가장 큰 노드의 이름이므로, 날짜가 다른 리포트에서 같은 사안을 다룬 이슈는 같은 값을 갖는다.
 번호 붙은 이슈 뒤에는 그 `id`를 노드로 묶은 앞 날짜 이슈를 `issue-history` 템플릿으로 넣는다. 앞 날짜 이슈는 그날 `system/issues.json`의
-`nodes`에 오늘 `id`가 든 이슈이고, 내용은 그날 공개본 `report.html`의 이슈 조각을 그대로 쓴다. 템플릿에는 앞 날짜부터 오늘까지
+`nodes`에 오늘 `id`가 든 이슈이고, 내용은 그날 공개본 `report.html`의 이슈 조각을 그대로 쓴다. 템플릿에는 오늘을 포함한 최근 `HISTORY`개 날짜의
 날짜와 이슈 해설 소제목을 날짜 순으로 적고, 오늘 항목에는 내용을 넣지 않는다. 앞 날짜 이슈가 없는 이슈에는 템플릿을 넣지 않는다.
 `invest-reports` 미니 앱은 템플릿으로 이슈 그림과 이슈 해설 사이에 오늘부터 앞 날짜 순으로 히스토리 상자를 그리고, 소제목을 누르면 이슈 문단을 그날의 내용으로 바꾼다.
 번호 붙은 이슈 소제목 뒤에는 리포트 폴더 `assets/issue-{번호}.webp`가 있을 때만 그 그림과
@@ -103,6 +103,7 @@ REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
 INDICATORS_TITLE = "미국 거시 지표"
 ISSUES_TITLE = "상세 이슈 해설"
 HISTORY_RE = re.compile(r'<template class="issue-history">.*?</template>\s*', re.DOTALL)
+HISTORY = 10  # 히스토리 상자에 오늘을 포함해 적는 최근 날짜의 수
 THUMB = 264
 UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#ffffff"  # 오름·내림·중립 색. 오름·내림 색은 `app.html`의 등락 색과 같다
 # 지표 카드의 구간. [구간 끝값, 색, 구간 이름]이고, 지금 값이 든 구간의 이름과 색이 카드의 상태다.
@@ -738,7 +739,7 @@ def issue_history(vault: Path, index: str, day: dt.date, out: Path) -> dict[str,
 
 
 def mark_issue_history(body: str, history: dict[str, list[tuple[dt.date, str]]], day: dt.date) -> str:
-    """번호 붙은 이슈 뒤에 앞 날짜 이슈 조각과 날짜마다 이슈 해설 소제목을 담은 `issue-history` 템플릿을 넣는다."""
+    """번호 붙은 이슈 뒤에 최근 `HISTORY`개 날짜의 앞 날짜 이슈 조각과 날짜마다 이슈 해설 소제목을 담은 `issue-history` 템플릿을 넣는다."""
     parts, last = [], 0
     for start, stop in issue_segments(body):
         segment = body[start:stop]
@@ -746,7 +747,7 @@ def mark_issue_history(body: str, history: dict[str, list[tuple[dt.date, str]]],
         past = history.get(html.unescape(issue.group(1)), []) if issue else []
         if not past:
             continue
-        days = [(when, explainer_title(chunk), re.sub(r'\sid="[^"]*"', "", chunk)) for when, chunk in past]
+        days = [(when, explainer_title(chunk), re.sub(r'\sid="[^"]*"', "", chunk)) for when, chunk in past[-(HISTORY - 1):]]
         days.append((day, explainer_title(segment), ""))
         sections = "".join(f'<section data-day="{when}" data-title="{html.escape(title)}">{chunk}</section>'
                            for when, title, chunk in days)
