@@ -40,32 +40,39 @@
   main { max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-inset)) 16px calc(40px + var(--offscreen, 0px)); }
   header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 0 0 2px; color: var(--accent); }
   /* 제목 바로 아래에 등락률 줄을, 그 아래에 작성 시각 줄을 쓴다. 두 줄은 같은 크기의 회색 글씨로 쓰고, 작성 시각 줄은 제목과 등락률 줄 사이만큼 띄운다. 장 마감 후 등락률은 그날 리포트의 기준 가격에만 쓰이므로 괄호로 묶는다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다.
-     제목 줄(지수 전환 단추와 달력 단추 포함)과 등락률 줄은 머리 상자(`#masthead`)로 묶어 화면을 내려도 화면 맨 위에 붙어 남게 한다. 상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 배경색을 반투명하게 흐린 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 한다. 흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
-  #masthead { position: sticky; top: calc(2px + var(--top-inset)); z-index: 4; }
+     제목 줄(지수 전환 단추와 달력 단추 포함)과 등락률 줄은 머리 상자(`#masthead`)로 묶어 화면을 내려도 화면 맨 위에 붙어 남게 한다. 상자가 화면 위에 붙으면(`stuck`) 상자 뒤에 절 바로가기 알약과 같은 유리 카드를 깔아 본문이 카드 밑으로 흐리게 비쳐 지나가게 한다. 카드는 알약과 같은 색·흐림·그림자·모서리 둥글기를 쓰고, 가장자리에 알약과 같은 1px 빛줄기를 그린다. 흐림을 그리지 못하는 화면에서는 카드를 배경색으로 칠한다. */
+  #masthead { position: sticky; top: calc(8px + var(--top-inset)); z-index: 4; }
   #berth { height: 4px; }
   #moves { margin: 0; font-size: 12.5px; color: var(--hint); }
   #dated { margin: 1.5px 0 0; font-size: 12.5px; color: var(--dim); }
-  #masthead::before { content: ""; position: absolute; inset: calc(-2px - var(--top-inset)) -16px -6px; z-index: -1; background: color-mix(in srgb, var(--bg) 30%, transparent);
-                  -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%);
-                  opacity: 0; transition: opacity .15s; pointer-events: none; }
+  #masthead::before, #masthead::after { content: ""; position: absolute; inset: -6px -8px; z-index: -1; border-radius: 24px; opacity: 0; transition: opacity .15s; pointer-events: none; }
+  #masthead::before { background: linear-gradient(160deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, .01) 55%, rgba(255, 255, 255, .02));
+                      box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+                      -webkit-backdrop-filter: blur(4px) saturate(150%); backdrop-filter: blur(4px) saturate(150%); }
+  #masthead::after { padding: 1px;
+                     background: linear-gradient(150deg, rgba(255, 255, 255, .42), rgba(255, 255, 255, .08) 28%, rgba(255, 255, 255, 0) 55%,
+                                 rgba(255, 255, 255, .06) 80%, rgba(255, 255, 255, .22));
+                     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+                     -webkit-mask-composite: xor; mask-composite: exclude; }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #masthead::before { background: var(--bg); } }
-  #masthead.stuck::before { opacity: 1; }
+  #masthead.stuck::before, #masthead.stuck::after { opacity: 1; }
   /* 붙어 있는 머리 상자는 절 바로가기 알약과 같이 화면이 1.2초 동안 움직이지 않으면 0.8초에 걸쳐 서서히 감추고(`idle`), 화면을 내용의 아래쪽으로 내리면 바로 감추며(`idle fall`), 내용의 위쪽으로 화면을 올리면 0.4초에 걸쳐 다시 띄운다.
      상자에 투명도를 주면 띠의 흐림이 사라지므로 제목 줄·등락률 줄·띠의 투명도를 따로 낮춘다. 감춘 상자는 누를 수 없고, 달력 창이 열려 있으면 감추지 않는다. */
   #masthead { transition: visibility 0s; }
   #masthead > :is(header, #moves) { transition: opacity .4s ease; }
   #masthead.stuck.idle:not(:has(.cal-layer)) { visibility: hidden; transition: visibility 0s .8s; }
   #masthead.stuck.idle:not(:has(.cal-layer)) > :is(header, #moves),
-  #masthead.stuck.idle:not(:has(.cal-layer))::before { opacity: 0; transition: opacity .8s ease; }
+  #masthead.stuck.idle:not(:has(.cal-layer))::before,
+  #masthead.stuck.idle:not(:has(.cal-layer))::after { opacity: 0; transition: opacity .8s ease; }
   #masthead.stuck.idle.fall:not(:has(.cal-layer)),
   #masthead.stuck.idle.fall:not(:has(.cal-layer)) > :is(header, #moves),
-  #masthead.stuck.idle.fall:not(:has(.cal-layer))::before { transition: none; }
-  /* 전체화면 위쪽 높이를 머리 상자의 띠와 같은 유리로 덮는다. 머리 상자가 고정되면 띠가 이 높이까지 함께 덮으므로 이 유리는 감추고, 고정된 머리 상자를 감추면 이 유리를 다시 띄운다. */
+  #masthead.stuck.idle.fall:not(:has(.cal-layer))::before,
+  #masthead.stuck.idle.fall:not(:has(.cal-layer))::after { transition: none; }
+  /* 전체화면 위쪽 높이를 배경색을 반투명하게 흐린 유리로 덮는다. */
   #top-glass { position: fixed; top: 0; left: 0; right: 0; z-index: 4; height: var(--top-inset); pointer-events: none;
                background: color-mix(in srgb, var(--bg) 30%, transparent);
                -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%); transition: opacity .15s; }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #top-glass { background: var(--bg); } }
-  body:has(#masthead.stuck:not(.idle)) #top-glass, body:has(#masthead.stuck .cal-layer) #top-glass { opacity: 0; }
   #masthead.stuck { cursor: pointer; }
   #moves:empty { display: none; }
   #moves b { font-weight: 700; margin-left: 4px; }
