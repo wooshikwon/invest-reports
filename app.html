@@ -353,7 +353,7 @@
   .gauge .marks { animation: marks-in .25s ease-out; }
   @keyframes marks-in { from { opacity: 0; } }
   /* 그림 아래 줄은 세 카드가 같은 높이로 둔다. 주가와 예측 카드는 기간을 한 단계씩 줄이고 늘리는 단추와 다섯 단계 가운데 고른 단계의 점을,
-     Montecarlo 카드는 고른 번호의 일정을 둔다. 일정은 번호, 날짜, 이름을 한 줄에 가운데 맞춰 적고, 같은 날 일정은 쉼표로 잇는다.
+     Montecarlo 카드는 고른 번호의 일정을 둔다. 일정은 번호, 날짜, 이름을 한 줄에 왼쪽부터 적어 −와 + 단추와 같은 높이에 두고, 같은 날 일정은 쉼표로 잇는다.
      한 줄을 넘는 이름은 말줄임표로 줄인다. */
   .gauge .foot { min-height: 28px; margin-top: 12px; }
   .gauge.summary { padding-bottom: 4px; }
@@ -364,7 +364,7 @@
   .gauge .zoom .steps { display: flex; gap: 5px; }
   .gauge .zoom .steps i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, .22); }
   .gauge .zoom .steps i.on { background: #fff; }
-  .gauge .evbox { display: flex; justify-content: center; align-items: center; gap: 8px; height: 28px; font-size: 13px; color: var(--text); white-space: nowrap; }
+  .gauge .evbox { display: flex; align-items: center; gap: 8px; height: 28px; font-size: 13px; color: var(--text); white-space: nowrap; }
   .gauge .evbox em { flex: none; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
                      background: var(--card-color); color: #0b1a24; font-style: normal; font-size: 11px; font-weight: 600; }
   .gauge .evbox .d { flex: none; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
