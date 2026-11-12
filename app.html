@@ -364,11 +364,12 @@
   .gauge .zoom .steps { display: flex; gap: 5px; }
   .gauge .zoom .steps i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, .22); }
   .gauge .zoom .steps i.on { background: #fff; }
-  .gauge .evbox { display: flex; align-items: center; gap: 8px; height: 28px; font-size: 13px; color: var(--text); white-space: nowrap; }
-  .gauge .evbox em { flex: none; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
-                     background: var(--card-color); color: #0b1a24; font-style: normal; font-size: 11px; font-weight: 600; }
-  .gauge .evbox .d { flex: none; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
-  .gauge .evbox .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .gauge .evbox { display: flex; align-items: center; gap: 4px; height: 28px; font-size: 13px; color: var(--text); white-space: nowrap; }
+  .gauge .evbox button { flex: none; appearance: none; border: 0; padding: 0; width: 28px; height: 28px; background: transparent; color: var(--text);
+                         display: grid; place-items: center; cursor: pointer; }
+  .gauge .evbox button:disabled { color: var(--dim); opacity: .45; cursor: default; }
+  .gauge .evbox .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+  .gauge .evbox .d { margin-right: 8px; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
   /* 표 카드는 그림 칸 대신 표를 싣는다. 첫 열 이름은 소제목 색, 강조 열(`focus`)은 카드 값처럼 굵은 흰 글씨, 나머지 칸은 흐린 글씨로 쓴다. */
   .gauge table { margin: 12px 0 4px; font-variant-numeric: tabular-nums; }
   .gauge th { color: var(--dim); font-size: 12px; }
@@ -877,12 +878,20 @@
 
     // Montecarlo: 수익률 분위수의 10~90% 옅은 면과 25~75% 면, 50% 실선을 주가와 예측 카드와 같은 판단 색으로 그린다. 위쪽 번호는 이슈 일정이 있는 날이고,
     // 마지막 거래일에는 일정이 없어도 번호를 달고, 처음에는 마지막 번호를 고른다. 번호를 누르면 위 값을 그날의 25~75% 수익률로 바꾸고
-    // 세로선과 범위 끝이 만나는 곳에 그날의 수익률을 적고, 그림 아래 줄에 그 일정을 적는다. 지난 날짜를 고르면 그날 기준 가격 뒤의 실제 종가 수익률을 흰 선으로 그린다.
+    // 세로선과 범위 끝이 만나는 곳에 그날의 수익률을 적는다. 그림 아래 줄 가운데에는 고른 일정의 날짜와 이름을 적고, 이름이 줄을 넘으면 말줄임표로 줄인다.
+    // 그 줄 양옆의 꺽쇠를 누르면 앞뒤 일정을 고른다. 지난 날짜를 고르면 그날 기준 가격 뒤의 실제 종가 수익률을 흰 선으로 그린다.
     const tree = (() => {
       const c = card("25거래일 뒤 등락률 예측"), s = c.svg;
       const L = 4, R = W - 4, T = 38;
       const box = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "evbox" }));
+      const chevron = (d, label) => Object.assign(document.createElement("button"), { type: "button", ariaLabel: label,
+        innerHTML: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>` });
+      const prev = chevron("M10 3 5 8l5 5", "이전 일정"), next = chevron("M6 3l5 5-5 5", "다음 일정");
+      const line = Object.assign(document.createElement("span"), { className: "t" });
+      box.append(prev, line, next);
       let frame = null, pick = null, events = [], scale = null;
+      prev.addEventListener("click", () => { if (pick > 0) { pick -= 1; mark(); } });
+      next.addEventListener("click", () => { if (pick < events.length - 1) { pick += 1; mark(); } });
       const percent = (v) => [signed(v), Object.assign(document.createElement("small"), { textContent: "%" })];
       const mark = () => {
         s.querySelectorAll("[data-ev]").forEach((node) => {
@@ -903,9 +912,10 @@
           "text-anchor": right ? "start" : "end", stroke: "#171719", "stroke-width": 3, "stroke-linejoin": "round", "paint-order": "stroke" }, `${signed(pct[q][d])}%`)));
         c.head(frame, "", [...percent(pct["25"][d]), Object.assign(document.createElement("span"), { className: "sep", textContent: "~" }), ...percent(pct["75"][d])],
           `${d}거래일 뒤 등락률 예측`);
-        box.replaceChildren(Object.assign(document.createElement("em"), { textContent: pick + 1 }),
-          Object.assign(document.createElement("span"), { className: "d", textContent: day }),
-          Object.assign(document.createElement("span"), { className: "n", textContent: names.length ? names.join(", ") : "예측 마지막 날" }));
+        line.replaceChildren(Object.assign(document.createElement("span"), { className: "d", textContent: day }),
+          names.length ? names.join(", ") : "예측 마지막 날");
+        prev.disabled = pick === 0;
+        next.disabled = pick === events.length - 1;
       };
       const draw = () => {
         s.replaceChildren();
