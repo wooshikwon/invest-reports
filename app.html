@@ -49,7 +49,7 @@
                   opacity: 0; transition: opacity .15s; pointer-events: none; }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #masthead::before { background: var(--bg); } }
   #masthead.stuck::before { opacity: 1; }
-  /* 붙어 있는 머리 상자는 절 바로가기 알약처럼 화면이 0.8초 동안 움직이지 않으면 0.8초에 걸쳐 서서히 감추고(`idle`), 화면이 움직이면 0.4초에 걸쳐 다시 띄운다.
+  /* 붙어 있는 머리 상자는 절 바로가기 알약처럼 화면이 0.8초 동안 움직이지 않으면 0.8초에 걸쳐 서서히 감추고(`idle`), 내용의 위쪽으로 화면을 올리면 0.4초에 걸쳐 다시 띄운다.
      상자에 투명도를 주면 띠의 흐림이 사라지므로 제목 줄·등락률 줄·띠의 투명도를 따로 낮춘다. 감춘 상자는 누를 수 없고, 달력 창이 열려 있으면 감추지 않는다. */
   #masthead { transition: visibility 0s; }
   #masthead > :is(header, #moves) { transition: opacity .4s ease; }
@@ -372,7 +372,7 @@
                     background: rgba(255, 255, 255, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
                     transition: transform .25s ease, height .25s ease, opacity .2s ease; }
   nav.jump .lever.drag { transition: none; background: rgba(255, 255, 255, .18); }
-  /* 화면이 0.8초 동안 움직이지 않으면 알약을 0.8초에 걸쳐 서서히 감추고(`idle`), 화면이 움직이면 0.4초에 걸쳐 다시 띄운다. 감춘 알약은 누를 수 없다. */
+  /* 화면이 0.8초 동안 움직이지 않으면 알약을 0.8초에 걸쳐 서서히 감추고(`idle`), 내용의 위쪽으로 화면을 올리면 0.4초에 걸쳐 다시 띄운다. 감춘 알약은 누를 수 없다. */
   nav.jump { transition: opacity .4s ease, visibility 0s; }
   nav.jump.idle { opacity: 0; visibility: hidden; transition: opacity .8s ease, visibility 0s .8s; }
   /* 설명이 있는 절 제목과 지표 카드 이름은 글자 바로 뒤에 원 안 물음표 단추를 둔다. 단추를 누르면 화면 가운데에 설명 상자를 띄우고, 닫기 단추나 상자 바깥을 누르면 닫는다. */
@@ -435,12 +435,22 @@
   const masthead = document.getElementById("masthead");
   const stick = () => masthead.classList.toggle("stuck", scrollY > 0 && masthead.getBoundingClientRect().top <= parseFloat(getComputedStyle(masthead).top) + .5);
   addEventListener("scroll", stick, { passive: true });
-  // 화면이 움직일 때마다 머리 상자의 `idle`을 떼고, 0.8초 동안 움직이지 않으면 다시 단다. `idle`은 상자가 붙어 있을 때만 상자를 감춘다.
+  // 화면이 움직일 때마다 내용의 위쪽으로 8px 넘게 올라갔는지(`rising`) 정한다. 기준은 감춘 뒤 가장 깊이 내려간 위치이고, 문서 끝을 넘어 튕긴 위치는 문서 끝으로 센다.
+  // 머리 상자와 절 바로가기 알약은 보이는 동안 화면이 움직이면 감출 시각을 미루고, 감춘 뒤에는 `rising`일 때만 다시 띄운다.
+  let deepest = scrollY, rising = false;
+  addEventListener("scroll", () => {
+    const y = Math.min(scrollY, document.documentElement.scrollHeight - innerHeight);
+    deepest = Math.max(deepest, y);
+    rising = y < deepest - 8;
+    if (rising) deepest = y;
+  }, { passive: true });
+  // 머리 상자가 붙어 있는 동안 화면이 0.8초 동안 움직이지 않으면 머리 상자에 `idle`을 단다.
   let still = 0;
   addEventListener("scroll", () => {
+    if (masthead.classList.contains("idle") && !rising) return;
     masthead.classList.remove("idle");
     clearTimeout(still);
-    still = setTimeout(() => masthead.classList.add("idle"), 800);
+    still = setTimeout(() => masthead.classList.toggle("idle", masthead.classList.contains("stuck")), 800);
   }, { passive: true });
   // 붙어 있는 머리 상자를 누르면 문서 맨 위로 올라간다. 지수 전환 단추·달력 단추와 달력 창을 누르면 그 단추의 동작만 한다.
   masthead.addEventListener("click", (event) => {
@@ -1854,13 +1864,13 @@
       lever.style.transform = `translateY(${button.offsetTop}px)`;
     };
     let pending = false, held = null, release = 0, drag = null, idle = 0;
-    // 화면이 움직일 때마다 알약을 띄우고, 1초 뒤에 감춘다. 알약을 끌고 있으면 감추지 않고, 손을 뗄 때 다시 1초를 센다.
+    // 알약을 띄우고 0.8초 뒤에 감춘다. 알약을 끌고 있으면 감추지 않고, 손을 뗄 때 다시 0.8초를 센다.
     const wake = () => {
       nav.classList.remove("idle");
       clearTimeout(idle);
       idle = setTimeout(() => { if (!drag) nav.classList.add("idle"); }, 800);
     };
-    addEventListener("scroll", wake, { passive: true });
+    addEventListener("scroll", () => { if (!nav.classList.contains("idle") || rising) wake(); }, { passive: true });
     const mark = () => {
       pending = false;
       if (drag?.moved) return;
