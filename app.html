@@ -49,13 +49,16 @@
                   opacity: 0; transition: opacity .15s; pointer-events: none; }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #masthead::before { background: var(--bg); } }
   #masthead.stuck::before { opacity: 1; }
-  /* 붙어 있는 머리 상자는 절 바로가기 알약과 같이 화면이 1.2초 동안 움직이지 않거나 화면을 내용의 아래쪽으로 내리면 0.8초에 걸쳐 서서히 감추고(`idle`), 내용의 위쪽으로 화면을 올리면 0.4초에 걸쳐 다시 띄운다.
+  /* 붙어 있는 머리 상자는 절 바로가기 알약과 같이 화면이 1.2초 동안 움직이지 않으면 0.8초에 걸쳐 서서히 감추고(`idle`), 화면을 내용의 아래쪽으로 내리면 바로 감추며(`idle fall`), 내용의 위쪽으로 화면을 올리면 0.4초에 걸쳐 다시 띄운다.
      상자에 투명도를 주면 띠의 흐림이 사라지므로 제목 줄·등락률 줄·띠의 투명도를 따로 낮춘다. 감춘 상자는 누를 수 없고, 달력 창이 열려 있으면 감추지 않는다. */
   #masthead { transition: visibility 0s; }
   #masthead > :is(header, #moves) { transition: opacity .4s ease; }
   #masthead.stuck.idle:not(:has(.cal-layer)) { visibility: hidden; transition: visibility 0s .8s; }
   #masthead.stuck.idle:not(:has(.cal-layer)) > :is(header, #moves),
   #masthead.stuck.idle:not(:has(.cal-layer))::before { opacity: 0; transition: opacity .8s ease; }
+  #masthead.stuck.idle.fall:not(:has(.cal-layer)),
+  #masthead.stuck.idle.fall:not(:has(.cal-layer)) > :is(header, #moves),
+  #masthead.stuck.idle.fall:not(:has(.cal-layer))::before { transition: none; }
   /* 전체화면 위쪽 높이를 머리 상자의 띠와 같은 유리로 덮는다. 머리 상자가 고정되면 띠가 이 높이까지 함께 덮으므로 이 유리는 감추고, 고정된 머리 상자를 감추면 이 유리를 다시 띄운다. */
   #top-glass { position: fixed; top: 0; left: 0; right: 0; z-index: 4; height: var(--top-inset); pointer-events: none;
                background: color-mix(in srgb, var(--bg) 30%, transparent);
@@ -368,9 +371,10 @@
                     background: rgba(255, 255, 255, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
                     transition: transform .25s ease, height .25s ease, opacity .2s ease; }
   nav.jump .lever.drag { transition: none; background: rgba(255, 255, 255, .18); }
-  /* 화면이 1.2초 동안 움직이지 않거나 화면을 내용의 아래쪽으로 내리면 알약을 0.8초에 걸쳐 서서히 감추고(`idle`), 내용의 위쪽으로 화면을 올리면 0.4초에 걸쳐 다시 띄운다. 감춘 알약은 누를 수 없다. */
+  /* 화면이 1.2초 동안 움직이지 않으면 알약을 0.8초에 걸쳐 서서히 감추고(`idle`), 화면을 내용의 아래쪽으로 내리면 바로 감추며(`idle fall`), 내용의 위쪽으로 화면을 올리면 0.4초에 걸쳐 다시 띄운다. 감춘 알약은 누를 수 없다. */
   nav.jump { transition: opacity .4s ease, visibility 0s; }
   nav.jump.idle { opacity: 0; visibility: hidden; transition: opacity .8s ease, visibility 0s .8s; }
+  nav.jump.idle.fall { transition: none; }
   /* 설명이 있는 절 제목과 지표 카드 이름은 글자 바로 뒤에 원 안 물음표 단추를 둔다. 단추를 누르면 화면 가운데에 설명 상자를 띄우고, 닫기 단추나 상자 바깥을 누르면 닫는다. */
   .help { display: inline-grid; place-items: center; vertical-align: top; width: 26px; height: 1lh; margin-left: 2px; padding: 0; border: 0; font: inherit;
              background: none; color: var(--dim); cursor: pointer; }
@@ -433,7 +437,7 @@
   addEventListener("scroll", stick, { passive: true });
   // 화면이 움직일 때마다 내용의 위쪽으로 8px 넘게 올라갔는지(`rising`), 아래쪽으로 8px 넘게 내려갔는지(`falling`) 정한다.
   // 올라간 거리는 마지막으로 올라간 뒤 가장 깊이 내려간 위치부터, 내려간 거리는 마지막으로 내려간 뒤 가장 얕게 올라간 위치부터 잰다. 문서 양 끝을 넘어 튕긴 위치는 문서 끝으로 센다.
-  // 머리 상자와 절 바로가기 알약은 같은 규칙으로 감추고 띄운다. 화면이 `STILL`ms 동안 움직이지 않거나 `falling`이면 감추고, 감춘 뒤에는 `rising`일 때만 다시 띄운다.
+  // 머리 상자와 절 바로가기 알약은 같은 규칙으로 감추고 띄운다. 화면이 `STILL`ms 동안 움직이지 않으면 서서히 감추는 `idle`을, `falling`이면 바로 감추는 `idle fall`을 달고, 감춘 뒤에는 `rising`일 때만 다시 띄운다.
   const STILL = 1200;
   let deepest = scrollY, shallowest = scrollY, rising = false, falling = false;
   addEventListener("scroll", () => {
@@ -450,11 +454,11 @@
   addEventListener("scroll", () => {
     if (falling && masthead.classList.contains("stuck")) {
       clearTimeout(still);
-      masthead.classList.add("idle");
+      masthead.classList.add("idle", "fall");
       return;
     }
     if (masthead.classList.contains("idle") && !rising) return;
-    masthead.classList.remove("idle");
+    masthead.classList.remove("idle", "fall");
     clearTimeout(still);
     still = setTimeout(() => masthead.classList.toggle("idle", masthead.classList.contains("stuck")), STILL);
   }, { passive: true });
@@ -1872,13 +1876,13 @@
     let pending = false, held = null, release = 0, drag = null, idle = 0;
     // 알약을 띄우고 `STILL`ms 뒤에 감춘다. 알약을 끌고 있으면 감추지 않고, 손을 뗄 때 다시 시간을 센다.
     const wake = () => {
-      nav.classList.remove("idle");
+      nav.classList.remove("idle", "fall");
       clearTimeout(idle);
       idle = setTimeout(() => { if (!drag) nav.classList.add("idle"); }, STILL);
     };
     addEventListener("scroll", () => {
       if (falling) {
-        if (!drag) { clearTimeout(idle); nav.classList.add("idle"); }
+        if (!drag) { clearTimeout(idle); nav.classList.add("idle", "fall"); }
         return;
       }
       if (!nav.classList.contains("idle") || rising) wake();
