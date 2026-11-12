@@ -928,7 +928,7 @@
           row = X(d) - before < 16 && row === 0 ? 1 : 0;
           before = X(d);
           const cy = T - 9 - row * 17;
-          s.append(shape("line", { x1: X(d), x2: X(d), y1: cy, y2: B, "stroke-width": 1, "data-ev": i }));
+          s.append(shape("line", { x1: X(d), x2: X(d), y1: cy, y2: B, "stroke-width": 1, "stroke-dasharray": "2 3", "data-ev": i }));
           s.append(shape("circle", { cx: X(d), cy, r: 7.5, "data-ev": i }));
           s.append(shape("text", { x: X(d), y: cy + 3.5, "font-size": 9.5, "font-weight": 600, "text-anchor": "middle", "pointer-events": "none", "data-ev": i }, i + 1));
           // 번호 원과 그 아래 세로선 양옆 7px까지를 누르면 그 일정을 고른다. 누르는 면은 범위 띠에 가리지 않게 맨 마지막에 붙인다.
