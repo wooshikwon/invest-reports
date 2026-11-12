@@ -64,8 +64,8 @@
   #masthead.stuck.idle.fall:not(:has(.cal-layer))::before { transition: none; }
   /* 전체화면 위쪽 높이를 머리 상자의 띠와 같은 유리로 덮는다. 머리 상자가 고정되면 띠가 이 높이까지 함께 덮으므로 이 유리는 감추고, 고정된 머리 상자를 감추면 이 유리를 다시 띄운다. */
   #top-glass { position: fixed; top: 0; left: 0; right: 0; z-index: 4; height: var(--top-inset); pointer-events: none;
-               background: color-mix(in srgb, var(--bg) 30%, transparent);
-               -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%); transition: opacity .15s; }
+               background: linear-gradient(160deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, .01) 55%, rgba(255, 255, 255, .02));
+               -webkit-backdrop-filter: blur(4px) saturate(150%); backdrop-filter: blur(4px) saturate(150%); transition: opacity .15s; }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #top-glass { background: var(--bg); } }
   body:has(#masthead.stuck:not(.idle)) #top-glass, body:has(#masthead.stuck .cal-layer) #top-glass { opacity: 0; }
   #masthead.stuck { cursor: pointer; }
