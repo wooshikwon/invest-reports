@@ -892,12 +892,12 @@
           else node.setAttribute("fill", on ? "#0b1a24" : "#EAEAEA");
         });
         const [d, names, day] = events[pick], pct = frame.tree.pct, { X, Y, values } = scale;
-        // 고른 세로선이 10~90%와 25~75% 범위의 위아래 끝과 만나는 네 곳에 그날의 수익률을 회색으로 적는다. 글씨는 세로선이 그림 왼쪽 반에 있으면
+        // 고른 세로선이 10~90%와 25~75% 범위의 위아래 끝과 만나는 네 곳에 그날의 수익률을 회색으로 적고, 10~90% 범위의 두 값은 더 연하게 적는다. 글씨는 세로선이 그림 왼쪽 반에 있으면
         // 오른쪽에, 오른쪽 반에 있으면 왼쪽에 둔다. 위아래 글씨가 12px보다 가까우면 네 글씨의 평균 높이를 지키며 12px 간격으로 벌린다.
         const right = X(d) < (L + R) / 2, ys = ["90", "75", "25", "10"].map((q) => Y(pct[q][d]) + 4);
         const at = ys.reduce((out, y) => [...out, out.length ? Math.max(y, out[out.length - 1] + 12) : y], []);
         const shift = (ys.reduce((a, b) => a + b) - at.reduce((a, b) => a + b)) / at.length;
-        values.replaceChildren(...["90", "75", "25", "10"].map((q, k) => shape("text", { x: X(d) + (right ? 5 : -5), y: at[k] + shift, "font-size": 11, fill: "#A7ABB0",
+        values.replaceChildren(...["90", "75", "25", "10"].map((q, k) => shape("text", { x: X(d) + (right ? 5 : -5), y: at[k] + shift, "font-size": 11, fill: q === "25" || q === "75" ? "#A7ABB0" : "#5C6168",
           "text-anchor": right ? "start" : "end", stroke: "#171719", "stroke-width": 3, "stroke-linejoin": "round", "paint-order": "stroke" }, `${signed(pct[q][d])}%`)));
         c.head(frame, "", [...percent(pct["25"][d]), Object.assign(document.createElement("span"), { className: "sep", textContent: "~" }), ...percent(pct["75"][d])],
           `${d}거래일 뒤 수익률`);
