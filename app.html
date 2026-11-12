@@ -38,10 +38,11 @@
   }
   /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
   main { max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-inset)) 16px calc(40px + var(--offscreen, 0px)); }
-  header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 4px 0 2px; color: var(--accent); }
+  header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 0 0 2px; color: var(--accent); }
   /* 제목 바로 아래에 등락률 줄을, 그 아래에 작성 시각 줄을 쓴다. 두 줄은 같은 크기의 회색 글씨로 쓰고, 작성 시각 줄은 제목과 등락률 줄 사이만큼 띄운다. 장 마감 후 등락률은 그날 리포트의 기준 가격에만 쓰이므로 괄호로 묶는다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다.
      제목 줄(지수 전환 단추와 달력 단추 포함)과 등락률 줄은 머리 상자(`#masthead`)로 묶어 화면을 내려도 화면 맨 위에 붙어 남게 한다. 상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 배경색을 반투명하게 흐린 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 한다. 흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
   #masthead { position: sticky; top: calc(2px + var(--top-inset)); z-index: 4; }
+  #berth { height: 4px; }
   #moves { margin: 0; font-size: 12.5px; color: var(--hint); }
   #dated { margin: 1.5px 0 0; font-size: 12.5px; color: var(--dim); }
   #masthead::before { content: ""; position: absolute; inset: calc(-2px - var(--top-inset)) -16px -6px; z-index: -1; background: color-mix(in srgb, var(--bg) 30%, transparent);
@@ -394,7 +395,7 @@
 <body>
 <div id="top-glass"></div>
 <main>
-  <div id="masthead"><header><h1 id="title">투자 판단 리포트</h1></header><p id="moves"></p></div><p id="dated"></p>
+  <div id="berth"></div><div id="masthead"><header><h1 id="title">투자 판단 리포트</h1></header><p id="moves"></p></div><p id="dated"></p>
   <article id="report"><p class="status">리포트를 불러오는 중이다.</p></article>
 </main>
 <script>
@@ -432,8 +433,10 @@
   let key = query.get("r") || (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || "";
   const report = document.getElementById("report");
   // 머리 상자가 화면 위에 붙어 있으면 `stuck`을 단다. 문서 맨 위에서는 달지 않는다.
+  // 붙었는지는 머리 상자 바로 위의 빈 띠(`#berth`)의 아래 끝이 머리 상자가 붙는 높이보다 위로 올라갔는지로 정한다. iOS는 코드가 화면을 옮긴 직후 붙는 상자의 위치를 옮기기 전 화면 기준으로 알려 주므로 머리 상자의 위치로 정하지 않는다.
   const masthead = document.getElementById("masthead");
-  const stick = () => masthead.classList.toggle("stuck", scrollY > 0 && masthead.getBoundingClientRect().top <= parseFloat(getComputedStyle(masthead).top) + .5);
+  const berth = document.getElementById("berth");
+  const stick = () => masthead.classList.toggle("stuck", scrollY > 0 && berth.getBoundingClientRect().bottom <= parseFloat(getComputedStyle(masthead).top) + .5);
   addEventListener("scroll", stick, { passive: true });
   // 화면이 움직일 때마다 내용의 위쪽으로 8px 넘게 올라갔는지(`rising`), 아래쪽으로 8px 넘게 내려갔는지(`falling`) 정한다.
   // 올라간 거리는 마지막으로 올라간 뒤 가장 깊이 내려간 위치부터, 내려간 거리는 마지막으로 내려간 뒤 가장 얕게 올라간 위치부터 잰다. 문서 양 끝을 넘어 튕긴 위치는 문서 끝으로 센다.
@@ -476,7 +479,7 @@
     if (masthead.classList.contains("idle") && !rising) return;
     masthead.classList.remove("idle", "fall");
     clearTimeout(still);
-    still = setTimeout(() => masthead.classList.toggle("idle", masthead.classList.contains("stuck")), STILL);
+    still = setTimeout(() => masthead.classList.toggle("idle", stick()), STILL);
   }, { passive: true });
   // 붙어 있는 머리 상자를 누르면 문서 맨 위로 올라간다. 지수 전환 단추·달력 단추와 달력 창을 누르면 그 단추의 동작만 한다.
   masthead.addEventListener("click", (event) => {
