@@ -365,6 +365,9 @@
                     background: rgba(255, 255, 255, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
                     transition: transform .25s ease, height .25s ease, opacity .2s ease; }
   nav.jump .lever.drag { transition: none; background: rgba(255, 255, 255, .18); }
+  /* 화면이 1초 동안 움직이지 않으면 알약을 서서히 감추고(`idle`), 화면이 움직이면 다시 띄운다. 감춘 알약은 누를 수 없다. */
+  nav.jump { transition: opacity .4s ease, visibility 0s; }
+  nav.jump.idle { opacity: 0; visibility: hidden; transition: opacity .4s ease, visibility 0s .4s; }
   /* 설명이 있는 절 제목과 지표 카드 이름은 글자 바로 뒤에 원 안 물음표 단추를 둔다. 단추를 누르면 화면 가운데에 설명 상자를 띄우고, 닫기 단추나 상자 바깥을 누르면 닫는다. */
   .help { display: inline-grid; place-items: center; vertical-align: top; width: 26px; height: 1lh; margin-left: 2px; padding: 0; border: 0; font: inherit;
              background: none; color: var(--dim); cursor: pointer; }
@@ -1835,7 +1838,14 @@
       lever.style.height = `${button.offsetHeight}px`;
       lever.style.transform = `translateY(${button.offsetTop}px)`;
     };
-    let pending = false, held = null, release = 0, drag = null;
+    let pending = false, held = null, release = 0, drag = null, idle = 0;
+    // 화면이 움직일 때마다 알약을 띄우고, 1초 뒤에 감춘다. 알약을 끌고 있으면 감추지 않고, 손을 뗄 때 다시 1초를 센다.
+    const wake = () => {
+      nav.classList.remove("idle");
+      clearTimeout(idle);
+      idle = setTimeout(() => { if (!drag) nav.classList.add("idle"); }, 1000);
+    };
+    addEventListener("scroll", wake, { passive: true });
     const mark = () => {
       pending = false;
       if (drag?.moved) return;
@@ -1908,6 +1918,7 @@
       if (!drag || event.pointerId !== drag.id) return;
       const moved = drag.moved;
       drag = null;
+      wake();
       if (!moved) return;
       nav.dataset.dragged = "1";
       lever.classList.remove("drag");
@@ -1920,6 +1931,7 @@
     document.body.append(nav);
     marks.forEach(([head]) => reach(head));
     mark();
+    wake();
   }
 
   // 절 제목마다 설명 상자에 쓸 항목을 둔다. 항목마다 이름을 굵게 쓰고 그 아래에 설명을 쓴다.
