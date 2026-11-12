@@ -879,7 +879,7 @@
     // 마지막 거래일에는 일정이 없어도 번호를 달고, 처음에는 마지막 번호를 고른다. 번호를 누르면 위 값을 그날의 25~75% 수익률로 바꾸고
     // 세로선과 범위 끝이 만나는 곳에 그날의 수익률을 적고, 그림 아래 줄에 그 일정을 적는다. 지난 날짜를 고르면 그날 기준 가격 뒤의 실제 종가 수익률을 흰 선으로 그린다.
     const tree = (() => {
-      const c = card("25거래일 뒤 수익률"), s = c.svg;
+      const c = card("25거래일 뒤 등락률"), s = c.svg;
       const L = 4, R = W - 4, T = 38;
       const box = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "evbox" }));
       let frame = null, pick = null, events = [], scale = null;
@@ -902,7 +902,7 @@
           ...["90", "75", "25", "10"].map((q, k) => shape("text", { x: X(d) + (right ? 5 : -5), y: at[k] + shift, "font-size": 11, fill: ink(q),
           "text-anchor": right ? "start" : "end", stroke: "#171719", "stroke-width": 3, "stroke-linejoin": "round", "paint-order": "stroke" }, `${signed(pct[q][d])}%`)));
         c.head(frame, "", [...percent(pct["25"][d]), Object.assign(document.createElement("span"), { className: "sep", textContent: "~" }), ...percent(pct["75"][d])],
-          `${d}거래일 뒤 수익률`);
+          `${d}거래일 뒤 등락률`);
         box.replaceChildren(Object.assign(document.createElement("em"), { textContent: pick + 1 }),
           Object.assign(document.createElement("span"), { className: "d", textContent: day }),
           Object.assign(document.createElement("span"), { className: "n", textContent: names.length ? names.join(", ") : "예측 마지막 날" }));
