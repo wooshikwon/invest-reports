@@ -438,10 +438,17 @@
   // 화면이 움직일 때마다 내용의 위쪽으로 8px 넘게 올라갔는지(`rising`), 아래쪽으로 8px 넘게 내려갔는지(`falling`) 정한다.
   // 올라간 거리는 마지막으로 올라간 뒤 가장 깊이 내려간 위치부터, 내려간 거리는 마지막으로 내려간 뒤 가장 얕게 올라간 위치부터 잰다. 문서 양 끝을 넘어 튕긴 위치는 문서 끝으로 센다.
   // 머리 상자와 절 바로가기 알약은 같은 규칙으로 감추고 띄운다. 화면이 `STILL`ms 동안 움직이지 않으면 서서히 감추는 `idle`을, `falling`이면 바로 감추는 `idle fall`을 달고, 감춘 뒤에는 `rising`일 때만 다시 띄운다.
+  // 이슈를 열고 닫을 때처럼 코드가 화면을 옮기는 동안(`hush`가 정한 시각까지)은 사용자가 옮긴 것이 아니므로 `rising`과 `falling`을 모두 끄고, 옮긴 뒤의 위치부터 거리를 다시 잰다.
   const STILL = 1200;
-  let deepest = scrollY, shallowest = scrollY, rising = false, falling = false;
+  let deepest = scrollY, shallowest = scrollY, rising = false, falling = false, hushed = 0;
+  const hush = (ms) => { hushed = performance.now() + ms; return () => (hushed = 0); };
   addEventListener("scroll", () => {
     const y = Math.max(0, Math.min(scrollY, document.documentElement.scrollHeight - innerHeight));
+    if (performance.now() < hushed) {
+      deepest = shallowest = y;
+      rising = falling = false;
+      return;
+    }
     deepest = Math.max(deepest, y);
     shallowest = Math.min(shallowest, y);
     rising = y < deepest - 8;
@@ -1055,11 +1062,13 @@
         if (!move) return;
         const options = { duration: motion.matches ? 0 : GLIDE, easing: EASE };
         contents[k].flat().forEach((node) => node.animate([{ opacity: 0 }, { opacity: 1 }], options));
+        const release = hush(options.duration + 150);
         const stop = glide(scrollY, head.reach?.() ?? scrollY, (top) => scrollTo(0, top));
-        const cancel = () => { stop(); removeEventListener("touchstart", cancel); removeEventListener("wheel", cancel); };
+        const off = () => { removeEventListener("touchstart", cancel); removeEventListener("wheel", cancel); };
+        const cancel = () => { stop(); release(); off(); };
         addEventListener("touchstart", cancel, { passive: true });
         addEventListener("wheel", cancel, { passive: true });
-        setTimeout(cancel, options.duration);
+        setTimeout(() => { stop(); off(); }, options.duration);
       };
       const rows = entries.map((entry, k) => {
         const row = document.createElement("button");
@@ -1141,8 +1150,9 @@
       out.animate([{ transform: "none" }, { transform: `translateX(calc(${-dir} * (100% + 10px)))` }], options);
       shown.animate([{ transform: `translateX(calc(${dir} * (100% + 10px)))` }, { transform: "none" }], options);
       const goal = head.reach?.() ?? scrollY;
+      const release = hush(options.duration + 150);
       const stop = glide(scrollY, goal, (top) => scrollTo(0, top));
-      const cancel = () => { stop(); removeEventListener("touchstart", cancel); removeEventListener("wheel", cancel); };
+      const cancel = () => { stop(); release(); removeEventListener("touchstart", cancel); removeEventListener("wheel", cancel); };
       addEventListener("touchstart", cancel, { passive: true });
       addEventListener("wheel", cancel, { passive: true });
       setTimeout(() => {
