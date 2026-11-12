@@ -365,9 +365,9 @@
                     background: rgba(255, 255, 255, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
                     transition: transform .25s ease, height .25s ease, opacity .2s ease; }
   nav.jump .lever.drag { transition: none; background: rgba(255, 255, 255, .18); }
-  /* 화면이 1초 동안 움직이지 않으면 알약을 서서히 감추고(`idle`), 화면이 움직이면 다시 띄운다. 감춘 알약은 누를 수 없다. */
+  /* 화면이 1초 동안 움직이지 않으면 알약을 1초에 걸쳐 서서히 감추고(`idle`), 화면이 움직이면 0.4초에 걸쳐 다시 띄운다. 감춘 알약은 누를 수 없다. */
   nav.jump { transition: opacity .4s ease, visibility 0s; }
-  nav.jump.idle { opacity: 0; visibility: hidden; transition: opacity .4s ease, visibility 0s .4s; }
+  nav.jump.idle { opacity: 0; visibility: hidden; transition: opacity 1s ease, visibility 0s 1s; }
   /* 설명이 있는 절 제목과 지표 카드 이름은 글자 바로 뒤에 원 안 물음표 단추를 둔다. 단추를 누르면 화면 가운데에 설명 상자를 띄우고, 닫기 단추나 상자 바깥을 누르면 닫는다. */
   .help { display: inline-grid; place-items: center; vertical-align: top; width: 26px; height: 1lh; margin-left: 2px; padding: 0; border: 0; font: inherit;
              background: none; color: var(--dim); cursor: pointer; }
