@@ -49,7 +49,7 @@
                   opacity: 0; transition: opacity .15s; pointer-events: none; }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #masthead::before { background: var(--bg); } }
   #masthead.stuck::before { opacity: 1; }
-  /* 붙어 있는 머리 상자는 화면이 0.8초 동안 움직이지 않거나 화면을 내용의 아래쪽으로 내리면 0.8초에 걸쳐 서서히 감추고(`idle`), 내용의 위쪽으로 화면을 올리면 0.4초에 걸쳐 다시 띄운다.
+  /* 붙어 있는 머리 상자는 화면이 1.2초 동안 움직이지 않거나 화면을 내용의 아래쪽으로 내리면 0.8초에 걸쳐 서서히 감추고(`idle`), 내용의 위쪽으로 화면을 올리면 0.4초에 걸쳐 다시 띄운다.
      상자에 투명도를 주면 띠의 흐림이 사라지므로 제목 줄·등락률 줄·띠의 투명도를 따로 낮춘다. 감춘 상자는 누를 수 없고, 달력 창이 열려 있으면 감추지 않는다. */
   #masthead { transition: visibility 0s; }
   #masthead > :is(header, #moves) { transition: opacity .4s ease; }
@@ -444,7 +444,7 @@
     if (rising) deepest = y;
     if (falling) shallowest = y;
   }, { passive: true });
-  // 머리 상자가 붙어 있는 동안 화면이 0.8초 동안 움직이지 않거나 화면이 내용의 아래쪽으로 내려가면 머리 상자에 `idle`을 단다.
+  // 머리 상자가 붙어 있는 동안 화면이 1.2초 동안 움직이지 않거나 화면이 내용의 아래쪽으로 내려가면 머리 상자에 `idle`을 단다.
   let still = 0;
   addEventListener("scroll", () => {
     if (falling && masthead.classList.contains("stuck")) {
@@ -455,7 +455,7 @@
     if (masthead.classList.contains("idle") && !rising) return;
     masthead.classList.remove("idle");
     clearTimeout(still);
-    still = setTimeout(() => masthead.classList.toggle("idle", masthead.classList.contains("stuck")), 800);
+    still = setTimeout(() => masthead.classList.toggle("idle", masthead.classList.contains("stuck")), 1200);
   }, { passive: true });
   // 붙어 있는 머리 상자를 누르면 문서 맨 위로 올라간다. 지수 전환 단추·달력 단추와 달력 창을 누르면 그 단추의 동작만 한다.
   masthead.addEventListener("click", (event) => {
