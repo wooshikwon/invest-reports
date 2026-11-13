@@ -53,8 +53,8 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 날짜와 이슈 해설 소제목을 날짜 순으로 적고, 오늘 항목에는 내용을 넣지 않는다. 앞 날짜 이슈가 없는 이슈에는 템플릿을 넣지 않는다.
 `invest-reports` 미니 앱은 템플릿으로 이슈 그림과 이슈 해설 사이에 오늘부터 앞 날짜 순으로 히스토리 상자를 그리고, 소제목을 누르면 이슈 문단을 그날의 내용으로 바꾼다.
 번호 붙은 이슈 소제목 뒤에는 리포트 폴더 `assets/issue-{번호}.webp`가 있을 때만 그 그림과 캡션을 넣는다.
-그림 위에는 `AI 생성 이미지` 표시를 얹고, `system/issue-images.json`에 그 이슈의 사진 설명(`caption`)이 있으면 그림 아래 캡션에 쓴다. 그림은 `run-with-notify.sh`가 ⑨의 이슈 이미지 선정 결과로 만든다. 그림마다 가운데를 잘라
-`THUMB`px 정사각 썸네일 `issue-{번호}-thumb.webp`를 만들어 그림의 `data-thumb`에 적는다. `invest-reports` 미니 앱은 이슈 목록 상자에 썸네일을 붙인다.
+그림 위에는 `AI 생성 이미지` 표시를 얹고, `system/issue-images.json`에 그 이슈의 사진 설명(`caption`)이 있으면 그림 아래 캡션에 쓴다. 그림은 `run-with-notify.sh`가 ⑨의 이슈 이미지 선정 결과로 만든다. 그림마다 정사각을 잘라
+`THUMB`px 썸네일 `issue-{번호}-thumb.webp`를 만들어 그림의 `data-thumb`에 적는다. `invest-reports` 미니 앱은 이슈 목록 상자에 썸네일을 붙인다.
 이슈 해설 말머리 뒤 문단 사이에는 리포트 폴더 `system/issue-charts.json`의 카드 값을 `issue-chart` 그림의 `data-card`로 넣는다.
 카드 값은 ⑨의 이슈 그래프 agent가 설계하고 `issue_charts.py fill`이 채우며, 카드 값이 없는 그래프는 넣지 않는다.
 그래프는 설계의 `after`번째 문단 다음에 들어가고, 문단이 그보다 적으면 마지막 문단 다음에 들어간다.
@@ -759,12 +759,14 @@ def mark_issue_images(body: str, assets: Path, plan: Path, target: Path, out: Pa
         thumb = target / f"{image.stem}-thumb.webp"
         with Image.open(image) as picture:
             side = min(picture.size)
-            box = ((picture.width - side) // 2, (picture.height - side) // 2)
+            # 가로 그림은 가운데를, 세로 그림은 얼굴이 드는 위쪽을 남기도록 남는 높이의 4분의 1 지점부터 자른다.
+            box = ((picture.width - side) // 2, (picture.height - side) // 4)
+            width, height = picture.size
             picture.convert("RGB").crop((*box, box[0] + side, box[1] + side)).resize((THUMB, THUMB), Image.Resampling.LANCZOS).save(thumb, format="WEBP", quality=80)
         caption = captions.get(number.group(1), "").strip()
         note = f"<figcaption>{html.escape(caption)}</figcaption>" if caption else ""
         return (f'{match.group(0)}\n<figure class="issue-image" data-thumb="{versioned(thumb, out)}">'
-                f'<div class="frame"><img src="{versioned(target / image.name, out)}" alt=""><span class="ai">AI 생성 이미지</span></div>'
+                f'<div class="frame"><img src="{versioned(target / image.name, out)}" width="{width}" height="{height}" alt=""><span class="ai">AI 생성 이미지</span></div>'
                 f"{note}</figure>")
 
     section = re.sub(r"<h3[^>]*>(.*?)</h3>", heading, body[head.end():end], flags=re.DOTALL)
