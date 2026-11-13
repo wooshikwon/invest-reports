@@ -8,7 +8,8 @@
   "moves": {
    "session": -0.3,
    "after": 0.4,
-   "close": 28289.19
+   "close": 688.15,
+   "base": 690.88
   }
  },
  "20261113-biotech": {
@@ -20,7 +21,8 @@
   "moves": {
    "session": -2.3,
    "after": 0.09,
-   "close": 7247.55
+   "close": 209.97,
+   "base": 210.16
   }
  },
  "20261112-nasdaq": {
@@ -38,7 +40,8 @@
   "moves": {
    "session": 2.28,
    "after": -0.92,
-   "close": 28374.25
+   "close": 690.22,
+   "base": 683.86
   }
  },
  "20261112-biotech": {
@@ -56,7 +59,8 @@
   "moves": {
    "session": 0.45,
    "after": 0.08,
-   "close": 7418.16
+   "close": 214.91,
+   "base": 215.09
   }
  },
  "20261111-nasdaq": {
@@ -75,7 +79,8 @@
   "moves": {
    "session": -0.6,
    "after": 0.75,
-   "close": 27740.79
+   "close": 674.81,
+   "base": 679.9
   }
  },
  "20261111-biotech": {
@@ -93,7 +98,8 @@
   "moves": {
    "session": -0.86,
    "after": 0.0,
-   "close": 7385.09
+   "close": 213.95,
+   "base": 213.95
   }
  },
  "20261110-nasdaq": {
@@ -112,7 +118,8 @@
   "moves": {
    "session": 3.4,
    "after": -0.14,
-   "close": 27907.62
+   "close": 678.87,
+   "base": 677.93
   }
  },
  "20261110-biotech": {
@@ -131,7 +138,8 @@
   "moves": {
    "session": 2.73,
    "after": -0.5,
-   "close": 7448.81
+   "close": 215.8,
+   "base": 214.73
   }
  },
  "20261109-nasdaq": {
@@ -149,7 +157,8 @@
   "moves": {
    "session": null,
    "after": 0.21,
-   "close": 26989.99
+   "close": 656.54,
+   "base": 657.94
   }
  },
  "20261109-biotech": {
@@ -168,7 +177,8 @@
   "moves": {
    "session": null,
    "after": 0.64,
-   "close": 7250.81
+   "close": 210.06,
+   "base": 211.41
   }
  },
  "20261107-nasdaq": {
@@ -187,7 +197,8 @@
   "moves": {
    "session": 1.35,
    "after": 0.2,
-   "close": 26989.99
+   "close": 656.54,
+   "base": 657.88
   }
  },
  "20261107-biotech": {
@@ -206,7 +217,8 @@
   "moves": {
    "session": 2.2,
    "after": 0.64,
-   "close": 7250.81
+   "close": 210.06,
+   "base": 211.41
   }
  },
  "20261106-nasdaq": {
@@ -218,7 +230,8 @@
   "moves": {
    "session": -6.36,
    "after": 0.52,
-   "close": 26629.81
+   "close": 647.78,
+   "base": 651.15
   }
  },
  "20261106-biotech": {
@@ -230,7 +243,8 @@
   "moves": {
    "session": -4.95,
    "after": -0.99,
-   "close": 7094.45
+   "close": 205.53,
+   "base": 203.51
   }
  },
  "20261105-nasdaq": {
@@ -242,7 +256,8 @@
   "moves": {
    "session": 0.91,
    "after": -1.07,
-   "close": 28437.17
+   "close": 691.75,
+   "base": 684.33
   }
  },
  "20261105-biotech": {
@@ -254,7 +269,8 @@
   "moves": {
    "session": 2.71,
    "after": -0.05,
-   "close": 7463.68
+   "close": 216.23,
+   "base": 216.12
   }
  },
  "20261104-nasdaq": {
@@ -266,7 +282,8 @@
   "moves": {
    "session": 0.68,
    "after": -0.53,
-   "close": 28180.26
+   "close": 685.5,
+   "base": 681.84
   }
  },
  "20261104-biotech": {
@@ -278,7 +295,8 @@
   "moves": {
    "session": 0.76,
    "after": 0.05,
-   "close": 7266.43
+   "close": 210.52,
+   "base": 210.62
   }
  },
  "20261103-nasdaq": {
@@ -290,7 +308,8 @@
   "moves": {
    "session": -1.39,
    "after": 0.36,
-   "close": 27989.82
+   "close": 680.86,
+   "base": 683.29
   }
  },
  "20261103-biotech": {
@@ -302,7 +321,8 @@
   "moves": {
    "session": -1.47,
    "after": -0.09,
-   "close": 7211.7
+   "close": 208.92,
+   "base": 208.73
   }
  },
  "20261102-nasdaq": {
@@ -314,7 +334,8 @@
   "moves": {
    "session": null,
    "after": 0.33,
-   "close": 28384.85
+   "close": 690.47,
+   "base": 692.72
   }
  },
  "20261102-biotech": {
@@ -326,7 +347,8 @@
   "moves": {
    "session": null,
    "after": 0.18,
-   "close": 7319.57
+   "close": 212.05,
+   "base": 212.44
   }
  },
  "20261031-nasdaq": {
@@ -338,7 +360,8 @@
   "moves": {
    "session": -3.46,
    "after": 0.32,
-   "close": 28384.85
+   "close": 690.47,
+   "base": 692.67
   }
  },
  "20261031-biotech": {
@@ -350,7 +373,8 @@
   "moves": {
    "session": 0.02,
    "after": 0.18,
-   "close": 7319.57
+   "close": 212.05,
+   "base": 212.43
   }
  },
  "20261030-nasdaq": {
@@ -362,7 +386,8 @@
   "moves": {
    "session": -1.38,
    "after": -1.54,
-   "close": 29402.51
+   "close": 715.23,
+   "base": 704.19
   }
  },
  "20261030-biotech": {
@@ -374,7 +399,8 @@
   "moves": {
    "session": 0.86,
    "after": 0.34,
-   "close": 7318.44
+   "close": 212.01,
+   "base": 212.72
   }
  },
  "20261029-nasdaq": {
@@ -386,7 +412,8 @@
   "moves": {
    "session": 0.55,
    "after": -1.18,
-   "close": 29813.16
+   "close": 725.22,
+   "base": 716.64
   }
  },
  "20261029-biotech": {
@@ -398,7 +425,8 @@
   "moves": {
    "session": 1.48,
    "after": 0.61,
-   "close": 7256.33
+   "close": 210.21,
+   "base": 211.49
   }
  },
  "20261028-nasdaq": {
@@ -410,7 +438,8 @@
   "moves": {
    "session": 1.29,
    "after": 0.14,
-   "close": 29651.44
+   "close": 721.28,
+   "base": 722.29
   }
  },
  "20261028-biotech": {
@@ -422,7 +451,8 @@
   "moves": {
    "session": 1.87,
    "after": 0.14,
-   "close": 7150.77
+   "close": 207.16,
+   "base": 207.45
   }
  },
  "20261027-nasdaq": {
@@ -434,7 +464,8 @@
   "moves": {
    "session": 1.09,
    "after": 0.35,
-   "close": 29273.4
+   "close": 712.09,
+   "base": 714.6
   }
  },
  "20261027-biotech": {
@@ -446,7 +477,8 @@
   "moves": {
    "session": 0.38,
    "after": 0.25,
-   "close": 7019.19
+   "close": 203.34,
+   "base": 203.84
   }
  },
  "20261026-nasdaq": {
@@ -458,7 +490,8 @@
   "moves": {
    "session": null,
    "after": 0.07,
-   "close": 28957.53
+   "close": 704.4,
+   "base": 704.88
   }
  },
  "20261026-biotech": {
@@ -470,7 +503,8 @@
   "moves": {
    "session": null,
    "after": 0.0,
-   "close": 6992.35
+   "close": 202.57,
+   "base": 202.57
   }
  },
  "20261024-nasdaq": {
@@ -482,7 +516,8 @@
   "moves": {
    "session": 0.0,
    "after": 0.08,
-   "close": 28957.53
+   "close": 704.4,
+   "base": 704.96
   }
  },
  "20261024-biotech": {
@@ -494,7 +529,8 @@
   "moves": {
    "session": -1.13,
    "after": 0.0,
-   "close": 6992.35
+   "close": 202.57,
+   "base": 202.57
   }
  },
  "20261023-nasdaq": {
@@ -506,7 +542,8 @@
   "moves": {
    "session": -2.9,
    "after": 0.2,
-   "close": 28958.69
+   "close": 704.43,
+   "base": 705.86
   }
  },
  "20261023-biotech": {
@@ -518,7 +555,8 @@
   "moves": {
    "session": -0.75,
    "after": -0.02,
-   "close": 7072.22
+   "close": 204.88,
+   "base": 204.84
   }
  },
  "20261022-nasdaq": {
@@ -530,7 +568,8 @@
   "moves": {
    "session": 1.13,
    "after": -1.79,
-   "close": 29822.52
+   "close": 725.45,
+   "base": 712.46
   }
  },
  "20261022-biotech": {
@@ -542,7 +581,8 @@
   "moves": {
    "session": 0.24,
    "after": -0.37,
-   "close": 7125.46
+   "close": 206.42,
+   "base": 205.65
   }
  },
  "20261021-nasdaq": {
@@ -554,7 +594,8 @@
   "moves": {
    "session": -0.13,
    "after": 0.0,
-   "close": 29490.28
+   "close": 717.36,
+   "base": 717.36
   }
  },
  "20261021-biotech": {
@@ -566,7 +607,8 @@
   "moves": {
    "session": 3.23,
    "after": 0.0,
-   "close": 7108.05
+   "close": 205.92,
+   "base": 205.92
   }
  },
  "20261020-nasdaq": {
@@ -578,7 +620,8 @@
   "moves": {
    "session": 1.17,
    "after": 0.0,
-   "close": 29529.34
+   "close": 718.31,
+   "base": 718.31
   }
  },
  "20261020-biotech": {
@@ -590,7 +633,8 @@
   "moves": {
    "session": 0.89,
    "after": 0.0,
-   "close": 6885.66
+   "close": 199.47,
+   "base": 199.47
   }
  },
  "20261019-nasdaq": {
@@ -602,7 +646,8 @@
   "moves": {
    "session": null,
    "after": -0.27,
-   "close": 29187.55
+   "close": 710.0,
+   "base": 708.07
   }
  },
  "20261019-biotech": {
@@ -614,7 +659,8 @@
   "moves": {
    "session": null,
    "after": -0.22,
-   "close": 6824.82
+   "close": 197.71,
+   "base": 197.28
   }
  }
 }
