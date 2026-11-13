@@ -75,7 +75,7 @@
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #top-glass { background: var(--bg); } }
   body:has(#masthead.stuck:not(.idle)) #top-glass, body:has(#masthead.stuck .cal-layer) #top-glass { opacity: 0; }
   #masthead.stuck { cursor: pointer; }
-  /* 가장 늦은 리포트가 아닌 리포트를 보고 있으면, 전체화면 위쪽 높이 바로 아래에 등락률 줄 높이의 빨간 띠를 화면에 고정해 두고 가운데에 흰 글씨로 "과거 리포트 탐색 중"을 쓴다.
+  /* 가장 늦은 리포트가 아닌 리포트를 보고 있으면, 전체화면 위쪽 높이 바로 아래에 등락률 줄 높이의 빨간 띠를 화면에 고정해 두고 가운데에 흰 글씨로 "3일 전 리포트 탐색 중"처럼 오늘(한국 시각)에서 리포트 날짜까지의 날수를 쓴다.
      띠는 머리 상자를 감추거나 띄우는 것과 상관없이 늘 보인다. */
   :root.past { --past: 22px; }
   #past { display: none; }
@@ -479,7 +479,7 @@
 </head>
 <body>
 <div id="top-glass"></div>
-<div id="past">과거 리포트 탐색 중</div>
+<div id="past"></div>
 <main>
   <div id="berth"></div><div id="masthead"><header><p id="day"></p><p id="dated"></p><h1 id="title">투자 판단 리포트</h1></header><p id="moves"></p></div>
   <article id="report"><p class="status">리포트를 불러오는 중이다.</p></article>
@@ -2163,7 +2163,11 @@
       }
     }
     const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
-    document.documentElement.classList.toggle("past", key !== latest(listing, key.split("-")[1]));
+    if (key !== latest(listing, key.split("-")[1])) {
+      const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+      document.getElementById("past").textContent = `${Math.max(1, Math.round((Date.parse(today) - Date.parse(date)) / 864e5))}일 전 리포트 탐색 중`;
+      document.documentElement.classList.add("past");
+    }
     report.innerHTML = body;
     calendar(listing, date);
     switcher(listing, date);
