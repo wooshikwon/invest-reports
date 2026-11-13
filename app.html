@@ -239,8 +239,7 @@
   /* 같은 이슈를 다룬 앞 날짜 리포트가 있으면 이슈 그림과 이슈 해설 말머리 사이에 히스토리 말머리와 이슈 목록 상자 같은 연한 둥근 상자를 둔다. 상자에는 줄마다 날짜와
      그날 이슈 해설 소제목을 오늘부터 앞 날짜 순으로 쓰고, 줄 사이에 옅은 선을 긋는다. 보고 있는 날짜의 줄은 본문 색 굵은 글씨로, 나머지 줄은 흐린 글씨로 쓴다. 누르고 있는 줄은 3% 줄인다.
      최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝에 지수 색으로 칠하고 위로 갈수록 투명해지는 띠와 펼침 단추를 둔다. 펼치면 띠를 지우고 줄 목록의 높이를
-     다섯 줄과 여섯째 줄 윗부분까지 늘리며, 그보다 많은 줄(`long`)은 목록 안에서 스크롤해 본다. 줄이 여섯 이하면 목록을 스크롤 상자로 만들지 않는다.
-     iOS는 스크롤 상자 위에 겹친 뒤로 가기 띠의 가로 밀기를 그 상자의 스크롤로 가져가 끊으므로, 띠 아래에 스크롤 상자를 두지 않는다. */
+     다섯 줄과 여섯째 줄 윗부분까지 늘리며, 그보다 많은 줄(`long`)은 목록 안에서 스크롤해 본다. 줄이 여섯 이하면 목록을 스크롤 상자로 만들지 않는다. */
   .issue-page > div.history { margin-top: 8px; padding: 4px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); overflow: hidden; }
   .issue-page > div.history + h4 { margin-top: 26px; }
   .history .rows { position: relative; overflow: hidden; }
@@ -525,11 +524,9 @@
              background: none; color: var(--dim); cursor: pointer; }
   /* 왼쪽 끝 뒤로 가기 띠는 보이지 않고, 미는 동안 손가락 높이에 반투명 원과 왼쪽 꺽쇠가 따라 나온다. 돌아갈 거리를 넘기면 원을 희게 칠한다. */
   .back-edge { position: fixed; top: 0; bottom: 0; left: 0; z-index: 6; width: 18px; touch-action: pan-y; }
-  /* 이슈 화면은 밀어서 이슈 목록으로 돌아가는 일이 잦으므로 띠를 본문 첫 글자 너머까지 넓힌다. */
-  :root.issue .back-edge { width: 48px; }
-  /* iOS는 띠 아래에 놓인 스크롤 상자(펼친 긴 히스토리 목록, 날짜 띠, 넘기기 묶음)가 띠의 가로 밀기를 그 상자의 스크롤로 가져가 뒤로 가기를 끊는다.
+  /* iOS는 띠 아래에 놓인 스크롤 상자(날짜 띠, 넘기기 묶음)가 띠의 가로 밀기를 그 상자의 스크롤로 가져가 뒤로 가기를 끊는다.
      띠를 누르고 있는 동안(`edging`)은 이 상자들의 스크롤을 멈춘다. 스크롤을 멈춰도 보던 위치는 그대로다. */
-  :root.edging :is(.history .rows.open.long, .days, .carousel .track) { overflow: hidden; }
+  :root.edging :is(.days, .carousel .track) { overflow: hidden; }
   .back-ring { position: fixed; top: 0; left: 0; z-index: 6; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;
                border-radius: 50%; background: rgba(60, 60, 66, .85); color: #fff; opacity: 0; pointer-events: none;
                -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); transition: background .15s ease, color .15s ease; }
@@ -767,7 +764,13 @@
       track.offsetHeight;
       track.style.transition = "";
     };
+    // 손을 뗀 뒤 브라우저의 장 맞추기가 장 위치 1.5px 안까지 오면 그 장 위치로 바로 옮겨 남은 미세한 움직임을 끝낸다.
+    // iOS는 넘기기 묶음이 움직이는 동안 새 손가락을 묶음의 넘기기로 받으므로, 움직임이 남아 있으면 날짜 슬라이더 레버를 눌러도 레버가 잡히지 않는다.
     track.addEventListener("scroll", () => {
+      if (!touching && !aligning) {
+        const exact = current() * step(), gap = Math.abs(track.scrollLeft - exact);
+        if (gap > 0 && gap <= 1.5) track.scrollLeft = exact;
+      }
       if (fit) reveal();
       const now = current();
       if (feel && now !== felt) { felt = now; feelSlide(); }
@@ -1494,6 +1497,19 @@
       params.delete("at");
       location.replace(`?${params}`);
     });
+    // 이슈 화면 어디서든 오른쪽으로 60px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 이슈 목록 단추를 누른 것과 같이 이슈 목록으로 돌아간다.
+    // 그림을 크게 본 화면과 설명 상자 안에서 민 것은 세지 않는다.
+    let swipe = null;
+    document.addEventListener("touchstart", (event) => {
+      const { target, touches } = event;
+      swipe = touches.length === 1 && !target.closest(".viewer, .help-card") ? { x: touches[0].clientX, y: touches[0].clientY } : null;
+    }, { passive: true });
+    document.addEventListener("touchend", (event) => {
+      if (!swipe) return;
+      const touch = event.changedTouches[0], dx = touch.clientX - swipe.x, dy = touch.clientY - swipe.y;
+      swipe = null;
+      if (dx > 60 && dx > 1.5 * Math.abs(dy)) back.click();
+    }, { passive: true });
     // 단추 가운데를 절 제목 글자 획의 위아래 가운데에 맞춘다. 글꼴마다 글자 줄 안에서 획이 놓이는 높이가 달라서, 기준선 위치와 그 글꼴로 잰 획의 높이로 정한다.
     const ink = document.createElement("canvas").getContext("2d");
     const align = () => {
@@ -2430,13 +2446,13 @@
     }
     addEventListener("pageshow", (event) => { if (event.persisted) dispatchEvent(new Event("reveal")); });
   }).catch(() => fail("리포트를 찾지 못했다."));
-  // 미니 앱 안에서 다른 리포트로 옮겨 온 페이지(`depth`가 0보다 크면)는 화면 왼쪽 끝 18px 띠에서 오른쪽으로 밀어 앞 리포트로 돌아간다.
-  // 이슈 화면은 띠를 48px로 넓히고, 앞 페이지가 없으면(주소로 바로 연 이슈 화면) 이슈 목록 단추처럼 같은 리포트의 리포트 화면을 연다.
+  // 미니 앱 안에서 다른 리포트로 옮겨 온 리포트 화면(`depth`가 0보다 크면)은 화면 왼쪽 끝 18px 띠에서 오른쪽으로 밀어 앞 화면으로 돌아간다.
+  // 이슈 화면은 이 띠를 두지 않고, 화면 어디서든 오른쪽으로 밀면 이슈 목록으로 돌아간다.
   // 띠는 손가락이 처음 6px 움직인 방향으로 할 일을 정한다. 가로로 움직인 거리가 세로의 0.6배 이상이면 뒤로 가기로 받고 페이지 스크롤을 막는다.
   // 막지 않으면 스크롤할 여지가 있는 본문 가운데에서 손가락이 조금만 비스듬히 움직여도 브라우저가 스크롤을 시작해 밀기를 끊는다.
   // 그보다 세로로 움직이면 스크롤을 브라우저에 맡기고 그 손짓은 더 보지 않는다. 띠를 누르고 있는 동안은 뿌리에 `edging`을 달아 띠 아래 스크롤 상자의 스크롤을 멈춘다. 미는 동안 손가락 높이에 뒤로 가기 원이 따라 나오고, 80px을 넘기면 원이 밝아지며
   // 선택 변경 진동을 낸다. 80px을 넘긴 채 손을 떼면 앞 페이지로 돌아가고, 못 넘기면 원을 거둔다. 움직이지 않고 누른 곳은 띠 아래 요소를 누른 것으로 넘긴다.
-  if (depth > 0 || query.get("issue")) {
+  if (depth > 0 && !query.get("issue")) {
     const edge = Object.assign(document.createElement("div"), { className: "back-edge" });
     const ring = Object.assign(document.createElement("div"), { className: "back-ring" });
     ring.innerHTML = '<svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2L2 8l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -2478,14 +2494,7 @@
       start = null;
       document.documentElement.classList.remove("edging");
       ring.classList.add("rest");
-      if (ready) {
-        if (depth > 0) return history.back();
-        const params = new URLSearchParams(location.search);
-        params.delete("issue");
-        params.delete("at");
-        location.replace(`?${params}`);
-        return;
-      }
+      if (ready) return history.back();
       ring.style.opacity = 0;
       ring.style.transform = `translate(-44px, ${touch.clientY - 22}px)`;
       if (moved || event.type === "touchcancel") return;
