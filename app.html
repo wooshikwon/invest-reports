@@ -195,9 +195,9 @@
   .carousel .track::-webkit-scrollbar { display: none; }
   .carousel .slide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; }
   .carousel .slide img { margin: 0; }
-  /* 날짜 슬라이더는 그림 폭의 48%로 가운데에 둔다. */
+  /* 날짜 슬라이더는 그림 폭의 48%로 가운데에 둔다. 슬라이더에 댄 손가락은 넘기기 묶음을 옆으로 밀지 않는다. */
   .carousel .rewind { position: relative; width: 48%; margin: 12px auto 18px; }
-  .carousel .rewind input { display: block; width: 100%; height: 20px; margin: 0; background: none; -webkit-appearance: none; appearance: none; }
+  .carousel .rewind input { display: block; width: 100%; height: 20px; margin: 0; background: none; -webkit-appearance: none; appearance: none; touch-action: none; }
   .carousel .rewind input { --track: linear-gradient(to right, rgba(58, 63, 74, .35) calc(9px + var(--from, 0) * (100% - 18px)), var(--line) 0); }
   .carousel .rewind input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--track); }
   .carousel .rewind input::-moz-range-track { height: 4px; border-radius: 2px; background: var(--track); }
@@ -824,7 +824,7 @@
   // 되감기 슬라이더가 보여 주는 날짜 수와, 리포트 날짜 `date`에서 그 앞 30일의 첫날을 0으로 센 `day`의 자리.
   const REWIND_SPAN = 30, rewindOffset = (day, date) => Math.round((Date.parse(day) - Date.parse(date)) / 864e5) + REWIND_SPAN;
 
-  // 그림 묶음 아래에 지난 판단 날짜를 고르는 슬라이더를 둔다. `days`는 고를 수 있는 날짜(오름차순)이고 `start`번 날짜에서 시작한다.
+  // `box` 끝에 지난 판단 날짜를 고르는 슬라이더를 둔다. `days`는 고를 수 있는 날짜(오름차순)이고 `start`번 날짜에서 시작한다.
   // 슬라이더는 리포트 날짜와 그 앞 30일을 늘 같은 폭으로 보여 주고, 레버는 `days`의 날짜에만 선다. 레버가 선 날짜가 정해질 때마다 그 번호로 `pick`을 부른다.
   function dial(box, date, days, start, pick) {
     const offset = (day) => rewindOffset(day, date);
@@ -2046,8 +2046,8 @@
   // 미국 거시 지표를 지표마다 한 장의 카드로 바꿔 넘기는 묶음으로 만들고, 위에 지표 이름 탭 띠를 둔다. 카드 값은 `build.py`가
   // 소제목에 단 `data-card`를 쓰고, 해설은 소제목 뒤 문단이다. 카드 값이 없는 소제목은 해설과 함께 지우고, 카드가 하나도 없으면 절을 지운다.
   // 탭을 누르면 그 지표로 넘기고, 넘기면 보고 있는 지표의 탭을 밝힌다. 카드 아래 점은 보고 있는 장을 따른다.
-  // 카드 이름 뒤의 물음표 단추는 그 지표의 `help` 문단을 보여 준다.
-  function indicators() {
+  // 카드 이름 뒤의 물음표 단추는 그 지표의 `help` 문단을 보여 준다. 카드의 그림과 해설 사이에는 날짜 슬라이더를 둔다(`indicatorRewind`).
+  function indicators(date) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "미국 거시 지표");
     if (!head) return;
     // 첫 소제목 앞의 노드는 그대로 두고 묶음을 그 뒤에 둔다.
@@ -2068,9 +2068,11 @@
       head.remove();
       return;
     }
+    const spots = [];
     const slides = cards.map((c) => {
       const [box, name] = gauge(c);
       name.append(question(c.name, () => c.help.map((text) => Object.assign(document.createElement("p"), { textContent: text }))));
+      spots.push(box.appendChild(document.createElement("div")));
       box.append(Object.assign(document.createElement("p"), { textContent: c.text.filter(Boolean).join(" ") }));
       return [box];
     });
@@ -2099,6 +2101,37 @@
       strip.getBoundingClientRect();
       strip.style.transition = "";
     }).observe(box);
+    indicatorRewind(cards, spots, date);
+  }
+
+  // 지표 카드마다 그림과 해설 사이의 자리 `spots`에 지난 리포트 날짜로 되감는 슬라이더를 둔다(build.py `r/rewind-{지수}/indicators.json`).
+  // 리포트 날짜와 그 앞 날짜 가운데 그 지표의 카드 값이 있는 날짜만 고를 수 있고, 리포트 날짜에 카드 값이 없는 지표에는 슬라이더를 두지 않는다.
+  // 날짜를 고르면 그날 카드 값으로 그 카드의 기준일·값·그림만 다시 그리고, 이름과 물음표 단추, 해설은 리포트 날짜의 것을 그대로 둔다.
+  function indicatorRewind(cards, spots, date) {
+    fetch(`r/rewind-${key.split("-")[1]}/indicators.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((data) => {
+      if (!data) return;
+      const frames = data.frames.filter((frame) => frame.day <= date && rewindOffset(frame.day, date) >= 0);
+      cards.forEach((c, k) => {
+        const own = frames.filter((frame) => frame.cards[c.name]);
+        const start = own.findIndex((frame) => frame.day === date);
+        if (start < 0) return;
+        const box = spots[k].parentNode;
+        let drawn = start, frame = 0;
+        const draw = () => {
+          frame = 0;
+          const [fresh] = gauge({ name: c.name, ...own[drawn].cards[c.name] });
+          box.querySelector(".asof").textContent = fresh.querySelector(".asof").textContent;
+          const val = box.querySelector(":scope > .val"), next = fresh.querySelector(":scope > .val");
+          if (val && next) val.replaceWith(next); else if (val) val.remove(); else if (next) box.querySelector(".top").after(next);
+          spots[k].previousElementSibling.replaceWith(fresh.lastElementChild);
+        };
+        dial(spots[k], date, own.map((f) => f.day), start, (i) => {
+          if (i === drawn) return;
+          drawn = i;
+          if (!frame) frame = requestAnimationFrame(draw);
+        });
+      });
+    }).catch(() => {});
   }
 
   // 머리말에 달력 단추를 단다. `listing`은 `r/index.json`이다. 달력은 보고 있는 리포트의 달부터 보여 주고, 단추를 누르거나 달력을 옆으로 밀어 그림 넘기기와 같은 속도와 곡선으로 달을 넘기고, 리포트가 있는 첫 달과 마지막 달 밖으로는 넘기지 않는다.
@@ -2297,7 +2330,7 @@
     if (!focus) {
       figures(date);
       fold("1개월 지수 방향 예측");
-      indicators();
+      indicators(date);
     }
     issueCharts();
     toneTags(report);

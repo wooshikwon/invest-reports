@@ -36,6 +36,9 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 카드 값은 탭 이름, 값과 단위, 상태 이름과 색, 기준일(미국 장이 마감한 한국 날짜), 보조 값을 적은 한 줄, 그림 종류와 그림 입력, 물음표 단추의 설명이다.
 값이 없는 지표에는 카드 값을 달지 않는다.
 `invest-reports` 미니 앱은 카드 값으로 지표마다 카드를 그려 한 장씩 넘기게 하고, 카드 값이 없는 소제목은 지운다.
+공개본이 있는 그 지수 리포트 가운데 가장 늦은 날짜에서 `REWIND_DAYS`일 안의 리포트 날짜마다 같은 카드 값에서 탭 이름과 설명을 뺀 값을
+`r/rewind-{지수}/indicators.json`에 쓴다. 미니 앱은 지표 카드의 그림과 해설 사이에 날짜 슬라이더를 두고, 슬라이더를 옮기면
+그날 카드 값으로 그 카드의 기준일·값·그림을 다시 그린다. 해설은 리포트 날짜의 해설을 그대로 둔다.
 
 `상세 이슈 해설` 절의 번호 붙은 이슈 소제목에는 리포트 폴더 `system/issues.json`에서 그 번호의 `id`를 `data-issue`로 단다.
 `id`는 Main이 그 이슈로 묶은 사안 나무 노드 가운데 반영 정도가 가장 큰 노드의 이름이므로, 날짜가 다른 리포트에서 같은 사안을 다룬 이슈는 같은 값을 갖는다.
@@ -244,22 +247,34 @@ def summary_cards(index: str, date: str, folder: Path, vault: Path) -> dict | No
 
 
 def rewind(index: str, vault: Path, out: Path) -> Path | None:
-    """`r/rewind-{지수}/cards.json`에 되감기 날짜마다 카드 값을 쓴다. 되감을 날짜가 없으면 폴더를 지운다."""
+    """`r/rewind-{지수}/`에 되감기 날짜마다 요약 절 카드 값(`cards.json`)과 지표 카드 값(`indicators.json`)을 쓴다.
+
+    한쪽 값이 하나도 없으면 그 파일을 지우고, 두 파일이 모두 없으면 폴더를 지운다.
+    """
     target = out / "r" / f"rewind-{index}"
     published = sorted(dt.date.fromisoformat(f"{p.name[:4]}-{p.name[4:6]}-{p.name[6:8]}")
                        for p in (out / "r").glob(f"*-{index}") if p.name[:8].isdigit())
-    frames = [frame for day in published if published[-1] - day < dt.timedelta(days=REWIND_DAYS)
+    days = [day for day in published if published[-1] - day < dt.timedelta(days=REWIND_DAYS)]
+    frames = [frame for day in days
               if (frame := card_frame(day.isoformat(), vault / f"routine/invest/{day:%Y-%m}/{day}/{index}"))]
-    if not frames:
-        shutil.rmtree(target, ignore_errors=True)
-        return None
-    chart = predictions_chart(vault)
-    until = frames[-1]["base_date"]
-    for frame in frames:
-        frame["tree"]["actual"] = actual_returns(chart.path_bands.REFERENCE_DB_PATH, chart.path_bands.SECTOR_DB_TICKERS[index],
-                                                 frame["days"], frame["base"], until)
+    if frames:
+        chart = predictions_chart(vault)
+        until = frames[-1]["base_date"]
+        for frame in frames:
+            frame["tree"]["actual"] = actual_returns(chart.path_bands.REFERENCE_DB_PATH, chart.path_bands.SECTOR_DB_TICKERS[index],
+                                                     frame["days"], frame["base"], until)
+    gauges = [{"day": day.isoformat(), "cards": {name: {k: v for k, v in card.items() if k not in ("tab", "help")}
+                                                 for name, card in cards.items()}}
+              for day in days if (cards := indicator_cards(vault, index, day))]
     target.mkdir(parents=True, exist_ok=True)
-    (target / "cards.json").write_text(json.dumps({"frames": frames}, ensure_ascii=False) + "\n", encoding="utf-8")
+    for name, items in (("cards.json", frames), ("indicators.json", gauges)):
+        if items:
+            (target / name).write_text(json.dumps({"frames": items}, ensure_ascii=False) + "\n", encoding="utf-8")
+        else:
+            (target / name).unlink(missing_ok=True)
+    if not frames and not gauges:
+        shutil.rmtree(target)
+        return None
     return target
 
 
