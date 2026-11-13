@@ -289,7 +289,7 @@
   h2.issues .back::after { content: "이슈 목록"; font-size: 13px; font-weight: 600; }
   h2.issues.inside .back { opacity: 1; visibility: visible; transition: opacity var(--glide); }
   /* 다가오는 이벤트는 발표일마다 한 장이고, 위 날짜 띠의 날짜마다 별·날짜·요일을 테두리 없는 둥근 회색 상자에 담는다. 보고 있는 날짜는 상자를
-     진하게, 글자를 흰색으로 쓰고, 나머지 날짜는 상자를 연하게, 글자를 흐린 회색으로 쓴다. 리포트 날짜의 상자에는 얇은 흰 테두리를 두르고, 누르고 있는 상자는 조금 줄인다.
+     진하게, 글자를 흰색으로 쓰고, 나머지 날짜는 상자를 연하게, 글자를 흐린 회색으로 쓴다. 리포트 날짜의 상자에는 절 제목 색의 얇은 회색 테두리를 두르고, 누르고 있는 상자는 조금 줄인다.
      상자는 같은 폭이고 넘기기 장 사이만큼 띄운다.
      띠는 아래 장 묶음과 따로 손가락으로 밀어 여러 날짜를 한 번에 지나가고, 스크롤 막대는 숨긴다. 장을 넘기면 보고 있는 날짜의 상자가
      문단 왼쪽 끝에 오도록 띠를 미끄러뜨리되, 띠 끝이 문단 오른쪽 끝에 닿으면 더 밀지 않는다. 띠는 화면 양 끝 여백까지 보여서, 앞 날짜가 있으면 그 상자 끝이 왼쪽 여백에 보인다. */
@@ -304,7 +304,7 @@
   .days button.on { color: #fff; }
   .days button { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; transition: transform .15s ease; }
   /* 테두리는 그림자 대신 모든 상자에 투명하게 둔 1px 선으로 그려, 상자가 화소 사이에 걸려도 네 변의 두께가 같다. */
-  .days button.today { border-color: rgba(255, 255, 255, .7); }
+  .days button.today { border-color: var(--dim); }
   .days button.holding { transform: scale(.94); }
   /* 날짜를 꾹 누르면 뜨는 말풍선은 달력 창과 같은 진한 회색 상자에 꼬리를 달고, 날짜 상자 위(자리가 없으면 아래)에 둔다. 누를 수 있는 단추는 흰 글자와
      오른쪽 꺽쇠로, 안내 문장은 흐린 글자로 쓴다. 뜰 때 살짝 커지며 나타난다. */
