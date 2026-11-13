@@ -282,16 +282,17 @@
     border-radius: 9px; background: var(--index-ink); color: var(--bg); font-size: 11px; font-weight: 700; line-height: 18px; white-space: nowrap; }
   .issue-list .pick + .pick { margin-top: 10px; }
   /* 지난 리포트의 다가오는 이벤트 절은 절 제목부터 절 끝까지를 회색 막으로 덮고 색을 빼서 흐리게 보이고, 막이 누르기와 밀기를 받아 아래 날짜 띠와 묶음이 움직이지 않는다.
-     화면 위아래 스크롤은 막 위에서도 그대로 된다. 절 제목 줄 오른쪽 끝에는 막 위로 가장 늦은 리포트로 가는 단추를 상자 없이 흰 글자와 오른쪽 꺽쇠로 쓴다.
-     절 제목의 위 여백은 상자 밖으로 빠지므로 상자 맨 위 26px이 절 제목 줄이다.
+     화면 위아래 스크롤은 막 위에서도 그대로 된다. 막 한가운데에는 가장 늦은 리포트로 가는 단추를 날짜 말풍선과 같은 짙은 상자에 흰 글자와 오른쪽 꺽쇠로 띄워,
+     아래 표 글자와 겹쳐도 읽힌다.
      막과 단추는 머리 상자 아래에 둔다. 막을 절 내용보다 먼저 그리는 층으로 두어, 같은 층의 단추가 막 위에 그려진다. */
   .frozen { position: relative; }
   .frozen::before { content: ""; position: absolute; inset: -8px -16px 0; z-index: 3; background: rgba(110, 110, 118, .22);
     -webkit-backdrop-filter: grayscale(1) brightness(.75); backdrop-filter: grayscale(1) brightness(.75); }
-  .frozen .latest { position: absolute; z-index: 3; top: 13px; right: 0; transform: translateY(-50%); display: flex; align-items: center; gap: 8px;
-                    padding: 8px 0 8px 12px; border: 0; background: none; color: #fff; font: inherit; font-size: 14px; font-weight: 700; white-space: nowrap;
-                    cursor: pointer; -webkit-tap-highlight-color: transparent; }
-  .frozen .latest:active { opacity: .6; }
+  .frozen .latest { position: absolute; z-index: 3; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 8px;
+                    padding: 12px 18px; border: 0; border-radius: 12px; background: #2a2a2f; box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+                    color: #fff; font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .frozen .latest:active { background: #34343a; }
+  .frozen .latest svg { color: var(--dim); }
   .issue-list .pick .lead { flex: 1; display: flex; align-items: flex-start; gap: 14px; }
   .issue-list .pick .num { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px;
                            min-width: 16px; color: var(--text); font-size: 15.5px; line-height: 1.5; font-weight: 700; }
