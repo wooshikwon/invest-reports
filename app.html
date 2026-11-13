@@ -201,10 +201,10 @@
   .carousel .slide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; }
   .carousel .slide img { margin: 0; }
   /* 날짜 슬라이더는 그림 폭의 48%로 가운데에 둔다. 슬라이더에 댄 손가락은 넘기기 묶음을 옆으로 밀지 않는다.
-     손가락이 막대에서 벗어나도 슬라이더를 잡도록, 보이는 막대는 4px이지만 손가락을 받는 높이는 60px로 잡는다. 받는 칸은 위아래로 10px씩
-     슬라이더 자리 밖까지 뻗어, 막대와 그림·해설 사이의 간격은 그대로 두고 그림 아래 끝과 해설 위 끝 바로 앞까지 손가락을 받는다. */
+     손가락이 막대에서 벗어나도 슬라이더를 잡도록, 보이는 막대는 4px이지만 손가락을 받는 높이는 50px로 잡는다. 받는 칸은 위아래로 5px씩
+     슬라이더 자리 밖까지 뻗고, 막대와 그림·해설 사이의 간격은 그대로 둔다. */
   .carousel .rewind { position: relative; width: 48%; margin: 10px auto 12px; }
-  .carousel .rewind input { display: block; width: 100%; height: 60px; margin: -10px 0; background: none; -webkit-appearance: none; appearance: none; touch-action: none; }
+  .carousel .rewind input { display: block; width: 100%; height: 50px; margin: -5px 0; background: none; -webkit-appearance: none; appearance: none; touch-action: none; }
   .carousel .rewind input { --track: linear-gradient(to right, rgba(58, 63, 74, .35) calc(9px + var(--from, 0) * (100% - 18px)), var(--line) 0); }
   .carousel .rewind input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--track); }
   .carousel .rewind input::-moz-range-track { height: 4px; border-radius: 2px; background: var(--track); }
@@ -239,13 +239,12 @@
      그날 이슈 해설 소제목을 오늘부터 앞 날짜 순으로 쓰고, 줄 사이에 옅은 선을 긋는다. 보고 있는 날짜의 줄은 본문 색 굵은 글씨로, 나머지 줄은 흐린 글씨로 쓴다. 누르고 있는 줄은 3% 줄인다.
      최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝에 지수 색으로 칠하고 위로 갈수록 투명해지는 띠와 펼침 단추를 둔다. 펼치면 띠를 지우고 줄 목록의 높이를
      다섯 줄과 여섯째 줄 윗부분까지 늘리며, 그보다 많은 줄(`long`)은 목록 안에서 스크롤해 본다. 줄이 여섯 이하면 목록을 스크롤 상자로 만들지 않는다.
-     iOS는 스크롤 상자 위에 겹친 뒤로 가기 띠의 가로 밀기를 그 상자의 스크롤로 가져가 끊으므로, 뒤로 가기 띠를 누르고 있는 동안(`edging`)은 목록 스크롤을 멈춘다. */
+     iOS는 스크롤 상자 위에 겹친 뒤로 가기 띠의 가로 밀기를 그 상자의 스크롤로 가져가 끊으므로, 띠 아래에 스크롤 상자를 두지 않는다. */
   .issue-page > div.history { margin-top: 8px; padding: 4px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); overflow: hidden; }
   .issue-page > div.history + h4 { margin-top: 26px; }
   .history .rows { position: relative; overflow: hidden; }
   .history .rows.open.long { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
   .history .rows.open::-webkit-scrollbar { display: none; }
-  :root.edging .history .rows.open.long { overflow-y: hidden; }
   .history .rows.shut > .entry:nth-child(n + 4) { display: none; }
   .history .unfold { position: relative; isolation: isolate; display: flex; align-items: center; justify-content: center; gap: 6px; width: calc(100% + 36px); margin: 0 -18px -4px;
     padding: 14px 0 12px; border: 0; background: none; color: var(--dim); font: inherit; font-size: 13px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
@@ -527,6 +526,9 @@
   .back-edge { position: fixed; top: 0; bottom: 0; left: 0; z-index: 6; width: 18px; touch-action: pan-y; }
   /* 이슈 화면은 밀어서 이슈 목록으로 돌아가는 일이 잦으므로 띠를 본문 첫 글자 너머까지 넓힌다. */
   :root.issue .back-edge { width: 48px; }
+  /* iOS는 띠 아래에 놓인 스크롤 상자(펼친 긴 히스토리 목록, 날짜 띠, 넘기기 묶음)가 띠의 가로 밀기를 그 상자의 스크롤로 가져가 뒤로 가기를 끊는다.
+     띠를 누르고 있는 동안(`edging`)은 이 상자들의 스크롤을 멈춘다. 스크롤을 멈춰도 보던 위치는 그대로다. */
+  :root.edging :is(.history .rows.open.long, .days, .carousel .track) { overflow: hidden; }
   .back-ring { position: fixed; top: 0; left: 0; z-index: 6; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;
                border-radius: 50%; background: rgba(60, 60, 66, .85); color: #fff; opacity: 0; pointer-events: none;
                -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); transition: background .15s ease, color .15s ease; }
@@ -2415,7 +2417,7 @@
   // 이슈 화면은 띠를 48px로 넓히고, 앞 페이지가 없으면(주소로 바로 연 이슈 화면) 이슈 목록 단추처럼 같은 리포트의 리포트 화면을 연다.
   // 띠는 손가락이 처음 6px 움직인 방향으로 할 일을 정한다. 가로로 움직인 거리가 세로의 0.6배 이상이면 뒤로 가기로 받고 페이지 스크롤을 막는다.
   // 막지 않으면 스크롤할 여지가 있는 본문 가운데에서 손가락이 조금만 비스듬히 움직여도 브라우저가 스크롤을 시작해 밀기를 끊는다.
-  // 그보다 세로로 움직이면 스크롤을 브라우저에 맡기고 그 손짓은 더 보지 않는다. 띠를 누르고 있는 동안은 뿌리에 `edging`을 달아 띠 아래 히스토리 목록의 스크롤을 멈춘다. 미는 동안 손가락 높이에 뒤로 가기 원이 따라 나오고, 80px을 넘기면 원이 밝아지며
+  // 그보다 세로로 움직이면 스크롤을 브라우저에 맡기고 그 손짓은 더 보지 않는다. 띠를 누르고 있는 동안은 뿌리에 `edging`을 달아 띠 아래 스크롤 상자의 스크롤을 멈춘다. 미는 동안 손가락 높이에 뒤로 가기 원이 따라 나오고, 80px을 넘기면 원이 밝아지며
   // 선택 변경 진동을 낸다. 80px을 넘긴 채 손을 떼면 앞 페이지로 돌아가고, 못 넘기면 원을 거둔다. 움직이지 않고 누른 곳은 띠 아래 요소를 누른 것으로 넘긴다.
   if (depth > 0 || query.get("issue")) {
     const edge = Object.assign(document.createElement("div"), { className: "back-edge" });
