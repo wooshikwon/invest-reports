@@ -201,10 +201,11 @@
   .carousel .slide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; }
   .carousel .slide img { margin: 0; }
   /* 날짜 슬라이더는 그림 폭의 48%로 가운데에 둔다. 슬라이더에 댄 손가락은 넘기기 묶음을 옆으로 밀지 않는다.
-     손가락이 막대에서 벗어나도 슬라이더를 잡도록, 보이는 막대는 4px이지만 손가락을 받는 높이는 50px로 잡는다. 받는 칸은 위아래로 5px씩
-     슬라이더 자리 밖까지 뻗고, 막대와 그림·해설 사이의 간격은 그대로 둔다. */
-  .carousel .rewind { position: relative; width: 48%; margin: 10px auto 12px; }
-  .carousel .rewind input { display: block; width: 100%; height: 50px; margin: -5px 0; background: none; -webkit-appearance: none; appearance: none; touch-action: none; }
+     막대는 위아래 24px 안에서만 손가락을 받아, 막대 근처에서 시작한 넘기기를 가로채지 않는다.
+     레버는 레버 중심을 둘러싼 56px 칸(`grip`)으로 손가락을 받아, 레버에서 조금 벗어나게 눌러도 레버를 잡는다. */
+  .carousel .rewind { position: relative; width: 48%; margin: 10px auto 12px; padding: 8px 0; }
+  .carousel .rewind input { display: block; width: 100%; height: 24px; margin: 0; background: none; -webkit-appearance: none; appearance: none; touch-action: none; }
+  .carousel .rewind .grip { position: absolute; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; touch-action: none; }
   .carousel .rewind input { --track: linear-gradient(to right, rgba(58, 63, 74, .35) calc(9px + var(--from, 0) * (100% - 18px)), var(--line) 0); }
   .carousel .rewind input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--track); }
   .carousel .rewind input::-moz-range-track { height: 4px; border-radius: 2px; background: var(--track); }
@@ -854,8 +855,8 @@
     const offset = (day) => rewindOffset(day, date);
     const control = document.createElement("div");
     control.className = "rewind";
-    control.innerHTML = `<input type="range" min="0" max="${REWIND_SPAN}" step="1" value="${REWIND_SPAN}"><span></span>`;
-    const [range, shown] = control.children;
+    control.innerHTML = `<input type="range" min="0" max="${REWIND_SPAN}" step="1" value="${REWIND_SPAN}"><span></span><i class="grip"></i>`;
+    const [range, shown, grip] = control.children;
     const first = offset(days[0]);
     range.style.setProperty("--from", first / REWIND_SPAN);
     let wanted = start;
@@ -868,6 +869,7 @@
       const half = shown.offsetWidth / 2, at = 9 + offset(days[i]) / REWIND_SPAN * (range.clientWidth - 18);
       shown.style.left = `${Math.min(range.clientWidth - half, Math.max(half, at))}px`;
       shown.style.setProperty("--tail", `${at - Math.min(range.clientWidth - half, Math.max(half, at))}px`);
+      grip.style.left = `${at}px`;
       pick(i);
     };
     // 레버를 첫 날짜보다 왼쪽으로 옮기면 첫 날짜에 세우고, 그 밖에는 가장 가까운 날짜로 붙인다. 붙는 날짜가 바뀔 때마다 진동을 낸다.
@@ -883,6 +885,21 @@
     const hold = (on) => () => { control.classList.toggle("held", on); if (on) show(nearest()); };
     range.addEventListener("pointerdown", hold(true));
     ["pointerup", "pointercancel", "change", "blur"].forEach((type) => range.addEventListener(type, hold(false)));
+    // 레버 칸을 누르면 누른 자리와 레버 중심의 거리(`grab`)를 기억하고, 손가락이 움직인 만큼 레버를 옮긴다.
+    let grab = 0;
+    const lever = () => 9 + range.value / REWIND_SPAN * (range.clientWidth - 18);
+    grip.addEventListener("pointerdown", (event) => {
+      grip.setPointerCapture(event.pointerId);
+      grab = event.clientX - range.getBoundingClientRect().left - lever();
+      hold(true)();
+    });
+    grip.addEventListener("pointermove", (event) => {
+      if (!grip.hasPointerCapture(event.pointerId)) return;
+      const x = event.clientX - range.getBoundingClientRect().left - grab;
+      range.value = Math.round(Math.min(1, Math.max(0, (x - 9) / (range.clientWidth - 18))) * REWIND_SPAN);
+      range.dispatchEvent(new Event("input"));
+    });
+    ["pointerup", "pointercancel"].forEach((type) => grip.addEventListener(type, hold(false)));
     box.appendChild(control);
     show(start);
   }
