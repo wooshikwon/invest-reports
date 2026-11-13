@@ -282,16 +282,23 @@
     border-radius: 9px; background: var(--index-ink); color: var(--bg); font-size: 11px; font-weight: 700; line-height: 18px; white-space: nowrap; }
   .issue-list .pick + .pick { margin-top: 10px; }
   /* 지난 리포트의 다가오는 이벤트 절은 절 제목부터 절 끝까지를 회색 막으로 덮고 색을 빼서 흐리게 보이고, 막이 누르기와 밀기를 받아 아래 날짜 띠와 묶음이 움직이지 않는다.
-     화면 위아래 스크롤은 막 위에서도 그대로 된다. 막 한가운데에는 가장 늦은 리포트로 가는 단추를 날짜 말풍선과 같은 색의 그림자 없는 짙은 상자에 흰 글자와 오른쪽 꺽쇠로 띄워,
-     아래 표 글자와 겹쳐도 읽힌다.
+     화면 위아래 스크롤은 막 위에서도 그대로 된다. 막 한가운데에는 가장 늦은 리포트로 가는 단추를 흰 글자와 오른쪽 꺽쇠로 띄운다.
+     단추 상자는 머리 상자·절 바로가기 알약과 같은 색·흐림의 유리 알약에 알약과 같은 1px 빛줄기를 두르고 그림자는 두지 않아, 아래 표 글자와 겹쳐도 읽힌다.
      막과 단추는 머리 상자 아래에 둔다. 막을 절 내용보다 먼저 그리는 층으로 두어, 같은 층의 단추가 막 위에 그려진다. */
   .frozen { position: relative; }
   .frozen::before { content: ""; position: absolute; inset: -8px -16px 0; z-index: 3; background: rgba(110, 110, 118, .22);
     -webkit-backdrop-filter: grayscale(1) brightness(.75); backdrop-filter: grayscale(1) brightness(.75); }
   .frozen .latest { position: absolute; z-index: 3; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 8px;
-                    padding: 12px 18px; border: 0; border-radius: 12px; background: #2a2a2f;
+                    padding: 12px 20px; border: 0; border-radius: 24px; background: color-mix(in srgb, var(--bg) 40%, transparent);
+                    -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: blur(3px) saturate(150%);
                     color: #fff; font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-  .frozen .latest:active { background: #34343a; }
+  .frozen .latest::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+                            background: linear-gradient(150deg, rgba(255, 255, 255, .42), rgba(255, 255, 255, .08) 28%, rgba(255, 255, 255, 0) 55%,
+                                        rgba(255, 255, 255, .06) 80%, rgba(255, 255, 255, .22));
+                            -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+                            -webkit-mask-composite: xor; mask-composite: exclude; }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .frozen .latest { background: var(--bg); } }
+  .frozen .latest:active { opacity: .6; }
   .frozen .latest svg { color: var(--dim); }
   .issue-list .pick .lead { flex: 1; display: flex; align-items: flex-start; gap: 14px; }
   .issue-list .pick .num { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px;
