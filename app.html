@@ -1928,7 +1928,7 @@
     names.forEach(([code, size, ink, weight]) => {
       const { name, box: b, center } = data.shapes[code], cx = X(center[0]), cy = Y(center[1]) + size * 0.35, w = textWidth(name, size);
       const area = label(cx, cy, "middle", size, name);
-      if ((b[2] - b[0]) * k < w + 4 || (b[3] - b[1]) * k < size + 3 || !free(area)) return;
+      if ((b[2] - b[0]) * k < w * 1.25 + 4 || (b[3] - b[1]) * k < size + 3 || !free(area)) return;
       taken.push(area);
       s.append(shape("text", { x: cx, y: cy, "text-anchor": "middle", "font-size": size, "font-weight": weight, fill: ink }, name));
     });

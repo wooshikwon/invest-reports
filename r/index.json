@@ -227,18 +227,18 @@
   "written": "2026-11-06 11:58",
   "date": "2026-11-06",
   "index": "nasdaq",
-  "moves": {
-   "session": -6.36,
-   "after": 0.52,
-   "close": 647.78,
-   "base": 651.15
-  },
   "later": {
    "2": "20261113-nasdaq/5",
    "1": "20261113-nasdaq/2",
    "3": "20261112-nasdaq/4",
    "5": "20261109-nasdaq/5",
    "4": "20261113-nasdaq/3"
+  },
+  "moves": {
+   "session": -6.36,
+   "after": 0.52,
+   "close": 647.78,
+   "base": 651.15
   }
  },
  "20261106-biotech": {
