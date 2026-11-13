@@ -61,13 +61,14 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 
 `r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 처음 만든 시각(`written`, 서울 시각)을 적는다.
 앞 날짜 리포트의 이슈가 뒤 리포트 이슈의 히스토리에 들면, 앞 날짜 리포트 항목의 `later`에 그 이슈 번호를 키로 히스토리를 가진
-가장 늦은 리포트의 `리포트 키/이슈 번호`를 적는다. 미니 앱의 "자세히 보기" 단추는 이 값으로 이슈의 가장 늦은 히스토리를 연다. `invest-reports` 미니 앱은 제목 아래
-작은 글씨로 날짜 줄과 처음 만든 시각을 그린다. 같은 리포트를 다시 만들어도 처음 만든 시각은 그대로 둔다.
+가장 늦은 리포트의 `리포트 키/이슈 번호`를 적는다. 미니 앱의 "자세히 보기" 단추는 이 값으로 이슈의 가장 늦은 히스토리를 연다. `invest-reports` 미니 앱은 제목 위
+작은 글씨로 날짜 줄을 그린다. 같은 리포트를 다시 만들어도 처음 만든 시각은 그대로 둔다.
 `invest-reports` 미니 앱의 달력은 같은 목록에서 그 지수의 리포트 날짜를 찾아 흰 글자로 쓰고, 날짜 아래에 `moves`의 `session`을 적는다.
 `moves`에는 리포트 날짜 전날 정규장 종가의 앞 세션 종가 대비 등락률(`session`, %)과 기준 가격의 기준 가격 날짜 종가 대비
-등락률(`after`, %)을 적는다. 전날이 휴장일이면 `session`은 `null`이다. 두 등락률은 `path-bands.json`의 ^NDX·^NBI 환산 가격과 `reference.db` 환산 종가로 재므로
-12M + Predictions 그림의 종가 선과 기준 가격 차이와 같다. `invest-reports` 미니 앱은 날짜 줄 아래 회색 글씨로
-`정규장`과 `장 마감 후` 등락률을 적고 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. `null`은 `—`로 적는다.
+등락률(`after`, %), 기준 가격 날짜의 지수 종가(`close`)를 적는다. 전날이 휴장일이면 `session`은 `null`이다. 두 등락률은 `path-bands.json`의 ^NDX·^NBI 환산 가격과 `reference.db` 환산 종가로 재므로
+12M + Predictions 그림의 종가 선과 기준 가격 차이와 같다. 지수 종가는 `market-data.json`의 ^NDX·^NBI 값이고, 값이 없으면 적지 않는다.
+`invest-reports` 미니 앱은 제목 오른쪽에 지수 이름, 지수 종가, `session` 등락률을 한 줄로 적고 그 아래에 `장 마감 후` 등락률을 적는다.
+등락률만 오르면 빨강, 내리면 파랑으로 칠하고 `null`은 `—`로 적는다. 화면을 내리면 제목은 작아지며 위로 사라지고, 지수 줄이 고정된 머리 줄로 올라간다.
 
 `system/simulation.json`의 `quantiles`에 5% 값이 있는 리포트는 요약 절 세 그림을 그림 파일 대신 값으로 그린다.
 그런 리포트의 공개본에서는 12M + Predictions·Montecarlo·권장 추종 배율 그림을 빼고, `report.html` 끝에 카드 값을
@@ -115,6 +116,7 @@ TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
 CARD_QUANTILES = (10, 25, 50, 75, 90)  # Montecarlo 카드가 그리는 수익률 분위수
 PRICE_YEARS = 3  # 주가와 예측 카드가 그리는 종가 기간(년)
+INDEX_TICKERS = {"nasdaq": "^NDX", "biotech": "^NBI"}  # 지수 폴더마다 `market-data.json`에서 종가를 읽는 지수
 TICK_STEP = 5  # Montecarlo 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
 ISSUES_TITLE = "상세 이슈 해설"
@@ -166,7 +168,11 @@ def actual_returns(db: Path, ticker: str, days: list[str], base: float, until: s
 
 
 def moves(vault: Path, index: str, date: str) -> dict | None:
-    """리포트 날짜 `date` 전날의 정규장 등락률과 장 마감 뒤 등락률(%). `path-bands.json`이나 앞 세션 종가가 없으면 `None`."""
+    """리포트 날짜 `date` 전날의 정규장 등락률과 장 마감 뒤 등락률(%), 기준 가격 날짜의 지수 종가. `path-bands.json`이나 앞 세션 종가가 없으면 `None`.
+
+    지수 종가(`close`)는 `market-data.json`의 ^NDX·^NBI 값을 읽고, 값이 없거나 값의 날짜가 기준 가격 날짜와 다르면 적지 않는다.
+    10/19 이전의 `market-data.json`은 값의 날짜를 적지 않으므로 그 값을 기준 가격 날짜의 종가로 쓴다.
+    """
     bands_path = vault / f"routine/invest/{date[:7]}/{date}/{index}/path-bands.json"
     if not bands_path.is_file():
         return None
@@ -183,8 +189,13 @@ def moves(vault: Path, index: str, date: str) -> dict | None:
         return None
     close = float(bands["price_base_session_close"])
     previous = (dt.date.fromisoformat(date) - dt.timedelta(days=1)).isoformat()
-    return {"session": round((close / closes[1] - 1) * 100, 2) + 0.0 if bands["price_base_date"] == previous else None,
+    move = {"session": round((close / closes[1] - 1) * 100, 2) + 0.0 if bands["price_base_date"] == previous else None,
             "after": round((float(bands["price_base"]) / close - 1) * 100, 2) + 0.0}
+    market_path = bands_path.parent / "market-data.json"
+    level = json.loads(market_path.read_text(encoding="utf-8"))["market"].get(INDEX_TICKERS[index], {}) if market_path.is_file() else {}
+    if level.get("value") is not None and level.get("date", bands["price_base_date"]) == bands["price_base_date"]:
+        move["close"] = level["value"]
+    return move
 
 
 def card_frame(date: str, folder: Path) -> dict | None:
