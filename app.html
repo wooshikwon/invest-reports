@@ -81,12 +81,16 @@
   #past { display: none; }
   :root.past #past { display: block; position: fixed; top: var(--top-inset); left: 0; right: 0; z-index: 7; height: var(--past);
                      background: #d9363e; color: #fff; font-size: 12px; font-weight: 700; line-height: var(--past); text-align: center; }
+  /* 이슈 화면(`:root.issue`)은 머리 상자, 과거 리포트 띠, 절 바로가기 알약 없이 이슈 하나만 보인다. */
+  :root.issue { --past: 0px; }
+  :root.issue :is(#berth, #masthead, #past) { display: none; }
   #moves:empty { display: none; }
   #moves b { font-weight: 700; margin-left: 4px; }
   #moves .up { color: #ff5c5c; }
   #moves .down { color: #5b9bff; }
   #moves .sep { margin-left: 8px; }
   #masthead:has(#moves:not(:empty)) + #report > h2:first-child { margin-top: 36px; }
+  :root.issue #masthead:has(#moves) + #report > h2:first-child { margin-top: 0; }
   /* 제목 줄 오른쪽 끝에 달력 단추를 두고, 단추의 세로 가운데를 날짜 줄부터 등락률 줄까지 담은 머리 상자의 세로 가운데에 맞춘다. 달력 단추와 지수 전환 단추는 날짜 상자·그림 이름 탭과 같은 색과 모서리의 같은 높이 상자로 그리고, 달력이 떠 있는 동안 달력 단추는 고른 날짜 상자와 같은 색으로 칠한다. 누르면 단추 바로 아래에 같은 지수의 리포트 날짜를 고르는 달력을 띄우고, 화면을 넘겨도 달력은 단추 아래에 붙어 함께 움직인다.
      달력 상자는 설명 상자와 같은 색으로 그리고, 리포트가 있는 날짜는 흰 글자로 쓰고 그 아래에 그 리포트의 정규장 등락률을 머리말과 같은 색으로 적는다.
      리포트가 없는 날짜는 회색으로 쓰고 누를 수 없다. 보고 있는 리포트의 날짜는 날짜 띠의 고른 상자와 같은 색으로 칠하고, 다른 리포트를 볼 때 오늘 날짜에는 테두리를 두른다. */
@@ -547,6 +551,7 @@
   // 달력과 지수 전환 단추로 고른 리포트는 주소의 `r`로 다시 연다. 텔레그램은 다시 연 뒤에도 처음 받은 `start_param`을 그대로 주므로 `r`을 먼저 읽는다.
   // 홈 화면 바로가기는 `start_param` 없이 미니 앱을 열므로, 키가 없으면 리포트를 받기 전에 `r/index.json`에서 키를 정한다.
   // 주소에 `issue`가 있으면 리포트 대신 그 번호의 이슈 하나를 보이는 이슈 화면을 그리고, `at`이 있으면 히스토리에서 그 날짜 항목을 고른다.
+  if (query.get("issue")) document.documentElement.classList.add("issue");
   let key = query.get("r") || (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || "";
   const report = document.getElementById("report");
   // 머리 상자가 화면 위에 붙어 있으면 `stuck`을 단다. 문서 맨 위에서는 달지 않는다.
