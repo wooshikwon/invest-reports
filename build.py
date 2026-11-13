@@ -12,8 +12,9 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `다가오는 이벤트` 표는 분기·확률·전개 예상 세 열이다. 휴대폰 폭에서 분기 이름이 접히지 않게 열마다
 폭과 정렬을 정하는 이름표를 단다.
 
-`다가오는 이벤트` 절에는 리포트 날짜 전 이틀 동안 발표된 이벤트도 넣는다. 리포트가 같은 사안 id의 이벤트를 이미
-적었으면 리포트의 표만 둔다. 그 밖의 이벤트는 그 이벤트를 예측한 가장 최근 리포트의 표를 쓰고, 그 리포트의 사안 나무(`tree.json`)에서 이벤트의 사안 id를 찾아 뒤 사안 나무의 `resolved`가
+`다가오는 이벤트` 절에는 앞 리포트들이 적은 이벤트 가운데 리포트 날짜 전에 발표된 이벤트를 모두 넣는다. 리포트가 같은 사안 id의 이벤트를 이미
+적었으면 리포트의 표만 둔다. 발표일마다 그날 이벤트를 적은 가장 최근 리포트의 소제목과 표를 쓰고, 더 최근 리포트가 다른 날로 옮겨 적은
+사안 id의 이벤트는 뺀다. 그 리포트의 사안 나무(`tree.json`)에서 이벤트의 사안 id를 찾아 뒤 사안 나무의 `resolved`가
 그 id로 적은 실제 갈래 줄에 `hit` 이름표를 단다. `resolved`의 갈래는 갈래 id이므로, 표를 쓴 리포트의 사안 나무에서
 그 id의 갈래 이름을 찾아 표의 줄과 잇는다. 갈래 id가 없는 앞 날짜 나무는 사안마다 나무 순서대로 `b1`부터 번호를 붙여
 읽고, 갈래 id가 아닌 `resolved` 갈래는 이름으로 읽는다.
@@ -90,8 +91,7 @@ EVENTS_TITLE = "다가오는 이벤트"
 EVENT_DAY_RE = re.compile(r"^(?:(\d{4})-)?(\d{1,2})[-/](\d{1,2})\([^)]*\)(?:~\S+)?\s*(?:(장전|장중|장후)\s+)?")
 LEVEL_RE = re.compile(r"\s*`중요도 ([^`]*)`")
 LEVELS = {"높음": "high", "보통": "mid", "낮음": "low"}  # 소제목 중요도 표식의 말과 `data-level` 값
-PAST_DAYS = 2  # 리포트 날짜 전 며칠 동안 발표된 이벤트를 넣는지
-LOOKBACK = 7  # 지난 이벤트의 표와 발표 시각을 찾을 때 거슬러 보는 리포트 날짜 수
+LOOKBACK = 7  # 발표 시각을 찾을 때 리포트 날짜 뒤로 보는 리포트 날짜 수
 REGULAR_OPEN, REGULAR_CLOSE = "09:30", "16:00"  # 뉴욕 정규장 시각. 발표 시각을 장전·장중·장후로 나눈다
 # 발표 시각을 모를 때 채우는 뉴욕 시각. 실적의 장전(bmo)·장후(amc) 단서는 `calendar_store.py`가 08:00·16:05로,
 # 장중(dmh)은 `render_inputs.py`가 12:00으로 채우고, 단서가 없는 발표는 16:00으로 적는다. 이 시각은 장 구분만 적는다.
@@ -354,36 +354,37 @@ def realized(vault: Path, index: str, source: Path, name: str, day: dt.date, dat
     return None
 
 
-def past_events(vault: Path, index: str, date: dt.date) -> tuple[str, dict[str, dict]]:
-    """리포트 날짜 전 `PAST_DAYS`일 동안 발표된 이벤트의 마크다운과, 이벤트 이름마다 `resolved` 항목.
+def reports(vault: Path, index: str, until: dt.date) -> list[Path]:
+    """`until` 이전(그날 포함)의 지수 리포트 경로를 늦은 날짜부터."""
+    found = (path for path in vault.glob(f"routine/invest/*/*/{index}/report.md") if path.parent.parent.name <= f"{until}")
+    return sorted(found, key=lambda path: path.parent.parent.name, reverse=True)
 
-    발표일마다 그날 이벤트를 예측한 가장 최근 리포트의 소제목과 표를 그 리포트의 순서대로 쓴다.
-    리포트 날짜의 리포트가 같은 사안 id로 적은 이벤트는 뺀다.
+
+def past_events(vault: Path, index: str, date: dt.date) -> tuple[str, dict[str, dict]]:
+    """앞 리포트들이 적은 이벤트 가운데 리포트 날짜 전에 발표된 이벤트의 마크다운과, 이벤트 이름마다 `resolved` 항목.
+
+    발표일마다 그날 이벤트를 적은 가장 최근 리포트의 소제목과 표를 그 리포트의 순서대로 쓴다. 리포트 날짜의 리포트나
+    더 최근 리포트가 이미 적은 사안 id의 이벤트는 뺀다.
     """
-    first = date - dt.timedelta(days=PAST_DAYS)
     current = report_path(vault, date, index)
     issues = tree_issues(current)
-    shown = {issues[name]["id"] for _, name, _ in event_items(current.read_text(encoding="utf-8"), date)
-             if name in issues}
+    seen = {issues[name]["id"] for _, name, _ in event_items(current.read_text(encoding="utf-8"), date)
+            if name in issues}
     found: dict[dt.date, list[tuple[Path, str, str]]] = {}
-    for back in range(1, LOOKBACK + 1):
-        source = report_path(vault, date - dt.timedelta(days=back), index)
-        if not source.is_file():
-            continue
+    for source in reports(vault, index, date - dt.timedelta(days=1)):
+        ids = {name: issue["id"] for name, issue in tree_issues(source).items()}
         latest: dict[dt.date, list[tuple[Path, str, str]]] = {}
         for day, name, chunk in event_items(source.read_text(encoding="utf-8"), date):
-            if first <= day < date and day not in found:
+            if day < date and day not in found and ids.get(name) not in seen:
                 latest.setdefault(day, []).append((source, name, chunk))
         found.update(latest)
+        seen |= set(ids.values())
     blocks, branches = [], {}
-    for day in sorted(found):
-        for source, name, chunk in found[day]:
-            if tree_issues(source).get(name, {}).get("id") in shown:
-                continue
-            entry = realized(vault, index, source, name, day, date)
-            blocks.append(chunk.rstrip() + "\n")
-            if entry:
-                branches[name] = entry
+    for day, source, name, chunk in ((day, *item) for day in sorted(found) for item in found[day]):
+        entry = realized(vault, index, source, name, day, date)
+        blocks.append(chunk.rstrip() + "\n")
+        if entry:
+            branches[name] = entry
     return "\n".join(blocks), branches
 
 
@@ -404,11 +405,11 @@ def when_label(announced: str) -> str:
 def timings(vault: Path, index: str, date: dt.date) -> dict[tuple[str, str], str]:
     """(발표일, 이벤트 이름)마다 제목 위 발표 시각(`when_label`). 이름이 빈 키에는 그날 발표가 모두 같은 장 구분일 때만 그 구분을 둔다.
 
-    리포트 날짜 앞뒤 `LOOKBACK`일의 사안 나무에서 발표 시각을 읽고, 같은 사안은 가장 늦은 나무의 시각을 쓴다.
+    리포트 날짜 뒤 `LOOKBACK`일까지의 모든 사안 나무에서 발표 시각을 읽고, 같은 사안은 가장 늦은 나무의 시각을 쓴다.
     """
     announced_at: dict[tuple[str, str], str] = {}
-    for offset in range(LOOKBACK, -LOOKBACK - 1, -1):
-        tree = report_path(vault, date + dt.timedelta(days=offset), index).with_name("tree.json")
+    for source in reports(vault, index, date + dt.timedelta(days=LOOKBACK)):
+        tree = source.with_name("tree.json")
         if not tree.is_file():
             continue
         for issue in json.loads(tree.read_text(encoding="utf-8")).get("issues", []):

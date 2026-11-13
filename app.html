@@ -312,7 +312,10 @@
   .days button i .lv-key { background: var(--index-ink); }
   .days button i .lv-low { background: var(--hint); }
   .carousel.events .slide { display: flow-root; }
-  .carousel.events details.fold + details.fold { margin-top: 30px; }
+  .carousel.events .event + .event { margin-top: 30px; }
+  .carousel.events .event { display: flow-root; }
+  .carousel.events .event > h3 { margin: 0 0 6px; }
+  .carousel.events .event > :not(h3) { margin-top: 0; color: var(--hint); }
   .carousel.events.fit .slide > :first-child { margin-top: 30px; }
   .carousel.events table { margin: 0; }
   h3 .when { display: block; margin-bottom: 2px; font-size: 13px; font-weight: 600; }
@@ -1458,15 +1461,15 @@
   }
 
   // 다가오는 이벤트를 발표일마다 한 장으로 모아 넘기는 묶음으로 바꾸고, 위에 날짜 띠를 둔다.
-  // 날짜 띠에는 리포트 날짜 전 2일부터 뒤 35일까지 이벤트가 있는 날짜와 리포트 날짜를 둔다. 발표일은
-  // `build.py`가 소제목에 단 `data-day`를 쓰고, 범위 밖 이벤트는 지운다. 처음에는 리포트 날짜를 보여 주고,
-  // 그날 이벤트가 없으면 빈 안내 한 줄을 둔다. 날짜를 누르면 그 날짜의 장으로 넘어간다.
+  // 날짜 띠에는 리포트 날짜 뒤 35일까지 이벤트가 있는 날짜와 리포트 날짜를 두고, 리포트 날짜 전에는 `build.py`가 넣은 지난 이벤트의 날짜를 모두 둔다.
+  // 발표일은 `build.py`가 소제목에 단 `data-day`를 쓰고, 35일 뒤 이벤트는 지운다. 처음에는 리포트 날짜를 보여 주고,
+  // 그날 이벤트가 없으면 빈 안내 한 줄을 둔다. 날짜를 누르면 그 날짜의 장으로 넘어간다. 이벤트는 소제목과 표를 늘 펼쳐 둔다.
   function events(date) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "다가오는 이벤트");
     if (!head) return;
     head.classList.add("events");
     const shift = (day, n) => new Date(Date.parse(day) + n * 864e5).toISOString().slice(0, 10);
-    const first = shift(date, -2), last = shift(date, 35);
+    const last = shift(date, 35);
     const groups = new Map([[date, []]]);
     // 첫 소제목 앞의 노드는 그대로 두고, 소제목부터 다음 소제목 앞까지는 그 소제목의 날짜 묶음에 넣는다.
     let group;
@@ -1474,7 +1477,7 @@
       const next = node.nextElementSibling;
       if (node.tagName === "H3") {
         const day = node.dataset.day;
-        group = day >= first && day <= last ? groups.get(day) || groups.set(day, []).get(day) : null;
+        group = day <= last ? groups.get(day) || groups.set(day, []).get(day) : null;
       }
       if (group) group.push(node); else if (group === null) node.remove();
       node = next;
@@ -1532,16 +1535,25 @@
     const box = slider(days.map((day) => groups.get(day)), bar, { fit: true, start: days.indexOf(date), change, name: "events", area: head, feel: true });
     box.prepend(bar);
     new ResizeObserver(fill).observe(box);
-    wrap([...box.querySelectorAll(".slide > h3")], 3);
+    // 소제목마다 그 소제목과 다음 소제목 앞까지의 노드를 이벤트 상자 하나에 담는다.
+    box.querySelectorAll(".slide > h3").forEach((h3) => {
+      const event = Object.assign(document.createElement("div"), { className: "event" });
+      h3.before(event);
+      let node = h3.nextElementSibling;
+      event.appendChild(h3);
+      while (node && node.tagName !== "H3") {
+        const next = node.nextElementSibling;
+        event.appendChild(node);
+        node = next;
+      }
+    });
     box.querySelectorAll("table.events:not(.judged)").forEach((table) => {
       const rows = [...table.querySelectorAll("tbody tr")].map((row) => [row, parseFloat(row.querySelector(".chance")?.textContent)]);
       const top = Math.max(...rows.map(([, chance]) => chance).filter((chance) => !isNaN(chance)));
       rows.forEach(([row, chance]) => row.classList.toggle("top", chance === top));
     });
-    // 이벤트 표는 모두 펼쳐 둔다.
-    box.querySelectorAll(".slide > details.fold").forEach((fold) => (fold.open = true));
     // 이 절이 리포트 끝이라 묶음이 짧아지면 문서가 짧아져 화면이 위로 당겨지므로, 묶음은 이미 보인 높이보다 짧아지지 않게 한다.
-    // 날짜를 넘기거나 표를 접어 묶음이 짧아지기 전에 최소 높이를 맞추도록, 묶음을 누르기 시작할 때마다 다시 잰다.
+    // 날짜를 넘겨 묶음이 짧아지기 전에 최소 높이를 맞추도록, 묶음을 누르기 시작할 때마다 다시 잰다.
     const hold = () => {
       box.style.minHeight = `${Math.max(box.getBoundingClientRect().height, parseFloat(box.style.minHeight) || 0)}px`;
     };
