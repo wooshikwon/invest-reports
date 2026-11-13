@@ -1644,11 +1644,12 @@
     box.addEventListener("pointerdown", hold, { passive: true });
     box.querySelector(".track").addEventListener("touchstart", () => (aim = null), { passive: true });
     const arrow = '<svg width="6" height="10" viewBox="0 0 6 10" aria-hidden="true"><path d="M1 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    // 그날 이벤트의 결과는 그날 다음 날짜의 같은 지수 리포트가 적는다. `result`는 그 리포트로 가는 단추를 만든다. 그 리포트가 아직 없거나 보고 있는 리포트이면 아무것도 만들지 않는다.
+    // 그날 이벤트의 결과는 그날 다음 날짜의 같은 지수 리포트가 적는다. `result`는 그 리포트로 가는 단추를 만든다. 그 리포트가 보고 있는 리포트이거나 그보다 뒤 리포트이거나
+    // 아직 없으면 아무것도 만들지 않는다. 그래서 지난 리포트는 가장 늦은 리포트였을 때와 같이 그 리포트보다 앞 리포트로 가는 단추만 단다.
     const result = (day) => {
       const after = Object.keys(listing).filter((name) => listing[name].index === index && listing[name].date > day)
         .sort((a, b) => listing[a].date.localeCompare(listing[b].date))[0];
-      if (!after || after === key) return null;
+      if (!after || listing[after].date >= date) return null;
       const [, m, d] = listing[after].date.split("-");
       const go = Object.assign(document.createElement("button"), { type: "button", className: "result" });
       go.innerHTML = `${+m}/${+d} 리포트에서 결과 자세히 보기${arrow}`;
