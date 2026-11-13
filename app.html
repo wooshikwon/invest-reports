@@ -172,8 +172,8 @@
      제목 끝 줄에 스티커가 들어갈 폭이 없으면 스티커만 다음 줄 왼쪽 끝으로 넘긴다. 제목과 스티커 사이는 줄을 바꿀 수 있는 빈칸으로 띄운다. */
   mark, h3 .when { width: fit-content; background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
   mark { display: block; font-size: 13px; font-weight: 600; margin-bottom: 2px; }
-  /* 요약 소제목은 말머리 아래에 결론마다 한 줄씩 소제목 글씨로 쓰고, 줄 앞에 소제목 글씨와 같은 흰색 동그라미를 단다. 마지막 줄 아래는 6px 더 띄운다. */
-  h3 > ul.heads { margin: 0 0 6px; padding: 0; list-style: none; }
+  /* 요약 소제목은 말머리 아래에 결론마다 한 줄씩 소제목 글씨로 쓰고, 말머리보다 8px 안으로 들이며, 줄 앞에 소제목 글씨와 같은 흰색 동그라미를 단다. 마지막 줄 아래는 6px 더 띄운다. */
+  h3 > ul.heads { margin: 0 0 6px; padding: 0 0 0 8px; list-style: none; }
   h3 > ul.heads li { position: relative; margin: 0; padding-left: 14px; }
   h3 > ul.heads li + li { margin-top: 4px; }
   h3 > ul.heads li::before { content: ""; position: absolute; left: 1px; top: calc(.75em - 3px); width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
