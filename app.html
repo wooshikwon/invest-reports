@@ -282,10 +282,16 @@
     border-radius: 9px; background: var(--index-ink); color: var(--bg); font-size: 11px; font-weight: 700; line-height: 18px; white-space: nowrap; }
   .issue-list .pick + .pick { margin-top: 10px; }
   /* 지난 리포트의 다가오는 이벤트 절은 절 제목부터 절 끝까지를 회색 막으로 덮고 색을 빼서 흐리게 보이고, 막이 누르기와 밀기를 받아 아래 날짜 띠와 묶음이 움직이지 않는다.
-     화면 위아래 스크롤은 막 위에서도 그대로 된다. 막은 머리 상자 아래에 둔다. */
+     화면 위아래 스크롤은 막 위에서도 그대로 된다. 절 제목 줄 오른쪽 끝에는 막 위로 가장 늦은 리포트로 가는 단추를 상자 없이 흰 글자와 오른쪽 꺽쇠로 쓴다.
+     절 제목의 위 여백은 상자 밖으로 빠지므로 상자 맨 위 26px이 절 제목 줄이다.
+     막과 단추는 머리 상자 아래에 둔다. 막을 절 내용보다 먼저 그리는 층으로 두어, 같은 층의 단추가 막 위에 그려진다. */
   .frozen { position: relative; }
-  .frozen::after { content: ""; position: absolute; inset: -8px -16px 0; z-index: 3; background: rgba(110, 110, 118, .22);
+  .frozen::before { content: ""; position: absolute; inset: -8px -16px 0; z-index: 3; background: rgba(110, 110, 118, .22);
     -webkit-backdrop-filter: grayscale(1) brightness(.75); backdrop-filter: grayscale(1) brightness(.75); }
+  .frozen .latest { position: absolute; z-index: 3; top: 13px; right: 0; transform: translateY(-50%); display: flex; align-items: center; gap: 8px;
+                    padding: 8px 0 8px 12px; border: 0; background: none; color: #fff; font: inherit; font-size: 14px; font-weight: 700; white-space: nowrap;
+                    cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .frozen .latest:active { opacity: .6; }
   .issue-list .pick .lead { flex: 1; display: flex; align-items: flex-start; gap: 14px; }
   .issue-list .pick .num { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px;
                            min-width: 16px; color: var(--text); font-size: 15.5px; line-height: 1.5; font-weight: 700; }
@@ -1548,9 +1554,9 @@
   // 발표일은 `build.py`가 소제목에 단 `data-day`를 쓰고, 35일 뒤 이벤트는 지운다. 처음에는 리포트 날짜를 보여 주고,
   // 그날 이벤트가 없으면 빈 안내 한 줄을 둔다. 날짜를 누르면 그 날짜의 장으로 넘어간다. 이벤트는 소제목과 표를 늘 펼쳐 둔다.
   // 날짜를 꾹 누르면 그 날짜 위에 말풍선을 띄운다. 말풍선에는 그 날짜 뒤의 첫 리포트로 가는 단추를 두고, 그런 리포트가 아직 없으면 그 사실을 적는다.
-  // 지난 리포트에서 `title` 절의 제목부터 다음 절 제목 앞까지를 상자 하나에 담아 막을 씌운다. 지난 리포트의 다가오는 이벤트는
-  // 그 리포트 날짜에서 본 예정이라, 날짜를 오가며 보면 지금 보는 리포트의 날짜와 헷갈린다.
-  function freeze(title) {
+  // 지난 리포트에서 `title` 절의 제목부터 다음 절 제목 앞까지를 상자 하나에 담아 막을 씌우고, 막 위에 `target` 리포트로 가는 단추를 둔다.
+  // 지난 리포트의 다가오는 이벤트는 그 리포트 날짜에서 본 예정이라, 날짜를 오가며 보면 지금 보는 리포트의 날짜와 헷갈린다.
+  function freeze(title, target) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
     if (!head) return;
     const wrap = Object.assign(document.createElement("div"), { className: "frozen" });
@@ -1560,6 +1566,11 @@
       wrap.append(node);
       node = next;
     }
+    const go = Object.assign(document.createElement("button"), { type: "button", className: "latest" });
+    go.innerHTML = '최신 리포트로 가기<svg width="6" height="10" viewBox="0 0 6 10" aria-hidden="true"><path d="M1 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    go.addEventListener("click", () => { feelPress(); visit(target); });
+    // 단추는 절 제목 앞에 두어, 제목 뒤 노드를 날짜 묶음으로 나누는 `events`가 단추를 건드리지 않는다.
+    wrap.prepend(go);
   }
   function events(date, listing) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "다가오는 이벤트");
@@ -2234,7 +2245,7 @@
     // 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
     report.querySelectorAll("h3").forEach(trail);
     // 노드를 옮기면 넘기기 묶음의 스크롤 위치가 처음으로 돌아가므로, 막을 씌울 상자는 묶음을 만들기 전에 만든다.
-    if (document.documentElement.classList.contains("past")) freeze("다가오는 이벤트");
+    if (document.documentElement.classList.contains("past")) freeze("다가오는 이벤트", latest(listing, key.split("-")[1]));
     events(date, listing);
     help();
     jump([["예측", "1개월 지수 방향 예측"], ["이슈", "상세 이슈 해설"], ["지표", "미국 거시 지표"], ["이벤트", "다가오는 이벤트"]]);
