@@ -281,6 +281,11 @@
   .issue-list .pick[data-event]::before { content: attr(data-event) " 이벤트"; position: absolute; z-index: 1; top: 0; left: 14px; transform: translateY(-50%); padding: 0 8px;
     border-radius: 9px; background: var(--index-ink); color: var(--bg); font-size: 11px; font-weight: 700; line-height: 18px; white-space: nowrap; }
   .issue-list .pick + .pick { margin-top: 10px; }
+  /* 지난 리포트의 다가오는 이벤트 절은 절 제목부터 절 끝까지를 회색 막으로 덮고 색을 빼서 흐리게 보이고, 막이 누르기와 밀기를 받아 아래 날짜 띠와 묶음이 움직이지 않는다.
+     화면 위아래 스크롤은 막 위에서도 그대로 된다. 막은 머리 상자 아래에 둔다. */
+  .frozen { position: relative; }
+  .frozen::after { content: ""; position: absolute; inset: -8px -16px 0; z-index: 3; background: rgba(110, 110, 118, .22);
+    -webkit-backdrop-filter: grayscale(1) brightness(.75); backdrop-filter: grayscale(1) brightness(.75); }
   .issue-list .pick .lead { flex: 1; display: flex; align-items: flex-start; gap: 14px; }
   .issue-list .pick .num { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px;
                            min-width: 16px; color: var(--text); font-size: 15.5px; line-height: 1.5; font-weight: 700; }
@@ -716,7 +721,7 @@
       document.addEventListener("touchstart", (event) => {
         begin = null;
         const { target, touches } = event;
-        if (touches.length !== 1 || track.contains(target) || target.closest(".viewer, .help-card, .cal-layer, .cal, .days, .back-edge, input")) return;
+        if (touches.length !== 1 || track.contains(target) || target.closest(".viewer, .help-card, .cal-layer, .cal, .days, .back-edge, .frozen, input")) return;
         let next = area.nextElementSibling;
         while (next && next.tagName !== "H2") next = next.nextElementSibling;
         const y = touches[0].clientY;
@@ -1543,10 +1548,25 @@
   // 발표일은 `build.py`가 소제목에 단 `data-day`를 쓰고, 35일 뒤 이벤트는 지운다. 처음에는 리포트 날짜를 보여 주고,
   // 그날 이벤트가 없으면 빈 안내 한 줄을 둔다. 날짜를 누르면 그 날짜의 장으로 넘어간다. 이벤트는 소제목과 표를 늘 펼쳐 둔다.
   // 날짜를 꾹 누르면 그 날짜 위에 말풍선을 띄운다. 말풍선에는 그 날짜 뒤의 첫 리포트로 가는 단추를 두고, 그런 리포트가 아직 없으면 그 사실을 적는다.
+  // 지난 리포트에서 `title` 절의 제목부터 다음 절 제목 앞까지를 상자 하나에 담아 막을 씌운다. 지난 리포트의 다가오는 이벤트는
+  // 그 리포트 날짜에서 본 예정이라, 날짜를 오가며 보면 지금 보는 리포트의 날짜와 헷갈린다.
+  function freeze(title) {
+    const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
+    if (!head) return;
+    const wrap = Object.assign(document.createElement("div"), { className: "frozen" });
+    head.before(wrap);
+    for (let node = head; node && !(node !== head && node.tagName === "H2");) {
+      const next = node.nextElementSibling;
+      wrap.append(node);
+      node = next;
+    }
+  }
   function events(date, listing) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "다가오는 이벤트");
     if (!head) return;
     head.classList.add("events");
+    // 지난 리포트에서는 절 바깥을 미는 동작으로 장을 넘기지 않는다. 절을 덮는 막은 `freeze`가 먼저 씌워 둔다.
+    const frozen = document.documentElement.classList.contains("past");
     const shift = (day, n) => new Date(Date.parse(day) + n * 864e5).toISOString().slice(0, 10);
     const last = shift(date, 35);
     const groups = new Map([[date, []]]);
@@ -1620,7 +1640,7 @@
       reach(seen, true);
     };
     head.after(bar);
-    const box = slider(days.map((day) => groups.get(day)), bar, { fit: true, start: days.indexOf(date), change, name: "events", area: head, feel: true });
+    const box = slider(days.map((day) => groups.get(day)), bar, { fit: true, start: days.indexOf(date), change, name: "events", area: frozen ? null : head, feel: true });
     box.prepend(bar);
     new ResizeObserver(fill).observe(box);
     // 소제목마다 그 소제목과 다음 소제목 앞까지의 노드를 이벤트 상자 하나에 담는다.
@@ -2213,6 +2233,8 @@
     section("상세 이슈 해설");
     // 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
     report.querySelectorAll("h3").forEach(trail);
+    // 노드를 옮기면 넘기기 묶음의 스크롤 위치가 처음으로 돌아가므로, 막을 씌울 상자는 묶음을 만들기 전에 만든다.
+    if (document.documentElement.classList.contains("past")) freeze("다가오는 이벤트");
     events(date, listing);
     help();
     jump([["예측", "1개월 지수 방향 예측"], ["이슈", "상세 이슈 해설"], ["지표", "미국 거시 지표"], ["이벤트", "다가오는 이벤트"]]);
