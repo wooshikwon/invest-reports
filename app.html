@@ -231,6 +231,7 @@
                                          text-shadow: 0 0 4px rgba(0, 0, 0, .7); pointer-events: none; }
   .issue-page > figure.issue-image figcaption { margin-top: 8px; padding: 0 16px; color: var(--dim); font-size: 12px; line-height: 1.5; }
   .issue-page > figure.issue-chart { margin: 0 0 12px; }
+  .issue-chart > figcaption { margin-top: 8px; color: var(--dim); font-size: 12px; line-height: 1.5; }
   .issue-chart .gauge .val { flex-wrap: wrap; }
   /* 같은 이슈를 다룬 앞 날짜 리포트가 있으면 이슈 그림과 이슈 해설 말머리 사이에 히스토리 말머리와 이슈 목록 상자 같은 연한 둥근 상자를 둔다. 상자에는 줄마다 날짜와
      그날 이슈 해설 소제목을 오늘부터 앞 날짜 순으로 쓰고, 줄 사이에 옅은 선을 긋는다. 보고 있는 날짜의 줄은 본문 색 굵은 글씨로, 나머지 줄은 흐린 글씨로 쓴다. 누르고 있는 줄은 3% 줄인다.
@@ -1332,7 +1333,7 @@
         if (h3) { unnumber(h3); trail(h3); }
         const lead = [...part.children].find(isLead);
         if (lead) [...lead.childNodes].filter((n) => n.nodeName !== "MARK").forEach((n) => n.remove());
-        part.querySelectorAll("figure.issue-chart[data-card]").forEach((figure) => figure.append(gauge(JSON.parse(figure.dataset.card))[0]));
+        part.querySelectorAll("figure.issue-chart[data-card]").forEach(issueChart);
         part.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => viewer(img)));
         return split([...part.children]);
       };
@@ -2155,9 +2156,17 @@
     return [box, name];
   }
 
-  // 상세 이슈 해설의 이슈 그래프 자리에 카드를 그린다. 카드 값은 `build.py`가 그림에 단 `data-card`다.
+  // 이슈 그래프 자리에 카드를 그리고, 카드 값에 그래프 설명(`caption`)이 있으면 카드 아래에 사진 설명과 같은 글씨로 단다.
+  // 카드 값은 `build.py`가 그림에 단 `data-card`다.
+  function issueChart(figure) {
+    const c = JSON.parse(figure.dataset.card);
+    figure.append(gauge(c)[0]);
+    if (c.caption) figure.append(Object.assign(document.createElement("figcaption"), { textContent: c.caption }));
+  }
+
+  // 상세 이슈 해설의 이슈 그래프 자리에 카드를 그린다.
   function issueCharts() {
-    report.querySelectorAll("figure.issue-chart[data-card]").forEach((figure) => figure.append(gauge(JSON.parse(figure.dataset.card))[0]));
+    report.querySelectorAll("figure.issue-chart[data-card]").forEach(issueChart);
   }
 
   // 미국 거시 지표를 지표마다 한 장의 카드로 바꿔 넘기는 묶음으로 만들고, 위에 지표 이름 탭 띠를 둔다. 카드 값은 `build.py`가
