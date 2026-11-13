@@ -41,60 +41,44 @@
   }
   /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
   main { max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-edge)) 16px calc(40px + var(--offscreen, 0px)); }
-  /* 머리 상자(`#masthead`)는 화면을 내려도 화면 맨 위에 붙어 남는 28px 높이의 한 줄(`header`)이다. 문서 맨 위에서는 이 줄 왼쪽에 리포트 날짜와 요일을 절 제목과 같은 회색의 작은 글씨로 쓰고,
-     오른쪽에 지수 전환 단추와 달력 단추를 두며, 줄 아래(`--fold` 높이)에 제목과 지수 시세를 쓴다. 지수 시세(`#ticker`)는 제목 오른쪽에 지수 이름, 기준 가격 날짜의 환산 종가, 정규장 등락률을 쓰고,
-     그 아래 작은 회색 글씨로 장 마감 후 기준 가격과 등락률을 쓴다. 두 가격은 주가와 예측 카드와 같은 달러 눈금이다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다.
-     화면을 내리기 시작하면 내린 거리의 비율(`--p`, 0~1)만큼 날짜와 제목이 작아지며 위로 사라지고, 제목이 거의 사라진 뒤 지수 시세가 제목 자리를 지나 줄 왼쪽으로 올라와(`--q`) 단추들과 한 줄이 된다. 제목은 붙어 있는 줄에 나오지 않는다.
-     줄에는 두 시세를 함께 쓸 자리가 없으므로, 지수 시세는 28px 높이 창 안에 정규장 줄과 장 마감 후 줄을 위아래로 쌓고 줄에 다 올라와 있는 동안 둘을 번갈아 위로 굴려 보여 준다(`roll`).
+  /* 문서 맨 위에는 리포트 날짜와 요일을 절 제목과 같은 회색의 작은 글씨로 쓰고(`#day`), 그 아래에 제목(`#title`)을 쓴다. 둘은 본문과 함께 화면 위로 지나간다.
+     제목 아래의 머리 상자(`#masthead`)는 28px 높이의 한 줄(`header`)이다. 왼쪽에 지수 시세(`#ticker`)를 쓰고, 오른쪽에 지수 전환 단추와 달력 단추를 같은 높이로 둔다.
+     날짜와 제목이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
+     지수 시세는 "나스닥 100 $688.15 −0.30%"처럼 지수 이름, 기준 가격 날짜의 환산 종가, 정규장 등락률을 쓴 줄과 "장 마감 후 $690.88 +0.40%"처럼 기준 가격과 장 마감 후 등락률을 쓴 줄로 이루어진다.
+     두 가격은 주가와 예측 카드와 같은 달러 눈금이고, 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 지수 시세는 28px 높이 창 안에 두 줄을 위아래로 쌓고 둘을 번갈아 위로 굴려 보여 준다(`roll`).
      상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 절 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
-     띠는 처음에 제목과 장 마감 후 등락률까지 덮고, 장 마감 후 등락률이 사라진 뒤에는 지수 시세의 아래 끝을 따라 줄 아래로 줄어든다. 흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
-  #masthead { position: sticky; top: calc(5px + var(--top-edge)); z-index: 4; height: 28px; margin-bottom: var(--fold); --fold: 46px; --ty: 30px; --p: 0; --q: 0; }
-  #berth { height: 4px; }
-  #day { margin: 0; font-size: 12.5px; font-weight: 600; line-height: 28px; color: var(--dim);
-         transform: translateY(calc(-10px * var(--p))); opacity: calc(1 - 2.5 * var(--p)); }
+     흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
+  #day { margin: 0; font-size: 12.5px; font-weight: 600; line-height: 20px; color: var(--dim); }
   #day:empty { display: none; }
-  #title { position: absolute; top: 30px; left: 0; margin: 0; font-size: 19px; font-weight: 900; line-height: 1.4; color: var(--accent); white-space: nowrap; pointer-events: none;
-           transform-origin: left center; transform: translateY(calc(-26px * var(--p))) scale(calc(1 - .45 * var(--p))); opacity: calc(1 - 2.2 * var(--p)); }
-  #ticker { position: absolute; top: 0; left: 0; height: 28px; overflow: hidden; margin: 0; font-size: 13px; line-height: 28px; white-space: nowrap;
-            font-variant-numeric: tabular-nums; transform: translate(calc(var(--tx, 0px) * (1 - var(--q))), calc(var(--ty) * (1 - var(--q)))); }
-  #ticker:empty, #after:empty { display: none; }
+  #title { margin: 2px 0 0; font-size: 19px; font-weight: 900; line-height: 1.4; color: var(--accent); }
+  #berth { height: 4px; }
+  #masthead { position: sticky; top: calc(5px + var(--top-edge)); z-index: 4; height: 28px; margin-bottom: 10px; }
+  #ticker { position: absolute; top: 0; left: 0; height: 28px; overflow: hidden; margin: 0; font-size: 13px; line-height: 28px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #ticker:empty { display: none; }
   #ticker .rows { display: block; transition: transform .5s cubic-bezier(.2, .8, .2, 1); }
   #masthead.roll #ticker .rows { transform: translateY(-28px); }
   @media (prefers-reduced-motion: reduce) { #ticker .rows { transition: none; } }
   #ticker .row { display: flex; align-items: baseline; gap: 6px; height: 28px; }
   #ticker .row > span { font-weight: 600; color: var(--dim); }
   #ticker b { font-weight: 700; color: var(--accent); }
-  #after { position: absolute; top: 57px; left: var(--tx, 0px); margin: 0; font-size: 12px; line-height: 16px; color: var(--dim); white-space: nowrap; pointer-events: none;
-           font-variant-numeric: tabular-nums; opacity: calc(1 - 3 * var(--p)); }
-  #after b { font-weight: 700; margin-left: 4px; }
-  #masthead :is(#ticker, #after) b.up { color: #ff5c5c; }
-  #masthead :is(#ticker, #after) b.down { color: #5b9bff; }
-  #masthead::before { content: ""; position: absolute; inset: calc(-5px - var(--top-edge)) -16px calc(-9px - max(var(--ty) * (1 - var(--q)), var(--fold) * (1 - 3 * var(--p)))); z-index: -1;
+  #ticker b.up { color: #ff5c5c; }
+  #ticker b.down { color: #5b9bff; }
+  #masthead::before { content: ""; position: absolute; inset: calc(-5px - var(--top-edge)) -16px -9px; z-index: -1;
                   background: color-mix(in srgb, var(--bg) 40%, transparent);
                   border-bottom: 1px solid rgba(255, 255, 255, .06);
                   -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: blur(3px) saturate(150%);
                   opacity: 0; transition: opacity .15s; pointer-events: none; }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #masthead::before { background: var(--bg); } }
   #masthead.stuck::before { opacity: 1; }
-  /* 붙어 있는 머리 상자는 절 바로가기 알약과 같이 화면이 1.2초 동안 움직이지 않으면 0.8초에 걸쳐 서서히 감추고(`idle`), 화면을 내용의 아래쪽으로 내리면 바로 감추며(`idle fall`), 내용의 위쪽으로 화면을 올리거나 뒤로 가기로 이 리포트에 돌아오면 0.4초에 걸쳐 다시 띄운다.
-     지수 시세가 줄에 다 올라오기 전에는 감추지 않는다. 상자에 투명도를 주면 띠의 흐림이 사라지므로 줄·제목·장 마감 후 등락률·띠의 투명도를 따로 낮춘다. 감춘 상자는 누를 수 없고, 달력 창이 열려 있으면 감추지 않는다. */
-  #masthead { transition: visibility 0s; }
-  #masthead > :is(header, #title, #after) { transition: opacity .4s ease; }
-  #masthead.stuck.idle:not(:has(.cal-layer)) { visibility: hidden; transition: visibility 0s .8s; }
-  #masthead.stuck.idle:not(:has(.cal-layer)) > :is(header, #title, #after),
-  #masthead.stuck.idle:not(:has(.cal-layer))::before { opacity: 0; transition: opacity .8s ease; }
-  #masthead.stuck.idle.fall:not(:has(.cal-layer)),
-  #masthead.stuck.idle.fall:not(:has(.cal-layer)) > :is(header, #title, #after),
-  #masthead.stuck.idle.fall:not(:has(.cal-layer))::before { transition: none; }
-  /* 전체화면 위쪽 높이를 머리 상자의 띠와 같은 유리로 덮는다. 머리 상자가 고정되면 띠가 이 높이까지 함께 덮으므로 이 유리는 감추고, 고정된 머리 상자를 감추면 이 유리를 다시 띄운다. */
+  /* 전체화면 위쪽 높이를 머리 상자의 띠와 같은 유리로 덮는다. 머리 상자가 고정되면 띠가 이 높이까지 함께 덮으므로 이 유리는 감춘다. */
   #top-glass { position: fixed; top: 0; left: 0; right: 0; z-index: 4; height: var(--top-inset); pointer-events: none;
                background: color-mix(in srgb, var(--bg) 40%, transparent);
                -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: blur(3px) saturate(150%); transition: opacity .15s; }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #top-glass { background: var(--bg); } }
-  body:has(#masthead.stuck:not(.idle)) #top-glass, body:has(#masthead.stuck .cal-layer) #top-glass { opacity: 0; }
+  body:has(#masthead.stuck) #top-glass { opacity: 0; }
   #masthead.stuck { cursor: pointer; }
   /* 가장 늦은 리포트가 아닌 리포트를 보고 있으면, 전체화면 위쪽 높이 바로 아래에 등락률 줄 높이의 빨간 띠를 화면에 고정해 두고 가운데에 흰 글씨로 "3일 전 리포트 탐색 중"처럼 오늘(한국 시각)에서 리포트 날짜까지의 날수를 쓴다.
-     띠는 머리 상자를 감추거나 띄우는 것과 상관없이 늘 보인다. */
+     띠는 화면을 넘겨도 늘 보인다. */
   :root.past { --past: 22px; }
   #past { display: none; }
   :root.past #past { display: block; position: fixed; top: var(--top-inset); left: 0; right: 0; z-index: 7; height: var(--past);
@@ -103,7 +87,7 @@
      대신 머리 상자의 유리 띠와 같은 색·흐림의 한 줄 띠(`#issue-bar`)를 화면 맨 위에 고정하고, 가운데에 보고 있는 이슈의 제목을 작은 회색 글씨 한 줄로 쓴다. 줄을 넘는 제목은 말줄임표로 줄인다.
      이 띠가 전체화면 위쪽 높이까지 덮으므로 위쪽 높이의 유리는 감춘다. */
   :root.issue { --past: 0px; --issue-bar: 38px; }
-  :root.issue :is(#berth, #masthead, #past, #top-glass) { display: none; }
+  :root.issue :is(#day, #title, #berth, #masthead, #past, #top-glass) { display: none; }
   #issue-bar { display: none; }
   :root.issue #issue-bar { display: block; position: fixed; top: 0; left: 0; right: 0; z-index: 4; padding: var(--top-inset) 16px 0;
                            background: color-mix(in srgb, var(--bg) 40%, transparent); border-bottom: 1px solid rgba(255, 255, 255, .06);
@@ -126,7 +110,7 @@
                          --index-ink: linear-gradient(100deg, var(--index-to) -25%, var(--index) 85%); }
   /* 지수 전환 단추의 글자는 절 제목과 같은 그라데이션으로 칠하되, 단추가 여는 지수의 두 색을 쓴다. */
   header .index-switch span { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  /* 달력을 띄운 가림막은 머리 상자 안에 두고, 달력이 떠 있는 동안 머리 상자를 가림막 높이 위로 올린다. 가림막이 머리 상자의 제목과 띠까지 덮고 달력만 그 위에 남는다. */
+  /* 달력을 띄운 가림막은 머리 상자 안에 두고, 달력이 떠 있는 동안 머리 상자를 가림막 높이 위로 올린다. 가림막이 날짜, 제목, 머리 상자의 띠까지 덮고 달력만 그 위에 남는다. */
   #masthead:has(.cal-layer) { z-index: 10; }
   .cal-layer { position: fixed; inset: 0; z-index: 10; background: rgba(0, 0, 0, .35); }
   .cal { position: absolute; z-index: 11; width: min(320px, calc(100vw - 24px)); padding: 14px 12px 12px; border-radius: 16px; background: #222226;
@@ -525,10 +509,6 @@
                     background: rgba(255, 255, 255, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
                     transition: transform .25s ease, height .25s ease, opacity .2s ease; }
   nav.jump .lever.drag { transition: none; background: rgba(255, 255, 255, .18); }
-  /* 화면이 1.2초 동안 움직이지 않으면 알약을 0.8초에 걸쳐 서서히 감추고(`idle`), 화면을 내용의 아래쪽으로 내리면 바로 감추며(`idle fall`), 내용의 위쪽으로 화면을 올리거나 뒤로 가기로 이 리포트에 돌아오면 0.4초에 걸쳐 다시 띄운다. 감춘 알약은 누를 수 없다. */
-  nav.jump { transition: opacity .4s ease, visibility 0s; }
-  nav.jump.idle { opacity: 0; visibility: hidden; transition: opacity .8s ease, visibility 0s .8s; }
-  nav.jump.idle.fall { transition: none; }
   /* 설명이 있는 절 제목과 지표 카드 이름은 글자 바로 뒤에 원 안 물음표 단추를 둔다. 단추를 누르면 화면 가운데에 설명 상자를 띄우고, 닫기 단추나 상자 바깥을 누르면 닫는다. */
   .help { display: inline-grid; place-items: center; vertical-align: top; width: 26px; height: 1lh; margin-left: 2px; padding: 0; border: 0; font: inherit;
              background: none; color: var(--dim); cursor: pointer; }
@@ -560,7 +540,7 @@
 <div id="past"></div>
 <div id="issue-bar"></div>
 <main>
-  <div id="berth"></div><div id="masthead"><header><p id="day"></p><p id="ticker"></p></header><h1 id="title">투자 판단 리포트</h1><p id="after"></p></div>
+  <p id="day"></p><h1 id="title">투자 판단 리포트</h1><div id="berth"></div><div id="masthead"><header><p id="ticker"></p></header></div>
   <article id="report"><p class="status">리포트를 불러오는 중이다.</p></article>
 </main>
 <script>
@@ -606,71 +586,9 @@
   const berth = document.getElementById("berth");
   const stick = () => masthead.classList.toggle("stuck", scrollY > 0 && berth.getBoundingClientRect().bottom <= parseFloat(getComputedStyle(masthead).top) + .5);
   addEventListener("scroll", stick, { passive: true });
-  // 문서 맨 위에서 `FURL`px 내려가는 동안 내린 거리의 비율을 머리 상자의 `--p`에 적는다. 날짜와 제목이 사라지고 지수 시세가 줄에 올라오는 움직임은 CSS가 이 값으로 그린다.
-  // 지수 시세는 제목이 거의 사라진 뒤 움직이도록 `--p`가 0.2를 넘은 뒤부터 천천히 출발해 천천히 멈추는 비율(`--q`)로 옮긴다.
-  const FURL = 40;
-  const furl = () => {
-    const p = Math.min(1, Math.max(0, scrollY / FURL)), t = Math.max(0, (p - .2) / .8);
-    masthead.style.setProperty("--p", p.toFixed(3));
-    masthead.style.setProperty("--q", (t * t * (3 - 2 * t)).toFixed(3));
-    if (p < 1) masthead.classList.remove("roll");
-  };
-  addEventListener("scroll", furl, { passive: true });
-  furl();
-  // 화면이 움직일 때마다 내용의 위쪽으로 8px 넘게 올라갔는지(`rising`), 아래쪽으로 8px 넘게 내려갔는지(`falling`) 정한다.
-  // 올라간 거리는 마지막으로 올라간 뒤 가장 깊이 내려간 위치부터, 내려간 거리는 마지막으로 내려간 뒤 가장 얕게 올라간 위치부터 잰다. 문서 양 끝을 넘어 튕긴 위치는 문서 끝으로 센다.
-  // 머리 상자와 절 바로가기 알약은 같은 규칙으로 감추고 띄운다. 화면이 `STILL`ms 동안 움직이지 않으면 서서히 감추는 `idle`을, `falling`이면 바로 감추는 `idle fall`을 달고, 감춘 뒤에는 `rising`일 때와 뒤로 가기로 돌아온 페이지가 `reveal`을 보낼 때만 다시 띄운다.
-  // 이슈를 넘길 때처럼 코드가 화면을 옮기는 동안은 사용자가 옮긴 것이 아니므로 `rising`과 `falling`을 모두 끄고, 옮긴 뒤의 위치부터 거리를 다시 잰다.
-  // `hush`는 코드가 화면을 옮기기 시작할 때 부르고, 돌려받은 함수는 옮기기를 마치거나 사용자가 화면을 만져 멈출 때 부른다. 마지막 이동의 스크롤 사건까지 빼도록 두 프레임 뒤에 판정을 다시 켠다.
-  const STILL = 1200;
-  let deepest = scrollY, shallowest = scrollY, rising = false, falling = false, hushing = 0;
-  const hush = () => {
-    let held = true;
-    hushing++;
-    return () => {
-      if (!held) return;
-      held = false;
-      requestAnimationFrame(() => requestAnimationFrame(() => hushing--));
-    };
-  };
-  addEventListener("scroll", () => {
-    const y = Math.max(0, Math.min(scrollY, document.documentElement.scrollHeight - innerHeight));
-    if (hushing) {
-      deepest = shallowest = y;
-      rising = falling = false;
-      return;
-    }
-    deepest = Math.max(deepest, y);
-    shallowest = Math.min(shallowest, y);
-    rising = y < deepest - 8;
-    falling = y > shallowest + 8;
-    if (rising) deepest = y;
-    if (falling) shallowest = y;
-  }, { passive: true });
-  // 머리 상자는 붙어 있고 지수 시세가 줄에 다 올라와 있을 때만 `idle`을 단다.
-  let still = 0;
-  const furled = () => stick() && scrollY >= FURL;
-  addEventListener("scroll", () => {
-    if (falling && furled()) {
-      clearTimeout(still);
-      masthead.classList.add("idle", "fall");
-      return;
-    }
-    if (masthead.classList.contains("idle") && !rising) return;
-    wakeMasthead();
-  }, { passive: true });
-  // 머리 상자를 띄우고 `STILL`ms 뒤에 감춘다. 뒤로 가기로 돌아온 페이지가 보내는 `reveal`에도 띄운다.
-  const wakeMasthead = () => {
-    masthead.classList.remove("idle", "fall");
-    clearTimeout(still);
-    still = setTimeout(() => masthead.classList.toggle("idle", furled()), STILL);
-  };
-  addEventListener("reveal", wakeMasthead);
-  // 지수 시세가 줄에 다 올라와 머리 상자가 보이는 동안 `ROLL`ms마다 정규장 줄과 장 마감 후 줄을 번갈아 보여 준다.
+  // `ROLL`ms마다 지수 시세의 정규장 줄과 장 마감 후 줄을 번갈아 보여 준다.
   const ROLL = 2500;
-  setInterval(() => {
-    if (furled() && !masthead.classList.contains("idle") && ticker.querySelector(".row + .row")) masthead.classList.toggle("roll");
-  }, ROLL);
+  setInterval(() => { if (ticker.querySelector(".row + .row")) masthead.classList.toggle("roll"); }, ROLL);
   // 붙어 있는 머리 상자를 누르면 문서 맨 위로 올라간다. 지수 전환 단추·달력 단추와 달력 창을 누르면 그 단추의 동작만 한다.
   masthead.addEventListener("click", (event) => {
     if (!masthead.classList.contains("stuck") || event.target.closest("button, .cal-layer")) return;
@@ -680,7 +598,7 @@
   // 소제목 위 말머리와 이벤트 시각은 지수마다 리포트 그림의 판단 색 계열에서 채도를 낮춘 색으로 쓴다(conviction_chart.py JUDGMENT_COLORS).
   // 두 번째 색은 그라데이션이 끝나는 색으로, 지수색에서 색상환을 따라 보라 쪽으로 조금 옮긴 색이다.
   const INDEX = { nasdaq: ["#8FBCE6", "#AFA6EC"], biotech: ["#AE9CE6", "#E09DCB"] };
-  // 머리 상자 지수 시세에 쓰는 지수 이름이다. 종가는 build.py가 ^NDX·^NBI 값을 `moves`의 `close`에 적는다.
+  // 머리 상자 지수 시세에 쓰는 지수 이름이다. 두 달러 가격은 build.py가 `moves`의 `close`와 `base`에 적는다.
   const TICKER = { nasdaq: "나스닥 100", biotech: "나스닥 바이오" };
   const paint = () => {
     const tint = INDEX[key.split("-")[1]];
@@ -1441,8 +1359,7 @@
         if (!move) return;
         const options = { duration: motion.matches ? 0 : GLIDE, easing: EASE };
         contents[k].flat().forEach((node) => node.animate([{ opacity: 0 }, { opacity: 1 }], options));
-        const release = hush();
-        const cancel = () => { stop(); release(); removeEventListener("touchstart", cancel); removeEventListener("wheel", cancel); };
+        const cancel = () => { stop(); removeEventListener("touchstart", cancel); removeEventListener("wheel", cancel); };
         const stop = glide(scrollY, 0, (top) => scrollTo(0, top), cancel);
         addEventListener("touchstart", cancel, { passive: true });
         addEventListener("wheel", cancel, { passive: true });
@@ -1590,7 +1507,6 @@
     if (at) pages[shown].recall?.(at);
     // 보고 있는 `i`번째 이슈에서 `k`번째 이슈로 넘기고 주소의 이슈 번호를 바꾼다. 다음 이슈는 오른쪽에서, 앞 이슈는 왼쪽에서 들어온다.
     // 나가는 이슈와 들어오는 이슈를 장 사이 10px을 두고 나란히 옮기며, 동시에 화면을 맨 위로 옮긴다. 옮기는 동안 묶음 높이를 지금 높이 아래로 줄이지 않아 화면이 튀지 않는다.
-    // 화면 옮기기와 묶음 높이 되돌리기가 모두 끝나야 방향 판정을 다시 켠다.
     step = (i, k) => {
       if (busy) return;
       busy = true;
@@ -1606,11 +1522,8 @@
       const options = { duration: motion.matches ? 0 : GLIDE, easing: EASE };
       out.animate([{ transform: "none" }, { transform: `translateX(calc(${-dir} * (100% + 10px)))` }], options);
       shown.animate([{ transform: `translateX(calc(${dir} * (100% + 10px)))` }, { transform: "none" }], options);
-      const release = hush();
-      let left = 2;
-      const settle = () => --left || release();
-      const cancel = () => { stop(); release(); removeEventListener("touchstart", cancel); removeEventListener("wheel", cancel); };
-      const stop = glide(scrollY, 0, (top) => scrollTo(0, top), settle);
+      const cancel = () => { stop(); removeEventListener("touchstart", cancel); removeEventListener("wheel", cancel); };
+      const stop = glide(scrollY, 0, (top) => scrollTo(0, top));
       addEventListener("touchstart", cancel, { passive: true });
       addEventListener("wheel", cancel, { passive: true });
       setTimeout(() => {
@@ -1620,7 +1533,6 @@
         removeEventListener("touchstart", cancel);
         removeEventListener("wheel", cancel);
         busy = false;
-        settle();
       }, options.duration);
     };
   }
@@ -2407,16 +2319,12 @@
   }).then(([body, listing]) => {
     const entry = listing[key];
     if (entry) {
-      const title = document.getElementById("title");
-      title.textContent = entry.title;
-      // 지수 시세는 문서 맨 위에서 제목 오른쪽 10px에서 시작한다.
-      masthead.style.setProperty("--tx", `${title.offsetWidth + 10}px`);
+      document.getElementById("title").textContent = entry.title;
       document.title = `${entry.title} ${entry.day}`;
       // 제목 위 날짜 줄은 "2026년 11월 13일 (금)"처럼 쓴다.
       const [year, month, mday] = entry.date.split("-");
       document.getElementById("day").textContent = `${+year}년 ${+month}월 ${+mday}일 (${"일월화수목금토"[new Date(entry.date).getUTCDay()]})`;
-      // 지수 시세는 "나스닥 100 $688.15 −0.30%"처럼 쓰고, 그 아래에 "장 마감 후 $690.88 +0.40%"를 쓴다. 정규장 등락률이 `null`이면 `—`로 쓴다.
-      // 붙어 있는 줄에서 번갈아 보여 줄 장 마감 후 줄을 정규장 줄 아래에 함께 쌓는다.
+      // 지수 시세는 "나스닥 100 $688.15 −0.30%"처럼 쓴 정규장 줄 아래에 "장 마감 후 $690.88 +0.40%"를 쓴 줄을 쌓는다. 정규장 등락률이 `null`이면 `—`로 쓴다.
       if (entry.moves) {
         const pct = (v) => v === null ? "<b>—</b>"
           : `<b class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}%</b>`;
@@ -2424,7 +2332,6 @@
         const regular = `<span>${TICKER[entry.index]}</span>${usd(entry.moves.close)}${pct(entry.moves.session)}`;
         const after = `<span>장 마감 후</span>${usd(entry.moves.base)}${pct(entry.moves.after)}`;
         ticker.innerHTML = `<span class="rows"><span class="row">${regular}</span><span class="row">${after}</span></span>`;
-        document.getElementById("after").innerHTML = after;
       }
     }
     const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
@@ -2461,24 +2368,12 @@
     // 손가락을 움직이지 않고 한 번 누르면 닫는다.
     // 이슈 목록 상자의 썸네일은 누르면 이슈를 열므로 띄우지 않는다.
     report.querySelectorAll("img:not(.thumb)").forEach((img) => img.addEventListener("click", () => viewer(img)));
-    // 뒤로 가기로 돌아온 페이지는 머리 상자와 절 바로가기 알약을 띄워(`reveal`) 어느 날짜의 리포트로 돌아왔는지 보이게 한다.
-    // 페이지를 새로 열었으면 그림을 모두 받아 문서 높이가 정해진 뒤 떠나기 전 화면 위치로 옮기고 띄운다. 그 사이에 사용자가 화면을 움직였으면 옮기지 않는다.
-    // 옮긴 뒤에도 위쪽 카드가 다 그려지며 늘어나면 브라우저가 보던 내용을 제자리에 두려고 화면을 옮기므로, `STILL`ms 동안은 `hush`로 이 이동을 사용자가 옮긴 것으로 세지 않는다.
-    // 그 사이에 사용자가 화면을 만지면 바로 다시 센다.
-    // 브라우저가 떠나기 전 페이지를 그대로 보관했다가 되살렸으면(`persisted`) 위치는 그대로 두고 띄우기만 한다.
+    // 뒤로 가기로 새로 연 페이지는 그림을 모두 받아 문서 높이가 정해진 뒤 떠나기 전 화면 위치로 옮긴다. 그 사이에 사용자가 화면을 움직였으면 옮기지 않는다.
     if (performance.getEntriesByType("navigation")[0]?.type === "back_forward") {
       Promise.all([...report.querySelectorAll("img")].map((img) => img.complete
         || new Promise((done) => { img.addEventListener("load", done, { once: true }); img.addEventListener("error", done, { once: true }); })))
-        .then(() => {
-          const done = hush();
-          if (scrollY === 0 && history.state?.y) scrollTo(0, history.state.y);
-          dispatchEvent(new Event("reveal"));
-          setTimeout(done, STILL);
-          addEventListener("touchstart", done, { once: true, passive: true });
-          addEventListener("wheel", done, { once: true, passive: true });
-        });
+        .then(() => { if (scrollY === 0 && history.state?.y) scrollTo(0, history.state.y); });
     }
-    addEventListener("pageshow", (event) => { if (event.persisted) dispatchEvent(new Event("reveal")); });
   }).catch(() => fail("리포트를 찾지 못했다."));
   // 미니 앱 안에서 다른 리포트로 옮겨 온 리포트 화면(`depth`가 0보다 크면)은 화면 왼쪽 끝 18px 띠에서 오른쪽으로 밀어 앞 화면으로 돌아간다.
   // 이슈 화면은 이 띠를 두지 않고, 화면 어디서든 오른쪽으로 밀면 이슈 목록으로 돌아간다.
@@ -2572,21 +2467,7 @@
       lever.style.height = `${button.offsetHeight}px`;
       lever.style.transform = `translateY(${button.offsetTop}px)`;
     };
-    let pending = false, held = null, release = 0, drag = null, idle = 0;
-    // 알약을 띄우고 `STILL`ms 뒤에 감춘다. 알약을 끌고 있으면 감추지 않고, 손을 뗄 때 다시 시간을 센다. 뒤로 가기로 돌아온 페이지가 보내는 `reveal`에도 띄운다.
-    const wake = () => {
-      nav.classList.remove("idle", "fall");
-      clearTimeout(idle);
-      idle = setTimeout(() => { if (!drag) nav.classList.add("idle"); }, STILL);
-    };
-    addEventListener("reveal", wake);
-    addEventListener("scroll", () => {
-      if (falling) {
-        if (!drag) { clearTimeout(idle); nav.classList.add("idle", "fall"); }
-        return;
-      }
-      if (!nav.classList.contains("idle") || rising) wake();
-    }, { passive: true });
+    let pending = false, held = null, release = 0, drag = null;
     const mark = () => {
       pending = false;
       if (drag?.moved) return;
@@ -2659,7 +2540,6 @@
       if (!drag || event.pointerId !== drag.id) return;
       const moved = drag.moved;
       drag = null;
-      wake();
       if (!moved) return;
       nav.dataset.dragged = "1";
       lever.classList.remove("drag");
@@ -2672,7 +2552,6 @@
     document.body.append(nav);
     marks.forEach(([head]) => reach(head));
     mark();
-    wake();
   }
 
   // 절 제목마다 설명 상자에 쓸 항목을 둔다. 항목마다 이름을 굵게 쓰고 그 아래에 설명을 쓴다.
