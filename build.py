@@ -29,7 +29,7 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 
 `미국 거시 지표` 절의 지표 소제목에는 그날 지수 폴더의 `market-data.json`·`macro-data.json`에서 뽑은 카드 값을 `data-card`로 단다.
 하이일드 스프레드는 앞 12주 지수 폴더의 같은 JSON에서 주마다 마지막 값을 함께 뽑아 막대 그림으로 그린다.
-유가는 그날 `market-data.json` `market.WTI`의 지난 12주 일별 정산가(`daily_close`)를 선 그림으로 그린다.
+유가는 그날 `market-data.json` `market.WTI`의 지난 1년 일별 정산가(`daily_close`)를 선 그림으로 그린다.
 카드 값은 탭 이름, 값과 단위, 상태 이름과 색, 기준일(미국 장이 마감한 한국 날짜), 보조 값을 적은 한 줄, 그림 종류와 그림 입력, 물음표 단추의 설명이다.
 값이 없는 지표에는 카드 값을 달지 않는다.
 `invest-reports` 미니 앱은 카드 값으로 지표마다 카드를 그려 한 장씩 넘기게 하고, 카드 값이 없는 소제목은 지운다.
@@ -593,7 +593,7 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
     if name == "WTI 유가":
         level = value["value"]
         guide = ["미국 텍사스산 원유(WTI)의 선물 가격이에요. 뉴욕상업거래소에서 거래하는 가장 가까운 만기 계약의 1배럴 값을 달러로 적어요. "
-                 "카드의 값은 CME가 발표한 그날의 정산가이고, 그림은 지난 12주 동안 날마다의 정산가를 이어 그려요.",
+                 "카드의 값은 CME가 발표한 그날의 정산가이고, 그림은 지난 1년 동안 날마다의 정산가를 이어 그려요.",
                  "유가가 오르면 기업의 연료비와 운송비가 늘고 소비자 물가도 올라요. 물가가 오르면 연준이 기준금리를 내리기 어려워져 주가에 부정적이에요. "
                  "상태의 1년 상위 %는 지난 1년 가운데 오늘보다 유가가 높았던 날의 비율이에요."]
         points = [[(dt.date.fromisoformat(day) + dt.timedelta(days=1)).isoformat(), price, f"${price:.2f}"]
