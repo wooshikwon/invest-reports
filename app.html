@@ -39,10 +39,10 @@
   /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
   main { max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-inset)) 16px calc(40px + var(--offscreen, 0px)); }
   header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 0 0 4px; color: var(--accent); }
-  /* 제목 위 줄의 왼쪽에는 리포트 날짜와 요일을, 오른쪽 끝에는 작성 시각을 절 제목과 같은 회색의 작은 글씨로 쓴다. */
+  /* 제목 위 줄의 왼쪽에는 리포트 날짜와 요일을 절 제목과 같은 회색의 작은 글씨로 쓰고, 오른쪽 끝에는 작성 시각을 그보다 더 작고 옅은 글씨로 쓴다. */
   #day { margin: 0; font-size: 12.5px; font-weight: 600; line-height: 1.4; color: var(--dim); }
   #day:empty { display: none; }
-  #dated { position: absolute; top: 0; right: 0; margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--dim); white-space: nowrap; }
+  #dated { position: absolute; top: 0; right: 0; margin: 0; font-size: 11px; line-height: calc(12.5px * 1.4); color: var(--dim); opacity: .7; white-space: nowrap; }
   /* 제목 바로 아래에 등락률 줄을 같은 크기의 회색 글씨로 쓴다. 장 마감 후 등락률은 그날 리포트의 기준 가격에만 쓰이므로 괄호로 묶는다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다.
      날짜 줄, 제목 줄(지수 전환 단추와 달력 단추 포함)과 등락률 줄은 머리 상자(`#masthead`)로 묶어 화면을 내려도 화면 맨 위에 붙어 남게 한다. 상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 절 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다. 흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
   #masthead { position: sticky; top: calc(5px + var(--top-inset)); z-index: 4; }
@@ -78,16 +78,16 @@
   #moves .down { color: #5b9bff; }
   #moves .sep { margin-left: 8px; }
   #masthead:has(#moves:not(:empty)) + #report > h2:first-child { margin-top: 36px; }
-  /* 제목 줄 오른쪽 끝에 달력 단추를 두고, 단추의 세로 가운데를 제목 글자가 칠해진 높이의 가운데(`--title-mid`, `centerTitle`이 잰다)보다 4px 아래에 둔다. 그러면 단추가 위 줄의 작성 시각과 아래 등락률 줄 사이의 가운데에 온다. 달력 단추와 지수 전환 단추는 날짜 상자·그림 이름 탭과 같은 색과 모서리의 같은 높이 상자로 그리고, 달력이 떠 있는 동안 달력 단추는 고른 날짜 상자와 같은 색으로 칠한다. 누르면 단추 바로 아래에 같은 지수의 리포트 날짜를 고르는 달력을 띄우고, 화면을 넘겨도 달력은 단추 아래에 붙어 함께 움직인다.
+  /* 제목 줄 오른쪽 끝에 달력 단추를 두고, 단추의 세로 가운데를 날짜 줄부터 등락률 줄까지 담은 머리 상자의 세로 가운데에 맞춘다. 달력 단추와 지수 전환 단추는 날짜 상자·그림 이름 탭과 같은 색과 모서리의 같은 높이 상자로 그리고, 달력이 떠 있는 동안 달력 단추는 고른 날짜 상자와 같은 색으로 칠한다. 누르면 단추 바로 아래에 같은 지수의 리포트 날짜를 고르는 달력을 띄우고, 화면을 넘겨도 달력은 단추 아래에 붙어 함께 움직인다.
      달력 상자는 설명 상자와 같은 색으로 그리고, 리포트가 있는 날짜는 흰 글자로 쓰고 그 아래에 그 리포트의 정규장 등락률을 머리말과 같은 색으로 적는다.
      리포트가 없는 날짜는 회색으로 쓰고 누를 수 없다. 보고 있는 리포트의 날짜는 날짜 띠의 고른 상자와 같은 색으로 칠하고, 다른 리포트를 볼 때 오늘 날짜에는 테두리를 두른다. */
-  header { position: relative; padding-right: 44px; }
-  header .cal-open { position: absolute; top: calc(var(--title-mid, 19px * 1.4 / 2) - 10px); right: 0; display: grid; place-items: center; width: 36px; height: 28px;
+  header { padding-right: 44px; }
+  header .cal-open { position: absolute; top: calc(50% - 14px); right: 0; display: grid; place-items: center; width: 36px; height: 28px;
                      padding: 0; border: 0; border-radius: 8px; background: rgba(255, 255, 255, .05); color: var(--hint); cursor: pointer; }
   header .cal-open.on { background: rgba(255, 255, 255, .16); color: var(--accent); }
   /* 지수 전환 단추는 달력 단추 왼쪽에 두고 세로 위치를 달력 단추와 같게 맞춘다. 단추가 있으면 제목이 단추 밑으로 들어가지 않게 머리말 오른쪽 여백을 늘린다. */
   header:has(.index-switch) { padding-right: 112px; }
-  header .index-switch { position: absolute; top: calc(var(--title-mid, 19px * 1.4 / 2) - 10px); right: 44px; height: 28px; padding: 0 10px;
+  header .index-switch { position: absolute; top: calc(50% - 14px); right: 44px; height: 28px; padding: 0 10px;
                          border: 0; border-radius: 8px; background: rgba(255, 255, 255, .05);
                          font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
                          --index-ink: linear-gradient(100deg, var(--index-to) -25%, var(--index) 85%); }
@@ -2070,22 +2070,6 @@
     });
   }
 
-  // 머리말 단추의 세로 가운데를 맞출 제목 글자의 가운데 높이를 머리말 위쪽에서 잰 `--title-mid`로 적는다. 글줄 상자의 가운데는 글꼴마다 글자가 칠해진 높이의 가운데와 다르므로
-  // 제목 글꼴로 글자의 윗끝과 아랫끝이 기준선에서 떨어진 거리를 재고, 제목 끝에 넣은 높이 없는 표식으로 기준선 높이를 잰다.
-  function centerTitle() {
-    const header = document.querySelector("header"), title = document.getElementById("title"), style = getComputedStyle(title);
-    const pen = document.createElement("canvas").getContext("2d");
-    pen.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    const ink = pen.measureText(title.textContent);
-    const mark = document.createElement("span");
-    mark.style.cssText = "display: inline-block; width: 0; height: 0;";
-    title.append(mark);
-    const base = mark.getBoundingClientRect().bottom;
-    mark.remove();
-    const mid = base + (ink.actualBoundingBoxDescent - ink.actualBoundingBoxAscent) / 2 - header.getBoundingClientRect().top;
-    header.style.setProperty("--title-mid", `${mid}px`);
-  }
-
   // 머리말 달력 단추 왼쪽에 다른 지수의 리포트로 바꾸는 단추를 단다. 단추에는 바꿀 지수의 이름을 그 지수의 그라데이션으로 쓴다. 누르면 보고 있는 리포트와 같은 날짜의
   // 그 지수 리포트를 열고, 그 날짜의 리포트가 없으면 그 지수의 가장 늦은 리포트를 연다. 지수는 `INDEX`의 순서로 돌고, 리포트가 있는 지수가 하나뿐이면 단추를 달지 않는다.
   function switcher(listing, date) {
@@ -2140,8 +2124,6 @@
     report.innerHTML = body;
     calendar(listing, date);
     switcher(listing, date);
-    centerTitle();
-    document.fonts?.ready.then(centerTitle);
     figures(date);
     fold("1개월 지수 방향 예측");
     indicators();
