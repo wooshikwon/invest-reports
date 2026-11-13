@@ -1563,7 +1563,8 @@
     bar.className = "days";
     bar.innerHTML = '<div class="strip"></div>';
     const strip = bar.firstChild;
-    // 날짜 아래에는 달력과 같이 그 날짜 리포트의 정규장 등락률을 쓰고, 그 날짜의 리포트가 없거나 등락률이 없으면 줄표를 쓴다.
+    // 리포트 날짜까지는 날짜 아래에 달력과 같이 그 날짜 리포트의 정규장 등락률을 쓰고, 그 날짜의 리포트가 없거나 등락률이 없으면 줄표를 쓴다.
+    // 리포트 날짜 뒤의 날짜는 등락률이 아직 없으므로 요일을 쓴다.
     const index = key.split("-")[1];
     const moves = new Map(Object.values(listing).filter((entry) => entry.index === index)
       .map((entry) => [entry.date, entry.moves ? entry.moves.session : null]));
@@ -1572,7 +1573,8 @@
     days.forEach((day) => {
       const [, m, d] = day.split("-");
       const button = document.createElement("button");
-      button.innerHTML = `${marks(groups.get(day))}<b>${m}/${d}</b>${pct(moves.get(day))}`;
+      const below = day > date ? `<small>${"일월화수목금토"[new Date(day).getUTCDay()]}</small>` : pct(moves.get(day));
+      button.innerHTML = `${marks(groups.get(day))}<b>${m}/${d}</b>${below}`;
       if (day === date) button.classList.add("today");
       strip.appendChild(button);
     });
