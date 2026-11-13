@@ -296,14 +296,15 @@
   .days { position: relative; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
   .days::-webkit-scrollbar { display: none; }
   .days .strip { display: flex; gap: 10px; width: max-content; }
-  .days button { appearance: none; border: 0; font: inherit; flex: 0 0 auto; padding: 5px 10px; border-radius: 8px;
+  .days button { appearance: none; border: 1px solid transparent; font: inherit; flex: 0 0 auto; padding: 4px 9px; border-radius: 8px;
                  background: rgba(255, 255, 255, .05); text-align: center; line-height: 1.25; color: var(--dim); cursor: pointer; }
   .days button.on { background: rgba(255, 255, 255, .16); }
   .days button b { display: block; font-size: 14px; font-variant-numeric: tabular-nums; }
   .days button small { display: block; font-size: 11px; }
   .days button.on { color: #fff; }
   .days button { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; transition: transform .15s ease; }
-  .days button.today { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .7); }
+  /* 테두리는 그림자 대신 모든 상자에 투명하게 둔 1px 선으로 그려, 상자가 화소 사이에 걸려도 네 변의 두께가 같다. */
+  .days button.today { border-color: rgba(255, 255, 255, .7); }
   .days button.holding { transform: scale(.94); }
   /* 날짜를 꾹 누르면 뜨는 말풍선은 달력 창과 같은 진한 회색 상자에 꼬리를 달고, 날짜 상자 위(자리가 없으면 아래)에 둔다. 누를 수 있는 단추는 흰 글자와
      오른쪽 꺽쇠로, 안내 문장은 흐린 글자로 쓴다. 뜰 때 살짝 커지며 나타난다. */
@@ -1629,8 +1630,8 @@
       go.addEventListener("click", () => { feelPress(); visit(after); });
       return go;
     };
-    // 리포트 날짜와 그 뒤 날짜의 장마다 마지막 이벤트 아래에 결과 단추를 단다. 지난 날짜의 표는 이미 결과를 칠해 두었으므로 단추를 달지 않는다.
-    box.querySelectorAll(".slide").forEach((slide, i) => { if (days[i] >= date && slide.querySelector(".event")) slide.append(result(days[i], "result")); });
+    // 이벤트가 있는 날짜의 장마다 마지막 이벤트 아래에 결과 단추를 단다.
+    box.querySelectorAll(".slide").forEach((slide, i) => { if (slide.querySelector(".event")) slide.append(result(days[i], "result")); });
     // 날짜를 450ms 동안 8px 넘게 움직이지 않고 누르고 있으면 같은 결과 단추를 말풍선으로 띄운다. 말풍선을 띄운 누르기는 날짜를 고르지 않는다.
     // 말풍선 밖을 누르거나 띠를 밀면 말풍선을 닫는다.
     let bubble = null, pressing = null, held = false;
