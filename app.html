@@ -1188,13 +1188,12 @@
   // `focus`가 있으면 이슈 화면이다. 그 번호의 이슈 내용과 절 제목만 남기고 리포트의 다른 절은 지운다. 그 번호의 이슈가 없으면 리포트 화면을 다시 연다.
   // 절 제목 오른쪽의 돌아가는 단추를 누르면 앞 페이지로 돌아가고, 앞 페이지가 없으면 같은 리포트의 리포트 화면을 연다.
   // `at`이 있으면 히스토리에서 그 날짜 항목을 고른 채로 연다.
-  // 검토했지만 비중을 낮춘 이슈를 보는 동안에는 절 제목을 "검토했지만 비중을 낮춘 이슈"로 바꾼다.
+  // 이슈 화면의 절 제목은 보고 있는 이슈의 번호로 "이슈 N위"라고 쓰고, 검토했지만 비중을 낮춘 이슈를 보는 동안에는 "검토했지만 비중을 낮춘 이슈"로 쓴다.
   function section(title, focus = 0, at = null) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
     if (!head) return;
-    const name = head.textContent.trim();
     // 절 제목 글자만 바꾸도록 글자를 따로 감싼다.
-    const label = Object.assign(document.createElement("span"), { textContent: name });
+    const label = Object.assign(document.createElement("span"), { textContent: head.textContent.trim() });
     head.replaceChildren(label);
     const items = [];
     for (let node = head.nextElementSibling; node && node.tagName !== "H2"; node = node.nextElementSibling) {
@@ -1498,7 +1497,7 @@
         fold.open = false;
         fold.lastElementChild.style.overflow = "";
       });
-      rename(reviewed && i === pages.length - 1 ? other : name);
+      rename(reviewed && i === pages.length - 1 ? other : `이슈 ${numbers[i]}위`);
       align();
       // 위쪽 한 줄 띠에는 이슈 제목만 쓰고 방향 표식은 뺀다. 비중을 낮춘 이슈 묶음은 묶음 이름을 쓴다.
       const title = reviewed && i === pages.length - 1 ? other : (() => {
