@@ -238,7 +238,7 @@
   /* 같은 이슈를 다룬 앞 날짜 리포트가 있으면 이슈 그림과 이슈 해설 말머리 사이에 히스토리 말머리와 이슈 목록 상자 같은 연한 둥근 상자를 둔다. 상자에는 줄마다 날짜와
      그날 이슈 해설 소제목을 오늘부터 앞 날짜 순으로 쓰고, 줄 사이에 옅은 선을 긋는다. 보고 있는 날짜의 줄은 본문 색 굵은 글씨로, 나머지 줄은 흐린 글씨로 쓴다. 누르고 있는 줄은 3% 줄인다.
      최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝에 지수 색으로 칠하고 위로 갈수록 투명해지는 띠와 펼침 단추를 둔다. 펼치면 띠를 지우고 줄 목록의 높이를
-     다섯 줄과 여섯째 줄 윗부분까지 늘리며, 그보다 많은 줄(`long`)은 목록 안에서 스크롤해 본다. 줄이 여섯 이하면 목록을 스크롤 상자로 만들지 않는다. */
+     다섯 줄까지 늘리며, 그보다 많은 줄(`long`)은 목록 안에서 스크롤해 본다. 줄이 다섯 이하면 목록을 스크롤 상자로 만들지 않는다. */
   .issue-page > div.history { margin-top: 8px; padding: 4px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); overflow: hidden; }
   .issue-page > div.history + h4 { margin-top: 28px; }
   .history .rows { position: relative; overflow: hidden; }
@@ -1352,7 +1352,7 @@
     });
     // 이슈 해설 말머리 앞에 히스토리 상자를 넣는다. `build.py`가 넣은 `issue-history` 템플릿에는 같은 이슈를 다룬 앞 날짜 리포트의 이슈 조각과
     // 날짜마다 이슈 해설 소제목이 날짜 순으로 들고, 마지막 항목이 오늘이다. 상자에는 날짜와 소제목을 오늘부터 앞 날짜 순으로 한 줄씩 쓰고 보고 있는 날짜의 줄을 굵게 쓴다.
-    // 최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝의 펼침 단추를 누르면 다섯 줄과 여섯째 줄 윗부분까지 펼친 뒤 나머지 줄은 목록 안에서 스크롤하게 한다.
+    // 최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝의 펼침 단추를 누르면 다섯 줄까지 펼친 뒤 나머지 줄은 목록 안에서 스크롤하게 한다.
     // 최근 세 줄을 누르면 앞선 줄을 다시 접고, 앞선 줄을 누르면 펼친 채 둔다.
     // 줄을 누르면 진동을 내고, 상자 위의 제목·그림과 상자 아래의 해설·그래프를 그날 내용으로 바꿔 서서히 보이며 화면을 맨 위로 옮긴다.
     // 돌려준 `restore`는 이슈 문단을 오늘 내용으로 돌리고 앞선 줄을 다시 접으며, 이슈를 열 때마다 부른다.
@@ -1385,9 +1385,8 @@
       shelf.className = "history";
       const list = shelf.appendChild(Object.assign(document.createElement("div"), { className: entries.length > 3 ? "rows shut" : "rows" }));
       let current = today;
-      // 펼친 목록의 높이. 여섯 줄이 넘으면 여섯째 줄의 윗부분까지만 보인다.
-      const PEEK = 22;
-      const reach = () => (list.children.length > 6 ? list.children[5].offsetTop + PEEK : list.scrollHeight);
+      // 펼친 목록의 높이. 다섯 줄이 넘으면 다섯째 줄의 아래 끝까지만 보인다.
+      const reach = () => (list.children.length > 5 ? list.children[5].offsetTop : list.scrollHeight);
       // 앞선 줄을 다시 접고 펼침 단추를 보인다. 펼쳐 둔 상태에서 최근 세 줄을 누르면 목록을 맨 위로 돌리고 높이를 서서히 줄인 뒤 앞선 줄을 감춘다.
       const fold = (move) => {
         if (!list.classList.contains("open")) return;
@@ -1450,7 +1449,7 @@
       const open = () => {
         list.classList.remove("shut");
         list.classList.add("open");
-        list.classList.toggle("long", list.children.length > 6);
+        list.classList.toggle("long", list.children.length > 5);
         unfold.hidden = true;
         list.style.height = `${reach()}px`;
       };
