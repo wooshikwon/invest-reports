@@ -59,6 +59,11 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 카드 값은 ⑨의 이슈 그래프 agent가 설계하고 `issue_charts.py fill`이 채우며, 카드 값이 없는 그래프는 넣지 않는다.
 그래프는 설계의 `after`번째 문단 다음에 들어가고, 문단이 그보다 적으면 마지막 문단 다음에 들어간다.
 `invest-reports` 미니 앱은 카드 값으로 `미국 거시 지표` 카드와 같은 모양의 선 그래프·막대 그래프·표 카드를 그린다.
+리포트 폴더 `system/terms.json`이 있으면 마크다운을 공개본으로 바꾸기 전에 그 자리마다 용어 표기를 `term` 단추로 감싸고,
+대표 표기를 `data-term`에, 단어표 설명을 `data-desc`에 단다. 자리는 ⑧의 교정 agent가 `glossary.py scan`·`check`로 문맥을 확인해 고른
+(절, 묶음 제목, 표기, 묶음 안에서 몇 번째 표기인지)이고, 리포트를 맞춰 보는 방식은 invest-report `glossary.py`의 `mark`를 그대로 쓴다.
+리포트가 판정 뒤에 바뀌어 찾지 못한 자리는 감싸지 않고 표준 오류로 알린다. `invest-reports` 미니 앱은 단추에 점선 밑줄을 긋고,
+누르면 용어 아래에 대표 표기와 설명을 담은 말풍선을 연다.
 
 `r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 처음 만든 시각(`written`, 서울 시각)을 적는다.
 앞 날짜 리포트의 이슈가 뒤 리포트 이슈의 히스토리에 들면, 앞 날짜 리포트 항목의 `later`에 그 이슈 번호를 키로 히스토리를 가진
@@ -135,6 +140,12 @@ RATE_RANGE_BP = 100  # 금리 경로 그림의 세로축 상한. 회의 세 번�
 def report_pdf(vault: Path):
     sys.path.insert(0, str(vault / "agent/skills/tool/invest-report/scripts"))
     import report_pdf as module
+    return module
+
+
+def glossary(vault: Path):
+    sys.path.insert(0, str(vault / "agent/skills/tool/invest-report/scripts"))
+    import glossary as module
     return module
 
 
@@ -302,6 +313,24 @@ def public_markdown(text: str, vault: Path, out_dir: Path, base: str) -> str:
         return f"![]({base}/{source.name}?v={version})"
 
     return EMBED_RE.sub(embed, text)
+
+
+def mark_terms(text: str, terms: Path, vault: Path) -> str:
+    """`system/terms.json`의 자리마다 리포트 마크다운의 용어 표기를 `term` 단추로 감싼다. 표 칸을 가르지 않게 속성 값의 `|`도 문자 참조로 바꾼다."""
+    if not terms.is_file():
+        return text
+
+    def attr(value: str) -> str:
+        return html.escape(value).replace("|", "&#124;")
+
+    def wrap(form: str, term: dict) -> str:
+        return (f'<button class="term" type="button" data-term="{attr(term["term"])}" '
+                f'data-desc="{attr(term["desc"])}">{form}</button>')
+
+    text, missing = glossary(vault).mark(text, json.loads(terms.read_text(encoding="utf-8"))["terms"], wrap)
+    for term in missing:
+        print(f"용어 자리를 찾지 못했다: {term['section']} · {term['block']} · {term['form']} {term['nth']}", file=sys.stderr)
+    return text
 
 
 def cells(row: str) -> list[str]:
@@ -940,6 +969,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     card = summary_cards(index, date, source.parent, vault)
     if card:
         text = re.sub(rf"^!\[\[[^\]]*/(?:chart|tree|predict)-{index}\.png\]\]\s*\n", "", text, flags=re.MULTILINE)
+    text = mark_terms(text, source.parent / "system" / "terms.json", vault)
     markdown = public_markdown(text, vault, target, f"r/{key}")
     day = dt.date.fromisoformat(date)
     past, branches = past_events(vault, index, day)
