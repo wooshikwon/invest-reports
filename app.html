@@ -78,16 +78,16 @@
   #moves .down { color: #5b9bff; }
   #moves .sep { margin-left: 8px; }
   #masthead:has(#moves:not(:empty)) + #report > h2:first-child { margin-top: 36px; }
-  /* 제목 줄 오른쪽 끝에 달력 단추를 두고, 단추의 세로 가운데를 제목 글자가 칠해진 높이의 가운데(`--title-mid`, `centerTitle`이 잰다)에 맞춘다. 달력 단추와 지수 전환 단추는 날짜 상자·그림 이름 탭과 같은 색과 모서리의 같은 높이 상자로 그리고, 달력이 떠 있는 동안 달력 단추는 고른 날짜 상자와 같은 색으로 칠한다. 누르면 단추 바로 아래에 같은 지수의 리포트 날짜를 고르는 달력을 띄우고, 화면을 넘겨도 달력은 단추 아래에 붙어 함께 움직인다.
+  /* 제목 줄 오른쪽 끝에 달력 단추를 두고, 단추의 세로 가운데를 제목 글자가 칠해진 높이의 가운데(`--title-mid`, `centerTitle`이 잰다)보다 4px 아래에 둔다. 그러면 단추가 위 줄의 작성 시각과 아래 등락률 줄 사이의 가운데에 온다. 달력 단추와 지수 전환 단추는 날짜 상자·그림 이름 탭과 같은 색과 모서리의 같은 높이 상자로 그리고, 달력이 떠 있는 동안 달력 단추는 고른 날짜 상자와 같은 색으로 칠한다. 누르면 단추 바로 아래에 같은 지수의 리포트 날짜를 고르는 달력을 띄우고, 화면을 넘겨도 달력은 단추 아래에 붙어 함께 움직인다.
      달력 상자는 설명 상자와 같은 색으로 그리고, 리포트가 있는 날짜는 흰 글자로 쓰고 그 아래에 그 리포트의 정규장 등락률을 머리말과 같은 색으로 적는다.
      리포트가 없는 날짜는 회색으로 쓰고 누를 수 없다. 보고 있는 리포트의 날짜는 날짜 띠의 고른 상자와 같은 색으로 칠하고, 다른 리포트를 볼 때 오늘 날짜에는 테두리를 두른다. */
   header { position: relative; padding-right: 44px; }
-  header .cal-open { position: absolute; top: calc(var(--title-mid, 19px * 1.4 / 2) - 14px); right: 0; display: grid; place-items: center; width: 36px; height: 28px;
+  header .cal-open { position: absolute; top: calc(var(--title-mid, 19px * 1.4 / 2) - 10px); right: 0; display: grid; place-items: center; width: 36px; height: 28px;
                      padding: 0; border: 0; border-radius: 8px; background: rgba(255, 255, 255, .05); color: var(--hint); cursor: pointer; }
   header .cal-open.on { background: rgba(255, 255, 255, .16); color: var(--accent); }
-  /* 지수 전환 단추는 달력 단추 왼쪽에 두고 세로 가운데를 달력 단추와 같은 `--title-mid`에 맞춘다. 단추가 있으면 제목이 단추 밑으로 들어가지 않게 머리말 오른쪽 여백을 늘린다. */
+  /* 지수 전환 단추는 달력 단추 왼쪽에 두고 세로 위치를 달력 단추와 같게 맞춘다. 단추가 있으면 제목이 단추 밑으로 들어가지 않게 머리말 오른쪽 여백을 늘린다. */
   header:has(.index-switch) { padding-right: 112px; }
-  header .index-switch { position: absolute; top: calc(var(--title-mid, 19px * 1.4 / 2) - 14px); right: 44px; height: 28px; padding: 0 10px;
+  header .index-switch { position: absolute; top: calc(var(--title-mid, 19px * 1.4 / 2) - 10px); right: 44px; height: 28px; padding: 0 10px;
                          border: 0; border-radius: 8px; background: rgba(255, 255, 255, .05);
                          font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
                          --index-ink: linear-gradient(100deg, var(--index-to) -25%, var(--index) 85%); }
