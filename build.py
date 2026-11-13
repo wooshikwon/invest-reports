@@ -33,6 +33,7 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `미국 거시 지표` 절의 지표 소제목에는 그날 지수 폴더의 `market-data.json`·`macro-data.json`에서 뽑은 카드 값을 `data-card`로 단다.
 하이일드 스프레드는 앞 12주 지수 폴더의 같은 JSON에서 주마다 마지막 값을 함께 뽑아 막대 그림으로 그린다.
 유가는 그날 `market-data.json` `market.WTI`의 지난 1년 일별 정산가(`daily_close`)를 선 그림으로 그린다.
+정산가를 적지 않은 배치는 `reference.db`의 WTI 종가에서 그 배치 미국 장 날짜까지 1년을 잘라 값·1년 백분위·선 그림을 만든다.
 카드 값은 탭 이름, 값과 단위, 상태 이름과 색, 기준일(미국 장이 마감한 한국 날짜), 보조 값을 적은 한 줄, 그림 종류와 그림 입력, 물음표 단추의 설명이다.
 값이 없는 지표에는 카드 값을 달지 않는다.
 `invest-reports` 미니 앱은 카드 값으로 지표마다 카드를 그려 한 장씩 넘기게 하고, 카드 값이 없는 소제목은 지운다.
@@ -80,6 +81,7 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 """
 import argparse
 import datetime as dt
+import functools
 import hashlib
 import html
 import json
@@ -537,15 +539,46 @@ def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[
     return body[:head.end()] + section + body[end:]
 
 
+@functools.cache
+def oil_closes(vault: Path) -> list[tuple[str, float]]:
+    """`reference.db`에 쌓인 WTI 종가를 날짜 순으로. 수집기는 같은 날짜의 종가를 받을 때마다 새로 쌓으므로 날짜마다 마지막으로 받은 값을 정산가로 본다."""
+    con = sqlite3.connect(f"file:{predictions_chart(vault).path_bands.REFERENCE_DB_PATH}?mode=ro", uri=True)
+    try:
+        return con.execute(
+            "SELECT period, value FROM observation o WHERE series_id = 'close:CL=F' AND value IS NOT NULL AND retrieved_at = "
+            "(SELECT MAX(retrieved_at) FROM observation WHERE series_id = o.series_id AND period = o.period) ORDER BY period").fetchall()
+    finally:
+        con.close()
+
+
+def settled_oil(vault: Path, as_of: str) -> dict:
+    """미국 장 날짜 `as_of`까지의 WTI 정산가로 만든 `market.WTI` 원값. 값·날짜·1년 백분위·지난 1년 일별 정산가를 수집기와 같은 방식으로 적는다."""
+    closes = [(day, value) for day, value in oil_closes(vault) if day <= as_of]
+    if not closes:
+        return {}
+    last, price = closes[-1]
+    end = dt.date.fromisoformat(last)
+    window = [value for day, value in closes if day >= (end - dt.timedelta(days=365)).isoformat()]
+    return {"value": round(price, 2), "date": last, "pct_1y": round(sum(value <= price for value in window) / len(window) * 100),
+            "daily_close": [[day, round(value, 2)] for day, value in closes if day > end.replace(year=end.year - 1).isoformat()]}
+
+
 def batch_data(vault: Path, index: str, day: dt.date) -> tuple[dict, dict] | None:
-    """그날 지수 폴더의 (`market-data.json`, `macro-data.json`). `market-data.json`이 없으면 None."""
+    """그날 지수 폴더의 (`market-data.json`, `macro-data.json`). `market-data.json`이 없으면 None.
+
+    WTI 일별 정산가(`daily_close`)를 적지 않은 배치는 `market.WTI`를 그 배치 미국 장 날짜(`as_of`)까지의 `reference.db` 정산가로 바꾼다.
+    수집기는 2026-11-10 배치부터 정산가를 적었고, 그 전 배치의 WTI 값은 거래 중 시세이기 때문이다.
+    """
     folder = report_path(vault, day, index).parent
     market = folder / "market-data.json"
     if not market.is_file():
         return None
     macro = folder / "macro-data.json"
-    return (json.loads(market.read_text(encoding="utf-8")),
-            json.loads(macro.read_text(encoding="utf-8")) if macro.is_file() else {})
+    found = json.loads(market.read_text(encoding="utf-8"))
+    prices = found.setdefault("market", {})
+    if found.get("as_of") and not (prices.get("WTI") or {}).get("daily_close"):
+        prices["WTI"] = settled_oil(vault, found["as_of"])
+    return found, json.loads(macro.read_text(encoding="utf-8")) if macro.is_file() else {}
 
 
 def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:

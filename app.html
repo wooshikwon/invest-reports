@@ -2039,7 +2039,7 @@
         s.append(bar);
         s.append(shape("text", { x: x + w / 2, y: up ? end - 8 : end + 17, "text-anchor": "middle", "font-size": 12.5, "font-weight": 700,
                                  fill: first ? "#EAEAEA" : "#7A828C" }, text));
-        s.append(shape("text", { x: x + w / 2, y: base + 20, "text-anchor": "middle", "font-size": 12, fill: "#A7ABB0" }, name));
+        s.append(shape("text", { x: x + w / 2, y: base + 20, "text-anchor": "middle", "font-size": 12, fill: first ? "#EAEAEA" : "#A7ABB0" }, name));
       });
       s.append(shape("line", { x1: x0, y1: mid, x2: x1, y2: mid, stroke: "#7A828C", "stroke-width": 1.2 }));
       [[Y(step), "인상"], [Y(-step), "인하"]].forEach(([y, name]) =>
