@@ -15,7 +15,7 @@
     --text: #e7edf3;
     --hint: #A7ABB0;
     --accent: #EAEAEA;
-    /* 절 제목, 작성 시각, 선택되지 않은 날짜는 본문보다 연한 회색 하나로 쓴다. */
+    /* 절 제목, 선택되지 않은 날짜는 본문보다 연한 회색 하나로 쓴다. */
     --dim: #7A828C;
     --index: var(--hint);
     --index-to: var(--hint);
@@ -42,10 +42,9 @@
   /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
   main { max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-edge)) 16px calc(40px + var(--offscreen, 0px)); }
   header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 0 0 4px; color: var(--accent); }
-  /* 제목 위 줄의 왼쪽에는 리포트 날짜와 요일을 절 제목과 같은 회색의 작은 글씨로 쓰고, 오른쪽 끝에는 작성 시각을 그보다 더 작고 옅은 글씨로 쓴다. */
+  /* 제목 위 줄에는 리포트 날짜와 요일을 절 제목과 같은 회색의 작은 글씨로 쓴다. */
   #day { margin: 0; font-size: 12.5px; font-weight: 600; line-height: 1.4; color: var(--dim); }
   #day:empty { display: none; }
-  #dated { position: absolute; top: 0; right: 0; margin: 0; font-size: 11px; line-height: calc(12.5px * 1.4); color: var(--dim); opacity: .7; white-space: nowrap; }
   /* 제목 바로 아래에 등락률 줄을 같은 크기의 회색 글씨로 쓴다. 장 마감 후 등락률은 그날 리포트의 기준 가격에만 쓰이므로 괄호로 묶는다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다.
      날짜 줄, 제목 줄(지수 전환 단추와 달력 단추 포함)과 등락률 줄은 머리 상자(`#masthead`)로 묶어 화면을 내려도 화면 맨 위에 붙어 남게 한다. 상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 절 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다. 흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
   #masthead { position: sticky; top: calc(5px + var(--top-edge)); z-index: 4; }
@@ -550,7 +549,7 @@
 <div id="past"></div>
 <div id="issue-bar"></div>
 <main>
-  <div id="berth"></div><div id="masthead"><header><p id="day"></p><p id="dated"></p><h1 id="title">투자 판단 리포트</h1></header><p id="moves"></p></div>
+  <div id="berth"></div><div id="masthead"><header><p id="day"></p><h1 id="title">투자 판단 리포트</h1></header><p id="moves"></p></div>
   <article id="report"><p class="status">리포트를 불러오는 중이다.</p></article>
 </main>
 <script>
@@ -2382,10 +2381,6 @@
       // 제목 위 날짜 줄은 "2026년 11월 13일 (금)"처럼 쓴다.
       const [year, month, mday] = entry.date.split("-");
       document.getElementById("day").textContent = `${+year}년 ${+month}월 ${+mday}일 (${"일월화수목금토"[new Date(entry.date).getUTCDay()]})`;
-      // 날짜는 제목 위에 있으므로 작성 시각 줄에는 시각만 쓰고, 처음 만든 날이 리포트 날짜와 다르면 월/일을 앞에 붙인다.
-      const [day, time] = entry.written.split(" ");
-      const when = day === entry.date ? time : `${+day.slice(5, 7)}/${+day.slice(8)} ${time}`;
-      document.getElementById("dated").textContent = `작성 시각 ${when}`;
       if (entry.moves) {
         const pct = (v) => v === null ? "<b>—</b>"
           : `<b class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}%</b>`;
