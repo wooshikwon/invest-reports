@@ -19,6 +19,9 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 그 id의 갈래 이름을 찾아 표의 줄과 잇는다. 갈래 id가 없는 앞 날짜 나무는 사안마다 나무 순서대로 `b1`부터 번호를 붙여
 읽고, 갈래 id가 아닌 `resolved` 갈래는 이름으로 읽는다.
 실제 갈래 줄의 전개 예상 뒤에는 `resolved`의 실제 전개(`outcome`)를 화살표와 함께 붙인다.
+발표일 뒤 첫 리포트에 그 이벤트의 결과를 다룬 이슈가 있으면 실제 갈래 줄에 `리포트 키/이슈 번호`를 `data-result`로 단다.
+결과를 다룬 이슈는 그 리포트 바로 앞 리포트가 이벤트의 사안과 같은 사안으로 보는 노드를 `id`나 노드로 가진 이슈다(`data-event`와 같은 기준).
+`invest-reports` 미니 앱은 실제 갈래 줄 아래에 "자세히 보기" 단추를 두고, 누르면 그 이슈를 이은 가장 늦은 리포트의 이슈 화면을 연다.
 리포트 날짜와 그 뒤 이벤트의 표는 리포트 폴더 `system/display.json` `next`의 갈래 변화(`change`)를 확률 아래 작은 글씨로
 붙인다. 표의 분기 이름이 모두 한 사안의 갈래 이름이면 그 사안의 표로 본다. 오르면 `▲`, 내리면 `▼`와 %p 차이를 쓰고,
 변화가 없으면 `–`, 어제 나무에 없던 갈래는 `신규`, 오늘 다시 정의한 갈래는 `재정의`를 쓴다.
@@ -53,7 +56,9 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 그래프는 설계의 `after`번째 문단 다음에 들어가고, 문단이 그보다 적으면 마지막 문단 다음에 들어간다.
 `invest-reports` 미니 앱은 카드 값으로 `미국 거시 지표` 카드와 같은 모양의 선 그래프·막대 그래프·표 카드를 그린다.
 
-`r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 처음 만든 시각(`written`, 서울 시각)을 적는다. `invest-reports` 미니 앱은 제목 아래
+`r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 처음 만든 시각(`written`, 서울 시각)을 적는다.
+앞 날짜 리포트의 이슈가 뒤 리포트 이슈의 히스토리에 들면, 앞 날짜 리포트 항목의 `later`에 그 이슈 번호를 키로 히스토리를 가진
+가장 늦은 리포트의 `리포트 키/이슈 번호`를 적는다. 미니 앱의 "자세히 보기" 단추는 이 값으로 이슈의 가장 늦은 히스토리를 연다. `invest-reports` 미니 앱은 제목 아래
 작은 글씨로 날짜 줄과 처음 만든 시각을 그린다. 같은 리포트를 다시 만들어도 처음 만든 시각은 그대로 둔다.
 `invest-reports` 미니 앱의 달력은 같은 목록에서 그 지수의 리포트 날짜를 찾아 흰 글자로 쓰고, 날짜 아래에 `moves`의 `session`을 적는다.
 `moves`에는 리포트 날짜 전날 정규장 종가의 앞 세션 종가 대비 등락률(`session`, %)과 기준 가격의 기준 가격 날짜 종가 대비
@@ -366,6 +371,7 @@ def reports(vault: Path, index: str, until: dt.date) -> list[Path]:
 
 def past_events(vault: Path, index: str, date: dt.date) -> tuple[str, dict[str, dict]]:
     """앞 리포트들이 적은 이벤트 가운데 리포트 날짜 전에 발표된 이벤트의 마크다운과, 이벤트 이름마다 `resolved` 항목.
+    `resolved` 항목의 `result`에는 그 이벤트의 결과를 다룬 이슈(`result_issue`)를 적는다.
 
     발표일마다 그날 이벤트를 적은 가장 최근 리포트의 소제목과 표를 그 리포트의 순서대로 쓴다. 리포트 날짜의 리포트나
     더 최근 리포트가 이미 적은 사안 id의 이벤트는 뺀다.
@@ -388,7 +394,7 @@ def past_events(vault: Path, index: str, date: dt.date) -> tuple[str, dict[str, 
         entry = realized(vault, index, source, name, day, date)
         blocks.append(chunk.rstrip() + "\n")
         if entry:
-            branches[name] = entry
+            branches[name] = {**entry, "result": result_issue(vault, index, source, name, day, date)}
     return "\n".join(blocks), branches
 
 
@@ -464,6 +470,7 @@ def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[
     발표 시각은 제목 앞 `when` 이름표로 단다. `timing`에 그 이벤트가 없으면 소제목의 장 구분을, 그것도 없으면 그날의 장 구분을 쓴다.
     소제목의 중요도 표식은 `data-level`로도 단다.
     리포트 날짜 전 이벤트의 표에는 `judged`를, 실제 갈래 줄에는 `hit`을 달고 그 줄의 전개 예상 뒤에 실제 전개를 붙인다.
+    결과를 다룬 이슈가 있으면 실제 갈래 줄에 `data-result`로 단다.
     리포트 날짜와 그 뒤 이벤트의 표에는 `upcoming`(`display.json`의 `next`)의 갈래 변화를 붙인다.
     """
     head = re.search(rf'<h2 id="[^"]*">{EVENTS_TITLE}</h2>', body)
@@ -503,7 +510,8 @@ def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[
                 stop = table.index("</td></tr>", start)
                 outcome = entry.get("outcome")
                 tail = f' <span class="outcome">→ {html.escape(outcome, quote=False)}</span>' if outcome else ""
-                table = (table[:start] + '<tr class="hit">' + table[start + 4:stop] + tail + table[stop:])
+                result = f' data-result="{entry["result"]}"' if entry.get("result") else ""
+                table = (table[:start] + f'<tr class="hit"{result}>' + table[start + 4:stop] + tail + table[stop:])
         return match.group(0)[:match.start(3) - match.start(0)] + table
 
     section = re.sub(r'<h3[^>]* data-day="([^"]+)"(?: data-level="[^"]*")?>(?:<span class="when">[^<]*</span>)?(.*?)</h3>\s*(<table class="events">.*?</table>)',
@@ -757,6 +765,33 @@ def explainer_title(segment: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", title.group(1))).strip() if title else ""
 
 
+def linked_nodes(source: Path, item: str) -> set[str]:
+    """`source` 리포트에서 사안 `item`과 같은 사안으로 보는 노드. 그 리포트 `system/issues.json`에서 `item`을 노드로 묶은 이슈의 노드를 더하고, 트리거 노드는 뺀다."""
+    linked = source.parent / "system" / "issues.json"
+    earlier = json.loads(linked.read_text(encoding="utf-8"))["issues"] if linked.is_file() else []
+    same = {item}.union(*(bundle["nodes"] for bundle in earlier if item in bundle["nodes"]))
+    return {node for node in same if not node.startswith("trigger:")}
+
+
+def result_issue(vault: Path, index: str, source: Path, name: str, day: dt.date, date: dt.date) -> str | None:
+    """`source` 리포트가 적은 이벤트의 결과를 다룬 이슈를 `리포트 키/이슈 번호`로. 발표일 뒤 리포트 날짜까지의 첫 리포트에서,
+    그 리포트 바로 앞 리포트가 이벤트의 사안과 같은 사안으로 보는 노드를 `id`나 노드로 가진 이슈다. 그런 리포트나 이슈가 없으면 None이다."""
+    item = tree_issues(source).get(name, {}).get("item")
+    after = [path for path in reports(vault, index, date) if path.parent.parent.name > f"{day}"]
+    if not item or not after:
+        return None
+    target = after[-1]
+    bundles = target.parent / "system" / "issues.json"
+    previous = reports(vault, index, dt.date.fromisoformat(target.parent.parent.name) - dt.timedelta(days=1))
+    if not bundles.is_file() or not previous:
+        return None
+    same = linked_nodes(previous[0], item)
+    for bundle in json.loads(bundles.read_text(encoding="utf-8"))["issues"]:
+        if same & {bundle["id"], *bundle["nodes"]}:
+            return f"{target.parent.parent.name.replace('-', '')}-{index}/{bundle['issue']}"
+    return None
+
+
 def issue_events(vault: Path, index: str, day: dt.date) -> dict[int, list[str]]:
     """오늘 이슈 번호마다, 바로 앞 리포트가 적은 이벤트 가운데 두 리포트 사이에 발표되어 그 이슈가 결과를 다룬 이벤트의 이름."""
     bundles = report_path(vault, day, index).parent / "system" / "issues.json"
@@ -765,24 +800,21 @@ def issue_events(vault: Path, index: str, day: dt.date) -> dict[int, list[str]]:
         return {}
     source = previous[0]
     since = dt.date.fromisoformat(source.parent.parent.name)
-    linked = source.parent / "system" / "issues.json"
-    earlier = json.loads(linked.read_text(encoding="utf-8"))["issues"] if linked.is_file() else []
     items = tree_issues(source)
     found: dict[int, list[str]] = {}
     for when, name, _ in event_items(source.read_text(encoding="utf-8"), since):
         item = items.get(name, {}).get("item")
         if not item or not since <= when < day:
             continue
-        same = {item}.union(*(bundle["nodes"] for bundle in earlier if item in bundle["nodes"]))
-        same = {node for node in same if not node.startswith("trigger:")}
+        same = linked_nodes(source, item)
         for bundle in json.loads(bundles.read_text(encoding="utf-8"))["issues"]:
             if same & {bundle["id"], *bundle["nodes"]}:
                 found.setdefault(bundle["issue"], []).append(name)
     return found
 
 
-def issue_history(vault: Path, index: str, day: dt.date, out: Path) -> dict[str, list[tuple[dt.date, str]]]:
-    """오늘 이슈 `id`마다, 그 `id`를 노드로 묶은 앞 날짜 이슈의 날짜와 공개본 이슈 조각을 날짜 순으로."""
+def issue_history(vault: Path, index: str, day: dt.date, out: Path) -> dict[str, list[tuple[dt.date, int, str]]]:
+    """오늘 이슈 `id`마다, 그 `id`를 노드로 묶은 앞 날짜 이슈의 날짜와 이슈 번호와 공개본 이슈 조각을 날짜 순으로."""
     bundles = report_path(vault, day, index).parent / "system" / "issues.json"
     if not bundles.is_file():
         return {}
@@ -803,11 +835,11 @@ def issue_history(vault: Path, index: str, day: dt.date, out: Path) -> dict[str,
         for bundle in json.loads(source.read_text(encoding="utf-8"))["issues"]:
             for issue in history:
                 if issue in bundle["nodes"] and bundle["id"] in segments:
-                    history[issue].append((past, segments[bundle["id"]]))
+                    history[issue].append((past, bundle["issue"], segments[bundle["id"]]))
     return history
 
 
-def mark_issue_history(body: str, history: dict[str, list[tuple[dt.date, str]]], day: dt.date) -> str:
+def mark_issue_history(body: str, history: dict[str, list[tuple[dt.date, int, str]]], day: dt.date) -> str:
     """번호 붙은 이슈 뒤에 앞 날짜 이슈 조각과 날짜마다 이슈 해설 소제목을 담은 `issue-history` 템플릿을 넣는다."""
     parts, last = [], 0
     for start, stop in issue_segments(body):
@@ -816,13 +848,30 @@ def mark_issue_history(body: str, history: dict[str, list[tuple[dt.date, str]]],
         past = history.get(html.unescape(issue.group(1)), []) if issue else []
         if not past:
             continue
-        days = [(when, explainer_title(chunk), re.sub(r'\sid="[^"]*"', "", chunk)) for when, chunk in past]
+        days = [(when, explainer_title(chunk), re.sub(r'\sid="[^"]*"', "", chunk)) for when, _, chunk in past]
         days.append((day, explainer_title(segment), ""))
         sections = "".join(f'<section data-day="{when}" data-title="{html.escape(title)}">{chunk}</section>'
                            for when, title, chunk in days)
         parts += [body[last:stop].rstrip(), f'\n<template class="issue-history">{sections}</template>\n']
         last = stop
     return "".join(parts) + body[last:]
+
+
+def link_later(entries: dict, key: str, history: dict[str, list[tuple[dt.date, int, str]]], bundles: Path) -> None:
+    """`key` 리포트 이슈의 히스토리에 든 앞 날짜 이슈마다, 그 리포트 목록 항목의 `later`에 이슈 번호를 키로 `key/이슈 번호`를 적는다.
+    이미 더 늦은 리포트를 적은 번호는 그대로 둔다."""
+    if not bundles.is_file():
+        return
+    index = key.split("-")[1]
+    numbers = {bundle["id"]: bundle["issue"] for bundle in json.loads(bundles.read_text(encoding="utf-8"))["issues"]}
+    for issue, past in history.items():
+        for when, number, _ in past:
+            earlier = entries.get(f"{when:%Y%m%d}-{index}")
+            if earlier is None or issue not in numbers:
+                continue
+            later = earlier.setdefault("later", {})
+            if later.get(str(number), "")[:8] <= key[:8]:
+                later[str(number)] = f"{key}/{numbers[issue]}"
 
 
 def build(date: str, index: str, vault: Path, out: Path) -> str:
@@ -858,7 +907,8 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     body = mark_issue_ids(body, source.parent / "system" / "issues.json", issue_events(vault, index, day))
     body = mark_issue_images(body, source.parent / "assets", target, out)
     body = mark_issue_charts(body, source.parent / "system" / "issue-charts.json")
-    body = mark_issue_history(body, issue_history(vault, index, day, out), day)
+    history = issue_history(vault, index, day, out)
+    body = mark_issue_history(body, history, day)
     if card:
         data = json.dumps(card, ensure_ascii=False).replace("</", "<\\/")
         body += f'<script type="application/json" id="cards">{data}</script>\n'
@@ -870,9 +920,13 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     if not heading:
         raise SystemExit(f"제목 끝에 날짜가 없다: {title}")
     written = entries.get(key, {}).get("written") or dt.datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d %H:%M")
+    later = entries.get(key, {}).get("later")
     entries[key] = {"title": heading.group(1), "day": heading.group(2), "written": written, "date": date, "index": index}
+    if later:
+        entries[key]["later"] = later
     if (move := moves(vault, index, date)):
         entries[key]["moves"] = move
+    link_later(entries, key, history, source.parent / "system" / "issues.json")
     listing.write_text(json.dumps(dict(sorted(entries.items(), reverse=True)), ensure_ascii=False, indent=1) + "\n",
                        encoding="utf-8")
     rewind(index, vault, out)

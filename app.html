@@ -382,11 +382,6 @@
   .carousel.events .event > :not(h3) { margin-top: 0; color: var(--hint); }
   .carousel.events.fit .slide > :first-child { margin-top: 30px; }
   .carousel.events table { margin: 0; }
-  /* 날짜마다 마지막 이벤트 아래에 그 날짜 다음 리포트로 가는 단추를 상자 없이 가운데에 쓴다. 단추는 흰 글자와 오른쪽 꺽쇠로, 다음 리포트가 없다는 안내는 흐린 글자로 쓴다. */
-  .carousel.events .result { display: flex; width: fit-content; align-items: center; gap: 8px; margin: 22px auto 0; padding: 8px 12px; border: 0; background: none;
-                             color: #fff; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
-  .carousel.events .result:active { opacity: .6; }
-  .carousel.events .result svg { color: var(--dim); }
   h3 .when { display: block; margin-bottom: 2px; font-size: 13px; font-weight: 600; }
   h3[data-level="low"] .when { background: none; color: var(--hint); }
   /* 지난 이벤트의 표는 실제로 일어난 갈래 줄만 또렷하게 보이고 나머지 줄은 흐리다. */
@@ -394,6 +389,15 @@
   table.judged tbody tr.hit .outcome { color: var(--accent); }
   table.judged tbody tr.hit { opacity: 1; background: color-mix(in srgb, var(--accent) 13%, transparent);
                               box-shadow: inset 3px 0 0 var(--accent); }
+  /* 실제 갈래 줄 아래의 "자세히 보기" 줄은 실제 갈래 줄과 같은 바탕으로 이어 칠하고, 단추는 상자 없이 오른쪽 끝에 흰 글자와 꺽쇠로 쓴다. */
+  table.judged tbody tr.hit:has(+ tr.more) td { border-bottom: 0; }
+  table.judged tbody tr.more { opacity: 1; background: color-mix(in srgb, var(--accent) 13%, transparent);
+                               box-shadow: inset 3px 0 0 var(--accent); }
+  table.judged tbody tr.more td { padding: 0 6px 6px; text-align: right; }
+  table.judged tbody tr.more button { display: inline-flex; align-items: center; gap: 7px; padding: 4px 4px; border: 0; background: none;
+                                      color: #fff; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  table.judged tbody tr.more button:active { opacity: .6; }
+  table.judged tbody tr.more button svg { color: var(--dim); }
   .empty { border: 1px dashed var(--line); border-radius: 12px; padding: 22px 14px; text-align: center;
            color: var(--hint); font-size: 14px; }
   /* 미국 거시 지표는 지표마다 한 장이고, 위 탭 띠는 그림 이름 탭과 같은 색으로 그린다. 탭이 화면 폭을 넘으므로 보고 있는 탭이 문단 왼쪽 끝에
@@ -542,6 +546,7 @@
   const query = new URLSearchParams(location.search);
   // 달력과 지수 전환 단추로 고른 리포트는 주소의 `r`로 다시 연다. 텔레그램은 다시 연 뒤에도 처음 받은 `start_param`을 그대로 주므로 `r`을 먼저 읽는다.
   // 홈 화면 바로가기는 `start_param` 없이 미니 앱을 열므로, 키가 없으면 리포트를 받기 전에 `r/index.json`에서 키를 정한다.
+  // 주소에 `issue`가 있으면 리포트 대신 그 번호의 이슈 하나를 보이는 이슈 화면을 그리고, `at`이 있으면 히스토리에서 그 날짜 항목을 고른다.
   let key = query.get("r") || (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || "";
   const report = document.getElementById("report");
   // 머리 상자가 화면 위에 붙어 있으면 `stuck`을 단다. 문서 맨 위에서는 달지 않는다.
@@ -553,7 +558,7 @@
   // 화면이 움직일 때마다 내용의 위쪽으로 8px 넘게 올라갔는지(`rising`), 아래쪽으로 8px 넘게 내려갔는지(`falling`) 정한다.
   // 올라간 거리는 마지막으로 올라간 뒤 가장 깊이 내려간 위치부터, 내려간 거리는 마지막으로 내려간 뒤 가장 얕게 올라간 위치부터 잰다. 문서 양 끝을 넘어 튕긴 위치는 문서 끝으로 센다.
   // 머리 상자와 절 바로가기 알약은 같은 규칙으로 감추고 띄운다. 화면이 `STILL`ms 동안 움직이지 않으면 서서히 감추는 `idle`을, `falling`이면 바로 감추는 `idle fall`을 달고, 감춘 뒤에는 `rising`일 때와 뒤로 가기로 돌아온 페이지가 `reveal`을 보낼 때만 다시 띄운다.
-  // 이슈를 열고 닫을 때처럼 코드가 화면을 옮기는 동안은 사용자가 옮긴 것이 아니므로 `rising`과 `falling`을 모두 끄고, 옮긴 뒤의 위치부터 거리를 다시 잰다.
+  // 이슈를 넘길 때처럼 코드가 화면을 옮기는 동안은 사용자가 옮긴 것이 아니므로 `rising`과 `falling`을 모두 끄고, 옮긴 뒤의 위치부터 거리를 다시 잰다.
   // `hush`는 코드가 화면을 옮기기 시작할 때 부르고, 돌려받은 함수는 옮기기를 마치거나 사용자가 화면을 만져 멈출 때 부른다. 마지막 이동의 스크롤 사건까지 빼도록 두 프레임 뒤에 판정을 다시 켠다.
   const STILL = 1200;
   let deepest = scrollY, shallowest = scrollY, rising = false, falling = false, hushing = 0;
@@ -624,11 +629,15 @@
   history.replaceState({ ...history.state, depth }, "");
   // 옮기기 직전의 화면 위치(`y`)도 자기 기록에 적는다. 브라우저는 리포트를 받아 그리기 전에 화면 위치를 되돌리려다 실패하므로, 되돌리기는 페이지가 맡는다.
   history.scrollRestoration = "manual";
-  const visit = (target) => {
+  // 이슈 화면(`issue`, `at`)은 `more`로 줄 때만 주소에 적고, 다른 리포트로 옮길 때는 지운다.
+  const visit = (target, more = {}) => {
     history.replaceState({ ...history.state, y: scrollY }, "");
     sessionStorage.setItem("depth", depth + 1);
     const params = new URLSearchParams(location.search);
+    params.delete("issue");
+    params.delete("at");
     params.set("r", target);
+    Object.entries(more).forEach(([name, value]) => params.set(name, value));
     location.search = params.toString();
   };
   const fail = (message) => { report.innerHTML = `<p class="status">${message}</p>`; };
@@ -1154,10 +1163,12 @@
 
   // 상세 이슈 해설을 이슈 목록으로 바꾼다. 이슈는 `###` 제목부터 다음 `###`·`##` 앞까지다.
   // 템플릿이 검토했지만 비중을 낮춘 이슈를 번호 이슈 뒤에 두므로, 그 항목은 목록 끝의 "비중이 낮은 이슈 N건" 상자가 된다.
-  // 상자를 누르면 이슈 내용이 오른쪽에서 들어오고, 이슈를 보는 중에 오른쪽으로 밀거나 돌아가는 단추를 누르면 목록이 왼쪽에서 들어온다.
-  // 들어갈 때와 돌아갈 때 모두 바로가기에서 이슈를 누를 때의 위치로 화면을 옮긴다.
-  // 검토했지만 비중을 낮춘 이슈를 보는 동안에는 절 제목을 "검토했지만 비중을 낮춘 이슈"로 바꾼다. 바로가기에서 이슈를 누르면 보던 이슈를 그대로 두고 화면만 옮긴다.
-  function section(title) {
+  // 상자를 누르면 주소의 `issue`에 그 이슈 번호를 적어 이슈 화면을 새 페이지로 연다. 이슈 번호는 소제목 앞 번호이고, 번호가 없는 상자는 목록 순서다.
+  // `focus`가 있으면 이슈 화면이다. 그 번호의 이슈 내용과 절 제목만 남기고 리포트의 다른 절은 지운다. 그 번호의 이슈가 없으면 리포트 화면을 다시 연다.
+  // 절 제목 오른쪽의 돌아가는 단추를 누르면 앞 페이지로 돌아가고, 앞 페이지가 없으면 같은 리포트의 리포트 화면을 연다.
+  // `at`이 있으면 히스토리에서 그 날짜 항목을 고른 채로 연다.
+  // 검토했지만 비중을 낮춘 이슈를 보는 동안에는 절 제목을 "검토했지만 비중을 낮춘 이슈"로 바꾼다.
+  function section(title, focus = 0, at = null) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
     if (!head) return;
     const name = head.textContent.trim();
@@ -1178,6 +1189,7 @@
       const text = [...h3.childNodes].find((node) => node.nodeType === 3 && node.textContent.trim());
       if (text) text.textContent = text.textContent.replace(/^\s*\d+\.\s*/, "");
     };
+    const numbers = items.map(([h3], i) => +h3.textContent.match(/^\s*(\d+)\./)?.[1] || i + 1);
     items.forEach(([h3]) => unnumber(h3));
     const other = "검토했지만 비중을 낮춘 이슈", reviewed = items[items.length - 1][0].textContent.trim() === other;
     if (reviewed) items[items.length - 1].shift().remove();
@@ -1192,6 +1204,8 @@
       "tone-both": `M2 9 H6 C9.5 9 11 3.5 16 3.5 M6 9 C9.5 9 11 14.5 16 14.5 ${tip([12.5, 3.9], [16, 3.5])} ${tip([12.5, 14.1], [16, 14.5])}`,
     };
     const arrow = (tone) => `<svg class="${tone}" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="${arrows[tone]}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    // `step`은 이슈 화면에서 이웃 이슈로 넘기는 함수이고, `busy`는 넘기는 동안 켠다.
+    let busy = false, step = null;
     const box = document.createElement("div");
     box.className = "issue-box";
     const list = box.appendChild(document.createElement("div"));
@@ -1231,15 +1245,14 @@
       pick.addEventListener("pointerdown", () => pick.classList.add("pressed"), { passive: true });
       ["pointerup", "pointercancel", "pointerleave"].forEach((type) => pick.addEventListener(type, () => pick.classList.remove("pressed"), { passive: true }));
       pick.addEventListener("click", () => {
-        if (busy || box.classList.contains("inside")) return;
         feelPress();
-        open(i);
+        visit(key, { issue: numbers[i] });
       });
       const page = box.appendChild(document.createElement("div"));
       page.className = "issue-page";
       page.append(...nodes);
       const past = nodes.find((node) => node.matches?.("template.issue-history"));
-      if (past) page.restore = chronicle(page, past);
+      if (past) Object.assign(page, chronicle(page, past));
       return page;
     });
     // 이슈 문단마다 끝에 앞 이슈와 다음 이슈로 가는 칸을 붙인다. 검토했지만 비중을 낮춘 이슈 묶음은 이어 읽는 이슈에 넣지 않는다.
@@ -1279,8 +1292,9 @@
     // 날짜마다 이슈 해설 소제목이 날짜 순으로 들고, 마지막 항목이 오늘이다. 상자에는 날짜와 소제목을 오늘부터 앞 날짜 순으로 한 줄씩 쓰고 보고 있는 날짜의 줄을 굵게 쓴다.
     // 최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝의 펼침 단추를 누르면 다섯 줄과 여섯째 줄 윗부분까지 펼친 뒤 나머지 줄은 목록 안에서 스크롤하게 한다.
     // 최근 세 줄을 누르면 앞선 줄을 다시 접고, 앞선 줄을 누르면 펼친 채 둔다.
-    // 줄을 누르면 진동을 내고, 상자 위의 제목·그림과 상자 아래의 해설·그래프를 그날 내용으로 바꿔 서서히 보이며 바로가기에서 이슈를 누를 때의 위치로 화면을 옮긴다.
-    // 돌려준 함수는 이슈 문단을 오늘 내용으로 돌리고 앞선 줄을 다시 접으며, 이슈를 열 때마다 부른다.
+    // 줄을 누르면 진동을 내고, 상자 위의 제목·그림과 상자 아래의 해설·그래프를 그날 내용으로 바꿔 서서히 보이며 화면을 맨 위로 옮긴다.
+    // 돌려준 `restore`는 이슈 문단을 오늘 내용으로 돌리고 앞선 줄을 다시 접으며, 이슈를 열 때마다 부른다.
+    // 돌려준 `recall`은 `day` 날짜 항목을 고른다. 그 줄이 접힌 앞선 줄이면 목록을 펼치고 목록 안에서 그 줄이 보이게 스크롤한다.
     function chronicle(page, template) {
       const entries = [...template.content.children], today = entries.length - 1;
       const isLead = (node) => node.tagName === "H4" && node.querySelector("mark")?.textContent.trim() === "이슈 해설";
@@ -1337,7 +1351,7 @@
         contents[k].flat().forEach((node) => node.animate([{ opacity: 0 }, { opacity: 1 }], options));
         const release = hush();
         const cancel = () => { stop(); release(); removeEventListener("touchstart", cancel); removeEventListener("wheel", cancel); };
-        const stop = glide(scrollY, head.reach?.() ?? scrollY, (top) => scrollTo(0, top), cancel);
+        const stop = glide(scrollY, 0, (top) => scrollTo(0, top), cancel);
         addEventListener("touchstart", cancel, { passive: true });
         addEventListener("wheel", cancel, { passive: true });
       };
@@ -1367,27 +1381,59 @@
         unfold.addEventListener("click", () => {
           feelPress();
           const from = list.offsetHeight;
-          list.classList.remove("shut");
-          list.classList.add("open");
-          unfold.hidden = true;
-          const to = reach();
-          list.style.height = `${to}px`;
-          list.animate([{ height: `${from}px` }, { height: `${to}px` }], { duration: motion.matches ? 0 : GLIDE, easing: EASE });
+          open();
+          list.animate([{ height: `${from}px` }, { height: `${reach()}px` }], { duration: motion.matches ? 0 : GLIDE, easing: EASE });
         });
       }
+      // 앞선 줄을 펼치고 목록 높이를 펼친 높이로 둔다.
+      const open = () => {
+        list.classList.remove("shut");
+        list.classList.add("open");
+        unfold.hidden = true;
+        list.style.height = `${reach()}px`;
+      };
       contents[today][0].at(-1).after(heading, shelf);
-      return () => {
-        if (current !== today) show(today, false);
-        fold(false);
+      return {
+        restore: () => {
+          if (current !== today) show(today, false);
+          fold(false);
+        },
+        recall: (day) => {
+          const k = entries.findIndex((entry) => entry.dataset.day === day);
+          if (k < 0) return;
+          if (k <= today - 3) {
+            open();
+            list.scrollTop += rows[k].getBoundingClientRect().top - list.getBoundingClientRect().top - (list.clientHeight - rows[k].offsetHeight) / 2;
+          }
+          if (k !== current) show(k, false);
+        },
       };
     }
     head.classList.add("issues");
+    head.after(box);
+    if (!focus) return;
+    const shown = numbers.indexOf(focus);
+    if (shown < 0) {
+      const params = new URLSearchParams(location.search);
+      params.delete("issue");
+      params.delete("at");
+      location.replace(`?${params}`);
+      return;
+    }
+    [...report.children].forEach((node) => node === head || node === box || node.remove());
     const back = head.appendChild(document.createElement("button"));
     back.className = "back";
     back.innerHTML = '<svg width="8" height="12" viewBox="0 0 8 12" aria-hidden="true"><path d="M6.5 1 1.5 6l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     // 절 제목 글자로 절을 찾는 곳이 있으므로 단추 이름은 글자 대신 CSS로 쓴다.
     back.setAttribute("aria-label", "이슈 목록");
-    back.addEventListener("click", () => close());
+    back.addEventListener("click", () => {
+      feelPress();
+      if (depth > 0) return history.back();
+      const params = new URLSearchParams(location.search);
+      params.delete("issue");
+      params.delete("at");
+      location.replace(`?${params}`);
+    });
     // 단추 가운데를 절 제목 글자 획의 위아래 가운데에 맞춘다. 글꼴마다 글자 줄 안에서 획이 놓이는 높이가 달라서, 기준선 위치와 그 글꼴로 잰 획의 높이로 정한다.
     const ink = document.createElement("canvas").getContext("2d");
     const align = () => {
@@ -1402,31 +1448,52 @@
     };
     new ResizeObserver(align).observe(head);
     document.fonts?.ready.then(align);
-    head.after(box);
-    let busy = false;
     const rename = (next) => {
       if (label.textContent === next) return;
       label.textContent = next;
       label.animate([{ opacity: 0 }, { opacity: 1 }], { duration: motion.matches ? 0 : GLIDE });
     };
-    // `change`로 내용을 바꾸고, 나가는 `out`과 들어오는 내용을 장 사이 10px을 두고 나란히 `dir` 방향(1이면 왼쪽, -1이면 오른쪽)으로 옮긴다.
-    // 동시에 바로가기에서 이슈를 누를 때의 위치로 화면을 옮긴다. 옮기는 동안 묶음 높이를 지금 높이 아래로 줄이지 않아 화면이 튀지 않는다.
+    // `i`번째 이슈 문단을 보이고, 히스토리를 오늘 내용으로 돌리고 접기 상자를 모두 닫는다.
+    const enter = (i) => {
+      pages.forEach((page, j) => page.classList.toggle("on", i === j));
+      pages[i].restore?.();
+      pages[i].querySelectorAll("details.fold").forEach((fold) => {
+        fold.anim?.cancel();
+        fold.want = undefined;
+        fold.open = false;
+        fold.lastElementChild.style.overflow = "";
+      });
+      rename(reviewed && i === pages.length - 1 ? other : name);
+      align();
+      return pages[i];
+    };
+    box.classList.add("inside");
+    head.classList.add("inside");
+    enter(shown);
+    if (at) pages[shown].recall?.(at);
+    // 보고 있는 `i`번째 이슈에서 `k`번째 이슈로 넘기고 주소의 이슈 번호를 바꾼다. 다음 이슈는 오른쪽에서, 앞 이슈는 왼쪽에서 들어온다.
+    // 나가는 이슈와 들어오는 이슈를 장 사이 10px을 두고 나란히 옮기며, 동시에 화면을 맨 위로 옮긴다. 옮기는 동안 묶음 높이를 지금 높이 아래로 줄이지 않아 화면이 튀지 않는다.
     // 화면 옮기기와 묶음 높이 되돌리기가 모두 끝나야 방향 판정을 다시 켠다.
-    const swap = (out, change, dir) => {
+    step = (i, k) => {
+      if (busy) return;
       busy = true;
+      const dir = k > i ? 1 : -1, out = pages[i];
+      const params = new URLSearchParams(location.search);
+      params.set("issue", numbers[k]);
+      params.delete("at");
+      history.replaceState(history.state, "", `?${params}`);
       box.style.minHeight = `${box.offsetHeight}px`;
       box.classList.add("moving");
       out.classList.add("leaving");
-      const shown = change();
+      const shown = enter(k);
       const options = { duration: motion.matches ? 0 : GLIDE, easing: EASE };
       out.animate([{ transform: "none" }, { transform: `translateX(calc(${-dir} * (100% + 10px)))` }], options);
       shown.animate([{ transform: `translateX(calc(${dir} * (100% + 10px)))` }, { transform: "none" }], options);
-      const goal = head.reach?.() ?? scrollY;
       const release = hush();
       let left = 2;
       const settle = () => --left || release();
       const cancel = () => { stop(); release(); removeEventListener("touchstart", cancel); removeEventListener("wheel", cancel); };
-      const stop = glide(scrollY, goal, (top) => scrollTo(0, top), settle);
+      const stop = glide(scrollY, 0, (top) => scrollTo(0, top), settle);
       addEventListener("touchstart", cancel, { passive: true });
       addEventListener("wheel", cancel, { passive: true });
       setTimeout(() => {
@@ -1439,52 +1506,6 @@
         settle();
       }, options.duration);
     };
-    // `i`번째 이슈 문단을 보이고, 히스토리를 오늘 내용으로 돌리고 접기 상자를 모두 닫는다.
-    const enter = (i) => {
-      pages.forEach((page, j) => page.classList.toggle("on", i === j));
-      pages[i].restore?.();
-      pages[i].querySelectorAll("details.fold").forEach((fold) => {
-        fold.anim?.cancel();
-        fold.want = undefined;
-        fold.open = false;
-        fold.lastElementChild.style.overflow = "";
-      });
-      box.classList.add("inside");
-      head.classList.add("inside");
-      rename(reviewed && i === pages.length - 1 ? other : name);
-      align();
-      return pages[i];
-    };
-    const open = (i) => {
-      if (busy || box.classList.contains("inside")) return;
-      swap(list, () => enter(i), 1);
-    };
-    // 보고 있는 `i`번째 이슈에서 `k`번째 이슈로 넘긴다. 다음 이슈는 오른쪽에서, 앞 이슈는 왼쪽에서 들어온다.
-    const step = (i, k) => {
-      if (busy) return;
-      swap(pages[i], () => enter(k), k > i ? 1 : -1);
-    };
-    const close = () => {
-      if (busy || !box.classList.contains("inside")) return;
-      const page = box.querySelector(".issue-page.on");
-      swap(page, () => {
-        box.classList.remove("inside");
-        head.classList.remove("inside");
-        rename(name);
-        return list;
-      }, -1);
-    };
-    // 이슈를 보는 중에 묶음 안에서 가로로 40px 넘게, 세로 이동의 1.5배 넘게 오른쪽으로 밀고 손을 떼면 목록으로 돌아간다.
-    let begin = null;
-    box.addEventListener("touchstart", ({ touches }) => {
-      begin = box.classList.contains("inside") && touches.length === 1 ? { x: touches[0].clientX, y: touches[0].clientY } : null;
-    }, { passive: true });
-    box.addEventListener("touchend", ({ changedTouches }) => {
-      if (!begin) return;
-      const dx = changedTouches[0].clientX - begin.x, dy = changedTouches[0].clientY - begin.y;
-      begin = null;
-      if (dx > 40 && dx > 1.5 * Math.abs(dy)) close();
-    }, { passive: true });
   }
 
   // 절 안의 `###`(depth 3)이나 `####`(depth 4) 소제목마다 접기 상자를 만든다. 말머리가 `keep`에 든 소제목은 접지 않는다.
@@ -1687,18 +1708,23 @@
     box.addEventListener("pointerdown", hold, { passive: true });
     box.querySelector(".track").addEventListener("touchstart", () => (aim = null), { passive: true });
     const arrow = '<svg width="6" height="10" viewBox="0 0 6 10" aria-hidden="true"><path d="M1 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    // 그날 이벤트의 결과는 그날 다음 날짜의 같은 지수 리포트가 적는다. `result`는 그 리포트로 가는 단추를 만든다. 그 리포트가 보고 있는 리포트이거나 그보다 뒤 리포트이거나
-    // 아직 없으면 아무것도 만들지 않는다. 그래서 지난 리포트는 가장 늦은 리포트였을 때와 같이 그 리포트보다 앞 리포트로 가는 단추만 단다.
-    const result = (day) => {
-      const after = Object.keys(listing).filter((name) => listing[name].index === index && listing[name].date > day)
-        .sort((a, b) => listing[a].date.localeCompare(listing[b].date))[0];
-      if (!after || listing[after].date >= date) return null;
-      const [, m, d] = listing[after].date.split("-");
-      const go = Object.assign(document.createElement("button"), { type: "button", className: "result" });
-      go.innerHTML = `${+m}/${+d} 리포트에서 결과 자세히 보기${arrow}`;
-      go.addEventListener("click", () => { feelPress(); visit(after); });
-      return go;
-    };
+    // 실제 갈래 줄에 `build.py`가 결과를 다룬 이슈(`data-result`, `리포트 키/이슈 번호`)를 달았으면 그 줄 바로 아래에 "자세히 보기" 줄을 넣는다.
+    // 단추를 누르면 그 이슈를 히스토리에 담은 가장 늦은 리포트(`r/index.json`의 `later`)의 이슈 화면을 열고 히스토리에서 결과 리포트 날짜를 고른다.
+    // 그런 리포트가 없으면 결과 리포트의 그 이슈 화면을 연다.
+    box.querySelectorAll("table.judged tbody tr.hit[data-result]").forEach((row) => {
+      const [source, number] = row.dataset.result.split("/");
+      const more = document.createElement("tr");
+      more.className = "more";
+      const cell = more.appendChild(Object.assign(document.createElement("td"), { colSpan: row.cells.length }));
+      const go = cell.appendChild(Object.assign(document.createElement("button"), { type: "button" }));
+      go.innerHTML = `자세히 보기${arrow}`;
+      go.addEventListener("click", () => {
+        feelPress();
+        const [target, issue] = (listing[source]?.later?.[number] ?? row.dataset.result).split("/");
+        visit(target, target === source ? { issue } : { issue, at: listing[source].date });
+      });
+      row.after(more);
+    });
     // `own`은 그 날짜의 같은 지수 리포트로 가는 단추를 만든다. 그 날짜의 리포트가 없거나 보고 있는 리포트이면 아무것도 만들지 않는다.
     const own = (day) => {
       const name = Object.keys(listing).find((name) => listing[name].index === index && listing[name].date === day);
@@ -1708,11 +1734,6 @@
       go.addEventListener("click", () => { feelPress(); visit(name); });
       return go;
     };
-    // 이벤트가 있는 날짜의 장마다 마지막 이벤트 아래에 결과 단추를 단다.
-    box.querySelectorAll(".slide").forEach((slide, i) => {
-      const go = slide.querySelector(".event") && result(days[i]);
-      if (go) slide.append(go);
-    });
     // 날짜를 450ms 동안 8px 넘게 움직이지 않고 누르고 있으면 그 날짜의 리포트를 여는 단추를 말풍선으로 띄운다. 말풍선을 띄운 누르기는 날짜를 고르지 않는다.
     // 그 날짜의 리포트가 없거나 보고 있는 리포트인 날짜는 말풍선을 띄우지 않고, 손을 떼면 그 날짜를 고른다.
     // 말풍선 밖을 누르거나 띠를 밀면 말풍선을 닫는다.
@@ -2243,20 +2264,25 @@
     report.innerHTML = body;
     calendar(listing, date);
     switcher(listing, date);
-    figures(date);
-    fold("1개월 지수 방향 예측");
-    indicators();
+    const focus = +query.get("issue") || 0;
+    if (!focus) {
+      figures(date);
+      fold("1개월 지수 방향 예측");
+      indicators();
+    }
     issueCharts();
     toneTags(report);
     fold("상세 이슈 해설", 4, ["이슈 해설"]);
-    section("상세 이슈 해설");
+    section("상세 이슈 해설", focus, query.get("at"));
     // 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
     report.querySelectorAll("h3").forEach(trail);
-    // 노드를 옮기면 넘기기 묶음의 스크롤 위치가 처음으로 돌아가므로, 막을 씌울 상자는 묶음을 만들기 전에 만든다.
-    if (document.documentElement.classList.contains("past")) freeze("다가오는 이벤트", latest(listing, key.split("-")[1]));
-    events(date, listing);
-    help();
-    jump([["예측", "1개월 지수 방향 예측"], ["이슈", "상세 이슈 해설"], ["지표", "미국 거시 지표"], ["이벤트", "다가오는 이벤트"]]);
+    if (!focus) {
+      // 노드를 옮기면 넘기기 묶음의 스크롤 위치가 처음으로 돌아가므로, 막을 씌울 상자는 묶음을 만들기 전에 만든다.
+      if (document.documentElement.classList.contains("past")) freeze("다가오는 이벤트", latest(listing, key.split("-")[1]));
+      events(date, listing);
+      help();
+      jump([["예측", "1개월 지수 방향 예측"], ["이슈", "상세 이슈 해설"], ["지표", "미국 거시 지표"], ["이벤트", "다가오는 이벤트"]]);
+    }
     // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
     // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
     // 손가락을 움직이지 않고 한 번 누르면 닫는다.
