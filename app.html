@@ -2338,7 +2338,9 @@
   }).catch(() => fail("리포트를 찾지 못했다."));
   // 미니 앱 안에서 다른 리포트로 옮겨 온 페이지(`depth`가 0보다 크면)는 화면 왼쪽 끝 18px 띠에서 오른쪽으로 밀어 앞 리포트로 돌아간다.
   // 이슈 화면은 띠를 48px로 넓히고, 앞 페이지가 없으면(주소로 바로 연 이슈 화면) 이슈 목록 단추처럼 같은 리포트의 리포트 화면을 연다.
-  // 띠는 위아래 스크롤은 브라우저에 맡기고 가로 이동만 받는다. 미는 동안 손가락 높이에 뒤로 가기 원이 따라 나오고, 80px을 넘기면 원이 밝아지며
+  // 띠는 손가락이 처음 6px 움직인 방향으로 할 일을 정한다. 가로로 움직인 거리가 세로의 0.6배 이상이면 뒤로 가기로 받고 페이지 스크롤을 막는다.
+  // 막지 않으면 스크롤할 여지가 있는 본문 가운데에서 손가락이 조금만 비스듬히 움직여도 브라우저가 스크롤을 시작해 밀기를 끊는다.
+  // 그보다 세로로 움직이면 스크롤을 브라우저에 맡기고 그 손짓은 더 보지 않는다. 미는 동안 손가락 높이에 뒤로 가기 원이 따라 나오고, 80px을 넘기면 원이 밝아지며
   // 선택 변경 진동을 낸다. 80px을 넘긴 채 손을 떼면 앞 페이지로 돌아가고, 못 넘기면 원을 거둔다. 움직이지 않고 누른 곳은 띠 아래 요소를 누른 것으로 넘긴다.
   if (depth > 0 || query.get("issue")) {
     const edge = Object.assign(document.createElement("div"), { className: "back-edge" });
@@ -2354,21 +2356,27 @@
     };
     edge.addEventListener("touchstart", (event) => {
       const touch = event.touches[0];
-      start = { x: touch.clientX, y: touch.clientY, moved: false };
+      start = { x: touch.clientX, y: touch.clientY, moved: false, back: null };
       ready = false;
       ring.classList.remove("ready", "rest");
     }, { passive: true });
     edge.addEventListener("touchmove", (event) => {
       if (!start) return;
-      const touch = event.touches[0], dx = touch.clientX - start.x;
-      if (Math.hypot(dx, touch.clientY - start.y) > 8) start.moved = true;
+      const touch = event.touches[0], dx = touch.clientX - start.x, dy = touch.clientY - start.y;
+      if (Math.hypot(dx, dy) > 8) start.moved = true;
+      if (start.back === null) {
+        if (Math.hypot(dx, dy) < 6) return;
+        start.back = dx >= Math.abs(dy) * 0.6;
+      }
+      if (!start.back) return;
+      if (event.cancelable) event.preventDefault();
       place(Math.max(0, dx), touch.clientY);
       if (ready !== dx > REACH) {
         ready = dx > REACH;
         ring.classList.toggle("ready", ready);
         if (ready) feelSlide();
       }
-    }, { passive: true });
+    }, { passive: false });
     const end = (event) => {
       if (!start) return;
       const { moved } = start, touch = event.changedTouches[0];
