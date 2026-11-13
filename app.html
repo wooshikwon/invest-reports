@@ -179,11 +179,11 @@
      제목 끝 줄에 스티커가 들어갈 폭이 없으면 스티커만 다음 줄 왼쪽 끝으로 넘긴다. 제목과 스티커 사이는 줄을 바꿀 수 있는 빈칸으로 띄운다. */
   mark, h3 .when { width: fit-content; background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
   mark { display: block; font-size: 13px; font-weight: 600; margin-bottom: 2px; }
-  /* 요약 소제목의 결론이 여럿이면 말머리 아래에 결론마다 한 줄씩 소제목 글씨로 쓰고, 줄 앞에 말머리와 같은 지수색 동그라미를 단다. */
+  /* 요약 소제목은 말머리 아래에 결론마다 한 줄씩 소제목 글씨로 쓰고, 줄 앞에 소제목 글씨와 같은 흰색 동그라미를 단다. */
   h3 > ul.heads { margin: 0; padding: 0; list-style: none; }
   h3 > ul.heads li { position: relative; margin: 0; padding-left: 14px; }
   h3 > ul.heads li + li { margin-top: 4px; }
-  h3 > ul.heads li::before { content: ""; position: absolute; left: 1px; top: calc(.75em - 3px); width: 6px; height: 6px; border-radius: 50%; background: var(--index-ink); }
+  h3 > ul.heads li::before { content: ""; position: absolute; left: 1px; top: calc(.75em - 3px); width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
   h3 code { font-family: inherit; font-size: 10.5px; font-weight: 700; color: #8b95a1; background: none; border: 1px solid;
             border-radius: 999px; padding: 0.5px 7px; margin-right: 5px; white-space: nowrap; }
   h3 .gap { word-spacing: calc(8px - 0.25em); }
@@ -1550,7 +1550,7 @@
     };
   }
 
-  // 말머리만 단 소제목 바로 아래의 목록은 그 소제목의 결론들이므로, 접기 전에 목록을 소제목 안으로 옮긴다.
+  // 말머리만 단 요약 소제목 바로 아래의 목록은 그 소제목의 결론이므로, 접기 전에 목록을 소제목 안으로 옮긴다.
   function heads(title) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
     for (let node = head?.nextElementSibling; node && node.tagName !== "H2"; node = node.nextElementSibling) {
