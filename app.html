@@ -81,9 +81,19 @@
   #past { display: none; }
   :root.past #past { display: block; position: fixed; top: var(--top-inset); left: 0; right: 0; z-index: 7; height: var(--past);
                      background: #d9363e; color: #fff; font-size: 12px; font-weight: 700; line-height: var(--past); text-align: center; }
-  /* 이슈 화면(`:root.issue`)은 머리 상자, 과거 리포트 띠, 절 바로가기 알약 없이 이슈 하나만 보인다. */
-  :root.issue { --past: 0px; }
-  :root.issue :is(#berth, #masthead, #past) { display: none; }
+  /* 이슈 화면(`:root.issue`)은 머리 상자, 과거 리포트 띠, 절 바로가기 알약 없이 이슈 하나만 보인다.
+     대신 머리 상자의 유리 띠와 같은 색·흐림의 한 줄 띠(`#issue-bar`)를 화면 맨 위에 고정하고, 가운데에 보고 있는 이슈의 제목을 작은 회색 글씨 한 줄로 쓴다. 줄을 넘는 제목은 말줄임표로 줄인다.
+     이 띠가 전체화면 위쪽 높이까지 덮으므로 위쪽 높이의 유리는 감춘다. */
+  :root.issue { --past: 0px; --issue-bar: 38px; }
+  :root.issue :is(#berth, #masthead, #past, #top-glass) { display: none; }
+  #issue-bar { display: none; }
+  :root.issue #issue-bar { display: block; position: fixed; top: 0; left: 0; right: 0; z-index: 4; padding: var(--top-inset) 16px 0;
+                           background: color-mix(in srgb, var(--bg) 40%, transparent); border-bottom: 1px solid rgba(255, 255, 255, .06);
+                           -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: blur(3px) saturate(150%);
+                           height: calc(var(--top-inset) + var(--issue-bar)); font-size: 13px; font-weight: 600; line-height: var(--issue-bar);
+                           color: var(--dim); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { :root.issue #issue-bar { background: var(--bg); } }
+  :root.issue main { padding-top: calc(16px + var(--issue-bar) + var(--top-edge)); }
   #moves:empty { display: none; }
   #moves b { font-weight: 700; margin-left: 4px; }
   #moves .up { color: #ff5c5c; }
@@ -514,6 +524,7 @@
 <body>
 <div id="top-glass"></div>
 <div id="past"></div>
+<div id="issue-bar"></div>
 <main>
   <div id="berth"></div><div id="masthead"><header><p id="day"></p><p id="dated"></p><h1 id="title">투자 판단 리포트</h1></header><p id="moves"></p></div>
   <article id="report"><p class="status">리포트를 불러오는 중이다.</p></article>
@@ -1453,6 +1464,7 @@
     };
     new ResizeObserver(align).observe(head);
     document.fonts?.ready.then(align);
+    const bar = document.getElementById("issue-bar");
     const rename = (next) => {
       if (label.textContent === next) return;
       label.textContent = next;
@@ -1470,6 +1482,16 @@
       });
       rename(reviewed && i === pages.length - 1 ? other : name);
       align();
+      // 위쪽 한 줄 띠에는 이슈 제목만 쓰고 방향 표식은 뺀다. 비중을 낮춘 이슈 묶음은 묶음 이름을 쓴다.
+      const title = reviewed && i === pages.length - 1 ? other : (() => {
+        const copy = items[i][0].cloneNode(true);
+        copy.querySelectorAll("code, .tags").forEach((node) => node.remove());
+        return copy.textContent.trim();
+      })();
+      if (bar.textContent !== title) {
+        bar.textContent = title;
+        bar.animate([{ opacity: 0 }, { opacity: 1 }], { duration: motion.matches ? 0 : GLIDE });
+      }
       return pages[i];
     };
     box.classList.add("inside");
