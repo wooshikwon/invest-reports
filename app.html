@@ -38,7 +38,7 @@
   }
   /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
   main { max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-inset)) 16px calc(40px + var(--offscreen, 0px)); }
-  header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 0 0 2px; color: var(--accent); }
+  header h1 { font-size: 19px; font-weight: 900; line-height: calc(19px * 1.4); margin: 0 0 2px; color: var(--accent); white-space: nowrap; }
   /* 제목 바로 아래에 등락률 줄을, 그 아래에 작성 시각 줄을 쓴다. 두 줄은 같은 크기의 회색 글씨로 쓰고, 작성 시각 줄은 제목과 등락률 줄 사이만큼 띄운다. 장 마감 후 등락률은 그날 리포트의 기준 가격에만 쓰이므로 괄호로 묶는다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다.
      제목 줄(지수 전환 단추와 달력 단추 포함)과 등락률 줄은 머리 상자(`#masthead`)로 묶어 화면을 내려도 화면 맨 위에 붙어 남게 한다. 상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 절 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다. 흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
   #masthead { position: sticky; top: calc(5px + var(--top-inset)); z-index: 4; }
@@ -52,7 +52,7 @@
                   opacity: 0; transition: opacity .15s; pointer-events: none; }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #masthead::before { background: var(--bg); } }
   #masthead.stuck::before { opacity: 1; }
-  /* 붙어 있는 머리 상자는 절 바로가기 알약과 같이 화면이 1.2초 동안 움직이지 않으면 0.8초에 걸쳐 서서히 감추고(`idle`), 화면을 내용의 아래쪽으로 내리면 바로 감추며(`idle fall`), 내용의 위쪽으로 화면을 올리면 0.4초에 걸쳐 다시 띄운다.
+  /* 붙어 있는 머리 상자는 절 바로가기 알약과 같이 화면이 1.2초 동안 움직이지 않으면 0.8초에 걸쳐 서서히 감추고(`idle`), 화면을 내용의 아래쪽으로 내리면 바로 감추며(`idle fall`), 내용의 위쪽으로 화면을 올리거나 뒤로 가기로 이 리포트에 돌아오면 0.4초에 걸쳐 다시 띄운다.
      상자에 투명도를 주면 띠의 흐림이 사라지므로 제목 줄·등락률 줄·띠의 투명도를 따로 낮춘다. 감춘 상자는 누를 수 없고, 달력 창이 열려 있으면 감추지 않는다. */
   #masthead { transition: visibility 0s; }
   #masthead > :is(header, #moves) { transition: opacity .4s ease; }
@@ -425,7 +425,7 @@
                     background: rgba(255, 255, 255, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
                     transition: transform .25s ease, height .25s ease, opacity .2s ease; }
   nav.jump .lever.drag { transition: none; background: rgba(255, 255, 255, .18); }
-  /* 화면이 1.2초 동안 움직이지 않으면 알약을 0.8초에 걸쳐 서서히 감추고(`idle`), 화면을 내용의 아래쪽으로 내리면 바로 감추며(`idle fall`), 내용의 위쪽으로 화면을 올리면 0.4초에 걸쳐 다시 띄운다. 감춘 알약은 누를 수 없다. */
+  /* 화면이 1.2초 동안 움직이지 않으면 알약을 0.8초에 걸쳐 서서히 감추고(`idle`), 화면을 내용의 아래쪽으로 내리면 바로 감추며(`idle fall`), 내용의 위쪽으로 화면을 올리거나 뒤로 가기로 이 리포트에 돌아오면 0.4초에 걸쳐 다시 띄운다. 감춘 알약은 누를 수 없다. */
   nav.jump { transition: opacity .4s ease, visibility 0s; }
   nav.jump.idle { opacity: 0; visibility: hidden; transition: opacity .8s ease, visibility 0s .8s; }
   nav.jump.idle.fall { transition: none; }
@@ -500,7 +500,7 @@
   addEventListener("scroll", stick, { passive: true });
   // 화면이 움직일 때마다 내용의 위쪽으로 8px 넘게 올라갔는지(`rising`), 아래쪽으로 8px 넘게 내려갔는지(`falling`) 정한다.
   // 올라간 거리는 마지막으로 올라간 뒤 가장 깊이 내려간 위치부터, 내려간 거리는 마지막으로 내려간 뒤 가장 얕게 올라간 위치부터 잰다. 문서 양 끝을 넘어 튕긴 위치는 문서 끝으로 센다.
-  // 머리 상자와 절 바로가기 알약은 같은 규칙으로 감추고 띄운다. 화면이 `STILL`ms 동안 움직이지 않으면 서서히 감추는 `idle`을, `falling`이면 바로 감추는 `idle fall`을 달고, 감춘 뒤에는 `rising`일 때만 다시 띄운다.
+  // 머리 상자와 절 바로가기 알약은 같은 규칙으로 감추고 띄운다. 화면이 `STILL`ms 동안 움직이지 않으면 서서히 감추는 `idle`을, `falling`이면 바로 감추는 `idle fall`을 달고, 감춘 뒤에는 `rising`일 때와 뒤로 가기로 돌아온 페이지가 `reveal`을 보낼 때만 다시 띄운다.
   // 이슈를 열고 닫을 때처럼 코드가 화면을 옮기는 동안은 사용자가 옮긴 것이 아니므로 `rising`과 `falling`을 모두 끄고, 옮긴 뒤의 위치부터 거리를 다시 잰다.
   // `hush`는 코드가 화면을 옮기기 시작할 때 부르고, 돌려받은 함수는 옮기기를 마치거나 사용자가 화면을 만져 멈출 때 부른다. 마지막 이동의 스크롤 사건까지 빼도록 두 프레임 뒤에 판정을 다시 켠다.
   const STILL = 1200;
@@ -537,10 +537,15 @@
       return;
     }
     if (masthead.classList.contains("idle") && !rising) return;
+    wakeMasthead();
+  }, { passive: true });
+  // 머리 상자를 띄우고 `STILL`ms 뒤에 감춘다. 뒤로 가기로 돌아온 페이지가 보내는 `reveal`에도 띄운다.
+  const wakeMasthead = () => {
     masthead.classList.remove("idle", "fall");
     clearTimeout(still);
     still = setTimeout(() => masthead.classList.toggle("idle", stick()), STILL);
-  }, { passive: true });
+  };
+  addEventListener("reveal", wakeMasthead);
   // 붙어 있는 머리 상자를 누르면 문서 맨 위로 올라간다. 지수 전환 단추·달력 단추와 달력 창을 누르면 그 단추의 동작만 한다.
   masthead.addEventListener("click", (event) => {
     if (!masthead.classList.contains("stuck") || event.target.closest("button, .cal-layer")) return;
@@ -565,7 +570,10 @@
   const depth = history.state?.depth ?? (+sessionStorage.getItem("depth") || 0);
   sessionStorage.removeItem("depth");
   history.replaceState({ ...history.state, depth }, "");
+  // 옮기기 직전의 화면 위치(`y`)도 자기 기록에 적는다. 브라우저는 리포트를 받아 그리기 전에 화면 위치를 되돌리려다 실패하므로, 되돌리기는 페이지가 맡는다.
+  history.scrollRestoration = "manual";
   const visit = (target) => {
+    history.replaceState({ ...history.state, y: scrollY }, "");
     sessionStorage.setItem("depth", depth + 1);
     const params = new URLSearchParams(location.search);
     params.set("r", target);
@@ -2047,6 +2055,14 @@
     });
   }
 
+  // 제목은 한 줄에 쓴다. 제목이 머리말 단추 왼쪽 폭을 넘으면 넘지 않을 때까지 글자 크기를 0.5px씩 줄이고, 15px보다 작게 줄이지는 않는다.
+  function fitTitle() {
+    const title = document.getElementById("title");
+    title.style.fontSize = "";
+    let size = parseFloat(getComputedStyle(title).fontSize);
+    while (title.scrollWidth > title.clientWidth && size > 15) title.style.fontSize = `${size -= .5}px`;
+  }
+
   // 머리말 단추의 세로 가운데를 맞출 제목 글자의 가운데 높이를 머리말 위쪽에서 잰 `--title-mid`로 적는다. 글줄 상자의 가운데는 글꼴마다 글자가 칠해진 높이의 가운데와 다르므로
   // 제목 글꼴로 글자의 윗끝과 아랫끝이 기준선에서 떨어진 거리를 재고, 제목 끝에 넣은 높이 없는 표식으로 기준선 높이를 잰다.
   function centerTitle() {
@@ -2073,7 +2089,7 @@
     const same = `${date.replaceAll("-", "")}-${other}`;
     const target = listing[same] ? same : latest(listing, other);
     const button = Object.assign(document.createElement("button"), { className: "index-switch" });
-    button.append(Object.assign(document.createElement("span"), { textContent: listing[target].title.replace(/ 리포트$/, "") }));
+    button.append(Object.assign(document.createElement("span"), { textContent: listing[target].title.replace(/ (투자 )?리포트$/, "") }));
     button.setAttribute("aria-label", `${listing[target].title} 열기`);
     button.style.setProperty("--index", INDEX[other][0]);
     button.style.setProperty("--index-to", INDEX[other][1]);
@@ -2097,8 +2113,10 @@
   }).then(([body, listing]) => {
     const entry = listing[key];
     if (entry) {
-      document.getElementById("title").textContent = entry.title;
-      document.title = `${entry.title} ${entry.day}`;
+      // 제목은 "26년 11월 13일 나스닥 리포트"처럼 리포트 날짜를 앞에 붙여 쓴다.
+      const [year, month, mday] = entry.date.split("-");
+      document.getElementById("title").textContent = `${year.slice(2)}년 ${+month}월 ${+mday}일 ${entry.title}`;
+      document.title = document.getElementById("title").textContent;
       // 처음 만든 날이 리포트 날짜와 같으면 시각만, 다르면 월/일까지 적는다.
       const [day, time] = entry.written.split(" ");
       const when = day === entry.date ? time : `${+day.slice(5, 7)}/${+day.slice(8)} ${time}`;
@@ -2114,8 +2132,9 @@
     report.innerHTML = body;
     calendar(listing, date);
     switcher(listing, date);
+    fitTitle();
     centerTitle();
-    document.fonts?.ready.then(centerTitle);
+    document.fonts?.ready.then(() => { fitTitle(); centerTitle(); });
     figures(date);
     fold("1개월 지수 방향 예측");
     indicators();
@@ -2133,6 +2152,24 @@
     // 손가락을 움직이지 않고 한 번 누르면 닫는다.
     // 이슈 목록 상자의 썸네일은 누르면 이슈를 열므로 띄우지 않는다.
     report.querySelectorAll("img:not(.thumb)").forEach((img) => img.addEventListener("click", () => viewer(img)));
+    // 뒤로 가기로 돌아온 페이지는 머리 상자와 절 바로가기 알약을 띄워(`reveal`) 어느 날짜의 리포트로 돌아왔는지 보이게 한다.
+    // 페이지를 새로 열었으면 그림을 모두 받아 문서 높이가 정해진 뒤 떠나기 전 화면 위치로 옮기고 띄운다. 그 사이에 사용자가 화면을 움직였으면 옮기지 않는다.
+    // 옮긴 뒤에도 위쪽 카드가 다 그려지며 늘어나면 브라우저가 보던 내용을 제자리에 두려고 화면을 옮기므로, `STILL`ms 동안은 `hush`로 이 이동을 사용자가 옮긴 것으로 세지 않는다.
+    // 그 사이에 사용자가 화면을 만지면 바로 다시 센다.
+    // 브라우저가 떠나기 전 페이지를 그대로 보관했다가 되살렸으면(`persisted`) 위치는 그대로 두고 띄우기만 한다.
+    if (performance.getEntriesByType("navigation")[0]?.type === "back_forward") {
+      Promise.all([...report.querySelectorAll("img")].map((img) => img.complete
+        || new Promise((done) => { img.addEventListener("load", done, { once: true }); img.addEventListener("error", done, { once: true }); })))
+        .then(() => {
+          const done = hush();
+          if (scrollY === 0 && history.state?.y) scrollTo(0, history.state.y);
+          dispatchEvent(new Event("reveal"));
+          setTimeout(done, STILL);
+          addEventListener("touchstart", done, { once: true, passive: true });
+          addEventListener("wheel", done, { once: true, passive: true });
+        });
+    }
+    addEventListener("pageshow", (event) => { if (event.persisted) dispatchEvent(new Event("reveal")); });
   }).catch(() => fail("리포트를 찾지 못했다."));
   // 미니 앱 안에서 다른 리포트로 옮겨 온 페이지(`depth`가 0보다 크면)는 화면 왼쪽 끝 18px 띠에서 오른쪽으로 밀어 앞 리포트로 돌아간다.
   // 띠는 위아래 스크롤은 브라우저에 맡기고 가로 이동만 받는다. 미는 동안 손가락 높이에 뒤로 가기 원이 따라 나오고, 80px을 넘기면 원이 밝아지며
@@ -2219,12 +2256,13 @@
       lever.style.transform = `translateY(${button.offsetTop}px)`;
     };
     let pending = false, held = null, release = 0, drag = null, idle = 0;
-    // 알약을 띄우고 `STILL`ms 뒤에 감춘다. 알약을 끌고 있으면 감추지 않고, 손을 뗄 때 다시 시간을 센다.
+    // 알약을 띄우고 `STILL`ms 뒤에 감춘다. 알약을 끌고 있으면 감추지 않고, 손을 뗄 때 다시 시간을 센다. 뒤로 가기로 돌아온 페이지가 보내는 `reveal`에도 띄운다.
     const wake = () => {
       nav.classList.remove("idle", "fall");
       clearTimeout(idle);
       idle = setTimeout(() => { if (!drag) nav.classList.add("idle"); }, STILL);
     };
+    addEventListener("reveal", wake);
     addEventListener("scroll", () => {
       if (falling) {
         if (!drag) { clearTimeout(idle); nav.classList.add("idle", "fall"); }
