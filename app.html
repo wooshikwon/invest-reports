@@ -1857,6 +1857,89 @@
   const KNOB = { fill: "#EAEAEA", stroke: "#1d1e21", "stroke-width": 3 }, DIM = 0.35;
   // 글씨·축 색과 종가 선 색. 주가와 예측 카드와 일별 선 그림이 같이 쓴다.
   const DIMS = "#7A828C", PRICE = "#C9CDD3";
+  // 글자 폭의 어림값. 그림을 화면에 붙이기 전에 그리므로 글자를 재지 않고, 영숫자는 글자 크기의 0.6배, 한글은 1배로 센다.
+  const textWidth = (text, size) => [...text].reduce((sum, c) => sum + (/[\x00-\x7f]/.test(c) ? 0.6 : 1) * size, 0);
+  // 지도 카드의 경계 파일(`maps/{view}.json`)은 지도 카드가 처음 그려질 때 한 번 받는다.
+  const MAPS = {};
+  const mapOf = (view) => (MAPS[view] ||= fetch(`maps/${view}.json`).then((r) => r.json()));
+  // 그림 높이가 `FIGURE`보다 낮으면 같은 높이의 칸 가운데에 그리고, 높으면 그림 높이대로 칸을 늘린다.
+  const frame = (height) => (height <= FIGURE ? canvas(height) : shape("svg", { viewBox: `0 0 320 ${height}` }));
+  // 범례: [이름, 색, 모양, 불투명도]를 그림 위 `right`에서 왼쪽으로 적는다. 모양은 네모(`box`), 점(`dot`), 세로 눈금(`tick`)이다.
+  const legend = (s, items, right = 320) => {
+    let x = right;
+    [...items].reverse().forEach(([name, color, mark, opacity = 1]) => {
+      s.append(shape("text", { x, y: 14, "text-anchor": "end", "font-size": 11.5, fill: "#A7ABB0" }, name));
+      x -= textWidth(name, 11.5);
+      s.append(mark === "dot" ? shape("circle", { cx: x - 9, cy: 10, r: 4.5, fill: color, opacity })
+        : mark === "tick" ? shape("line", { x1: x - 9, x2: x - 9, y1: 3, y2: 17, stroke: color, "stroke-width": 2, opacity })
+        : shape("rect", { x: x - 14, y: 5, width: 9, height: 9, rx: 2, fill: color, opacity }));
+      x -= 26;
+    });
+  };
+  // 지도 카드의 본문. 미국 주 지도는 미국 전체를, 중동 지도는 지점과 칠한 지역을 모두 담는 가장 좁은 범위를 폭 320, 높이 `tall`에 그린다.
+  // 칠한 지역은 분류 색으로 칠하고 이름이 지역 안에 들어가면 이름을 적는다. 지점은 분류 색 점을 찍고, 오른쪽·왼쪽·위·아래 가운데
+  // 다른 글자와 점에 겹치지 않는 첫 자리에 이름을 적는다. 중동 지도는 칠하지 않은 나라와 바다의 이름을 들어가고 겹치지 않을 때만 흐리게 적는다.
+  const drawMap = (s, { view, categories, regions, points = [] }, data, top, tall) => {
+    const P = data.projection, at = (lon, lat) => [(lon - P.west) * P.kx, (P.north - lat) * P.ky], fill = Object.fromEntries(regions);
+    let box = [0, 0, data.width, data.height];
+    if (P) {
+      const xs = [], ys = [];
+      points.forEach(([, lon, lat]) => { const [x, y] = at(lon, lat); xs.push(x); ys.push(y); });
+      regions.forEach(([code]) => { const b = data.shapes[code].box; xs.push(b[0], b[2]); ys.push(b[1], b[3]); });
+      const pad = 25, left = Math.min(...xs), right = Math.max(...xs), up = Math.min(...ys), down = Math.max(...ys);
+      const w = Math.min(data.width, data.height * 320 / tall, Math.max(100, right - left + pad * 2, (down - up + pad * 2) * 320 / tall)), h = w * tall / 320;
+      box = [Math.min(data.width - w, Math.max(0, (left + right - w) / 2)), Math.min(data.height - h, Math.max(0, (up + down - h) / 2)), w, h];
+    }
+    const k = Math.min(320 / box[2], tall / box[3]), ox = (320 - box[2] * k) / 2, oy = top + (tall - box[3] * k) / 2;
+    const X = (x) => ox + (x - box[0]) * k, Y = (y) => oy + (y - box[1]) * k;
+    const inner = s.appendChild(shape("svg", { x: 0, y: top, width: 320, height: tall, viewBox: `${box[0] - ox / k} ${box[1] - (oy - top) / k} ${320 / k} ${tall / k}` }));
+    const codes = Object.keys(data.shapes).sort((a, b) => (a in fill) - (b in fill));
+    codes.forEach((code) => {
+      const on = code in fill, path = shape("path", { d: data.shapes[code].d, fill: on ? categories[fill[code]][1] : "#2a2c30", "fill-opacity": on ? 0.78 : 1,
+        stroke: P && !on ? "#45484e" : "#171719", "stroke-width": 0.8, "vector-effect": "non-scaling-stroke" });
+      path.append(shape("title", {}, on ? `${data.shapes[code].name} · ${categories[fill[code]][0]}` : data.shapes[code].name));
+      inner.append(path);
+    });
+    // 글자와 점이 차지한 상자 [왼쪽, 위, 오른쪽, 아래]. 새 글자는 이 상자들과 지도 밖에 겹치지 않을 때만 적는다.
+    const taken = [], free = (b) => b[0] >= 2 && b[2] <= 318 && b[1] >= top && b[3] <= top + tall
+      && !taken.some((o) => b[0] < o[2] && o[0] < b[2] && b[1] < o[3] && o[1] < b[3]);
+    const label = (x, y, anchor, size, text) => {
+      const w = textWidth(text, size), x0 = anchor === "start" ? x : anchor === "end" ? x - w : x - w / 2;
+      return [x0 - 1, y - size * 0.82, x0 + w + 1, y + size * 0.22];
+    };
+    const spots = points.map(([name, lon, lat, c]) => {
+      const [x, y] = at(lon, lat), cx = X(x), cy = Y(y);
+      taken.push([cx - 6, cy - 6, cx + 6, cy + 6]);
+      return [name, cx, cy, c];
+    });
+    spots.forEach(([name, cx, cy]) => {
+      const tries = [[cx + 9, cy + 4, "start"], [cx - 9, cy + 4, "end"], [cx, cy - 10, "middle"], [cx, cy + 19, "middle"]];
+      const [x, y, anchor] = tries.find(([x, y, anchor]) => free(label(x, y, anchor, 12, name))) || tries[0];
+      taken.push(label(x, y, anchor, 12, name));
+      s.append(shape("text", { x, y, "text-anchor": anchor, "font-size": 12, "font-weight": 700, fill: "#EAEAEA",
+                               stroke: "#171719", "stroke-width": 3, "stroke-linejoin": "round", "paint-order": "stroke" }, name));
+    });
+    spots.forEach(([name, cx, cy, c]) => {
+      const dot = shape("circle", { cx, cy, r: 4.5, fill: categories[c][1], stroke: "#171719", "stroke-width": 2 });
+      dot.append(shape("title", {}, `${name} · ${categories[c][0]}`));
+      s.append(dot);
+    });
+    const names = [...codes.filter((code) => code in fill).map((code) => [code, 11, "#171719", 700]),
+                   ...(P ? codes.filter((code) => !(code in fill)).map((code) => [code, 10.5, DIMS, 400]) : [])];
+    names.forEach(([code, size, ink, weight]) => {
+      const { name, box: b, center } = data.shapes[code], cx = X(center[0]), cy = Y(center[1]) + size * 0.35, w = textWidth(name, size);
+      const area = label(cx, cy, "middle", size, name);
+      if ((b[2] - b[0]) * k < w + 4 || (b[3] - b[1]) * k < size + 3 || !free(area)) return;
+      taken.push(area);
+      s.append(shape("text", { x: cx, y: cy, "text-anchor": "middle", "font-size": size, "font-weight": weight, fill: ink }, name));
+    });
+    (data.seas || []).forEach(([name, x, y]) => {
+      const cx = X(x), cy = Y(y) + 4, area = label(cx, cy, "middle", 10.5, name);
+      if (!free(area)) return;
+      taken.push(area);
+      s.append(shape("text", { x: cx, y: cy, "text-anchor": "middle", "font-size": 10.5, fill: "#56657a" }, name));
+    });
+  };
   const GAUGES = {
     // 반원 속도계: 구간 경계값을 바깥에 적는다.
     semi({ min, max, zones, value, ends }) {
@@ -1968,12 +2051,11 @@
     bars({ items = [], groups, min, max }) {
       const x0 = 6, x1 = 314, top = items.length > 1 ? 44 : 30, s = canvas(FIGURE), n = groups[0][1].length;
       const slot = (x1 - x0) / groups.length, gap = 4, w = Math.min(40, (slot * 0.62 - gap * (n - 1)) / n);
-      const width = (text, size) => [...text].reduce((sum, c) => sum + (/[\x00-\x7f]/.test(c) ? 0.6 : 1) * size, 0);
-      const wrap = groups.some(([name]) => name.includes(" ") && width(name, 12) > slot - 6), bottom = wrap ? 134 : 146;
+      const wrap = groups.some(([name]) => name.includes(" ") && textWidth(name, 12) > slot - 6), bottom = wrap ? 134 : 146;
       const Y = (v) => top + (bottom - top) * (max - Math.min(max, Math.max(min, v))) / (max - min), zero = Y(0);
       const room = n > 1 ? w + gap : slot - 4, texts = groups.flatMap(([, bars]) => bars.map(([, text]) => text));
-      const short = texts.some((text) => width(text, 12.5) > room), bare = (text) => (short ? text.replace(/[^\d.%]+$/, "") : text);
-      const lit = (g, k) => (n > 1 ? k === n - 1 : g === groups.length - 1), every = n > 1 || texts.every((text) => width(bare(text), 12.5) <= room);
+      const short = texts.some((text) => textWidth(text, 12.5) > room), bare = (text) => (short ? text.replace(/[^\d.%]+$/, "") : text);
+      const lit = (g, k) => (n > 1 ? k === n - 1 : g === groups.length - 1), every = n > 1 || texts.every((text) => textWidth(bare(text), 12.5) <= room);
       groups.forEach(([name, bars], g) => {
         const left = x0 + slot * g + (slot - (w * n + gap * (n - 1))) / 2;
         bars.forEach(([v, text], k) => {
@@ -1991,16 +2073,7 @@
                                                            "text-anchor": "middle", "font-size": 12, fill: "#A7ABB0" }, line)));
       });
       s.append(shape("line", { x1: x0, y1: zero, x2: x1, y2: zero, stroke: "#7A828C", "stroke-width": 1.2 }));
-      if (items.length > 1) {
-        let x = x1;
-        [...items].reverse().forEach((item, j) => {
-          const on = j === 0, label = shape("text", { x, y: 14, "text-anchor": "end", "font-size": 11.5, fill: "#A7ABB0" }, item);
-          s.append(label);
-          x -= label.getComputedTextLength?.() || item.length * 11.5;
-          s.append(shape("rect", { x: x - 14, y: 5, width: 9, height: 9, rx: 2, fill: on ? "#EAEAEA" : "#7A828C", opacity: on ? 1 : 0.55 }));
-          x -= 26;
-        });
-      }
+      if (items.length > 1) legend(s, items.map((item, k) => (k === n - 1 ? [item, "#EAEAEA", "box"] : [item, "#7A828C", "box", 0.55])), x1);
       return s;
     },
     // 표: `columns`는 열 이름, `rows`는 줄마다 칸 글자다. `focus` 열은 흰 글씨로 쓴다.
@@ -2034,6 +2107,79 @@
       s.append(shape("line", { x1: x0, y1: mid, x2: x1, y2: mid, stroke: "#7A828C", "stroke-width": 1.2 }));
       [[Y(step), "인상"], [Y(-step), "인하"]].forEach(([y, name]) =>
         s.append(shape("text", { x: x1 + 10, y: y + 4, "font-size": 11, fill: "#7A828C" }, name)));
+      return s;
+    },
+    // 사건 연표: 사건마다 [날짜, 이름]이고 위에서 아래로 앞선 사건부터 적는다. 세로선 위에 사건마다 점을 찍고, 마지막 사건은 흰 점과 흰 글씨로,
+    // 앞선 사건은 회색으로 적는다. 날짜는 세로선 왼쪽에 끝을 맞춰 적고, 사건 사이 간격은 사건이 많을수록 좁힌다.
+    timeline({ events }) {
+      const n = events.length, gap = Math.min(34, 150 / Math.max(1, n - 1)), top = 12, s = frame(top * 2 + gap * (n - 1));
+      const x = 6 + Math.max(...events.map(([day]) => textWidth(day, 12))) + 14, Y = (i) => top + gap * i;
+      s.append(shape("line", { x1: x, x2: x, y1: Y(0), y2: Y(n - 1), stroke: DIMS, "stroke-width": 1.5, opacity: 0.55 }));
+      events.forEach(([day, name], i) => {
+        const last = i === n - 1;
+        s.append(shape("text", { x: x - 14, y: Y(i) + 4, "text-anchor": "end", "font-size": 12, fill: last ? "#EAEAEA" : DIMS }, day));
+        s.append(shape("circle", last ? { cx: x, cy: Y(i), r: 5.5, fill: "#EAEAEA", stroke: "#1d1e21", "stroke-width": 2 }
+          : { cx: x, cy: Y(i), r: 4, fill: DIMS, stroke: "#1d1e21", "stroke-width": 2 }));
+        s.append(shape("text", { x: x + 14, y: Y(i) + 4.5, "font-size": 13, "font-weight": last ? 700 : 400, fill: last ? "#EAEAEA" : "#A7ABB0" }, name));
+      });
+      return s;
+    },
+    // 확률 막대: 결과마다 [이름, 값, 글자, 이전 값, 변화 글자]이고, 줄마다 위에 이름과 값을, 아래에 0에서 100까지의 막대를 그린다.
+    // 값이 가장 큰 결과는 흰색, 나머지는 회색이다. 이전 값이 있으면 막대 위에 세로 눈금을 긋고 값 앞에 변화 글자를 적으며, 그림 위에 범례를 적는다.
+    probability({ before, outcomes }) {
+      const x0 = 6, x1 = 314, row = 46, head = before ? 30 : 4, s = frame(head + row * outcomes.length - 10);
+      const X = (v) => x0 + (x1 - x0) * Math.min(100, Math.max(0, v)) / 100, lead = Math.max(...outcomes.map(([, v]) => v));
+      outcomes.forEach(([name, v, text, prior, change], i) => {
+        const y = head + row * i, on = v === lead, ink = on ? "#EAEAEA" : "#A7ABB0";
+        s.append(shape("text", { x: x0, y: y + 13, "font-size": 12.5, fill: ink }, name));
+        s.append(shape("text", { x: x1, y: y + 13, "text-anchor": "end", "font-size": 12.5, "font-weight": 700, fill: ink }, text));
+        if (change) s.append(shape("text", { x: x1 - textWidth(text, 12.5) - 8, y: y + 13, "text-anchor": "end", "font-size": 12, fill: DIMS }, change));
+        s.append(shape("rect", { x: x0, y: y + 22, width: x1 - x0, height: 10, rx: 5, fill: "#ffffff", opacity: 0.08 }));
+        s.append(shape("rect", { x: x0, y: y + 22, width: Math.max(10, X(v) - x0), height: 10, rx: 5, fill: on ? "#EAEAEA" : DIMS, opacity: on ? 1 : 0.55 }));
+        if (prior != null) [["#1d1e21", 4.5], ["#A7ABB0", 2]].forEach(([stroke, width]) =>
+          s.append(shape("line", { x1: X(prior), x2: X(prior), y1: y + 17, y2: y + 37, stroke, "stroke-width": width })));
+      });
+      if (before) legend(s, [["현재", "#EAEAEA", "box"], [before, "#A7ABB0", "tick"]], x1);
+      return s;
+    },
+    // 예상 대비 실제: 항목마다 {label, actual, expected, range, min, max, ends}이고, 가로 막대 위에 실제 값을 흰 점으로, 예상 값을 세로 눈금으로,
+    // 예상 범위를 회색 띠로 그린다. 실제 값 글자는 점 위에, 예상 값 글자는 눈금 아래에 적는다. 축 양 끝 값은 예상 값 글자와 겹치지 않을 때만 적는다.
+    bullet({ measures }) {
+      const x0 = 6, x1 = 314, named = measures.some((m) => m.label), block = (named ? 18 : 0) + 60, head = 30;
+      const s = frame(head + (block + 14) * measures.length - 14), within = (x, w) => Math.min(x1 - w / 2, Math.max(x0 + w / 2, x));
+      measures.forEach(({ label, actual, expected, range, min, max, ends }, i) => {
+        const X = (v) => x0 + (x1 - x0) * (Math.min(max, Math.max(min, v)) - min) / (max - min), y = head + (block + 14) * i, t = y + (named ? 18 : 0);
+        if (label) s.append(shape("text", { x: x0, y: y + 12, "font-size": 12.5, "font-weight": 700, fill: "#A7ABB0" }, label));
+        s.append(shape("rect", { x: x0, y: t + 24, width: x1 - x0, height: 12, rx: 6, fill: "#ffffff", opacity: 0.08 }));
+        if (range) s.append(shape("rect", { x: X(range[0]), y: t + 24, width: Math.max(4, X(range[1]) - X(range[0])), height: 12, rx: 6, fill: DIMS, opacity: 0.55 }));
+        const below = expected ? [X(expected[0]), `예상 ${expected[1]}`] : range ? [(X(range[0]) + X(range[1])) / 2, `예상 ${range[2]}`] : null;
+        if (expected) [["#1d1e21", 4.5], ["#A7ABB0", 2]].forEach(([stroke, width]) =>
+          s.append(shape("line", { x1: X(expected[0]), x2: X(expected[0]), y1: t + 19, y2: t + 41, stroke, "stroke-width": width })));
+        s.append(shape("circle", { cx: X(actual[0]), cy: t + 30, r: 6, ...KNOB, "stroke-width": 2 }));
+        const w = textWidth(actual[1], 12.5);
+        s.append(shape("text", { x: within(X(actual[0]), w), y: t + 14, "text-anchor": "middle", "font-size": 12.5, "font-weight": 700, fill: "#EAEAEA" }, actual[1]));
+        let free = [x0, x1];
+        if (below) {
+          const bw = textWidth(below[1], 12), bx = within(below[0], bw);
+          s.append(shape("text", { x: bx, y: t + 56, "text-anchor": "middle", "font-size": 12, fill: "#A7ABB0" }, below[1]));
+          free = [bx - bw / 2 - 8, bx + bw / 2 + 8];
+        }
+        if (ends[0] && (!below || x0 + textWidth(ends[0], 11) < free[0]))
+          s.append(shape("text", { x: x0, y: t + 56, "font-size": 11, fill: DIMS }, ends[0]));
+        if (ends[1] && (!below || x1 - textWidth(ends[1], 11) > free[1]))
+          s.append(shape("text", { x: x1, y: t + 56, "text-anchor": "end", "font-size": 11, fill: DIMS }, ends[1]));
+      });
+      legend(s, [["실제", "#EAEAEA", "dot"], ...(measures.some((m) => m.expected) ? [["예상", "#A7ABB0", "tick"]] : []),
+                 ...(measures.some((m) => m.range) ? [["예상 범위", DIMS, "box", 0.55]] : [])], x1);
+      return s;
+    },
+    // 지도: `view`의 경계 파일을 받아 그림 위 범례 아래에 그린다. `categories`는 [이름, 색], `regions`는 [지역 코드, 분류 번호],
+    // `points`는 [이름, 경도, 위도, 분류 번호]다. 경계 파일을 받는 동안 그림에 `data-pending`을 단다.
+    map(figure) {
+      const top = 28, tall = figure.view === "us-states" ? 200 : 220, s = shape("svg", { viewBox: `0 0 320 ${top + tall}`, "data-pending": "" });
+      const used = new Set(figure.regions.map(([, k]) => k));
+      legend(s, figure.categories.map(([name, color], k) => [name, color, used.has(k) ? "box" : "dot"]));
+      mapOf(figure.view).then((data) => drawMap(s, figure, data, top, tall)).finally(() => s.removeAttribute("data-pending"));
       return s;
     },
   };
