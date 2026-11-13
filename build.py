@@ -29,7 +29,7 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 
 `미국 거시 지표` 절의 지표 소제목에는 그날 지수 폴더의 `market-data.json`·`macro-data.json`에서 뽑은 카드 값을 `data-card`로 단다.
 하이일드 스프레드는 앞 12주 지수 폴더의 같은 JSON에서 주마다 마지막 값을 함께 뽑아 막대 그림으로 그린다.
-유가는 그날 `market-data.json` `market.WTI`의 주별 정산가(`weekly_close`)를 선 그림으로 그린다.
+유가는 그날 `market-data.json` `market.WTI`의 지난 12주 일별 정산가(`daily_close`)를 선 그림으로 그린다.
 카드 값은 탭 이름, 값과 단위, 상태 이름과 색, 기준일(미국 장이 마감한 한국 날짜), 보조 값을 적은 한 줄, 그림 종류와 그림 입력, 물음표 단추의 설명이다.
 값이 없는 지표에는 카드 값을 달지 않는다.
 `invest-reports` 미니 앱은 카드 값으로 지표마다 카드를 그려 한 장씩 넘기게 하고, 카드 값이 없는 소제목은 지운다.
@@ -111,7 +111,6 @@ UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#ffffff"  # 오름·내림·중립 �
 # 지표 카드의 구간. [구간 끝값, 색, 구간 이름]이고, 지금 값이 든 구간의 이름과 색이 카드의 상태다.
 FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, DOWN, "공포"], [55, NEUTRAL, "중립"], [75, UP, "탐욕"], [100, UP, "극단 탐욕"]]
 WEEKS = 12  # 하이일드 스프레드의 막대 그림이 거슬러 그리는 주 수
-OIL_STEP = 10  # 유가 선 그림의 점선 가로선 간격(달러). 세로축 아래위 끝도 이 간격의 배수로 잡는다
 RATE_MOVE_BP = 12.5  # 다음 회의까지 누적 변화가 이 bp 이상이면 인상 예상, 음수로 이 값 이하면 인하 예상
 RATE_STEP_BP = 25  # 연준이 기준금리를 한 번에 바꾸는 폭. 금리 경로 그림의 세로축 상한을 이 폭의 배수로 잡고, 이 폭의 위아래 높이에 점선 가로선을 긋는다
 
@@ -529,7 +528,7 @@ def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:
     path = (macro.get("policy") or {}).get("연방기금 선물 내재 경로") or {}
     found = {
         "공포·탐욕 지수": (as_of, macro.get("fear_greed"), "score"),
-        "WTI 유가": (oil.get("date"), oil, "weekly_close"),
+        "WTI 유가": (oil.get("date"), oil, "daily_close"),
         "연준 금리 경로": (path.get("date"), path, "meetings"),
         "하이일드 스프레드": (high_yield.get("date"), high_yield, "pct_1y"),
     }
@@ -568,7 +567,7 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
     반원 속도계는 작은 값을 왼쪽에, 큰 값을 오른쪽에 둔다.
     주별 막대 그림(`columns`)은 가로축이 시간이므로 지난주를 왼쪽에, 오늘을 오른쪽에 둔다. 연준 금리 경로(`diverge`)도 가로축이 시간이므로 가까운 회의를 왼쪽에 두고, 0 가로선 위에 인상을, 아래에 인하를 둔다.
     금리 경로의 세로축 상한(`max`)은 가장 큰 누적 변화를 금리 한 번 변경 폭(`RATE_STEP_BP`)의 배수로 올린 값이고, 그림은 그 폭(`step`)의 위아래 높이에 점선 가로선을 긋는다.
-    유가의 선 그림(`line`)은 원값의 주별 정산가를 지난주부터 오늘까지 왼쪽에서 오른쪽으로 잇는다. 정산가 날짜도 미국 장의 날짜이므로 하루를 더해 적는다.
+    유가의 일별 선 그림(`daily`)은 원값의 일별 정산가를 앞 날짜부터 오늘까지 왼쪽에서 오른쪽으로 잇는다. 정산가 날짜도 미국 장의 날짜이므로 하루를 더해 적는다.
     `help`는 카드 이름 뒤의 물음표 단추가 띄우는 설명 상자의 문단 목록이고, 지표를 무엇으로 계산하는지와 값을 읽는 법을 쓴다."""
     when = month_day(date)
     if name == "공포·탐욕 지수":
@@ -594,17 +593,14 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
     if name == "WTI 유가":
         level = value["value"]
         guide = ["미국 텍사스산 원유(WTI)의 선물 가격이에요. 뉴욕상업거래소에서 거래하는 가장 가까운 만기 계약의 1배럴 값을 달러로 적어요. "
-                 "카드의 값은 CME가 발표한 그날의 정산가이고, 그림은 지난 12주 동안 주마다 마지막 정산가를 이어 그려요.",
+                 "카드의 값은 CME가 발표한 그날의 정산가이고, 그림은 지난 12주 동안 날마다의 정산가를 이어 그려요.",
                  "유가가 오르면 기업의 연료비와 운송비가 늘고 소비자 물가도 올라요. 물가가 오르면 연준이 기준금리를 내리기 어려워져 주가에 부정적이에요. "
                  "상태의 1년 상위 %는 지난 1년 가운데 오늘보다 유가가 높았던 날의 비율이에요."]
-        prices = [price for _, price in value["weekly_close"]]
-        low, high = math.floor(min(prices) / OIL_STEP) * OIL_STEP, math.ceil(max(prices) / OIL_STEP) * OIL_STEP
-        points = [[month_day((dt.date.fromisoformat(day) + dt.timedelta(days=1)).isoformat()), price, f"{price:.2f}"]
-                  for day, price in value["weekly_close"]]
+        points = [[(dt.date.fromisoformat(day) + dt.timedelta(days=1)).isoformat(), price, f"${price:.2f}"]
+                  for day, price in value["daily_close"]]
         return {"tab": "유가", "help": guide, "asof": f"WTI 정산가 · {when}", "value": f"{level:.2f}", "unit": "달러",
                 "state": year_rank(value["pct_1y"]),
-                "figure": {"type": "line", "points": points, "min": low, "max": high,
-                           "lines": [[step, f"{step}달러"] for step in range(low, high + 1, OIL_STEP)]}}
+                "figure": {"type": "daily", "points": points}}
     meetings = value["meetings"][:3]
     first = meetings[0]
     month = f"{int(first['meeting'][5:7])}월"
