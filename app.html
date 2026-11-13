@@ -238,12 +238,14 @@
   /* 같은 이슈를 다룬 앞 날짜 리포트가 있으면 이슈 그림과 이슈 해설 말머리 사이에 히스토리 말머리와 이슈 목록 상자 같은 연한 둥근 상자를 둔다. 상자에는 줄마다 날짜와
      그날 이슈 해설 소제목을 오늘부터 앞 날짜 순으로 쓰고, 줄 사이에 옅은 선을 긋는다. 보고 있는 날짜의 줄은 본문 색 굵은 글씨로, 나머지 줄은 흐린 글씨로 쓴다. 누르고 있는 줄은 3% 줄인다.
      최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝에 지수 색으로 칠하고 위로 갈수록 투명해지는 띠와 펼침 단추를 둔다. 펼치면 띠를 지우고 줄 목록의 높이를
-     다섯 줄과 여섯째 줄 윗부분까지 늘리며, 그보다 많은 줄은 목록 안에서 스크롤해 본다. */
+     다섯 줄과 여섯째 줄 윗부분까지 늘리며, 그보다 많은 줄(`long`)은 목록 안에서 스크롤해 본다. 줄이 여섯 이하면 목록을 스크롤 상자로 만들지 않는다.
+     iOS는 스크롤 상자 위에 겹친 뒤로 가기 띠의 가로 밀기를 그 상자의 스크롤로 가져가 끊으므로, 뒤로 가기 띠를 누르고 있는 동안(`edging`)은 목록 스크롤을 멈춘다. */
   .issue-page > div.history { margin-top: 8px; padding: 4px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); overflow: hidden; }
   .issue-page > div.history + h4 { margin-top: 26px; }
   .history .rows { position: relative; overflow: hidden; }
-  .history .rows.open { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+  .history .rows.open.long { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
   .history .rows.open::-webkit-scrollbar { display: none; }
+  :root.edging .history .rows.open.long { overflow-y: hidden; }
   .history .rows.shut > .entry:nth-child(n + 4) { display: none; }
   .history .unfold { position: relative; isolation: isolate; display: flex; align-items: center; justify-content: center; gap: 6px; width: calc(100% + 36px); margin: 0 -18px -4px;
     padding: 14px 0 12px; border: 0; background: none; color: var(--dim); font: inherit; font-size: 13px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
@@ -1428,6 +1430,7 @@
       const open = () => {
         list.classList.remove("shut");
         list.classList.add("open");
+        list.classList.toggle("long", list.children.length > 6);
         unfold.hidden = true;
         list.style.height = `${reach()}px`;
       };
@@ -2413,7 +2416,7 @@
   // 이슈 화면은 띠를 48px로 넓히고, 앞 페이지가 없으면(주소로 바로 연 이슈 화면) 이슈 목록 단추처럼 같은 리포트의 리포트 화면을 연다.
   // 띠는 손가락이 처음 6px 움직인 방향으로 할 일을 정한다. 가로로 움직인 거리가 세로의 0.6배 이상이면 뒤로 가기로 받고 페이지 스크롤을 막는다.
   // 막지 않으면 스크롤할 여지가 있는 본문 가운데에서 손가락이 조금만 비스듬히 움직여도 브라우저가 스크롤을 시작해 밀기를 끊는다.
-  // 그보다 세로로 움직이면 스크롤을 브라우저에 맡기고 그 손짓은 더 보지 않는다. 미는 동안 손가락 높이에 뒤로 가기 원이 따라 나오고, 80px을 넘기면 원이 밝아지며
+  // 그보다 세로로 움직이면 스크롤을 브라우저에 맡기고 그 손짓은 더 보지 않는다. 띠를 누르고 있는 동안은 뿌리에 `edging`을 달아 띠 아래 히스토리 목록의 스크롤을 멈춘다. 미는 동안 손가락 높이에 뒤로 가기 원이 따라 나오고, 80px을 넘기면 원이 밝아지며
   // 선택 변경 진동을 낸다. 80px을 넘긴 채 손을 떼면 앞 페이지로 돌아가고, 못 넘기면 원을 거둔다. 움직이지 않고 누른 곳은 띠 아래 요소를 누른 것으로 넘긴다.
   if (depth > 0 || query.get("issue")) {
     const edge = Object.assign(document.createElement("div"), { className: "back-edge" });
@@ -2431,6 +2434,7 @@
       const touch = event.touches[0];
       start = { x: touch.clientX, y: touch.clientY, moved: false, back: null };
       ready = false;
+      document.documentElement.classList.add("edging");
       ring.classList.remove("ready", "rest");
     }, { passive: true });
     edge.addEventListener("touchmove", (event) => {
@@ -2454,6 +2458,7 @@
       if (!start) return;
       const { moved } = start, touch = event.changedTouches[0];
       start = null;
+      document.documentElement.classList.remove("edging");
       ring.classList.add("rest");
       if (ready) {
         if (depth > 0) return history.back();
