@@ -52,8 +52,8 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `nodes`에 오늘 `id`가 든 이슈이고, 내용은 그날 공개본 `report.html`의 이슈 조각을 그대로 쓴다. 템플릿에는 오늘을 포함한 모든 날짜의
 날짜와 이슈 해설 소제목을 날짜 순으로 적고, 오늘 항목에는 내용을 넣지 않는다. 앞 날짜 이슈가 없는 이슈에는 템플릿을 넣지 않는다.
 `invest-reports` 미니 앱은 템플릿으로 이슈 그림과 이슈 해설 사이에 오늘부터 앞 날짜 순으로 히스토리 상자를 그리고, 소제목을 누르면 이슈 문단을 그날의 내용으로 바꾼다.
-번호 붙은 이슈 소제목 뒤에는 리포트 폴더 `assets/issue-{번호}.webp`가 있을 때만 그 그림과
-`AI 생성 이미지` 캡션을 넣는다. 그림은 `run-with-notify.sh`가 ⑨의 이슈 이미지 선정 결과로 만든다. 그림마다 가운데를 잘라
+번호 붙은 이슈 소제목 뒤에는 리포트 폴더 `assets/issue-{번호}.webp`가 있을 때만 그 그림과 캡션을 넣는다.
+캡션에는 `system/issue-images.json`에 그 이슈의 사진 설명(`caption`)이 있으면 사진 설명을 쓰고, 뒤에 `AI 생성 이미지` 표시를 붙인다. 그림은 `run-with-notify.sh`가 ⑨의 이슈 이미지 선정 결과로 만든다. 그림마다 가운데를 잘라
 `THUMB`px 정사각 썸네일 `issue-{번호}-thumb.webp`를 만들어 그림의 `data-thumb`에 적는다. `invest-reports` 미니 앱은 이슈 목록 상자에 썸네일을 붙인다.
 이슈 해설 말머리 뒤 문단 사이에는 리포트 폴더 `system/issue-charts.json`의 카드 값을 `issue-chart` 그림의 `data-card`로 넣는다.
 카드 값은 ⑨의 이슈 그래프 agent가 설계하고 `issue_charts.py fill`이 채우며, 카드 값이 없는 그래프는 넣지 않는다.
@@ -741,11 +741,12 @@ def mark_issue_ids(body: str, bundles: Path, events: dict[int, list[str]]) -> st
     return body[:head.end()] + section + body[end:]
 
 
-def mark_issue_images(body: str, assets: Path, target: Path, out: Path) -> str:
-    """`상세 이슈 해설` 절의 번호 붙은 이슈 소제목 뒤에 `assets/issue-{번호}.webp` 그림과 썸네일 주소를 넣는다. 그림이 없는 이슈는 그대로 둔다."""
+def mark_issue_images(body: str, assets: Path, plan: Path, target: Path, out: Path) -> str:
+    """`상세 이슈 해설` 절의 번호 붙은 이슈 소제목 뒤에 `assets/issue-{번호}.webp` 그림과 썸네일 주소, `system/issue-images.json`의 사진 설명을 넣는다. 그림이 없는 이슈는 그대로 둔다."""
     head = re.search(rf'<h2 id="[^"]*">{ISSUES_TITLE}</h2>', body)
     if not head:
         return body
+    captions = {str(issue["issue"]): issue.get("caption", "") for issue in json.loads(plan.read_text(encoding="utf-8"))["issues"]} if plan.is_file() else {}
     end = body.find("<h2", head.end())
     end = len(body) if end < 0 else end
 
@@ -760,9 +761,11 @@ def mark_issue_images(body: str, assets: Path, target: Path, out: Path) -> str:
             side = min(picture.size)
             box = ((picture.width - side) // 2, (picture.height - side) // 2)
             picture.convert("RGB").crop((*box, box[0] + side, box[1] + side)).resize((THUMB, THUMB), Image.Resampling.LANCZOS).save(thumb, format="WEBP", quality=80)
+        caption = captions.get(number.group(1), "").strip()
+        note = f'<span class="note">{html.escape(caption)}</span>' if caption else ""
         return (f'{match.group(0)}\n<figure class="issue-image" data-thumb="{versioned(thumb, out)}">'
                 f'<img src="{versioned(target / image.name, out)}" alt="">'
-                f"<figcaption>AI 생성 이미지</figcaption></figure>")
+                f'<figcaption>{note}<span class="ai">AI 생성 이미지</span></figcaption></figure>')
 
     section = re.sub(r"<h3[^>]*>(.*?)</h3>", heading, body[head.end():end], flags=re.DOTALL)
     return body[:head.end()] + section + body[end:]
@@ -952,7 +955,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     body = mark_days(body, day, branches, timings(vault, index, day), upcoming)
     body = mark_indicators(body, indicator_cards(vault, index, day))
     body = mark_issue_ids(body, source.parent / "system" / "issues.json", issue_events(vault, index, day))
-    body = mark_issue_images(body, source.parent / "assets", target, out)
+    body = mark_issue_images(body, source.parent / "assets", source.parent / "system" / "issue-images.json", target, out)
     body = mark_issue_charts(body, source.parent / "system" / "issue-charts.json")
     history = issue_history(vault, index, day, out)
     body = mark_issue_history(body, history, day)
