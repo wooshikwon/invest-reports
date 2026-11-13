@@ -38,9 +38,12 @@
   }
   /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
   main { max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-inset)) 16px calc(40px + var(--offscreen, 0px)); }
-  header h1 { font-size: 19px; font-weight: 900; line-height: calc(19px * 1.4); margin: 0 0 2px; color: var(--accent); white-space: nowrap; }
+  header h1 { font-size: 19px; font-weight: 900; line-height: 1.4; margin: 0 0 2px; color: var(--accent); }
+  /* 제목 위에는 리포트 날짜와 요일을 절 제목과 같은 회색의 작은 글씨로 쓴다. */
+  #day { margin: 0; font-size: 12.5px; font-weight: 600; line-height: 1.4; color: var(--dim); }
+  #day:empty { display: none; }
   /* 제목 바로 아래에 등락률 줄을, 그 아래에 작성 시각 줄을 쓴다. 두 줄은 같은 크기의 회색 글씨로 쓰고, 작성 시각 줄은 제목과 등락률 줄 사이만큼 띄운다. 장 마감 후 등락률은 그날 리포트의 기준 가격에만 쓰이므로 괄호로 묶는다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 첫 절 제목과는 조금 더 띄운다.
-     제목 줄(지수 전환 단추와 달력 단추 포함)과 등락률 줄은 머리 상자(`#masthead`)로 묶어 화면을 내려도 화면 맨 위에 붙어 남게 한다. 상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 절 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다. 흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
+     날짜 줄, 제목 줄(지수 전환 단추와 달력 단추 포함)과 등락률 줄은 머리 상자(`#masthead`)로 묶어 화면을 내려도 화면 맨 위에 붙어 남게 한다. 상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 절 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다. 흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
   #masthead { position: sticky; top: calc(5px + var(--top-inset)); z-index: 4; }
   #berth { height: 4px; }
   #moves { margin: 0; font-size: 12.5px; color: var(--hint); }
@@ -286,7 +289,7 @@
   h2.issues .back::after { content: "이슈 목록"; font-size: 13px; font-weight: 600; }
   h2.issues.inside .back { opacity: 1; visibility: visible; transition: opacity var(--glide); }
   /* 다가오는 이벤트는 발표일마다 한 장이고, 위 날짜 띠의 날짜마다 별·날짜·요일을 테두리 없는 둥근 회색 상자에 담는다. 보고 있는 날짜는 상자를
-     진하게, 글자를 흰색으로 쓰고, 나머지 날짜는 상자를 연하게, 글자를 흐린 회색으로 쓴다. 리포트 날짜의 상자에는 흰 테두리를 두르고, 누르고 있는 상자는 조금 줄인다.
+     진하게, 글자를 흰색으로 쓰고, 나머지 날짜는 상자를 연하게, 글자를 흐린 회색으로 쓴다. 리포트 날짜의 상자에는 얇은 흰 테두리를 두르고, 누르고 있는 상자는 조금 줄인다.
      상자는 같은 폭이고 넘기기 장 사이만큼 띄운다.
      띠는 아래 장 묶음과 따로 손가락으로 밀어 여러 날짜를 한 번에 지나가고, 스크롤 막대는 숨긴다. 장을 넘기면 보고 있는 날짜의 상자가
      문단 왼쪽 끝에 오도록 띠를 미끄러뜨리되, 띠 끝이 문단 오른쪽 끝에 닿으면 더 밀지 않는다. 띠는 화면 양 끝 여백까지 보여서, 앞 날짜가 있으면 그 상자 끝이 왼쪽 여백에 보인다. */
@@ -300,7 +303,7 @@
   .days button small { display: block; font-size: 11px; }
   .days button.on { color: #fff; }
   .days button { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; transition: transform .15s ease; }
-  .days button.today { box-shadow: inset 0 0 0 1.5px #fff; }
+  .days button.today { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .7); }
   .days button.holding { transform: scale(.94); }
   /* 날짜를 꾹 누르면 뜨는 말풍선은 달력 창과 같은 진한 회색 상자에 꼬리를 달고, 날짜 상자 위(자리가 없으면 아래)에 둔다. 누를 수 있는 단추는 흰 글자와
      오른쪽 꺽쇠로, 안내 문장은 흐린 글자로 쓴다. 뜰 때 살짝 커지며 나타난다. */
@@ -336,6 +339,12 @@
   .carousel.events .event > :not(h3) { margin-top: 0; color: var(--hint); }
   .carousel.events.fit .slide > :first-child { margin-top: 30px; }
   .carousel.events table { margin: 0; }
+  /* 날짜마다 마지막 이벤트 아래에 그 날짜 다음 리포트로 가는 단추를 상자 없이 가운데에 쓴다. 단추는 흰 글자와 오른쪽 꺽쇠로, 다음 리포트가 없다는 안내는 흐린 글자로 쓴다. */
+  .carousel.events .result { display: flex; width: fit-content; align-items: center; gap: 8px; margin: 22px auto 0; padding: 8px 12px; border: 0; background: none;
+                             color: #fff; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .carousel.events .result:active { opacity: .6; }
+  .carousel.events .result svg { color: var(--dim); }
+  .carousel.events p.result { color: var(--hint); font-weight: 400; cursor: default; }
   h3 .when { display: block; margin-bottom: 2px; font-size: 13px; font-weight: 600; }
   h3[data-level="low"] .when { background: none; color: var(--hint); }
   /* 지난 이벤트의 표는 실제로 일어난 갈래 줄만 또렷하게 보이고 나머지 줄은 흐리다. */
@@ -455,7 +464,7 @@
 <body>
 <div id="top-glass"></div>
 <main>
-  <div id="berth"></div><div id="masthead"><header><h1 id="title">투자 판단 리포트</h1></header><p id="moves"></p></div><p id="dated"></p>
+  <div id="berth"></div><div id="masthead"><header><p id="day"></p><h1 id="title">투자 판단 리포트</h1></header><p id="moves"></p></div><p id="dated"></p>
   <article id="report"><p class="status">리포트를 불러오는 중이다.</p></article>
 </main>
 <script>
@@ -1606,26 +1615,31 @@
     };
     box.addEventListener("pointerdown", hold, { passive: true });
     box.querySelector(".track").addEventListener("touchstart", () => (aim = null), { passive: true });
-    // 날짜를 450ms 동안 8px 넘게 움직이지 않고 누르고 있으면 말풍선을 띄운다. 말풍선을 띄운 누르기는 날짜를 고르지 않는다.
-    // 말풍선 밖을 누르거나 띠를 밀면 말풍선을 닫는다.
+    // 그날 이벤트의 결과는 그날 다음 날짜의 같은 지수 리포트가 적는다. `result`는 그 리포트로 가는 단추를 만든다. 리포트가 아직 없거나 보고 있는 리포트이면 안내 문장을 만든다.
     const index = key.split("-")[1];
+    const result = (day, className = "") => {
+      const after = Object.keys(listing).filter((name) => listing[name].index === index && listing[name].date > day)
+        .sort((a, b) => listing[a].date.localeCompare(listing[b].date))[0];
+      if (!after || after === key) {
+        return Object.assign(document.createElement("p"), { className, textContent: after ? "이 리포트의 표에 결과가 있습니다" : "다음 리포트가 아직 없습니다" });
+      }
+      const [, m, d] = listing[after].date.split("-");
+      const go = Object.assign(document.createElement("button"), { type: "button", className });
+      go.innerHTML = `${+m}/${+d} 리포트에서 결과 보기<svg width="6" height="10" viewBox="0 0 6 10" aria-hidden="true"><path d="M1 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      go.addEventListener("click", () => { feelPress(); visit(after); });
+      return go;
+    };
+    // 리포트 날짜와 그 뒤 날짜의 장마다 마지막 이벤트 아래에 결과 단추를 단다. 지난 날짜의 표는 이미 결과를 칠해 두었으므로 단추를 달지 않는다.
+    box.querySelectorAll(".slide").forEach((slide, i) => { if (days[i] >= date && slide.querySelector(".event")) slide.append(result(days[i], "result")); });
+    // 날짜를 450ms 동안 8px 넘게 움직이지 않고 누르고 있으면 같은 결과 단추를 말풍선으로 띄운다. 말풍선을 띄운 누르기는 날짜를 고르지 않는다.
+    // 말풍선 밖을 누르거나 띠를 밀면 말풍선을 닫는다.
     let bubble = null, pressing = null, held = false;
     const unpop = () => { bubble?.remove(); bubble = null; };
     const pop = (button, day) => {
       unpop();
       feelPress();
-      const after = Object.keys(listing).filter((name) => listing[name].index === index && listing[name].date > day)
-        .sort((a, b) => listing[a].date.localeCompare(listing[b].date))[0];
       bubble = Object.assign(document.createElement("div"), { className: "bubble" });
-      if (after) {
-        const [, m, d] = listing[after].date.split("-");
-        const go = Object.assign(document.createElement("button"), { type: "button" });
-        go.innerHTML = `${+m}/${+d} 리포트에서 결과 보기<svg width="6" height="10" viewBox="0 0 6 10" aria-hidden="true"><path d="M1 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-        go.addEventListener("click", () => { feelPress(); visit(after); });
-        bubble.append(go);
-      } else {
-        bubble.append(Object.assign(document.createElement("p"), { textContent: "다음 리포트가 아직 없습니다" }));
-      }
+      bubble.append(result(day));
       document.body.append(bubble);
       // 말풍선은 날짜 상자 위에 두고, 위쪽이 머리 상자에 가리면 아래에 둔다. 화면 양 끝에서 12px 안쪽에 두고, 꼬리는 날짜 상자 가운데를 가리킨다.
       const at = button.getBoundingClientRect(), size = bubble.getBoundingClientRect();
@@ -2055,14 +2069,6 @@
     });
   }
 
-  // 제목은 한 줄에 쓴다. 제목이 머리말 단추 왼쪽 폭을 넘으면 넘지 않을 때까지 글자 크기를 0.5px씩 줄이고, 15px보다 작게 줄이지는 않는다.
-  function fitTitle() {
-    const title = document.getElementById("title");
-    title.style.fontSize = "";
-    let size = parseFloat(getComputedStyle(title).fontSize);
-    while (title.scrollWidth > title.clientWidth && size > 15) title.style.fontSize = `${size -= .5}px`;
-  }
-
   // 머리말 단추의 세로 가운데를 맞출 제목 글자의 가운데 높이를 머리말 위쪽에서 잰 `--title-mid`로 적는다. 글줄 상자의 가운데는 글꼴마다 글자가 칠해진 높이의 가운데와 다르므로
   // 제목 글꼴로 글자의 윗끝과 아랫끝이 기준선에서 떨어진 거리를 재고, 제목 끝에 넣은 높이 없는 표식으로 기준선 높이를 잰다.
   function centerTitle() {
@@ -2113,14 +2119,15 @@
   }).then(([body, listing]) => {
     const entry = listing[key];
     if (entry) {
-      // 제목은 "26년 11월 13일 나스닥 리포트"처럼 리포트 날짜를 앞에 붙여 쓴다.
+      document.getElementById("title").textContent = entry.title;
+      document.title = `${entry.title} ${entry.day}`;
+      // 제목 위 날짜 줄은 "2026년 11월 13일 (금)"처럼 쓴다.
       const [year, month, mday] = entry.date.split("-");
-      document.getElementById("title").textContent = `${year.slice(2)}년 ${+month}월 ${+mday}일 ${entry.title}`;
-      document.title = document.getElementById("title").textContent;
-      // 처음 만든 날이 리포트 날짜와 같으면 시각만, 다르면 월/일까지 적는다.
+      document.getElementById("day").textContent = `${+year}년 ${+month}월 ${+mday}일 (${"일월화수목금토"[new Date(entry.date).getUTCDay()]})`;
+      // 날짜는 제목 위에 있으므로 작성 시각 줄에는 시각만 쓰고, 처음 만든 날이 리포트 날짜와 다르면 월/일을 앞에 붙인다.
       const [day, time] = entry.written.split(" ");
       const when = day === entry.date ? time : `${+day.slice(5, 7)}/${+day.slice(8)} ${time}`;
-      document.getElementById("dated").textContent = `${entry.day} ${when} 작성`;
+      document.getElementById("dated").textContent = `작성 시각 ${when}`;
       if (entry.moves) {
         const pct = (v) => v === null ? "<b>—</b>"
           : `<b class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}%</b>`;
@@ -2132,9 +2139,8 @@
     report.innerHTML = body;
     calendar(listing, date);
     switcher(listing, date);
-    fitTitle();
     centerTitle();
-    document.fonts?.ready.then(() => { fitTitle(); centerTitle(); });
+    document.fonts?.ready.then(centerTitle);
     figures(date);
     fold("1개월 지수 방향 예측");
     indicators();
