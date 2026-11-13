@@ -125,7 +125,8 @@ UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#ffffff"  # 오름·내림·중립 �
 FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, DOWN, "공포"], [55, NEUTRAL, "중립"], [75, UP, "탐욕"], [100, UP, "극단 탐욕"]]
 WEEKS = 12  # 하이일드 스프레드의 막대 그림이 거슬러 그리는 주 수
 RATE_MOVE_BP = 12.5  # 다음 회의까지 누적 변화가 이 bp 이상이면 인상 예상, 음수로 이 값 이하면 인하 예상
-RATE_STEP_BP = 25  # 연준이 기준금리를 한 번에 바꾸는 폭. 금리 경로 그림의 세로축 상한을 이 폭의 배수로 잡고, 이 폭의 위아래 높이에 점선 가로선을 긋는다
+RATE_STEP_BP = 25  # 연준이 기준금리를 한 번에 바꾸는 폭. 금리 경로 그림은 이 폭의 위아래 높이에 점선 가로선을 긋는다
+RATE_RANGE_BP = 100  # 금리 경로 그림의 세로축 상한. 회의 세 번의 누적 변화는 보통 ±1%p 안에 들고, 넘는 막대는 축 끝에서 자른다
 
 
 def report_pdf(vault: Path):
@@ -589,12 +590,11 @@ def month_day(day: str) -> str:
     return f"{int(day[5:7])}/{int(day[8:10])}"
 
 
-def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dict]], before: tuple[str, dict] | None) -> dict:
+def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dict]]) -> dict:
     """지표 하나의 카드 값. `weeks`는 앞 `WEEKS`주 동안 주마다 마지막 (기준일, 원값)이고 마지막 항목이 오늘 값이다.
-    `before`는 오늘 기준일 바로 앞 기준일의 (기준일, 원값)이고, 반원 속도계는 그 값을 연한 회색으로 함께 그린다.
     반원 속도계는 작은 값을 왼쪽에, 큰 값을 오른쪽에 둔다.
     주별 막대 그림(`columns`)은 가로축이 시간이므로 지난주를 왼쪽에, 오늘을 오른쪽에 둔다. 연준 금리 경로(`diverge`)도 가로축이 시간이므로 가까운 회의를 왼쪽에 두고, 0 가로선 위에 인상을, 아래에 인하를 둔다.
-    금리 경로의 세로축 상한(`max`)은 가장 큰 누적 변화를 금리 한 번 변경 폭(`RATE_STEP_BP`)의 배수로 올린 값이고, 그림은 그 폭(`step`)의 위아래 높이에 점선 가로선을 긋는다.
+    금리 경로의 세로축 상한(`max`)은 날마다 같은 `RATE_RANGE_BP`이고, 그림은 금리 한 번 변경 폭(`step`)의 위아래 높이에 점선 가로선을 긋는다.
     유가의 일별 선 그림(`daily`)은 원값의 일별 정산가를 앞 날짜부터 오늘까지 왼쪽에서 오른쪽으로 잇는다. 정산가 날짜도 미국 장의 날짜이므로 하루를 더해 적는다.
     `help`는 카드 이름 뒤의 물음표 단추가 띄우는 설명 상자의 문단 목록이고, 지표를 무엇으로 계산하는지와 값을 읽는 법을 쓴다."""
     when = month_day(date)
@@ -605,8 +605,7 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
                  "점수가 25 이하면 극단 공포, 45 이하면 공포, 55 이하면 중립, 75 이하면 탐욕, 그보다 크면 극단 탐욕이에요. "
                  "점수가 낮을수록 투자자는 주식을 팔고 국채 같은 안전자산을 더 많이 사요. 시장에서는 극단 공포를 매도가 지나쳤다는 신호로 보기도 해요."]
         return {"tab": "공포·탐욕", "help": guide, "asof": f"CNN · {when}", "value": f"{score:g}", "state": zone(FEAR_GREED_ZONES, score),
-                "figure": {"type": "semi", "min": 0, "max": 100, "zones": FEAR_GREED_ZONES, "value": score,
-                           "before": before and before[1]["score"], "ends": ["공포", "탐욕"]}}
+                "figure": {"type": "semi", "min": 0, "max": 100, "zones": FEAR_GREED_ZONES, "value": score, "ends": ["공포", "탐욕"]}}
     if name == "하이일드 스프레드":
         level = value["value"]
         guide = ["미국 하이일드 회사채의 금리에서 만기가 비슷한 미국 국채의 금리를 뺀 값이에요. 하이일드 회사채는 신용등급이 투자 적격 등급보다 낮은 회사채예요. "
@@ -637,14 +636,13 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
              else [f"{month} 동결 예상", NEUTRAL])
     rows = [[f"{int(item['meeting'][5:7])}월", item["cumulative_bp"], f"{signed(item['cumulative_bp'] / 100, 2)}%p"]
             for item in meetings]
-    top = max(2 * RATE_STEP_BP, math.ceil(max(abs(row[1]) for row in rows) / RATE_STEP_BP) * RATE_STEP_BP)
     guide = ["연방기금 금리 선물은 미국 기준금리의 한 달 평균에 거는 계약이에요. 선물 가격에서 시장이 예상하는 기준금리를 계산해요. "
              "카드는 앞으로 열리는 연준 회의 세 번마다 기준금리의 누적 변화를 %p로 보여 줘요. 누적 변화는 지금 기준금리와 그 회의 뒤 예상 기준금리의 차이예요.",
              "값이 +0.25%p면 시장은 그 회의까지 0.25%p 인상 한 번을 예상해요. "
              f"다음 회의까지 누적 변화가 +{RATE_MOVE_BP / 100:g}%p 이상이면 인상 예상, −{RATE_MOVE_BP / 100:g}%p 이하면 인하 예상, 그 사이면 동결 예상이에요. "
              "기준금리가 오르면 기업의 차입 비용이 커져요. 그래서 인상 예상은 주가에 부정적이에요."]
     return {"tab": "금리 경로", "help": guide, "asof": f"연방기금 선물 · {when}", "value": signed(move / 100, 2), "unit": "%p", "state": state,
-            "figure": {"type": "diverge", "rows": rows, "max": top, "step": RATE_STEP_BP}}
+            "figure": {"type": "diverge", "rows": rows, "max": RATE_RANGE_BP, "step": RATE_STEP_BP}}
 
 
 def indicator_cards(vault: Path, index: str, date: dt.date) -> dict[str, dict]:
@@ -661,8 +659,7 @@ def indicator_cards(vault: Path, index: str, date: dt.date) -> dict[str, dict]:
     for name, (day, value) in readings(*current).items():
         seen_values = sorted({**found.get(name, {}), day: value}.items())
         weekly = {dt.date.fromisoformat(seen).isocalendar()[:2]: (seen, item) for seen, item in seen_values}
-        earlier = [(seen, item) for seen, item in seen_values if seen < day]
-        cards[name] = indicator_card(name, day, value, list(weekly.values())[-WEEKS:], earlier[-1] if earlier else None)
+        cards[name] = indicator_card(name, day, value, list(weekly.values())[-WEEKS:])
     return cards
 
 
