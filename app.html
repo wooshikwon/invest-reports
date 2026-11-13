@@ -1864,14 +1864,13 @@
   const mapOf = (view) => (MAPS[view] ||= fetch(`maps/${view}.json`).then((r) => r.json()));
   // 그림 높이가 `FIGURE`보다 낮으면 같은 높이의 칸 가운데에 그리고, 높으면 그림 높이대로 칸을 늘린다.
   const frame = (height) => (height <= FIGURE ? canvas(height) : shape("svg", { viewBox: `0 0 320 ${height}` }));
-  // 범례: [이름, 색, 모양, 불투명도]를 그림 위 `right`에서 왼쪽으로 적는다. 모양은 네모(`box`), 점(`dot`), 세로 눈금(`tick`)이다.
+  // 범례: [이름, 색, 모양, 불투명도]를 그림 위 `right`에서 왼쪽으로 적는다. 모양은 네모(`box`)와 점(`dot`)이다.
   const legend = (s, items, right = 320) => {
     let x = right;
     [...items].reverse().forEach(([name, color, mark, opacity = 1]) => {
       s.append(shape("text", { x, y: 14, "text-anchor": "end", "font-size": 11.5, fill: "#A7ABB0" }, name));
       x -= textWidth(name, 11.5);
       s.append(mark === "dot" ? shape("circle", { cx: x - 9, cy: 10, r: 4.5, fill: color, opacity })
-        : mark === "tick" ? shape("line", { x1: x - 9, x2: x - 9, y1: 3, y2: 17, stroke: color, "stroke-width": 2, opacity })
         : shape("rect", { x: x - 14, y: 5, width: 9, height: 9, rx: 2, fill: color, opacity }));
       x -= 26;
     });
@@ -2122,55 +2121,6 @@
           : { cx: x, cy: Y(i), r: 4, fill: DIMS, stroke: "#1d1e21", "stroke-width": 2 }));
         s.append(shape("text", { x: x + 14, y: Y(i) + 4.5, "font-size": 13, "font-weight": last ? 700 : 400, fill: last ? "#EAEAEA" : "#A7ABB0" }, name));
       });
-      return s;
-    },
-    // 확률 막대: 결과마다 [이름, 값, 글자, 이전 값, 변화 글자]이고, 줄마다 위에 이름과 값을, 아래에 0에서 100까지의 막대를 그린다.
-    // 값이 가장 큰 결과는 흰색, 나머지는 회색이다. 이전 값이 있으면 막대 위에 세로 눈금을 긋고 값 앞에 변화 글자를 적으며, 그림 위에 범례를 적는다.
-    probability({ before, outcomes }) {
-      const x0 = 6, x1 = 314, row = 46, head = before ? 30 : 4, s = frame(head + row * outcomes.length - 10);
-      const X = (v) => x0 + (x1 - x0) * Math.min(100, Math.max(0, v)) / 100, lead = Math.max(...outcomes.map(([, v]) => v));
-      outcomes.forEach(([name, v, text, prior, change], i) => {
-        const y = head + row * i, on = v === lead, ink = on ? "#EAEAEA" : "#A7ABB0";
-        s.append(shape("text", { x: x0, y: y + 13, "font-size": 12.5, fill: ink }, name));
-        s.append(shape("text", { x: x1, y: y + 13, "text-anchor": "end", "font-size": 12.5, "font-weight": 700, fill: ink }, text));
-        if (change) s.append(shape("text", { x: x1 - textWidth(text, 12.5) - 8, y: y + 13, "text-anchor": "end", "font-size": 12, fill: DIMS }, change));
-        s.append(shape("rect", { x: x0, y: y + 22, width: x1 - x0, height: 10, rx: 5, fill: "#ffffff", opacity: 0.08 }));
-        s.append(shape("rect", { x: x0, y: y + 22, width: Math.max(10, X(v) - x0), height: 10, rx: 5, fill: on ? "#EAEAEA" : DIMS, opacity: on ? 1 : 0.55 }));
-        if (prior != null) [["#1d1e21", 4.5], ["#A7ABB0", 2]].forEach(([stroke, width]) =>
-          s.append(shape("line", { x1: X(prior), x2: X(prior), y1: y + 17, y2: y + 37, stroke, "stroke-width": width })));
-      });
-      if (before) legend(s, [["현재", "#EAEAEA", "box"], [before, "#A7ABB0", "tick"]], x1);
-      return s;
-    },
-    // 예상 대비 실제: 항목마다 {label, actual, expected, range, min, max, ends}이고, 가로 막대 위에 실제 값을 흰 점으로, 예상 값을 세로 눈금으로,
-    // 예상 범위를 회색 띠로 그린다. 실제 값 글자는 점 위에, 예상 값 글자는 눈금 아래에 적는다. 축 양 끝 값은 예상 값 글자와 겹치지 않을 때만 적는다.
-    bullet({ measures }) {
-      const x0 = 6, x1 = 314, named = measures.some((m) => m.label), block = (named ? 18 : 0) + 60, head = 30;
-      const s = frame(head + (block + 14) * measures.length - 14), within = (x, w) => Math.min(x1 - w / 2, Math.max(x0 + w / 2, x));
-      measures.forEach(({ label, actual, expected, range, min, max, ends }, i) => {
-        const X = (v) => x0 + (x1 - x0) * (Math.min(max, Math.max(min, v)) - min) / (max - min), y = head + (block + 14) * i, t = y + (named ? 18 : 0);
-        if (label) s.append(shape("text", { x: x0, y: y + 12, "font-size": 12.5, "font-weight": 700, fill: "#A7ABB0" }, label));
-        s.append(shape("rect", { x: x0, y: t + 24, width: x1 - x0, height: 12, rx: 6, fill: "#ffffff", opacity: 0.08 }));
-        if (range) s.append(shape("rect", { x: X(range[0]), y: t + 24, width: Math.max(4, X(range[1]) - X(range[0])), height: 12, rx: 6, fill: DIMS, opacity: 0.55 }));
-        const below = expected ? [X(expected[0]), `예상 ${expected[1]}`] : range ? [(X(range[0]) + X(range[1])) / 2, `예상 ${range[2]}`] : null;
-        if (expected) [["#1d1e21", 4.5], ["#A7ABB0", 2]].forEach(([stroke, width]) =>
-          s.append(shape("line", { x1: X(expected[0]), x2: X(expected[0]), y1: t + 19, y2: t + 41, stroke, "stroke-width": width })));
-        s.append(shape("circle", { cx: X(actual[0]), cy: t + 30, r: 6, ...KNOB, "stroke-width": 2 }));
-        const w = textWidth(actual[1], 12.5);
-        s.append(shape("text", { x: within(X(actual[0]), w), y: t + 14, "text-anchor": "middle", "font-size": 12.5, "font-weight": 700, fill: "#EAEAEA" }, actual[1]));
-        let free = [x0, x1];
-        if (below) {
-          const bw = textWidth(below[1], 12), bx = within(below[0], bw);
-          s.append(shape("text", { x: bx, y: t + 56, "text-anchor": "middle", "font-size": 12, fill: "#A7ABB0" }, below[1]));
-          free = [bx - bw / 2 - 8, bx + bw / 2 + 8];
-        }
-        if (ends[0] && (!below || x0 + textWidth(ends[0], 11) < free[0]))
-          s.append(shape("text", { x: x0, y: t + 56, "font-size": 11, fill: DIMS }, ends[0]));
-        if (ends[1] && (!below || x1 - textWidth(ends[1], 11) > free[1]))
-          s.append(shape("text", { x: x1, y: t + 56, "text-anchor": "end", "font-size": 11, fill: DIMS }, ends[1]));
-      });
-      legend(s, [["실제", "#EAEAEA", "dot"], ...(measures.some((m) => m.expected) ? [["예상", "#A7ABB0", "tick"]] : []),
-                 ...(measures.some((m) => m.range) ? [["예상 범위", DIMS, "box", 0.55]] : [])], x1);
       return s;
     },
     // 지도: `view`의 경계 파일을 받아 그림 위 범례 아래에 그린다. `categories`는 [이름, 색], `regions`는 [지역 코드, 분류 번호],
