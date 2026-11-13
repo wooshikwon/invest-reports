@@ -36,6 +36,11 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 
 `상세 이슈 해설` 절의 번호 붙은 이슈 소제목에는 리포트 폴더 `system/issues.json`에서 그 번호의 `id`를 `data-issue`로 단다.
 `id`는 Main이 그 이슈로 묶은 사안 나무 노드 가운데 반영 정도가 가장 큰 노드의 이름이므로, 날짜가 다른 리포트에서 같은 사안을 다룬 이슈는 같은 값을 갖는다.
+바로 앞 리포트의 `다가오는 이벤트` 절이 적은 이벤트 가운데 앞 리포트 날짜부터 리포트 날짜 전날까지 발표된 이벤트의 결과를 다룬 이슈 소제목에는
+그 이벤트 이름을 `data-event`로 단다. 이벤트의 사안 id는 앞 리포트 사안 나무에서 이벤트의 사안(`item`)이고, 앞 리포트 `system/issues.json`에서
+그 사안을 노드로 묶은 이슈의 노드도 같은 사안으로 본다. 오늘 이슈의 `id`나 노드가 그 사안 가운데 하나이면 그 이벤트의 결과를 다룬 이슈다.
+트리거 노드(`trigger:`)는 여러 사안에 걸치므로 사안으로 보지 않는다. 한 이슈에 이벤트가 여럿이면 이름을 ` · `로 잇는다.
+`invest-reports` 미니 앱은 과거 리포트를 볼 때 그 이슈 상자에 빨간 외곽선을 두르고 외곽선 위쪽 왼쪽에 이벤트 이름을 단다.
 번호 붙은 이슈 뒤에는 그 `id`를 노드로 묶은 앞 날짜 이슈를 `issue-history` 템플릿으로 넣는다. 앞 날짜 이슈는 그날 `system/issues.json`의
 `nodes`에 오늘 `id`가 든 이슈이고, 내용은 그날 공개본 `report.html`의 이슈 조각을 그대로 쓴다. 템플릿에는 오늘을 포함한 모든 날짜의
 날짜와 이슈 해설 소제목을 날짜 순으로 적고, 오늘 항목에는 내용을 넣지 않는다. 앞 날짜 이슈가 없는 이슈에는 템플릿을 넣지 않는다.
@@ -658,8 +663,9 @@ def mark_indicators(body: str, cards: dict[str, dict]) -> str:
 
 
 
-def mark_issue_ids(body: str, bundles: Path) -> str:
-    """`상세 이슈 해설` 절의 번호 붙은 이슈 소제목에 `system/issues.json`의 그 번호 `id`를 `data-issue`로 단다."""
+def mark_issue_ids(body: str, bundles: Path, events: dict[int, list[str]]) -> str:
+    """`상세 이슈 해설` 절의 번호 붙은 이슈 소제목에 `system/issues.json`의 그 번호 `id`를 `data-issue`로 단다.
+    `events`에 그 번호가 있으면 결과를 다룬 이벤트 이름을 `data-event`로 함께 단다."""
     head = re.search(rf'<h2 id="[^"]*">{ISSUES_TITLE}</h2>', body)
     if not head or not bundles.is_file():
         return body
@@ -672,7 +678,9 @@ def mark_issue_ids(body: str, bundles: Path) -> str:
         issue = ids.get(int(number.group(1))) if number else None
         if not issue:
             return match.group(0)
-        return f'<h3{match.group(1)} data-issue="{html.escape(issue)}">{match.group(2)}</h3>'
+        names = events.get(int(number.group(1)))
+        event = f' data-event="{html.escape(" · ".join(names))}"' if names else ""
+        return f'<h3{match.group(1)} data-issue="{html.escape(issue)}"{event}>{match.group(2)}</h3>'
 
     section = re.sub(r"<h3([^>]*)>(.*?)</h3>", heading, body[head.end():end], flags=re.DOTALL)
     return body[:head.end()] + section + body[end:]
@@ -749,6 +757,30 @@ def explainer_title(segment: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", title.group(1))).strip() if title else ""
 
 
+def issue_events(vault: Path, index: str, day: dt.date) -> dict[int, list[str]]:
+    """오늘 이슈 번호마다, 바로 앞 리포트가 적은 이벤트 가운데 두 리포트 사이에 발표되어 그 이슈가 결과를 다룬 이벤트의 이름."""
+    bundles = report_path(vault, day, index).parent / "system" / "issues.json"
+    previous = reports(vault, index, day - dt.timedelta(days=1))
+    if not bundles.is_file() or not previous:
+        return {}
+    source = previous[0]
+    since = dt.date.fromisoformat(source.parent.parent.name)
+    linked = source.parent / "system" / "issues.json"
+    earlier = json.loads(linked.read_text(encoding="utf-8"))["issues"] if linked.is_file() else []
+    items = tree_issues(source)
+    found: dict[int, list[str]] = {}
+    for when, name, _ in event_items(source.read_text(encoding="utf-8"), since):
+        item = items.get(name, {}).get("item")
+        if not item or not since <= when < day:
+            continue
+        same = {item}.union(*(bundle["nodes"] for bundle in earlier if item in bundle["nodes"]))
+        same = {node for node in same if not node.startswith("trigger:")}
+        for bundle in json.loads(bundles.read_text(encoding="utf-8"))["issues"]:
+            if same & {bundle["id"], *bundle["nodes"]}:
+                found.setdefault(bundle["issue"], []).append(name)
+    return found
+
+
 def issue_history(vault: Path, index: str, day: dt.date, out: Path) -> dict[str, list[tuple[dt.date, str]]]:
     """오늘 이슈 `id`마다, 그 `id`를 노드로 묶은 앞 날짜 이슈의 날짜와 공개본 이슈 조각을 날짜 순으로."""
     bundles = report_path(vault, day, index).parent / "system" / "issues.json"
@@ -823,7 +855,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     upcoming = [issue for issue in json.loads(display.read_text(encoding="utf-8"))["next"] if isinstance(issue, dict)] if display.is_file() else []
     body = mark_days(body, day, branches, timings(vault, index, day), upcoming)
     body = mark_indicators(body, indicator_cards(vault, index, day))
-    body = mark_issue_ids(body, source.parent / "system" / "issues.json")
+    body = mark_issue_ids(body, source.parent / "system" / "issues.json", issue_events(vault, index, day))
     body = mark_issue_images(body, source.parent / "assets", target, out)
     body = mark_issue_charts(body, source.parent / "system" / "issue-charts.json")
     body = mark_issue_history(body, issue_history(vault, index, day, out), day)

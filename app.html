@@ -272,6 +272,10 @@
   .issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); cursor: pointer;
     transition: transform .1s ease-out; -webkit-tap-highlight-color: transparent; }
   .issue-list .pick.pressed { transform: scale(.97); }
+  /* 과거 리포트에서 바로 앞 리포트의 다가오는 이벤트 결과를 다룬 이슈 상자는 탐색 띠와 같은 빨강으로 외곽선을 두르고, 외곽선 위쪽 왼쪽에 이벤트 이름표를 얹는다. */
+  :root.past .issue-list .pick[data-event] { position: relative; box-shadow: inset 0 0 0 1.5px #d9363e; }
+  :root.past .issue-list .pick[data-event]::before { content: attr(data-event); position: absolute; top: 0; left: 14px; transform: translateY(-50%); padding: 0 8px;
+    border-radius: 9px; background: #d9363e; color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; white-space: nowrap; }
   .issue-list .pick + .pick { margin-top: 10px; }
   .issue-list .pick .lead { flex: 1; display: flex; align-items: flex-start; gap: 14px; }
   .issue-list .pick .num { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px;
@@ -1183,6 +1187,7 @@
         pick.lastChild.append(Object.assign(document.createElement("span"), { className: "num" }), text);
       } else {
         pick.className = "pick";
+        if (nodes[0].dataset.event) pick.dataset.event = nodes[0].dataset.event;
         const title = nodes[0].cloneNode(true);
         title.removeAttribute("id");
         text.append(title);
