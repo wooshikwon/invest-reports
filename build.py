@@ -9,10 +9,10 @@
 공개본이 끝나는 자리와 공개본에 남으면 안 되는 말은 invest-report `report_pdf.py`의 값을 그대로 쓴다.
 PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 채널로 나가는 두 판본의 내용이 같다.
 
-`다가오는 이벤트` 표는 분기·확률·전개 예상 세 열이다. 휴대폰 폭에서 분기 이름이 접히지 않게 열마다
+`이벤트 캘린더` 표는 분기·확률·전개 예상 세 열이다. 휴대폰 폭에서 분기 이름이 접히지 않게 열마다
 폭과 정렬을 정하는 이름표를 단다.
 
-`다가오는 이벤트` 절에는 앞 리포트들이 적은 이벤트 가운데 리포트 날짜 전에 발표된 이벤트를 모두 넣는다. 리포트가 같은 사안 id의 이벤트를 이미
+`이벤트 캘린더` 절에는 앞 리포트들이 적은 이벤트 가운데 리포트 날짜 전에 발표된 이벤트를 모두 넣는다. 리포트가 같은 사안 id의 이벤트를 이미
 적었으면 리포트의 표만 둔다. 발표일마다 그날 이벤트를 적은 가장 최근 리포트의 소제목과 표를 쓰고, 더 최근 리포트가 다른 날로 옮겨 적은
 사안 id의 이벤트는 뺀다. 그 리포트의 사안 나무(`tree.json`)에서 이벤트의 사안 id를 찾아 뒤 사안 나무의 `resolved`가
 그 id로 적은 실제 갈래 줄에 `hit` 이름표를 단다. `resolved`의 갈래는 갈래 id이므로, 표를 쓴 리포트의 사안 나무에서
@@ -43,7 +43,7 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 
 `상세 이슈 해설` 절의 번호 붙은 이슈 소제목에는 리포트 폴더 `system/issues.json`에서 그 번호의 `id`를 `data-issue`로 단다.
 `id`는 Main이 그 이슈로 묶은 사안 나무 노드 가운데 반영 정도가 가장 큰 노드의 이름이므로, 날짜가 다른 리포트에서 같은 사안을 다룬 이슈는 같은 값을 갖는다.
-바로 앞 리포트의 `다가오는 이벤트` 절이 적은 이벤트 가운데 앞 리포트 날짜부터 리포트 날짜 전날까지 발표된 이벤트의 결과를 다룬 이슈 소제목에는
+바로 앞 리포트의 `이벤트 캘린더` 절이 적은 이벤트 가운데 앞 리포트 날짜부터 리포트 날짜 전날까지 발표된 이벤트의 결과를 다룬 이슈 소제목에는
 그 이벤트 이름을 `data-event`로 단다. 이벤트의 사안 id는 앞 리포트 사안 나무에서 이벤트의 사안(`item`)이고, 앞 리포트 `system/issues.json`에서
 그 사안을 노드로 묶은 이슈의 노드도 같은 사안으로 본다. 오늘 이슈의 `id`나 노드가 그 사안 가운데 하나이면 그 이벤트의 결과를 다룬 이슈다.
 트리거 노드(`trigger:`)는 여러 사안에 걸치므로 사안으로 보지 않는다. 한 이슈에 이벤트가 여럿이면 이름을 ` · `로 잇는다.
@@ -102,7 +102,7 @@ TABLE_RE = re.compile(r"<table>.*?</table>", re.DOTALL)
 ROW_RE = re.compile(r"<tr\b[^>]*>(.*?)</tr>", re.DOTALL)
 CELL_RE = re.compile(r"<t([hd])\b[^>]*>(.*?)</t\1>", re.DOTALL)
 EVENT_HEADER = ["분기", "확률", "전개 예상"]
-EVENTS_TITLE = "다가오는 이벤트"
+EVENTS_TITLE = "이벤트 캘린더"
 # 이벤트 소제목 앞의 발표일. `2026-10-21(수)`, `2026-10-21(수)~10-28(수)`, `10/26(월) 장전` 꼴이다.
 EVENT_DAY_RE = re.compile(r"^(?:(\d{4})-)?(\d{1,2})[-/](\d{1,2})\([^)]*\)(?:~\S+)?\s*(?:(장전|장중|장후)\s+)?")
 LEVEL_RE = re.compile(r"\s*`중요도 ([^`]*)`")
@@ -334,7 +334,7 @@ def event_day(text: str, date: dt.date) -> tuple[dt.date, str, str] | None:
 
 
 def events_block(markdown: str) -> str:
-    """리포트 마크다운의 `다가오는 이벤트` 절 본문."""
+    """리포트 마크다운의 `이벤트 캘린더` 절 본문."""
     match = re.search(rf"^## {EVENTS_TITLE}\s*\n(.*?)(?=^## |\Z)", markdown, flags=re.MULTILINE | re.DOTALL)
     return match.group(1) if match else ""
 
@@ -485,7 +485,7 @@ def mark_changes(table: str, upcoming: list[dict]) -> str:
 
 def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[tuple[str, str], str],
               upcoming: list[dict]) -> str:
-    """`다가오는 이벤트` 절의 소제목에 발표일(`data-day`)을 달고 제목에서 날짜를 지운다.
+    """`이벤트 캘린더` 절의 소제목에 발표일(`data-day`)을 달고 제목에서 날짜를 지운다.
 
     발표 시각은 제목 앞 `when` 이름표로 단다. `timing`에 그 이벤트가 없으면 소제목의 장 구분을, 그것도 없으면 그날의 장 구분을 쓴다.
     소제목의 중요도 표식은 `data-level`로도 단다.
