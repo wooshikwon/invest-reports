@@ -286,7 +286,8 @@
   h2.issues .back::after { content: "이슈 목록"; font-size: 13px; font-weight: 600; }
   h2.issues.inside .back { opacity: 1; visibility: visible; transition: opacity var(--glide); }
   /* 다가오는 이벤트는 발표일마다 한 장이고, 위 날짜 띠의 날짜마다 별·날짜·요일을 테두리 없는 둥근 회색 상자에 담는다. 보고 있는 날짜는 상자를
-     진하게, 글자를 흰색으로 쓰고, 나머지 날짜는 상자를 연하게, 글자를 흐린 회색으로 쓴다. 상자는 같은 폭이고 넘기기 장 사이만큼 띄운다.
+     진하게, 글자를 흰색으로 쓰고, 나머지 날짜는 상자를 연하게, 글자를 흐린 회색으로 쓴다. 리포트 날짜의 상자에는 흰 테두리를 두르고, 누르고 있는 상자는 조금 줄인다.
+     상자는 같은 폭이고 넘기기 장 사이만큼 띄운다.
      띠는 아래 장 묶음과 따로 손가락으로 밀어 여러 날짜를 한 번에 지나가고, 스크롤 막대는 숨긴다. 장을 넘기면 보고 있는 날짜의 상자가
      문단 왼쪽 끝에 오도록 띠를 미끄러뜨리되, 띠 끝이 문단 오른쪽 끝에 닿으면 더 밀지 않는다. 띠는 화면 양 끝 여백까지 보여서, 앞 날짜가 있으면 그 상자 끝이 왼쪽 여백에 보인다. */
   .days { position: relative; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
@@ -298,6 +299,23 @@
   .days button b { display: block; font-size: 14px; font-variant-numeric: tabular-nums; }
   .days button small { display: block; font-size: 11px; }
   .days button.on { color: #fff; }
+  .days button { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; transition: transform .15s ease; }
+  .days button.today { box-shadow: inset 0 0 0 1.5px #fff; }
+  .days button.holding { transform: scale(.94); }
+  /* 날짜를 꾹 누르면 뜨는 말풍선은 달력 창과 같은 진한 회색 상자에 꼬리를 달고, 날짜 상자 위(자리가 없으면 아래)에 둔다. 누를 수 있는 단추는 흰 글자와
+     오른쪽 꺽쇠로, 안내 문장은 흐린 글자로 쓴다. 뜰 때 살짝 커지며 나타난다. */
+  .bubble { position: absolute; z-index: 6; padding: 4px; border-radius: 12px; background: #2a2a2f; box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+            animation: bubble-in .16s ease-out; transform-origin: var(--tail) 100%; }
+  .bubble.below { transform-origin: var(--tail) 0; }
+  .bubble::after { content: ""; position: absolute; left: calc(var(--tail) - 6px); bottom: -5px; width: 12px; height: 12px; border-radius: 2px;
+                   background: inherit; transform: rotate(45deg); }
+  .bubble.below::after { top: -5px; bottom: auto; }
+  .bubble button { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: 0; border-radius: 9px;
+                   background: none; color: #fff; font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+  .bubble button:active { background: rgba(255, 255, 255, .08); }
+  .bubble button svg { color: var(--dim); }
+  .bubble p { position: relative; z-index: 1; margin: 0; padding: 10px 14px; color: var(--hint); font-size: 14px; white-space: nowrap; }
+  @keyframes bubble-in { from { opacity: 0; transform: scale(.92); } }
   /* 1개월 지수 방향 예측 절의 그림 이름 탭은 날짜 상자와 같은 색으로 그리고, 고른 탭으로 줄을 옮기지 않는다. */
   .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
   .tabs button { appearance: none; border: 0; font: inherit; font-size: 14px; font-weight: 600; padding: 6px 12px; border-radius: 8px;
@@ -414,6 +432,13 @@
   /* 설명이 있는 절 제목과 지표 카드 이름은 글자 바로 뒤에 원 안 물음표 단추를 둔다. 단추를 누르면 화면 가운데에 설명 상자를 띄우고, 닫기 단추나 상자 바깥을 누르면 닫는다. */
   .help { display: inline-grid; place-items: center; vertical-align: top; width: 26px; height: 1lh; margin-left: 2px; padding: 0; border: 0; font: inherit;
              background: none; color: var(--dim); cursor: pointer; }
+  /* 왼쪽 끝 뒤로 가기 띠는 보이지 않고, 미는 동안 손가락 높이에 반투명 원과 왼쪽 꺽쇠가 따라 나온다. 돌아갈 거리를 넘기면 원을 희게 칠한다. */
+  .back-edge { position: fixed; top: 0; bottom: 0; left: 0; z-index: 6; width: 18px; touch-action: pan-y; }
+  .back-ring { position: fixed; top: 0; left: 0; z-index: 6; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+               border-radius: 50%; background: rgba(60, 60, 66, .85); color: #fff; opacity: 0; pointer-events: none;
+               -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); transition: background .15s ease, color .15s ease; }
+  .back-ring.rest { transition: transform .2s ease, opacity .2s ease, background .15s ease, color .15s ease; }
+  .back-ring.ready { background: #fff; color: #171719; }
   .help-card { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 24px;
                background: rgba(0, 0, 0, .55); }
   .help-card .card { box-sizing: border-box; width: 100%; max-width: 360px; max-height: 70vh; overflow: auto; padding: 20px 20px 22px;
@@ -534,6 +559,18 @@
   // `listing`은 `r/index.json`이다. `index` 지수의 리포트 가운데 날짜가 가장 늦은 리포트의 키를 돌려주고, 그 지수의 리포트가 없으면 빈 글자를 돌려준다.
   const latest = (listing, index) => Object.keys(listing).filter((name) => listing[name].index === index)
     .sort((a, b) => listing[b].date.localeCompare(listing[a].date))[0] || "";
+  // 미니 앱 안에서 다른 리포트로 옮기면 주소의 `r`을 바꿔 페이지를 다시 열므로 브라우저 기록이 하나씩 쌓인다. 기록마다 처음 연 리포트에서
+  // 몇 번 옮겨 왔는지(`depth`)를 `history.state`에 적는다. 옮기기 직전에 다음 깊이를 `sessionStorage`에 두고, 새 페이지가 그 값을 읽어 자기 기록에 적는다.
+  // 뒤로 가기로 돌아온 페이지는 자기 기록에 적힌 깊이를 그대로 쓴다.
+  const depth = history.state?.depth ?? (+sessionStorage.getItem("depth") || 0);
+  sessionStorage.removeItem("depth");
+  history.replaceState({ ...history.state, depth }, "");
+  const visit = (target) => {
+    sessionStorage.setItem("depth", depth + 1);
+    const params = new URLSearchParams(location.search);
+    params.set("r", target);
+    location.search = params.toString();
+  };
   const fail = (message) => { report.innerHTML = `<p class="status">${message}</p>`; };
   // 좌우로 넘기는 동작은 모두 `--glide`와 같은 0.3초, 같은 감속 곡선(cubic-bezier(.33, 1, .68, 1))으로 움직인다.
   // `glide`는 값을 `from`에서 `to`까지 그 곡선으로 바꾸며 매 프레임 `set`을 부르고, 다 바꾸면 `done`을 부른다. 멈추는 함수를 돌려준다.
@@ -638,7 +675,7 @@
       document.addEventListener("touchstart", (event) => {
         begin = null;
         const { target, touches } = event;
-        if (touches.length !== 1 || track.contains(target) || target.closest(".viewer, .help-card, .cal-layer, .cal, .days, input")) return;
+        if (touches.length !== 1 || track.contains(target) || target.closest(".viewer, .help-card, .cal-layer, .cal, .days, .back-edge, input")) return;
         let next = area.nextElementSibling;
         while (next && next.tagName !== "H2") next = next.nextElementSibling;
         const y = touches[0].clientY;
@@ -1464,7 +1501,8 @@
   // 날짜 띠에는 리포트 날짜 뒤 35일까지 이벤트가 있는 날짜와 리포트 날짜를 두고, 리포트 날짜 전에는 `build.py`가 넣은 지난 이벤트의 날짜를 모두 둔다.
   // 발표일은 `build.py`가 소제목에 단 `data-day`를 쓰고, 35일 뒤 이벤트는 지운다. 처음에는 리포트 날짜를 보여 주고,
   // 그날 이벤트가 없으면 빈 안내 한 줄을 둔다. 날짜를 누르면 그 날짜의 장으로 넘어간다. 이벤트는 소제목과 표를 늘 펼쳐 둔다.
-  function events(date) {
+  // 날짜를 꾹 누르면 그 날짜 위에 말풍선을 띄운다. 말풍선에는 그 날짜 뒤의 첫 리포트로 가는 단추를 두고, 그런 리포트가 아직 없으면 그 사실을 적는다.
+  function events(date, listing) {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "다가오는 이벤트");
     if (!head) return;
     head.classList.add("events");
@@ -1505,6 +1543,7 @@
       const [, m, d] = day.split("-");
       const button = document.createElement("button");
       button.innerHTML = `${marks(groups.get(day))}<b>${m}/${d}</b><small>${day === date ? "오늘" : "일월화수목금토"[new Date(day).getUTCDay()]}</small>`;
+      if (day === date) button.classList.add("today");
       strip.appendChild(button);
     });
     // 띠를 i번 날짜 상자가 문단 왼쪽 끝에 오는 위치로 옮긴다. `now`면 바로 옮기고, 아니면 `glide`로 미끄러뜨린다. 띠에 손을 대면 미끄러뜨리기를 멈춘다.
@@ -1559,7 +1598,53 @@
     };
     box.addEventListener("pointerdown", hold, { passive: true });
     box.querySelector(".track").addEventListener("touchstart", () => (aim = null), { passive: true });
+    // 날짜를 450ms 동안 8px 넘게 움직이지 않고 누르고 있으면 말풍선을 띄운다. 말풍선을 띄운 누르기는 날짜를 고르지 않는다.
+    // 말풍선 밖을 누르거나 띠를 밀면 말풍선을 닫는다.
+    const index = key.split("-")[1];
+    let bubble = null, pressing = null, held = false;
+    const unpop = () => { bubble?.remove(); bubble = null; };
+    const pop = (button, day) => {
+      unpop();
+      feelPress();
+      const after = Object.keys(listing).filter((name) => listing[name].index === index && listing[name].date > day)
+        .sort((a, b) => listing[a].date.localeCompare(listing[b].date))[0];
+      bubble = Object.assign(document.createElement("div"), { className: "bubble" });
+      if (after) {
+        const [, m, d] = listing[after].date.split("-");
+        const go = Object.assign(document.createElement("button"), { type: "button" });
+        go.innerHTML = `${+m}/${+d} 리포트에서 결과 보기<svg width="6" height="10" viewBox="0 0 6 10" aria-hidden="true"><path d="M1 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        go.addEventListener("click", () => { feelPress(); visit(after); });
+        bubble.append(go);
+      } else {
+        bubble.append(Object.assign(document.createElement("p"), { textContent: "다음 리포트가 아직 없습니다" }));
+      }
+      document.body.append(bubble);
+      // 말풍선은 날짜 상자 위에 두고, 위쪽이 머리 상자에 가리면 아래에 둔다. 화면 양 끝에서 12px 안쪽에 두고, 꼬리는 날짜 상자 가운데를 가리킨다.
+      const at = button.getBoundingClientRect(), size = bubble.getBoundingClientRect();
+      const left = Math.min(innerWidth - 12 - size.width, Math.max(12, at.left + at.width / 2 - size.width / 2));
+      const below = at.top - size.height - 10 < masthead.getBoundingClientRect().bottom;
+      bubble.classList.toggle("below", below);
+      bubble.style.left = `${left + scrollX}px`;
+      bubble.style.top = `${(below ? at.bottom + 10 : at.top - size.height - 10) + scrollY}px`;
+      bubble.style.setProperty("--tail", `${at.left + at.width / 2 - left}px`);
+    };
+    addEventListener("pointerdown", (event) => { if (bubble && !bubble.contains(event.target)) unpop(); }, { capture: true, passive: true });
+    bar.addEventListener("scroll", unpop, { passive: true });
+    [...strip.children].forEach((button, i) => {
+      const lift = () => { clearTimeout(pressing?.timer); pressing = null; button.classList.remove("holding"); };
+      button.addEventListener("pointerdown", (event) => {
+        held = false;
+        button.classList.add("holding");
+        pressing = { x: event.clientX, y: event.clientY, timer: setTimeout(() => { lift(); held = true; pop(button, days[i]); }, 450) };
+      }, { passive: true });
+      button.addEventListener("pointermove", (event) => {
+        if (pressing && Math.hypot(event.clientX - pressing.x, event.clientY - pressing.y) > 8) lift();
+      }, { passive: true });
+      ["pointerup", "pointercancel", "pointerleave"].forEach((type) => button.addEventListener(type, lift, { passive: true }));
+      button.addEventListener("contextmenu", (event) => event.preventDefault());
+    });
     [...strip.children].forEach((button, i) => button.addEventListener("click", () => {
+      if (held) { held = false; return; }
       hold();
       if (i === seen) return;
       aim = i;
@@ -1895,9 +1980,7 @@
         strip.querySelectorAll(".grid button.has").forEach((button) => button.addEventListener("click", () => {
           feelPress();
           if (button.dataset.day === date) return close();
-          const params = new URLSearchParams(location.search);
-          params.set("r", `${button.dataset.day.replaceAll("-", "")}-${index}`);
-          location.search = params.toString();
+          visit(`${button.dataset.day.replaceAll("-", "")}-${index}`);
         }));
       };
       // `dir`이 1이면 다음 달로, -1이면 이전 달로, 0이면 보고 있는 달로 날짜 판을 그림 넘기기와 같은 `glide`로 옮긴다. 달을 넘기면 옮기기 시작할 때
@@ -1997,9 +2080,7 @@
     document.querySelector("header").append(button);
     button.addEventListener("click", () => {
       feelPress();
-      const params = new URLSearchParams(location.search);
-      params.set("r", target);
-      location.search = params.toString();
+      visit(target);
     });
   }
 
@@ -2044,7 +2125,7 @@
     section("상세 이슈 해설");
     // 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
     report.querySelectorAll("h3").forEach(trail);
-    events(date);
+    events(date, listing);
     help();
     jump([["예측", "1개월 지수 방향 예측"], ["이슈", "상세 이슈 해설"], ["지표", "미국 거시 지표"], ["이벤트", "다가오는 이벤트"]]);
     // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
@@ -2053,6 +2134,61 @@
     // 이슈 목록 상자의 썸네일은 누르면 이슈를 열므로 띄우지 않는다.
     report.querySelectorAll("img:not(.thumb)").forEach((img) => img.addEventListener("click", () => viewer(img)));
   }).catch(() => fail("리포트를 찾지 못했다."));
+  // 미니 앱 안에서 다른 리포트로 옮겨 온 페이지(`depth`가 0보다 크면)는 화면 왼쪽 끝 18px 띠에서 오른쪽으로 밀어 앞 리포트로 돌아간다.
+  // 띠는 위아래 스크롤은 브라우저에 맡기고 가로 이동만 받는다. 미는 동안 손가락 높이에 뒤로 가기 원이 따라 나오고, 80px을 넘기면 원이 밝아지며
+  // 선택 변경 진동을 낸다. 80px을 넘긴 채 손을 떼면 앞 페이지로 돌아가고, 못 넘기면 원을 거둔다. 움직이지 않고 누른 곳은 띠 아래 요소를 누른 것으로 넘긴다.
+  if (depth > 0) {
+    const edge = Object.assign(document.createElement("div"), { className: "back-edge" });
+    const ring = Object.assign(document.createElement("div"), { className: "back-ring" });
+    ring.innerHTML = '<svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2L2 8l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    document.body.append(edge, ring);
+    const REACH = 80;
+    let start = null, ready = false;
+    const place = (dx, y) => {
+      const pull = Math.min(dx, REACH * 1.6);
+      ring.style.transform = `translate(${pull * 0.6 - 44}px, ${y - 22}px)`;
+      ring.style.opacity = Math.min(1, dx / 40);
+    };
+    edge.addEventListener("touchstart", (event) => {
+      const touch = event.touches[0];
+      start = { x: touch.clientX, y: touch.clientY, moved: false };
+      ready = false;
+      ring.classList.remove("ready", "rest");
+    }, { passive: true });
+    edge.addEventListener("touchmove", (event) => {
+      if (!start) return;
+      const touch = event.touches[0], dx = touch.clientX - start.x;
+      if (Math.hypot(dx, touch.clientY - start.y) > 8) start.moved = true;
+      place(Math.max(0, dx), touch.clientY);
+      if (ready !== dx > REACH) {
+        ready = dx > REACH;
+        ring.classList.toggle("ready", ready);
+        if (ready) feelSlide();
+      }
+    }, { passive: true });
+    const end = (event) => {
+      if (!start) return;
+      const { moved } = start, touch = event.changedTouches[0];
+      start = null;
+      ring.classList.add("rest");
+      if (ready) {
+        history.back();
+        return;
+      }
+      ring.style.opacity = 0;
+      ring.style.transform = `translate(-44px, ${touch.clientY - 22}px)`;
+      if (moved || event.type === "touchcancel") return;
+      event.preventDefault();
+      edge.hidden = true;
+      const under = document.elementFromPoint(touch.clientX, touch.clientY);
+      edge.hidden = false;
+      under?.click();
+    };
+    edge.addEventListener("touchend", end);
+    edge.addEventListener("touchcancel", end);
+    // 뒤로 가기로 떠난 페이지가 브라우저 캐시에서 그대로 돌아오면 원을 거둔 상태로 되돌린다.
+    addEventListener("pageshow", () => { ring.classList.remove("ready"); ring.style.opacity = 0; });
+  }
   // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 보던 위치에서 절 제목 글자가 문서 맨 위에서 본 첫 절 제목 글자보다 40px 높은 높이에 올 때까지
   // 화면을 부드럽게 움직인다. 제목 위의 띠는 화면 위쪽에 보인다. 문서 끝이 모자라 제목이 그 높이까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
   // 단추를 만들 때 절마다 여백을 미리 늘려, 처음부터 마지막 절 제목까지 손으로 밀어 올릴 수 있다.
