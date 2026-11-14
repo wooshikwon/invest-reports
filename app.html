@@ -173,7 +173,9 @@
   mark, h3 .when { width: fit-content; background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
   mark { display: block; font-size: 13px; font-weight: 600; margin-bottom: 2px; }
   /* 요약 소제목은 말머리 아래에 결론마다 한 줄씩 소제목 글씨로 쓰고, 번호 블록의 왼쪽 끝을 말머리의 왼쪽 끝에 맞추며, 줄 앞에 소제목마다 1부터 매긴 번호를 옅은 흰색 둥근 블록 안에 쓰고, 블록의 세로 가운데를 결론 첫 줄(줄 높이 23.25px)의 가운데에 맞춘다.
-     마지막 줄 아래는 6px 더 띄운다. */
+     말머리와 첫 결론 사이는 4px, 마지막 줄 아래는 6px 더 띄운다. 펼친 문단은 결론 글자의 왼쪽 끝에 맞춰 들여 쓴다. */
+  h3:has(> ul.heads) > mark { margin-bottom: 4px; }
+  details.fold:has(> summary ul.heads) > .body { padding-left: 26px; }
   h3 > ul.heads { margin: 0 0 6px; padding: 0; list-style: none; counter-reset: head; }
   h3 > ul.heads li { position: relative; margin: 0; padding-left: 26px; counter-increment: head; }
   h3 > ul.heads li + li { margin-top: 4px; }
