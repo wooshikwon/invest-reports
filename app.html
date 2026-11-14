@@ -671,15 +671,19 @@
   // 미니 앱 안에서 다른 리포트로 옮기면 주소의 `r`을 바꿔 페이지를 다시 열므로 브라우저 기록이 하나씩 쌓인다. 기록마다 처음 연 리포트에서
   // 몇 번 옮겨 왔는지(`depth`)를 `history.state`에 적는다. 옮기기 직전에 다음 깊이를 `sessionStorage`에 두고, 새 페이지가 그 값을 읽어 자기 기록에 적는다.
   // 뒤로 가기로 돌아온 페이지는 자기 기록에 적힌 깊이를 그대로 쓴다.
+  // 리포트 화면에서 옮겨 온 페이지는 앞 화면의 리포트 키(`from`)도 같은 방법으로 자기 기록에 적는다. 이슈 화면에서 옮겨 왔으면 빈 글자를 적는다.
   const depth = history.state?.depth ?? (+sessionStorage.getItem("depth") || 0);
+  const from = history.state?.from ?? (sessionStorage.getItem("from") || "");
   sessionStorage.removeItem("depth");
-  history.replaceState({ ...history.state, depth }, "");
+  sessionStorage.removeItem("from");
+  history.replaceState({ ...history.state, depth, from }, "");
   // 옮기기 직전의 화면 위치(`y`)도 자기 기록에 적는다. 브라우저는 리포트를 받아 그리기 전에 화면 위치를 되돌리려다 실패하므로, 되돌리기는 페이지가 맡는다.
   history.scrollRestoration = "manual";
   // 이슈 화면(`issue`, `at`)은 `more`로 줄 때만 주소에 적고, 다른 리포트로 옮길 때는 지운다.
   const visit = (target, more = {}) => {
     history.replaceState({ ...history.state, y: scrollY }, "");
     sessionStorage.setItem("depth", depth + 1);
+    sessionStorage.setItem("from", query.get("issue") ? "" : key);
     const params = new URLSearchParams(location.search);
     params.delete("issue");
     params.delete("at");
@@ -1498,9 +1502,13 @@
     back.innerHTML = '<svg width="8" height="12" viewBox="0 0 8 12" aria-hidden="true"><path d="M6.5 1 1.5 6l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     // 절 제목 글자로 절을 찾는 곳이 있으므로 단추 이름은 글자 대신 CSS로 쓴다.
     back.setAttribute("aria-label", "이슈 목록");
+    // 이슈 목록 단추는 이 이슈를 담은 리포트 화면을 열고, 바로가기의 "이슈" 단추가 옮기는 높이에 상세 이슈 해설 절 제목을 둔다(`land`).
+    // 그 리포트 화면에서 옮겨 왔으면 뒤로 가서 기록을 쌓지 않고, 아니면 이슈 화면 기록을 리포트 화면으로 바꾸며 깊이를 그대로 넘긴다.
     back.addEventListener("click", () => {
       feelPress();
-      if (depth > 0) return history.back();
+      sessionStorage.setItem("land", key);
+      if (depth > 0 && from === key) return history.back();
+      if (depth > 0) sessionStorage.setItem("depth", depth);
       const params = new URLSearchParams(location.search);
       params.delete("issue");
       params.delete("at");
@@ -2529,12 +2537,38 @@
     // 이슈 목록 상자의 썸네일은 누르면 이슈를 열므로 띄우지 않는다.
     report.querySelectorAll("img:not(.thumb)").forEach((img) => img.addEventListener("click", () => viewer(img)));
     // 뒤로 가기로 새로 연 페이지는 그림을 모두 받아 문서 높이가 정해진 뒤 떠나기 전 화면 위치로 옮긴다. 그 사이에 사용자가 화면을 움직였으면 옮기지 않는다.
-    if (performance.getEntriesByType("navigation")[0]?.type === "back_forward") {
+    // 이슈 목록 단추로 연 페이지(`land`)는 바로가기의 "이슈" 단추가 옮기는 높이로 옮긴다. 예측 그림 카드처럼 늦게 그려지는 요소가 절 위의 높이를 바꾸므로,
+    // 1.5초 동안은 리포트 높이가 바뀔 때마다 다시 옮기고, 사용자가 화면을 만지거나 휠을 굴리면 멈춘다.
+    const land = !focus && sessionStorage.getItem("land") === key;
+    if (land) sessionStorage.removeItem("land");
+    if (land || performance.getEntriesByType("navigation")[0]?.type === "back_forward") {
       Promise.all([...report.querySelectorAll("img")].map((img) => img.complete
         || new Promise((done) => { img.addEventListener("load", done, { once: true }); img.addEventListener("error", done, { once: true }); })))
-        .then(() => { if (scrollY === 0 && history.state?.y) scrollTo(0, history.state.y); });
+        .then(() => {
+          if (scrollY !== 0) return;
+          if (!land) {
+            if (history.state?.y) scrollTo(0, history.state.y);
+            return;
+          }
+          const place = () => { const top = issuesTop(); if (top !== undefined) scrollTo(0, top); };
+          const watch = new ResizeObserver(place);
+          const stop = () => { watch.disconnect(); removeEventListener("touchstart", stop); removeEventListener("wheel", stop); };
+          watch.observe(report);
+          addEventListener("touchstart", stop, { passive: true });
+          addEventListener("wheel", stop, { passive: true });
+          setTimeout(stop, 1500);
+        });
     }
   }).catch(() => fail("리포트를 찾지 못했다."));
+  // 바로가기의 "이슈" 단추가 상세 이슈 해설 절로 옮기는 화면 위치다. 리포트 화면에서만 바로가기를 만든다.
+  const issuesTop = () => [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "상세 이슈 해설")?.reach?.();
+  // 이슈 목록 단추로 뒤로 간 리포트 화면이 브라우저 캐시에서 그대로 돌아오면, 떠날 때의 위치 대신 바로가기의 "이슈" 단추가 옮기는 높이로 옮긴다.
+  addEventListener("pageshow", (event) => {
+    if (!event.persisted || query.get("issue") || sessionStorage.getItem("land") !== key) return;
+    sessionStorage.removeItem("land");
+    const top = issuesTop();
+    if (top !== undefined) scrollTo(0, top);
+  });
   // 미니 앱 안에서 다른 리포트로 옮겨 온 리포트 화면(`depth`가 0보다 크면)은 화면 왼쪽 끝 18px 띠에서 오른쪽으로 밀어 앞 화면으로 돌아간다.
   // 이슈 화면은 이 띠를 두지 않고, 화면 어디서든 오른쪽으로 밀면 이슈 목록으로 돌아간다.
   // 띠는 손가락이 처음 6px 움직인 방향으로 할 일을 정한다. 가로로 움직인 거리가 세로의 0.6배 이상이면 뒤로 가기로 받고 페이지 스크롤을 막는다.
