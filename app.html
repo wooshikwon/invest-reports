@@ -296,13 +296,15 @@
     transition: transform .1s ease-out; -webkit-tap-highlight-color: transparent; }
   .issue-list .pick.pressed { transform: scale(.97); }
   /* 바로 앞 리포트의 이벤트 캘린더가 적은 이벤트의 결과를 다룬 이슈 상자는 지수색 그라데이션으로 외곽선을 두르고, 외곽선 위쪽 왼쪽에 "10월 CPI 이벤트"처럼
-     이벤트 이름표를 얹는다. 외곽선은 상자 가장자리 1.5px만 남기고 가린 그라데이션 층으로 그리고, 이름표 글자는 밝은 지수색 위에서 읽히도록 바탕색으로 쓴다. */
+     이벤트 이름표를 얹는다. 외곽선은 상자 가장자리 1.5px만 남기고 가린 그라데이션 층으로 그리고, 이름표 글자는 밝은 지수색 위에서 읽히도록 바탕색으로 쓴다.
+     날짜 띠의 별처럼, 다룬 이벤트가 모두 중요도 낮음이면 외곽선과 이름표를 지수색 대신 회색으로 칠한다. */
   .issue-list .pick[data-event] { position: relative; }
   .issue-list .pick[data-event]::after { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; pointer-events: none;
     background: var(--index-ink); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor; mask-composite: exclude; }
   .issue-list .pick[data-event]::before { content: attr(data-event) " 이벤트"; position: absolute; z-index: 1; top: 0; left: 14px; transform: translateY(-50%); padding: 0 8px;
     border-radius: 9px; background: var(--index-ink); color: var(--bg); font-size: 11px; font-weight: 700; line-height: 18px; white-space: nowrap; }
+  .issue-list .pick[data-event-level="low"]::after, .issue-list .pick[data-event-level="low"]::before { background: var(--hint); }
   .issue-list .pick + .pick { margin-top: 10px; }
   /* 지난 리포트의 이벤트 캘린더 절은 절 제목부터 절 끝까지를 회색 막으로 덮고 색을 빼서 흐리게 보이고, 막이 누르기와 밀기를 받아 아래 날짜 띠와 묶음이 움직이지 않는다.
      화면 위아래 스크롤은 막 위에서도 그대로 된다. 막 한가운데에는 가장 늦은 리포트로 가는 단추를 흰 글자와 오른쪽 꺽쇠로 띄운다.
@@ -1288,7 +1290,7 @@
         pick.lastChild.append(Object.assign(document.createElement("span"), { className: "num" }), text);
       } else {
         pick.className = "pick";
-        if (nodes[0].dataset.event) pick.dataset.event = nodes[0].dataset.event;
+        for (const key of ["event", "eventLevel"]) if (nodes[0].dataset[key]) pick.dataset[key] = nodes[0].dataset[key];
         const title = nodes[0].cloneNode(true);
         title.removeAttribute("id");
         text.append(title);

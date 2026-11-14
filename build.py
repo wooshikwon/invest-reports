@@ -47,7 +47,9 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 그 이벤트 이름을 `data-event`로 단다. 이벤트의 사안 id는 앞 리포트 사안 나무에서 이벤트의 사안(`item`)이고, 앞 리포트 `system/issues.json`에서
 그 사안을 노드로 묶은 이슈의 노드도 같은 사안으로 본다. 오늘 이슈의 `id`나 노드가 그 사안 가운데 하나이면 그 이벤트의 결과를 다룬 이슈다.
 트리거 노드(`trigger:`)는 여러 사안에 걸치므로 사안으로 보지 않는다. 한 이슈에 이벤트가 여럿이면 이름을 ` · `로 잇는다.
-`invest-reports` 미니 앱은 그 이슈 상자에 지수색 외곽선을 두르고 외곽선 위쪽 왼쪽에 "10월 CPI 이벤트"처럼 이벤트 이름표를 단다.
+그 이벤트가 모두 중요도 낮음이면 `data-event-level="low"`도 단다.
+`invest-reports` 미니 앱은 그 이슈 상자에 외곽선을 두르고 외곽선 위쪽 왼쪽에 "10월 CPI 이벤트"처럼 이벤트 이름표를 단다.
+외곽선과 이름표는 날짜 띠의 별처럼 중요도 높음·보통 이벤트면 지수색, 낮음 이벤트만이면 회색으로 칠한다.
 번호 붙은 이슈 뒤에는 그 `id`를 노드로 묶은 앞 날짜 이슈를 `issue-history` 템플릿으로 넣는다. 앞 날짜 이슈는 그날 `system/issues.json`의
 `nodes`에 오늘 `id`가 든 이슈이고, 내용은 그날 공개본 `report.html`의 이슈 조각을 그대로 쓴다. 템플릿에는 오늘을 포함한 모든 날짜의
 날짜와 이슈 해설 소제목을 날짜 순으로 적고, 오늘 항목에는 내용을 넣지 않는다. 앞 날짜 이슈가 없는 이슈에는 템플릿을 넣지 않는다.
@@ -747,9 +749,9 @@ def mark_indicators(body: str, cards: dict[str, dict]) -> str:
 
 
 
-def mark_issue_ids(body: str, bundles: Path, events: dict[int, list[str]]) -> str:
+def mark_issue_ids(body: str, bundles: Path, events: dict[int, list[tuple[str, str | None]]]) -> str:
     """`상세 이슈 해설` 절의 번호 붙은 이슈 소제목에 `system/issues.json`의 그 번호 `id`를 `data-issue`로 단다.
-    `events`에 그 번호가 있으면 결과를 다룬 이벤트 이름을 `data-event`로 함께 단다."""
+    `events`에 그 번호가 있으면 결과를 다룬 이벤트 이름을 `data-event`로 함께 달고, 그 이벤트가 모두 중요도 낮음이면 `data-event-level="low"`도 단다."""
     head = re.search(rf'<h2 id="[^"]*">{ISSUES_TITLE}</h2>', body)
     if not head or not bundles.is_file():
         return body
@@ -762,8 +764,10 @@ def mark_issue_ids(body: str, bundles: Path, events: dict[int, list[str]]) -> st
         issue = ids.get(int(number.group(1))) if number else None
         if not issue:
             return match.group(0)
-        names = events.get(int(number.group(1)))
-        event = f' data-event="{html.escape(" · ".join(names))}"' if names else ""
+        found = events.get(int(number.group(1)), [])
+        event = f' data-event="{html.escape(" · ".join(name for name, _ in found))}"' if found else ""
+        if found and all(level == "low" for _, level in found):
+            event += ' data-event-level="low"'
         return f'<h3{match.group(1)} data-issue="{html.escape(issue)}"{event}>{match.group(2)}</h3>'
 
     section = re.sub(r"<h3([^>]*)>(.*?)</h3>", heading, body[head.end():end], flags=re.DOTALL)
@@ -873,8 +877,8 @@ def result_issue(vault: Path, index: str, source: Path, name: str, day: dt.date,
     return None
 
 
-def issue_events(vault: Path, index: str, day: dt.date) -> dict[int, list[str]]:
-    """오늘 이슈 번호마다, 바로 앞 리포트가 적은 이벤트 가운데 두 리포트 사이에 발표되어 그 이슈가 결과를 다룬 이벤트의 이름."""
+def issue_events(vault: Path, index: str, day: dt.date) -> dict[int, list[tuple[str, str | None]]]:
+    """오늘 이슈 번호마다, 바로 앞 리포트가 적은 이벤트 가운데 두 리포트 사이에 발표되어 그 이슈가 결과를 다룬 이벤트의 이름과 `data-level` 값."""
     bundles = report_path(vault, day, index).parent / "system" / "issues.json"
     previous = reports(vault, index, day - dt.timedelta(days=1))
     if not bundles.is_file() or not previous:
@@ -882,15 +886,17 @@ def issue_events(vault: Path, index: str, day: dt.date) -> dict[int, list[str]]:
     source = previous[0]
     since = dt.date.fromisoformat(source.parent.parent.name)
     items = tree_issues(source)
-    found: dict[int, list[str]] = {}
-    for when, name, _ in event_items(source.read_text(encoding="utf-8"), since):
+    found: dict[int, list[tuple[str, str | None]]] = {}
+    for when, name, chunk in event_items(source.read_text(encoding="utf-8"), since):
         item = items.get(name, {}).get("item")
         if not item or not since <= when < day:
             continue
+        tag = LEVEL_RE.search(chunk.partition("\n")[0])
+        level = LEVELS.get(tag.group(1)) if tag else None
         same = linked_nodes(source, item)
         for bundle in json.loads(bundles.read_text(encoding="utf-8"))["issues"]:
             if same & {bundle["id"], *bundle["nodes"]}:
-                found.setdefault(bundle["issue"], []).append(name)
+                found.setdefault(bundle["issue"], []).append((name, level))
     return found
 
 
