@@ -707,8 +707,8 @@
   // 두 번째 색은 그라데이션이 끝나는 색으로, 지수색에서 색상환을 따라 보라 쪽으로 조금 옮긴 색이다.
   const INDEX = { nasdaq: ["#8FBCE6", "#AFA6EC"], biotech: ["#AE9CE6", "#E09DCB"] };
   // 요약 절 주가와 예측 카드가 예측 중앙값 앞에 붙이는 가격의 이름이다. 바이오는 예측 범위를 계산한 ETF(path_bands.py SECTOR_DB_TICKERS)의 눈금으로 그리므로 그 ETF 이름을 쓰고,
-  // 나스닥은 build.py CARD_INDEX가 지수 눈금으로 늘려 시장 탭의 나스닥 100 값과 같으므로 지수 이름을 쓴다.
-  const PRICE_NAME = { nasdaq: "나스닥 100", biotech: "IBB" };
+  // 나스닥은 build.py CARD_INDEX가 지수 눈금으로 늘려 시장 탭의 나스닥 100 값과 같으므로 시장 탭의 탭 이름을 쓴다.
+  const PRICE_NAME = { nasdaq: "나스닥", biotech: "IBB" };
   // 달력의 지수 단추에 쓰는 이름이다.
   const SHORT = { nasdaq: "나스닥 리포트", biotech: "바이오 리포트" };
   const paint = () => {
