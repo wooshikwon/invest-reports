@@ -298,7 +298,7 @@
      번호와 제목 묶음은 위를 맞춰 한 묶음으로 두고, 그 묶음을 썸네일과 세로 가운데로 맞춘다. 제목 묶음이 썸네일보다 낮아도 번호는 제목 첫 줄에 놓인다.
      소제목은 짧은 폭에서 줄 끝이 들쭉날쭉하지 않게 단어 대신 글자 단위로 줄을 바꾼다.
      마지막 상자에는 "비중이 낮은 이슈 N건"을 제목으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 문단을 보이거나
-     검토했지만 비중을 낮춘 이슈를 보이고, 절 제목 줄 오른쪽 끝에 이슈 목록으로 돌아가는 단추를 띄운다. 단추는 내용을 옮기는 동안 나타나거나 사라진다.
+     검토했지만 비중을 낮춘 이슈를 보이고, 절 제목 줄 오른쪽 끝에 이슈 화면을 연 곳으로 돌아가는 뒤로가기 단추를 띄운다. 단추는 내용을 옮기는 동안 나타나거나 사라진다.
      목록과 내용을 바꾸는 동안에는 두 쪽을 넘기기 장처럼 장 사이만큼 띄워 나란히 옆으로 옮기고, 묶음 밖으로 나간 부분은 가린다. */
   .issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); cursor: pointer;
     transition: transform .1s ease-out; -webkit-tap-highlight-color: transparent; }
@@ -355,8 +355,7 @@
   h2.issues { position: relative; }
   h2.issues .back { position: absolute; right: 0; bottom: 0; display: flex; align-items: center; gap: 4px; padding: 0 0 0 8px; height: 28px; border: 0;
                     transform: translateY(var(--shift, 0px)); background: none; color: var(--dim); font: inherit; cursor: pointer; opacity: 0; visibility: hidden; transition: opacity var(--glide), visibility 0s .3s; }
-  h2.issues .back::after { content: "이슈 목록"; font-size: 13px; font-weight: 600; }
-  h2.issues .back.calendar::after { content: "이벤트 캘린더"; }
+  h2.issues .back::after { content: "뒤로가기"; font-size: 13px; font-weight: 600; }
   h2.issues.inside .back { opacity: 1; visibility: visible; transition: opacity var(--glide); }
   /* 이벤트 캘린더는 발표일마다 한 장이고, 위 날짜 띠의 날짜마다 별·날짜·요일을 테두리 없는 둥근 회색 상자에 담는다. 보고 있는 날짜는 상자를
      진하게, 글자를 흰색으로 쓰고, 나머지 날짜는 상자를 연하게, 글자를 흐린 회색으로 쓴다. 리포트 날짜의 상자에는 절 제목 색의 얇은 회색 테두리를 두르고, 누르고 있는 상자는 조금 줄인다.
@@ -1677,11 +1676,11 @@
     back.className = "back";
     back.innerHTML = '<svg width="8" height="12" viewBox="0 0 8 12" aria-hidden="true"><path d="M6.5 1 1.5 6l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     // 절 제목 글자로 절을 찾는 곳이 있으므로 단추 이름은 글자 대신 CSS로 쓴다.
+    // 단추 이름은 어디서 열었든 "뒤로가기"이고, 돌아가는 곳은 이슈 화면을 연 곳이다. 이슈 화면 안에서 다른 이슈로 넘겨도 돌아가는 곳은 바뀌지 않는다.
+    back.setAttribute("aria-label", "뒤로가기");
     const calendar = via === "calendar" && depth > 0;
-    back.classList.toggle("calendar", calendar);
-    back.setAttribute("aria-label", calendar ? "이벤트 캘린더" : "이슈 목록");
     // 이벤트 캘린더의 "자세히 보기"로 연 이슈 화면의 단추는 뒤로 가서 떠날 때의 리포트 화면(예측 페이지와 캘린더 날짜, 화면 위치)으로 돌아간다.
-    // 그 밖의 이슈 화면의 단추는 이슈 목록 단추로, 이 이슈를 담은 리포트 화면의 이슈 페이지를 맨 위부터 연다(`land`).
+    // 그 밖의 이슈 화면의 단추는 이 이슈를 담은 리포트 화면의 이슈 페이지를 맨 위부터 연다(`land`).
     // 그 리포트 화면에서 옮겨 왔으면 뒤로 가서 기록을 쌓지 않고, 아니면 이슈 화면 기록을 리포트 화면으로 바꾸며 깊이를 그대로 넘긴다.
     back.addEventListener("click", () => {
       feelPress();
@@ -2747,7 +2746,7 @@
     section("상세 이슈 해설", focus, query.get("at"));
     // 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
     report.querySelectorAll("h3").forEach(trail);
-    // 이슈 목록 단추로 연 리포트 화면(`land`)은 이슈 페이지(1번)를 맨 위부터 보여 준다. 그 밖에는 `history.state`에 적힌 페이지를 연다.
+    // 이슈 화면의 뒤로가기 단추로 연 리포트 화면(`land`)은 이슈 페이지(1번)를 맨 위부터 보여 준다. 그 밖에는 `history.state`에 적힌 페이지를 연다.
     const land = !focus && sessionStorage.getItem("land") === key;
     if (land) sessionStorage.removeItem("land");
     if (!focus) {
@@ -2773,7 +2772,7 @@
         .then(() => { if (scrollY === 0 && history.state?.y) scrollTo(0, history.state.y); });
     }
   }).catch(() => fail("리포트를 찾지 못했다."));
-  // 이슈 목록 단추로 뒤로 간 리포트 화면이 브라우저 캐시에서 그대로 돌아오면, 떠날 때의 위치 대신 이슈 페이지를 맨 위부터 보여 준다.
+  // 이슈 화면의 뒤로가기 단추로 돌아간 리포트 화면이 브라우저 캐시에서 그대로 돌아오면, 떠날 때의 위치 대신 이슈 페이지를 맨 위부터 보여 준다.
   addEventListener("pageshow", (event) => {
     if (!event.persisted || !turn || sessionStorage.getItem("land") !== key) return;
     sessionStorage.removeItem("land");
@@ -2781,7 +2780,7 @@
     scrollTo(0, 0);
   });
   // 미니 앱 안에서 다른 리포트로 옮겨 온 리포트 화면(`depth`가 0보다 크면)은 화면 왼쪽 끝 18px 띠에서 오른쪽으로 밀어 앞 화면으로 돌아간다.
-  // 이슈 화면은 이 띠를 두지 않고, 화면 어디서든 오른쪽으로 밀면 이슈 목록으로 돌아간다.
+  // 이슈 화면은 이 띠를 두지 않고, 화면 어디서든 오른쪽으로 밀면 뒤로가기 단추를 누른 것과 같다.
   // 띠는 손가락이 처음 6px 움직인 방향으로 할 일을 정한다. 가로로 움직인 거리가 세로의 0.6배 이상이면 뒤로 가기로 받고 페이지 스크롤을 막는다.
   // 막지 않으면 스크롤할 여지가 있는 본문 가운데에서 손가락이 조금만 비스듬히 움직여도 브라우저가 스크롤을 시작해 밀기를 끊는다.
   // 그보다 세로로 움직이면 스크롤을 브라우저에 맡기고 그 손짓은 더 보지 않는다. 띠를 누르고 있는 동안은 뿌리에 `edging`을 달아 띠 아래 스크롤 상자의 스크롤을 멈춘다. 미는 동안 손가락 높이에 뒤로 가기 원이 따라 나오고, 80px을 넘기면 원이 밝아지며
