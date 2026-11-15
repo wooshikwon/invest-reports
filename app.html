@@ -689,8 +689,9 @@
   // 머리 상자 시세 이름의 색이다. 나스닥과 바이오는 지수색을 쓴다. S&P 500은 붉은 계열, 환율은 초록 계열에서 상승색(빨강)과 겹치지 않게
   // 채도를 낮춘 색을 쓰고, 옆 색상은 지수색처럼 색상환을 따라 보라 쪽으로 조금 옮긴 색이다.
   const QUOTE_INK = { "S&P 500": ["#E89D91", "#E798A8"], 나스닥: INDEX.nasdaq, 바이오: INDEX.biotech, 환율: ["#8BD0A8", "#8ECDD7"] };
-  // 요약 절 주가와 예측 카드가 그리는 종가의 ETF다. 예측 범위는 지수가 아니라 이 ETF의 종가로 계산한다(path_bands.py SECTOR_DB_TICKERS).
-  const ETF = { nasdaq: "QQQ", biotech: "IBB" };
+  // 요약 절 주가와 예측 카드가 ETF 눈금으로 그리는 지수와 그 ETF다. 예측 범위는 이 ETF의 종가로 계산한다(path_bands.py SECTOR_DB_TICKERS).
+  // 여기 없는 나스닥은 build.py CARD_INDEX가 지수 눈금으로 늘려 적으므로 시장 탭의 나스닥 100 값과 같다.
+  const ETF = { biotech: "IBB" };
   // 달력의 지수 단추에 쓰는 지수 이름이다.
   const SHORT = { nasdaq: "나스닥", biotech: "바이오" };
   const paint = () => {
@@ -1212,7 +1213,8 @@
         show(f) {
           frame = f;
           cancelAnimationFrame(raf);
-          c.head(f, `중앙값 ${signed((end(f, "q50") / f.base - 1) * 100)}%`, [Object.assign(document.createElement("small"), { className: "etf", textContent: ETF[key.split("-")[1]] }), fmt(end(f, "q50"))]);
+          const etf = ETF[key.split("-")[1]];
+          c.head(f, `중앙값 ${signed((end(f, "q50") / f.base - 1) * 100)}%`, [etf && Object.assign(document.createElement("small"), { className: "etf", textContent: etf }), fmt(end(f, "q50"))].filter(Boolean));
           tween(span, span, 1);
         },
       };

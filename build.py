@@ -88,7 +88,8 @@ S&P 500이 토스 SPY 일봉을, 두 나스닥 지수가 `market_price`의 ETF �
 `system/simulation.json`의 `quantiles`에 5% 값이 있는 리포트는 요약 절 세 그림을 그림 파일 대신 값으로 그린다.
 그런 리포트의 공개본에서는 12M + Predictions·Montecarlo·권장 추종 배율 그림을 빼고, `report.html` 끝에 카드 값을
 `<script type="application/json" id="cards">`로 붙인다. 카드 값은 `PRICE_YEARS`년 종가와 날짜, 지난 리포트가 예측한 25거래일 뒤 가격,
-그날 25·50·75% 가격, 10~90% 수익률 분위수와 사안 일정, 체류 적분 밀도를 담는다(`summary_cards`). 공개본이 있는 그 지수 리포트
+그날 25·50·75% 가격, 10~90% 수익률 분위수와 사안 일정, 체류 적분 밀도를 담는다(`summary_cards`). 종가와 가격은 예측을 계산한
+ETF 눈금이고, `CARD_INDEX`에 있는 나스닥은 지수 눈금으로 늘려 적는다. 공개본이 있는 그 지수 리포트
 가운데 가장 늦은 날짜에서 `REWIND_DAYS`일 안의 카드 값 리포트는 되감기 날짜가 되고, `r/rewind-{지수}/cards.json`에 날짜마다
 같은 판단 값과 그날 기준 가격 뒤의 실제 종가 수익률(%)을 쓴다. `invest-reports` 미니 앱은 카드 값으로 그림 카드를
 그리고, 슬라이더를 옮기면 그날 판단 값으로 세 카드를 다시 그린다.
@@ -132,6 +133,9 @@ TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
 CARD_QUANTILES = (10, 25, 50, 75, 90)  # 일정과 예측 카드가 그리는 수익률 분위수
 PRICE_YEARS = 3  # 주가와 예측 카드가 그리는 종가 기간(년)
+# 주가와 예측 카드를 예측을 계산한 ETF 눈금 대신 지수 눈금으로 그리는 지수와 그 지수 종가의 `observation` 계열이다.
+# 여기 없는 지수는 ETF(`path_bands.SECTOR_DB_TICKERS`) 눈금 그대로 그린다.
+CARD_INDEX = {"nasdaq": "close:^NDX"}
 # 시장 탭과 머리 줄이 보여 주는 시세. (이름, 탭 이름, 지수 폴더 이름, 단위, `observation` 계열)이다. 지수 폴더 이름이 있는 시세는
 # 그 지수의 `market_price` 종가로 야후 지수 종가보다 앞 날짜를 잇는다. S&P 500과 원/달러는 FRED 계열로 앞 날짜를 잇는다.
 MARKET = [("S&P 500", "S&P 500", None, "달러", ("fred:SP500", "close:^GSPC")),
@@ -174,8 +178,10 @@ def versioned(path: Path, out: Path) -> str:
     return f"{path.relative_to(out).as_posix()}?v={hashlib.sha256(path.read_bytes()).hexdigest()[:10]}"
 
 
-def actual_returns(db: Path, ticker: str, days: list[str], base: float, until: str) -> list[float]:
+def actual_returns(db: Path, ticker: str, days: list[str], base: float, scale: float, until: str) -> list[float]:
     """기준 가격 날짜 뒤 `until`까지의 거래일마다 기준 가격 대비 종가 수익률(%). 첫 값은 출발점 0이고 종가가 있는 날까지 잇는다.
+
+    `base`는 `scale`을 곱한 눈금의 기준 가격이고, 종가에도 `scale`을 곱해 같은 눈금에서 나눈다.
 
     `until`은 가장 늦은 리포트의 기준 가격 날짜다. 그 리포트를 만든 뒤에 확정된 종가는 잇지 않는다.
     """
@@ -190,8 +196,31 @@ def actual_returns(db: Path, ticker: str, days: list[str], base: float, until: s
     for day in days[1:]:
         if day > until or day not in closes:
             break
-        values.append(round((closes[day] / base - 1) * 100, 3))
+        values.append(round((closes[day] * scale / base - 1) * 100, 3))
     return values
+
+
+def index_scale(con: sqlite3.Connection, ticker: str, series_id: str) -> float:
+    """`market_price`의 ETF 환산 종가 `ticker`를 지수 눈금으로 늘리는 배율. 마지막으로 겹치는 날의 `observation` 지수 종가 ÷ 환산 종가다.
+
+    `market_price`의 두 나스닥 ETF 행은 지수 수익률을 ETF 눈금으로 환산한 값이라, 이 배율은 날짜와 관계없이 일정하다.
+    """
+    return con.execute(
+        "SELECT o.value / p.close FROM observation o JOIN market_price p ON p.price_date = o.period "
+        "WHERE p.ticker = ? AND o.series_id = ? AND o.value IS NOT NULL ORDER BY o.period DESC, o.retrieved_at DESC LIMIT 1",
+        (ticker, series_id)).fetchone()[0]
+
+
+def card_scale(index: str, vault: Path) -> float:
+    """주가와 예측 카드가 가격에 곱하는 배율. `CARD_INDEX`에 있는 지수는 `index_scale`이고, 없는 지수는 1이다."""
+    if index not in CARD_INDEX:
+        return 1.0
+    chart = predictions_chart(vault)
+    con = sqlite3.connect(f"file:{chart.path_bands.REFERENCE_DB_PATH}?mode=ro", uri=True)
+    try:
+        return index_scale(con, chart.path_bands.SECTOR_DB_TICKERS[index], CARD_INDEX[index])
+    finally:
+        con.close()
 
 
 def moves(vault: Path, index: str, date: str) -> dict | None:
@@ -217,9 +246,10 @@ def moves(vault: Path, index: str, date: str) -> dict | None:
             "close": round(close, 2), "base": round(float(bands["price_base"]), 2)}
 
 
-def card_frame(date: str, folder: Path) -> dict | None:
+def card_frame(date: str, folder: Path, scale: float) -> dict | None:
     """그날 판단의 그림 카드 값. `system/simulation.json`의 `quantiles`에 5% 값이 없는 리포트는 `None`이다.
 
+    `base`는 기준 가격에 `scale`(`card_scale`)을 곱한 값이다.
     `days`는 기준 가격 날짜에서 시작하는 거래일, `predict`는 그 거래일마다 25·50·75% 가격, `tree`는 수익률 분위수(%)와 발표일이 같은 사안의 묶음·가로축 날짜,
     `chart`는 체류 적분 밀도다. 가로축의 첫 날짜는 기준 가격 날짜가 아니라 리포트 날짜로 적는다.
     """
@@ -228,7 +258,7 @@ def card_frame(date: str, folder: Path) -> dict | None:
     quantiles = simulation.get("quantiles") or {}
     if "q5" not in quantiles:
         return None
-    base = float(json.loads((folder / "path-bands.json").read_text(encoding="utf-8"))["price_base"])
+    base = float(json.loads((folder / "path-bands.json").read_text(encoding="utf-8"))["price_base"]) * scale
     days = quantiles["days"]
     horizon = len(days) - 1
     same = {}
@@ -249,10 +279,11 @@ def summary_cards(index: str, date: str, folder: Path, vault: Path) -> dict | No
     """요약 절 그림 카드 값. `card_frame`이 `None`인 리포트는 `None`이다.
 
     카드 값은 그날 판단(`card_frame`)에 판단 색, 기준 가격 날짜까지 `PRICE_YEARS`년 종가와 날짜, 기준 가격의 가로 거리,
-    지난 리포트가 예측한 25거래일 뒤 가격(`past`, 가로 위치·25·50·75% 가격)을 더한다. 지난 예측은 12M + Predictions 그림과
+    지난 리포트가 예측한 25거래일 뒤 가격(`past`, 가로 위치·25·50·75% 가격)을 더한다. 종가와 가격에는 모두 `card_scale`을 곱한다. 지난 예측은 12M + Predictions 그림과
     같은 줄을 고르고, 오늘 판단과 같은 기준 가격 날짜의 줄과 오늘 판단의 끝보다 오른쪽 줄은 뺀다.
     """
-    frame = card_frame(date, folder)
+    scale = card_scale(index, vault)
+    frame = card_frame(date, folder, scale)
     if not frame:
         return None
     chart = predictions_chart(vault)
@@ -271,9 +302,9 @@ def summary_cards(index: str, date: str, folder: Path, vault: Path) -> dict | No
     for base_date, (base, ahead, values) in chart.past_judgments(
             chart.read_ledger(chart.LEDGER_DIR / f"predictions-{index}.jsonl"), date).items():
         if base_date in dates and base_date != frame["base_date"] and dates.index(base_date) + ahead <= x0 + horizon:
-            past[dates.index(base_date) + ahead] = [round(base * (1 + v), 2) for v in values]
+            past[dates.index(base_date) + ahead] = [round(base * scale * (1 + v), 2) for v in values]
     return {"color": chart.chart.JUDGMENT_COLORS.get(index, chart.chart.JUDGMENT_COLORS["nasdaq"])["line"],
-            "start_offset": chart.START_OFFSET, "dates": dates, "history": [round(c, 2) for _, c in history],
+            "start_offset": chart.START_OFFSET, "dates": dates, "history": [round(c * scale, 2) for _, c in history],
             "past": [[x, *values] for x, values in sorted(past.items())], **frame}
 
 
@@ -286,14 +317,15 @@ def rewind(index: str, vault: Path, out: Path) -> Path | None:
     published = sorted(dt.date.fromisoformat(f"{p.name[:4]}-{p.name[4:6]}-{p.name[6:8]}")
                        for p in (out / "r").glob(f"*-{index}") if p.name[:8].isdigit())
     days = [day for day in published if published[-1] - day < dt.timedelta(days=REWIND_DAYS)]
+    scale = card_scale(index, vault)
     frames = [frame for day in days
-              if (frame := card_frame(day.isoformat(), vault / f"routine/invest/{day:%Y-%m}/{day}/{index}"))]
+              if (frame := card_frame(day.isoformat(), vault / f"routine/invest/{day:%Y-%m}/{day}/{index}", scale))]
     if frames:
         chart = predictions_chart(vault)
         until = frames[-1]["base_date"]
         for frame in frames:
             frame["tree"]["actual"] = actual_returns(chart.path_bands.REFERENCE_DB_PATH, chart.path_bands.SECTOR_DB_TICKERS[index],
-                                                     frame["days"], frame["base"], until)
+                                                     frame["days"], frame["base"], scale, until)
     gauges = [{"day": day.isoformat(), "cards": {name: {k: v for k, v in card.items() if k not in ("tab", "help")}
                                                  for name, card in cards.items()}}
               for day in days if (cards := indicator_cards(vault, index, day))]
@@ -313,7 +345,7 @@ def market(vault: Path, out: Path) -> Path:
     """`r/market.json`에 `MARKET`의 시세마다 이름, 탭 이름, 지수 폴더 이름, 단위, 날짜와 종가를 쓴다.
 
     날짜는 공개본이 있는 가장 늦은 리포트 날짜에서 `REWIND_DAYS`일과 `PRICE_YEARS`년을 거슬러 간 날부터다. 지수 폴더가 있는 시세는
-    `market_price`의 ETF 환산 종가에 마지막으로 겹치는 날의 `observation` 지수 종가 비율을 곱해 지수 눈금으로 늘리고,
+    `market_price`의 ETF 환산 종가에 `index_scale`을 곱해 지수 눈금으로 늘리고,
     `observation` 값이 있는 날은 그 값을 쓴다. 시세 하나가 `observation` 계열을 여럿 가지면 뒤 계열의 값이 앞 계열의 같은 날 값을 덮는다.
     """
     published = sorted(p.name[:8] for p in (out / "r").glob("*-*") if p.name[:8].isdigit())
@@ -336,8 +368,8 @@ def market(vault: Path, out: Path) -> Path:
             if index:
                 prices = dict(con.execute("SELECT price_date, close FROM market_price WHERE ticker = ? AND price_date >= ?",
                                           (chart.path_bands.SECTOR_DB_TICKERS[index], start)).fetchall())
-                common = max(set(prices) & set(observed[-1]))
-                closes = {day: close * observed[-1][common] / prices[common] for day, close in prices.items()}
+                scale = index_scale(con, chart.path_bands.SECTOR_DB_TICKERS[index], ids[-1])
+                closes = {day: close * scale for day, close in prices.items()}
             for values in observed:
                 closes.update(values)
             days = sorted(closes)
