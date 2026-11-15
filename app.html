@@ -1249,7 +1249,7 @@
           frame = f;
           cancelAnimationFrame(raf);
           const name = PRICE_NAME[key.split("-")[1]];
-          c.head(f, `중앙값 ${signed((end(f, "q50") / f.base - 1) * 100)}%`, [Object.assign(document.createElement("small"), { className: "name", textContent: name }), fmt(end(f, "q50"))]);
+          c.head(f, `${signed((end(f, "q50") / f.base - 1) * 100)}%`, [Object.assign(document.createElement("small"), { className: "name", textContent: name }), fmt(end(f, "q50"))]);
           tween(span, span, 1);
         },
       };
