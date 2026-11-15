@@ -123,9 +123,9 @@ NEW_YORK, SEOUL = ZoneInfo("America/New_York"), ZoneInfo("Asia/Seoul")
 # 리포트 제목 끝의 날짜 줄. `나스닥 리포트 2026-10-22 (목)` 꼴이다.
 TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
-CARD_QUANTILES = (10, 25, 50, 75, 90)  # Montecarlo 카드가 그리는 수익률 분위수
+CARD_QUANTILES = (10, 25, 50, 75, 90)  # 일정과 예측 카드가 그리는 수익률 분위수
 PRICE_YEARS = 3  # 주가와 예측 카드가 그리는 종가 기간(년)
-TICK_STEP = 5  # Montecarlo 카드 가로축 날짜의 거래일 간격
+TICK_STEP = 5  # 일정과 예측 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
 ISSUES_TITLE = "상세 이슈 해설"
 HISTORY_RE = re.compile(r'<template class="issue-history">.*?</template>\s*', re.DOTALL)

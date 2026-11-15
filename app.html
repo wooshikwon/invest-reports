@@ -46,7 +46,7 @@
      날짜와 제목이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
      지수 시세는 "나스닥 100 $688.15 −0.30%"처럼 지수 이름, 기준 가격 날짜의 환산 종가, 정규장 등락률을 쓴 줄과 "장 마감 후 $690.88 +0.40%"처럼 기준 가격과 장 마감 후 등락률을 쓴 줄로 이루어진다.
      두 가격은 주가와 예측 카드와 같은 달러 눈금이고, 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 지수 시세는 28px 높이 창 안에 정규장 줄, 장 마감 후 줄, 정규장 줄을 위아래로 쌓고 한 줄씩 위로 굴려 두 줄을 번갈아 보여 준다.
-     상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 절 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
+     상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 페이지 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
      흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
   #day { margin: 0; font-size: 12.5px; font-weight: 600; line-height: 20px; color: var(--dim); }
   #day:empty { display: none; }
@@ -82,7 +82,7 @@
   #past { display: none; }
   :root.past #past { display: block; position: fixed; top: var(--top-inset); left: 0; right: 0; z-index: 7; height: var(--past);
                      background: #d9363e; color: #fff; font-size: 12px; font-weight: 700; line-height: var(--past); text-align: center; }
-  /* 이슈 화면(`:root.issue`)은 머리 상자, 과거 리포트 띠, 절 바로가기 알약 없이 이슈 하나만 보인다.
+  /* 이슈 화면(`:root.issue`)은 머리 상자, 과거 리포트 띠, 페이지 바로가기 알약 없이 이슈 하나만 보인다.
      대신 머리 상자의 유리 띠와 같은 색·흐림의 한 줄 띠(`#issue-bar`)를 화면 맨 위에 고정하고, 가운데에 보고 있는 이슈의 제목을 작은 회색 글씨 한 줄로 쓴다. 줄을 넘는 제목은 말줄임표로 줄인다.
      이 띠가 전체화면 위쪽 높이까지 덮으므로 위쪽 높이의 유리는 감춘다. */
   :root.issue { --past: 0px; --issue-bar: 38px; }
@@ -135,11 +135,11 @@
   .cal .grid button small.up { color: #ff5c5c; }
   .cal .grid button small.down { color: #5b9bff; }
   h2 { font-size: 15.5px; font-weight: 700; color: var(--dim); margin: 46px 0 10px; }
-  #report > h2:first-child { margin-top: 28px; }
+  :is(#report, #report > .page) > h2:first-child { margin-top: 28px; }
   /* 절과 절 사이에는 화면 폭 전체에 바탕보다 짙은 띠를 두어 절을 나눈다. 띠 위아래는 같은 폭으로 띄운다. */
   html { overflow-x: clip; }
-  #report > h2:not(:first-child) { margin-top: 0; }
-  #report > h2:not(:first-child)::before { content: ""; display: block; height: 12px; margin: 40px calc(50% - 50vw) 36px; background: var(--band); }
+  :is(#report, #report > .page) > h2:not(:first-child) { margin-top: 0; }
+  :is(#report, #report > .page) > h2:not(:first-child)::before { content: ""; display: block; height: 12px; margin: 40px calc(50% - 50vw) 36px; background: var(--band); }
   h3, h4 { font-size: 15.5px; line-height: 1.5; margin: 22px 0 6px; color: var(--accent); }
   p { margin: 0 0 12px; }
   ul { padding-left: 1.2em; margin: 0 0 12px; }
@@ -315,7 +315,7 @@
   .issue-list .pick + .pick { margin-top: 10px; }
   /* 지난 리포트의 이벤트 캘린더 절은 절 제목부터 절 끝까지를 회색 막으로 덮고 색을 빼서 흐리게 보이고, 막이 누르기와 밀기를 받아 아래 날짜 띠와 묶음이 움직이지 않는다.
      화면 위아래 스크롤은 막 위에서도 그대로 된다. 막 한가운데에는 가장 늦은 리포트로 가는 단추를 흰 글자와 오른쪽 꺽쇠로 띄운다.
-     단추 상자는 머리 상자·절 바로가기 알약과 같은 색·흐림의 유리 알약에 알약과 같은 1px 빛줄기를 두르고 그림자는 두지 않아, 아래 표 글자와 겹쳐도 읽힌다.
+     단추 상자는 머리 상자·페이지 바로가기 알약과 같은 색·흐림의 유리 알약에 알약과 같은 1px 빛줄기를 두르고 그림자는 두지 않아, 아래 표 글자와 겹쳐도 읽힌다.
      막과 단추는 머리 상자 아래에 둔다. 막을 절 내용보다 먼저 그리는 층으로 두어, 같은 층의 단추가 막 위에 그려진다. */
   .frozen { position: relative; }
   .frozen::before { content: ""; position: absolute; inset: -8px -16px 0; z-index: 3; background: rgba(110, 110, 118, .22);
@@ -480,7 +480,7 @@
   .gauge .marks { animation: marks-in .25s ease-out; }
   @keyframes marks-in { from { opacity: 0; } }
   /* 그림 아래 줄은 세 카드가 같은 높이로 둔다. 주가와 예측 카드는 기간을 한 단계씩 줄이고 늘리는 단추와 다섯 단계 가운데 고른 단계의 점을,
-     Montecarlo 카드는 고른 번호의 일정을 둔다. 일정은 번호, 날짜, 이름을 한 줄에 왼쪽부터 적어 −와 + 단추와 같은 높이에 두고, 같은 날 일정은 쉼표로 잇는다.
+     일정과 예측 카드는 고른 번호의 일정을 둔다. 일정은 번호, 날짜, 이름을 한 줄에 왼쪽부터 적어 −와 + 단추와 같은 높이에 두고, 같은 날 일정은 쉼표로 잇는다.
      한 줄을 넘는 이름은 말줄임표로 줄인다. */
   .gauge .foot { min-height: 28px; margin-top: 12px; }
   .gauge.summary { padding-bottom: 4px; }
@@ -497,6 +497,10 @@
   .gauge .evbox button:disabled { color: var(--dim); opacity: .45; cursor: default; }
   .gauge .evbox .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: center; }
   .gauge .evbox .d { margin-right: 8px; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  /* 일정 이름은 누르면 이벤트 캘린더의 그날 일정으로 가므로 옅은 밑줄을 긋는다. 일정이 없는 예측 마지막 날은 긋지 않는다. */
+  .gauge .evbox .t.go { cursor: pointer; }
+  .gauge .evbox .t.go .n { text-decoration: underline; text-decoration-color: rgba(255, 255, 255, .35); text-underline-offset: 3px; }
+  .gauge .evbox .t.go:active { opacity: .6; }
   /* 표 카드는 그림 칸 대신 표를 싣는다. 첫 열 이름은 소제목 색, 강조 열(`focus`)은 카드 값처럼 굵은 흰 글씨, 나머지 칸은 흐린 글씨로 쓴다. */
   .gauge table { margin: 12px 0 4px; font-variant-numeric: tabular-nums; }
   .gauge th { color: var(--dim); font-size: 12px; }
@@ -504,9 +508,14 @@
   .gauge td:first-child { color: var(--hint); font-weight: 600; }
   .gauge :is(th, td).focus { color: var(--accent); font-weight: 700; }
   .gauge tr:last-child td { border-bottom: 0; }
-  /* 화면 오른쪽 아래에 절 바로가기를 세로로 긴 반투명 유리 알약 하나에 담아 띄운다. 알약 뒤 본문은 흐리게 비친다. 누르면 그 절 제목이 화면 위쪽에 오도록 부드럽게 옮긴다. */
-  nav.jump { position: fixed; z-index: 5; right: 16px; bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
-             display: flex; flex-direction: column; padding: 6px; border-radius: 24px; touch-action: none; user-select: none; -webkit-user-select: none;
+  /* 리포트 화면은 절을 예측 페이지와 이슈 페이지에 나눠 담고 한 페이지만 보여 준다. 가린 페이지는 높이를 0으로 줄여 숨기되 안의 요소는 자리를 그대로 잡아 두어,
+     넘기기 묶음이 보고 있던 장과 높이를 지킨다. 보이는 페이지 끝에는 바로가기 알약만큼 여백을 더해 마지막 줄이 알약에 가리지 않게 한다. 페이지를 바꾸면 새 페이지가 0.18초에 걸쳐 나타난다. */
+  #report > .page { padding-bottom: 36px; animation: page-in .18s ease-out; }
+  #report > .page.off { height: 0; padding: 0; overflow: hidden; visibility: hidden; animation: none; }
+  @keyframes page-in { from { opacity: 0; } }
+  /* 화면 아래 가운데에 두 페이지의 바로가기를 가로로 긴 반투명 유리 알약 하나에 담아 띄운다. 알약 뒤 본문은 흐리게 비친다. */
+  nav.jump { position: fixed; z-index: 5; left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
+             display: flex; padding: 5px; border-radius: 24px; user-select: none; -webkit-user-select: none;
              background: color-mix(in srgb, var(--bg) 40%, transparent);
              box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
              -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: blur(3px) saturate(150%); }
@@ -516,19 +525,16 @@
                                  rgba(255, 255, 255, .06) 80%, rgba(255, 255, 255, .22));
                      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
                      -webkit-mask-composite: xor; mask-composite: exclude; }
-  nav.jump button { appearance: none; border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--accent);
-                    padding: 8px 8px; cursor: pointer; }
-  nav.jump button:active { color: #fff; }
-  /* 지금 읽는 절의 단추만 굵게 쓴다. 굵기가 바뀌어도 알약 폭이 변하지 않도록 굵은 글자 폭을 숨겨 둔다. */
-  nav.jump button { display: flex; flex-direction: column; align-items: center; font-weight: 500; color: var(--hint); }
+  /* 보고 있는 페이지의 단추만 굵게 쓴다. 굵기가 바뀌어도 알약 폭이 변하지 않도록 굵은 글자 폭을 숨겨 둔다. */
+  nav.jump button { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; min-width: 76px; padding: 8px 20px;
+                    appearance: none; border: 0; background: none; font: inherit; font-size: 13.5px; font-weight: 500; line-height: 1.4; color: var(--hint); cursor: pointer; }
   nav.jump button::after { content: attr(data-name); height: 0; overflow: hidden; visibility: hidden; font-weight: 800; }
   nav.jump button.on { font-weight: 800; color: var(--accent); }
-  /* 지금 읽는 절의 단추 뒤에 밝은 레버를 깔고, 굵게 쓰는 단추가 바뀌면 레버를 그 단추로 미끄러뜨린다. 레버를 끌면 손가락을 따라 움직이고, 놓으면 가장 가까운 단추로 옮겨 그 절로 간다. */
-  nav.jump button { position: relative; z-index: 1; }
-  nav.jump .lever { position: absolute; top: 0; left: 6px; right: 6px; border-radius: 18px; pointer-events: none;
+  nav.jump button:active { color: #fff; }
+  /* 보고 있는 페이지의 단추 뒤에 밝은 레버를 깔고, 페이지를 바꾸면 레버를 그 단추로 미끄러뜨린다. */
+  nav.jump .lever { position: absolute; top: 5px; bottom: 5px; left: 0; border-radius: 19px; pointer-events: none;
                     background: rgba(255, 255, 255, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
-                    transition: transform .25s ease, height .25s ease, opacity .2s ease; }
-  nav.jump .lever.drag { transition: none; background: rgba(255, 255, 255, .18); }
+                    transition: transform .25s ease, width .25s ease; }
   /* 설명이 있는 절 제목과 지표 카드 이름은 글자 바로 뒤에 원 안 물음표 단추를 둔다. 단추를 누르면 화면 가운데에 설명 상자를 띄우고, 닫기 단추나 상자 바깥을 누르면 닫는다. */
   .help { display: inline-grid; place-items: center; vertical-align: top; width: 26px; height: 1lh; margin-left: 2px; padding: 0; border: 0; font: inherit;
              background: none; color: var(--dim); cursor: pointer; }
@@ -724,7 +730,7 @@
   // 슬라이드마다 노드 목록을 받아 좌우로 넘기는 묶음을 만들고 `after` 뒤에 둔다. 묶음 상자를 돌려준다.
   // `fit`이면 넘기기가 멈춘 뒤와 슬라이드 높이가 바뀐 뒤 묶음 높이를 보고 있는 슬라이드에 맞춘다. `change`가 있으면 보고 있는
   // 슬라이드가 바뀔 때마다 그 번호로 `change`를 부른다. `start`번 슬라이드부터 보여 준다.
-  // `feel`이면 보고 있는 슬라이드가 바뀔 때마다 선택 변경 진동을 낸다. 상자의 `go(i)`는 i번 슬라이드로 넘긴다.
+  // `feel`이면 보고 있는 슬라이드가 바뀔 때마다 선택 변경 진동을 낸다. 상자의 `go(i)`는 i번 슬라이드로 넘기고, `go(i, true)`는 넘기는 움직임 없이 바로 옮긴다.
   function slider(slides, after, { fit = false, start = 0, change = null, name = "", area = null, feel = false } = {}) {
     const box = document.createElement("div");
     box.className = ["carousel", fit && "fit", name].filter(Boolean).join(" ");
@@ -805,15 +811,20 @@
       const watch = new ResizeObserver(fitHeight);
       [...track.children].forEach((slide) => watch.observe(slide));
     }
-    box.go = (i) => slide(Math.min(slides.length - 1, Math.max(0, i)));
+    box.go = (i, now = false) => {
+      const goal = Math.min(slides.length - 1, Math.max(0, i));
+      if (!now) return slide(goal);
+      stop();
+      track.scrollLeft = goal * step();
+    };
     // 절 제목 `area`를 받으면 그 제목부터 다음 절 제목 앞까지(마지막 절이면 문서 끝까지)를 넘기기 영역으로 쓴다. 넘기기 묶음과 날짜 띠 밖에서
-    // 가로로 40px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 민 방향의 다음 장으로 넘긴다.
+    // 가로로 40px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 민 방향의 다음 장으로 넘긴다. 절이 가린 페이지에 있으면 넘기지 않는다.
     if (area) {
       let begin = null;
       document.addEventListener("touchstart", (event) => {
         begin = null;
         const { target, touches } = event;
-        if (touches.length !== 1 || track.contains(target) || target.closest(".viewer, .help-card, .cal-layer, .cal, .days, .back-edge, .frozen, input")) return;
+        if (touches.length !== 1 || area.closest(".page.off") || track.contains(target) || target.closest(".viewer, .help-card, .cal-layer, .cal, .days, .back-edge, .frozen, input")) return;
         let next = area.nextElementSibling;
         while (next && next.tagName !== "H2") next = next.nextElementSibling;
         const y = touches[0].clientY;
@@ -833,8 +844,8 @@
     return box;
   }
 
-  // 요약의 Outlook 그림 자리에 12M + Predictions, Montecarlo, Outlook 순서로 넘기는 묶음을 둔다.
-  // Montecarlo는 원래 이벤트 캘린더 절에 있으므로 그 자리에서는 뺀다. 12M + Predictions가 없는 리포트는 두 장을 넘긴다.
+  // 요약의 Outlook 그림 자리에 12M + Predictions(주가와 예측), Montecarlo(일정과 예측), Outlook(권장 추종 배율) 순서로 넘기는 묶음을 둔다.
+  // Montecarlo 그림은 원래 이벤트 캘린더 절에 있으므로 그 자리에서는 뺀다. 12M + Predictions가 없는 리포트는 두 장을 넘긴다.
   // 묶음 위에는 그림 이름 탭을 둔다. 탭을 누르면 그 그림으로 넘기고, 넘기면 보고 있는 그림의 탭을 밝힌다.
   // 그림 카드 값(`build.py`가 리포트 끝에 둔 `#cards`)이 있는 리포트는 그림 대신 같은 이름의 카드 세 장을 넘긴다.
   function figures(date) {
@@ -858,7 +869,7 @@
     const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
     const chart = pick("chart"), tree = pick("tree"), predict = pick("predict");
     if (!chart || !tree) return;
-    const shown = [[predict, "주가와 예측"], [tree, "몬테카를로"], [chart, "권장 추종 배율"]].filter(([img]) => img);
+    const shown = [[predict, "주가와 예측"], [tree, "일정과 예측"], [chart, "권장 추종 배율"]].filter(([img]) => img);
     shown.forEach(([img]) => (img.closest("p") || img).remove());
     const bar = document.createElement("div");
     bar.className = "tabs";
@@ -930,7 +941,7 @@
     show(start);
   }
 
-  // 요약 절의 그림 카드 세 장(주가와 예측, Montecarlo, 권장 추종 배율)을 만든다. `data`는 `build.py` `summary_cards`의 값이다.
+  // 요약 절의 그림 카드 세 장(주가와 예측, 일정과 예측, 권장 추종 배율)을 만든다. `data`는 `build.py` `summary_cards`의 값이다.
   // 돌려준 `show(frame)`은 되감기 슬라이더가 고른 날짜의 판단(`cards.json`의 프레임)으로 세 장을 다시 그린다.
   // 주가와 예측의 종가 바탕(날짜·종가·지난 예측)은 늘 리포트 날짜의 값이고, 고른 날짜의 판단만 그 위에 바꿔 그린다.
   function summaryCards(data, date) {
@@ -1071,10 +1082,11 @@
       };
     })();
 
-    // Montecarlo: 등락률 분위수의 10~90% 옅은 면과 25~75% 면, 50% 실선을 주가와 예측 카드와 같은 판단 색으로 그린다. 위쪽 번호는 이슈 일정이 있는 날이고,
-    // 마지막 거래일에는 일정이 없어도 번호를 달고, 처음에는 마지막 번호를 고른다. 번호를 누르면 위 값을 그날의 25~75% 등락률로 바꾸고
+    // 일정과 예측: 등락률 분위수의 10~90% 옅은 면과 25~75% 면, 50% 실선을 주가와 예측 카드와 같은 판단 색으로 그린다. 위쪽 번호는 이슈 일정이 있는 날이고,
+    // 마지막 거래일에는 일정이 없어도 번호를 달고, 처음에는 첫 번호를 고른다. 번호를 누르면 위 값을 그날의 25~75% 등락률로 바꾸고
     // 세로선과 범위 끝이 만나는 곳에 그날의 등락률을 적는다. 그림 아래 줄 가운데에는 고른 일정의 날짜와 이름을 적고, 이름이 줄을 넘으면 말줄임표로 줄인다.
-    // 그 줄 양옆의 꺽쇠를 누르면 앞뒤 일정을 고른다. 지난 날짜를 고르면 그날 기준 가격 뒤의 실제 종가 등락률을 흰 선으로 그린다.
+    // 그 줄 양옆의 꺽쇠를 누르면 앞뒤 일정을 고르고, 일정 이름을 누르면 이슈 페이지의 이벤트 캘린더에서 그 일정의 날짜를 연다(`toCalendar`).
+    // 지난 날짜를 고르면 그날 기준 가격 뒤의 실제 종가 등락률을 흰 선으로 그린다.
     const tree = (() => {
       const c = card("25거래일 뒤 등락률 예측"), s = c.svg;
       const L = 4, R = W - 4, T = 38;
@@ -1087,6 +1099,12 @@
       let frame = null, pick = null, events = [], scale = null;
       prev.addEventListener("click", () => { if (pick > 0) { pick -= 1; mark(); } });
       next.addEventListener("click", () => { if (pick < events.length - 1) { pick += 1; mark(); } });
+      line.addEventListener("click", () => {
+        const [d, names] = events[pick];
+        if (!names.length || !toCalendar) return;
+        feelPress();
+        toCalendar(frame.days[d], names);
+      });
       const percent = (v) => [signed(v), Object.assign(document.createElement("small"), { textContent: "%" })];
       const mark = () => {
         s.querySelectorAll("[data-ev]").forEach((node) => {
@@ -1108,7 +1126,8 @@
         c.head(frame, "", [...percent(pct["25"][d]), Object.assign(document.createElement("span"), { className: "sep", textContent: "~" }), ...percent(pct["75"][d])],
           `${d}거래일 뒤 등락률 예측`);
         line.replaceChildren(Object.assign(document.createElement("span"), { className: "d", textContent: day }),
-          names.length ? names.join(", ") : "예측 마지막 날");
+          Object.assign(document.createElement("span"), { className: "n", textContent: names.length ? names.join(", ") : "예측 마지막 날" }));
+        line.classList.toggle("go", names.length > 0);
         prev.disabled = pick === 0;
         next.disabled = pick === events.length - 1;
       };
@@ -1116,7 +1135,7 @@
         s.replaceChildren();
         const f = frame, pct = f.tree.pct, n = pct["50"].length - 1;
         events = f.tree.events.at(-1)?.[0] === n ? f.tree.events : [...f.tree.events, [n, [], f.days[n].slice(5).split("-").map(Number).join("/")]];
-        pick ??= events.length - 1;
+        pick ??= 0;
         const actual = f.day === date ? [] : f.tree.actual.slice(0, (f.days.indexOf(data.base_date) + 1) || undefined);
         // 지난 날짜에서 실제 종가가 리포트 날짜 판단의 기준 가격 날짜까지 모두 있으면, 그 오른쪽 `start_offset` 거래일에 리포트 날짜 판단의 기준 가격을 놓고 점선으로 잇는다.
         const tail = actual.length && f.days[actual.length - 1] === data.base_date ? [actual.length - 1 + so, (data.base / f.base - 1) * 100] : null;
@@ -1203,7 +1222,7 @@
     const parts = [predict, tree, chart];
     const show = (frame) => parts.forEach((part) => part.show(frame));
     show(data);
-    return { names: ["주가와 예측", "몬테카를로", "권장 추종 배율"], slides: parts.map((part) => [part.box]), show };
+    return { names: ["주가와 예측", "일정과 예측", "권장 추종 배율"], slides: parts.map((part) => [part.box]), show };
   }
 
   // 그림 카드 묶음 아래에 지난 판단 날짜로 되감는 슬라이더를 둔다(build.py `r/rewind-{지수}/cards.json`). 리포트 날짜와 그 앞 날짜만
@@ -1516,7 +1535,7 @@
     back.innerHTML = '<svg width="8" height="12" viewBox="0 0 8 12" aria-hidden="true"><path d="M6.5 1 1.5 6l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     // 절 제목 글자로 절을 찾는 곳이 있으므로 단추 이름은 글자 대신 CSS로 쓴다.
     back.setAttribute("aria-label", "이슈 목록");
-    // 이슈 목록 단추는 이 이슈를 담은 리포트 화면을 열고, 바로가기의 "이슈" 단추가 옮기는 높이에 상세 이슈 해설 절 제목을 둔다(`land`).
+    // 이슈 목록 단추는 이 이슈를 담은 리포트 화면의 이슈 페이지를 맨 위부터 연다(`land`).
     // 그 리포트 화면에서 옮겨 왔으면 뒤로 가서 기록을 쌓지 않고, 아니면 이슈 화면 기록을 리포트 화면으로 바꾸며 깊이를 그대로 넘긴다.
     back.addEventListener("click", () => {
       feelPress();
@@ -1835,6 +1854,20 @@
     };
     box.addEventListener("pointerdown", hold, { passive: true });
     box.querySelector(".track").addEventListener("touchstart", () => (aim = null), { passive: true });
+    // 이벤트 캘린더 밖에서 일정을 고를 때 쓴다. 띠를 그 일정의 날짜로 바로 옮기고 그 날짜의 장을 바로 보여 준다.
+    // 캘린더는 미국 발표일에 일정을 두고, 일정과 예측 카드는 일정이 주가에 닿는 거래일에 일정을 두므로 날짜보다 이름으로 먼저 찾는다.
+    // `names`의 이름을 소제목에 담은 날짜 가운데 `day`에 가장 가까운 날짜를 고르고, 그런 날짜가 없으면 모든 날짜 가운데 고른다.
+    // 앞뒤 날짜가 같은 거리면 뒤 날짜를 고른다.
+    head.pick = (day, names) => {
+      const far = (d) => Math.abs(Date.parse(d) - Date.parse(day));
+      const named = days.filter((d) => groups.get(d).some((node) => node.tagName === "H3" && names.some((name) => node.textContent.includes(name))));
+      const near = (named.length ? named : days).reduce((best, d) => (far(d) <= far(best) ? d : best));
+      const i = days.indexOf(near);
+      reach(i, true);
+      if (i === seen) return;
+      aim = i;
+      box.go(i, true);
+    };
     const arrow = '<svg width="6" height="10" viewBox="0 0 6 10" aria-hidden="true"><path d="M1 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     // 실제 갈래 줄에 `build.py`가 결과를 다룬 이슈(`data-result`, `리포트 키/이슈 번호`)를 달았으면 그 줄 바로 아래에 "자세히 보기" 줄을 넣는다.
     // 단추를 누르면 그 이슈를 히스토리에 담은 가장 늦은 리포트(`r/index.json`의 `later`)의 이슈 화면을 열고 히스토리에서 결과 리포트 날짜를 고른다.
@@ -2526,6 +2559,7 @@
     calendar(listing, date);
     switcher(listing, date);
     const focus = +query.get("issue") || 0;
+    const pages = focus ? null : paginate();
     if (!focus) {
       figures(date);
       heads("1개월 지수 방향 예측");
@@ -2538,50 +2572,37 @@
     section("상세 이슈 해설", focus, query.get("at"));
     // 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
     report.querySelectorAll("h3").forEach(trail);
+    // 이슈 목록 단추로 연 리포트 화면(`land`)은 이슈 페이지(1번)를 맨 위부터 보여 준다. 그 밖에는 `history.state`에 적힌 페이지를 연다.
+    const land = !focus && sessionStorage.getItem("land") === key;
+    if (land) sessionStorage.removeItem("land");
     if (!focus) {
       // 노드를 옮기면 넘기기 묶음의 스크롤 위치가 처음으로 돌아가므로, 막을 씌울 상자는 묶음을 만들기 전에 만든다.
       if (document.documentElement.classList.contains("past")) freeze("이벤트 캘린더", latest(listing, key.split("-")[1]));
       events(date, listing);
       help();
-      jump([["예측", "1개월 지수 방향 예측"], ["이슈", "상세 이슈 해설"], ["지표", "미국 거시 지표"], ["이벤트", "이벤트 캘린더"]]);
+      turn = jump(pages);
+      const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "이벤트 캘린더");
+      if (head?.pick) toCalendar = (day, names) => { turn(pages.findIndex((page) => page.contains(head)), head); head.pick(day, names); };
+      turn(land ? 1 : history.state?.page || 0);
     }
-    // Montecarlo처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
+    // 일정과 예측처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
     // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
     // 손가락을 움직이지 않고 한 번 누르면 닫는다.
     // 이슈 목록 상자의 썸네일은 누르면 이슈를 열므로 띄우지 않는다.
     report.querySelectorAll("img:not(.thumb)").forEach((img) => img.addEventListener("click", () => viewer(img)));
     // 뒤로 가기로 새로 연 페이지는 그림을 모두 받아 문서 높이가 정해진 뒤 떠나기 전 화면 위치로 옮긴다. 그 사이에 사용자가 화면을 움직였으면 옮기지 않는다.
-    // 이슈 목록 단추로 연 페이지(`land`)는 바로가기의 "이슈" 단추가 옮기는 높이로 옮긴다. 예측 그림 카드처럼 늦게 그려지는 요소가 절 위의 높이를 바꾸므로,
-    // 1.5초 동안은 리포트 높이가 바뀔 때마다 다시 옮기고, 사용자가 화면을 만지거나 휠을 굴리면 멈춘다.
-    const land = !focus && sessionStorage.getItem("land") === key;
-    if (land) sessionStorage.removeItem("land");
-    if (land || performance.getEntriesByType("navigation")[0]?.type === "back_forward") {
+    if (!land && performance.getEntriesByType("navigation")[0]?.type === "back_forward") {
       Promise.all([...report.querySelectorAll("img")].map((img) => img.complete
         || new Promise((done) => { img.addEventListener("load", done, { once: true }); img.addEventListener("error", done, { once: true }); })))
-        .then(() => {
-          if (scrollY !== 0) return;
-          if (!land) {
-            if (history.state?.y) scrollTo(0, history.state.y);
-            return;
-          }
-          const place = () => { const top = issuesTop(); if (top !== undefined) scrollTo(0, top); };
-          const watch = new ResizeObserver(place);
-          const stop = () => { watch.disconnect(); removeEventListener("touchstart", stop); removeEventListener("wheel", stop); };
-          watch.observe(report);
-          addEventListener("touchstart", stop, { passive: true });
-          addEventListener("wheel", stop, { passive: true });
-          setTimeout(stop, 1500);
-        });
+        .then(() => { if (scrollY === 0 && history.state?.y) scrollTo(0, history.state.y); });
     }
   }).catch(() => fail("리포트를 찾지 못했다."));
-  // 바로가기의 "이슈" 단추가 상세 이슈 해설 절로 옮기는 화면 위치다. 리포트 화면에서만 바로가기를 만든다.
-  const issuesTop = () => [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "상세 이슈 해설")?.reach?.();
-  // 이슈 목록 단추로 뒤로 간 리포트 화면이 브라우저 캐시에서 그대로 돌아오면, 떠날 때의 위치 대신 바로가기의 "이슈" 단추가 옮기는 높이로 옮긴다.
+  // 이슈 목록 단추로 뒤로 간 리포트 화면이 브라우저 캐시에서 그대로 돌아오면, 떠날 때의 위치 대신 이슈 페이지를 맨 위부터 보여 준다.
   addEventListener("pageshow", (event) => {
-    if (!event.persisted || query.get("issue") || sessionStorage.getItem("land") !== key) return;
+    if (!event.persisted || !turn || sessionStorage.getItem("land") !== key) return;
     sessionStorage.removeItem("land");
-    const top = issuesTop();
-    if (top !== undefined) scrollTo(0, top);
+    turn(1);
+    scrollTo(0, 0);
   });
   // 미니 앱 안에서 다른 리포트로 옮겨 온 리포트 화면(`depth`가 0보다 크면)은 화면 왼쪽 끝 18px 띠에서 오른쪽으로 밀어 앞 화면으로 돌아간다.
   // 이슈 화면은 이 띠를 두지 않고, 화면 어디서든 오른쪽으로 밀면 이슈 목록으로 돌아간다.
@@ -2646,127 +2667,74 @@
     // 뒤로 가기로 떠난 페이지가 브라우저 캐시에서 그대로 돌아오면 원을 거둔 상태로 되돌린다.
     addEventListener("pageshow", () => { ring.classList.remove("ready"); ring.style.opacity = 0; });
   }
-  // 이름과 절 제목의 쌍마다 바로가기 단추를 만든다. 누르면 보던 위치에서 절 제목 글자가 문서 맨 위에서 본 첫 절 제목 글자보다 40px 높은 높이에 올 때까지
-  // 화면을 부드럽게 움직인다. 제목 위의 띠는 화면 위쪽에 보인다. 문서 끝이 모자라 제목이 그 높이까지 오지 못하면 리포트 아래 여백을 그만큼 늘린다.
-  // 단추를 만들 때 절마다 여백을 미리 늘려, 처음부터 마지막 절 제목까지 손으로 밀어 올릴 수 있다.
-  // 화면을 움직일 때마다, 절 제목 글자가 화면 위에서 3분의 1 높이를 넘은 절 가운데 마지막 절의 단추를 굵게 쓰고 레버를 그 단추 뒤로 옮긴다.
-  // 그 높이가 바로가기로 옮겼을 때의 높이보다 위에 있으면 바로가기로 옮겼을 때의 높이를 쓴다.
-  // 문서 맨 위에서는 첫 절의 단추를, 문서 끝까지 내려 마지막 절 제목이 그 높이에 닿지 못하면 마지막 절의 단추를 굵게 쓴다.
-  // 바로가기로 화면이 움직이는 동안에는 지나가는 절의 단추 대신 고른 단추를 굵게 쓴다. 고른 절에 닿거나, 알약 밖을 누르거나 휠을 굴리거나, 3초가 지나면 다시 읽는 절을 따른다.
-  // 알약 위에서 누른 채 6px 넘게 움직이면 레버가 손가락을 따라 움직이고, 레버 가운데에서 가장 가까운 단추를 굵게 쓴다. 손을 떼면 그 단추를 누른 것과 같이 그 절로 간다.
-  // 끈 뒤 손을 뗄 때 따라오는 단추 누름은 다음에 알약을 누를 때까지 무시한다.
-  function jump(pairs) {
+  // 리포트 화면의 절을 `PAGES`의 페이지에 나눠 담는다. 페이지마다 단추 이름과 그 페이지에 넣을 절 제목을 두고, 목록에 없는 절은 앞 절의 페이지에 넣는다.
+  // 넘기기 묶음은 노드를 옮기면 스크롤 위치가 처음으로 돌아가므로, 리포트를 받은 직후 묶음을 만들기 전에 나눈다.
+  const PAGES = [["예측", ["1개월 지수 방향 예측", "미국 거시 지표"]], ["이슈", ["상세 이슈 해설", "이벤트 캘린더"]]];
+  function paginate() {
+    const pages = PAGES.map(() => Object.assign(document.createElement("div"), { className: "page" }));
+    let at = 0;
+    [...report.children].forEach((node) => {
+      const i = node.tagName === "H2" ? PAGES.findIndex(([, titles]) => titles.includes(node.textContent.trim())) : -1;
+      if (i >= 0) at = i;
+      pages[at].append(node);
+    });
+    report.append(...pages);
+    return pages;
+  }
+  // `turn(i, head)`는 i번 페이지를 연다. `toCalendar(day, names)`는 이슈 페이지의 이벤트 캘린더에서 `names` 일정의 날짜를 연다. 리포트 화면에서만 만든다.
+  let turn = null, toCalendar = null;
+  // 화면 아래 바로가기 알약에 페이지마다 단추를 두고 `turn`을 돌려준다. 단추를 누르면 그 페이지만 보여 주고, 그 페이지를 떠날 때의 화면 위치로 옮긴다.
+  // 처음 여는 페이지는 맨 위에서 시작한다. 보고 있는 페이지의 단추를 다시 누르면 페이지 맨 위로 부드럽게 옮긴다.
+  // 보고 있는 페이지 번호(`page`)는 `history.state`에 적어, 뒤로 가기와 새로 고침으로 돌아와도 그 페이지를 연다.
+  // `turn`이 `head`를 받으면 그 절 제목 글자가 화면 맨 위에서 본 페이지 첫 절 제목 글자의 높이에 오도록 옮긴다. 문서 끝이 모자라면 그 페이지 아래 여백을 늘린다.
+  function jump(pages) {
     const nav = document.createElement("nav");
     nav.className = "jump";
-    const lever = document.createElement("i");
-    lever.className = "lever";
-    nav.append(lever);
-    const marks = [];
+    const lever = nav.appendChild(Object.assign(document.createElement("i"), { className: "lever" }));
+    const spots = pages.map(() => 0);
+    let page = -1;
     const textTop = (head) => {
       const band = getComputedStyle(head, "::before");
       return head.getBoundingClientRect().top + (band.content === "none" ? 0 : parseFloat(band.height) + parseFloat(band.marginBottom));
     };
-    const gap = () => textTop(marks[0][0]) + scrollY - 40;
-    const show = (on) => {
-      marks.forEach(([, button], i) => button.classList.toggle("on", i === on));
-      const button = marks[on]?.[1];
-      lever.style.opacity = button ? 1 : 0;
-      if (!button) return;
-      lever.style.height = `${button.offsetHeight}px`;
-      lever.style.transform = `translateY(${button.offsetTop}px)`;
-    };
-    let pending = false, held = null, release = 0, drag = null;
-    const mark = () => {
-      pending = false;
-      if (drag?.moved) return;
-      const end = scrollY + innerHeight >= document.documentElement.scrollHeight - 2;
-      let on = -1;
-      const line = Math.max(gap() + 1, innerHeight / 3);
-      marks.forEach(([head], i) => { if (textTop(head) <= line) on = i; });
-      if (scrollY <= 0) on = 0;
-      else if (end) on = marks.length - 1;
-      if (held !== null && on === held) held = null;
-      show(held ?? on);
-    };
-    const settle = () => { held = null; mark(); };
-    addEventListener("scroll", () => { if (!pending) { pending = true; requestAnimationFrame(mark); } }, { passive: true });
-    addEventListener("wheel", settle, { passive: true });
-    addEventListener("touchstart", (event) => { if (!nav.contains(event.target)) settle(); }, { passive: true });
-    addEventListener("resize", mark);
-    // 절 제목 글자가 바로가기 높이에 오는 화면 위치를 돌려준다. 문서 끝이 모자라면 리포트 아래를 늘린다.
-    const reach = (head) => {
-      const top = Math.max(0, textTop(head) + scrollY - gap());
+    const open = (i, head) => {
+      if (i !== page) {
+        if (page >= 0) spots[page] = scrollY;
+        pages.forEach((node, j) => node.classList.toggle("off", j !== i));
+        buttons.forEach((button, j) => button.classList.toggle("on", j === i));
+        if (page < 0) lever.style.transition = "none";
+        lever.style.width = `${buttons[i].offsetWidth}px`;
+        lever.style.transform = `translateX(${buttons[i].offsetLeft}px)`;
+        lever.offsetWidth;
+        lever.style.transition = "";
+        page = i;
+        history.replaceState({ ...history.state, page: i }, "");
+      }
+      if (!head) return scrollTo(0, spots[i]);
+      const top = Math.max(0, textTop(head) - textTop(pages[i].querySelector("h2")));
       const lack = top + innerHeight - document.documentElement.scrollHeight;
-      if (lack > 0) report.style.paddingBottom = `${(parseFloat(report.style.paddingBottom) || 0) + lack}px`;
-      return top;
+      if (lack > 0) pages[i].style.paddingBottom = `${parseFloat(getComputedStyle(pages[i]).paddingBottom) + lack}px`;
+      scrollTo(0, top);
     };
-    const go = (i) => {
-      const top = reach(marks[i][0]);
-      held = i;
-      clearTimeout(release);
-      release = setTimeout(settle, 3000);
-      show(i);
-      scrollTo({ top, behavior: "smooth" });
-    };
-    pairs.forEach(([name, title]) => {
-      const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
-      if (!head) return;
-      const button = document.createElement("button");
-      button.textContent = name;
+    const buttons = PAGES.map(([name], i) => {
+      const button = nav.appendChild(Object.assign(document.createElement("button"), { type: "button", textContent: name }));
       button.dataset.name = name;
-      const i = marks.length;
-      marks.push([head, button]);
-      head.reach = () => reach(head);
-      button.addEventListener("click", () => { if (!nav.dataset.dragged) { feelPress(); go(i); } });
-      nav.append(button);
-    });
-    const nearest = (y) => {
-      let best = 0;
-      marks.forEach(([, button], i) => {
-        const centre = (b) => b.offsetTop + b.offsetHeight / 2;
-        if (Math.abs(centre(button) - y) < Math.abs(centre(marks[best][1]) - y)) best = i;
+      button.addEventListener("click", () => {
+        feelPress();
+        if (i === page) scrollTo({ top: 0, behavior: "smooth" });
+        else open(i);
       });
-      return best;
-    };
-    nav.addEventListener("pointerdown", (event) => {
-      delete nav.dataset.dragged;
-      drag = { y: event.clientY, top: nav.getBoundingClientRect().top + nav.clientTop, moved: false, id: event.pointerId };
+      return button;
     });
-    nav.addEventListener("pointermove", (event) => {
-      if (!drag || event.pointerId !== drag.id) return;
-      if (!drag.moved && Math.abs(event.clientY - drag.y) <= 6) return;
-      if (!drag.moved) { drag.moved = true; nav.setPointerCapture(event.pointerId); lever.classList.add("drag"); }
-      const first = marks[0][1], last = marks[marks.length - 1][1];
-      const height = lever.offsetHeight;
-      const y = Math.min(last.offsetTop + last.offsetHeight - height, Math.max(first.offsetTop, event.clientY - drag.top - height / 2));
-      lever.style.opacity = 1;
-      lever.style.transform = `translateY(${y}px)`;
-      const on = nearest(y + height / 2);
-      marks.forEach(([, button], i) => button.classList.toggle("on", i === on));
-    });
-    const end = (event) => {
-      if (!drag || event.pointerId !== drag.id) return;
-      const moved = drag.moved;
-      drag = null;
-      if (!moved) return;
-      nav.dataset.dragged = "1";
-      lever.classList.remove("drag");
-      const rect = lever.getBoundingClientRect();
-      go(nearest(rect.top - nav.getBoundingClientRect().top - nav.clientTop + rect.height / 2));
-    };
-    nav.addEventListener("pointerup", end);
-    nav.addEventListener("pointercancel", end);
-    if (!marks.length) return;
     document.body.append(nav);
-    marks.forEach(([head]) => reach(head));
-    mark();
+    return open;
   }
 
   // 절 제목마다 설명 상자에 쓸 항목을 둔다. 항목마다 이름을 굵게 쓰고 그 아래에 설명을 쓴다.
   const HELP = {
     "1개월 지수 방향 예측": [
       ["주가와 예측", "파란 실선은 예측 중앙값이에요. 파란 면에는 25거래일 뒤 가격이 25~75% 확률로 들어와요. 회색 점과 면은 지난 리포트의 예측이에요."],
-      ["몬테카를로", "이슈와 이벤트를 반영한 경로 2만 개의 등락률 분포예요. 두 파란 선 사이에 경로의 가운데 50%가 들어와요."],
+      ["일정과 예측", "이슈와 이벤트를 반영한 경로 2만 개의 등락률 분포예요. 두 파란 선 사이에 경로의 가운데 50%가 들어와요."],
       ["권장 추종 배율", "경로 2만 개의 한 달 평균 등락을 배율로 바꾼 분포예요. 파란 실선이 1.0(지수 추종)보다 왼쪽이면 하락 쪽 판단이고, 오른쪽이면 상승 쪽 판단이에요."],
     ],
     "상세 이슈 해설": [
@@ -2775,7 +2743,7 @@
       ["히스토리", "같은 이슈를 다룬 지난 리포트의 해설 제목이에요. 제목을 누르면 그날의 해설이 나와요."],
     ],
     "이벤트 캘린더": [
-      ["이벤트 확률표", "앞으로 35일 안에 발표되는 이벤트마다 가능한 결과와 확률을 보여줘요. 몬테카를로 경로 2만 개를 만들 때 이벤트 확률을 써요."],
+      ["이벤트 확률표", "앞으로 35일 안에 발표되는 이벤트마다 가능한 결과와 확률을 보여줘요. 주가 경로 2만 개를 만들 때 이벤트 확률을 써요."],
       ["확률 변화", "어제 리포트의 확률과 오늘 확률의 차이를 %p로 보여줘요."],
       ["실제 결과", "결과가 나온 다음 날에는 실제로 일어난 결과를 표시해요."],
     ],
@@ -2786,11 +2754,11 @@
   // 그림 카드가 있는 리포트의 1개월 지수 방향 예측 설명. 판단 색 이름은 지수마다 다르다.
   const CARD_HELP = (ink) => [
     ["주가와 예측", `${ink} 실선은 예측 중앙값이에요. ${ink} 면에는 25거래일 뒤 가격이 25~75% 확률로 들어와요. 회색 점선과 면은 지난 리포트의 예측이에요.`],
-    ["몬테카를로", `이슈와 이벤트를 반영한 경로 2만 개의 등락률 분포예요. 진한 면에 경로의 가운데 50%가, 옅은 면에 가운데 80%가 들어와요. 번호나 그림 아래 꺽쇠를 누르면 그날의 등락률 범위와 일정이 나와요.`],
+    ["일정과 예측", `이슈와 이벤트를 반영한 경로 2만 개의 등락률 분포예요. 진한 면에 경로의 가운데 50%가, 옅은 면에 가운데 80%가 들어와요. 번호나 그림 아래 꺽쇠를 누르면 그날의 등락률 범위와 일정이 나와요. 밑줄 친 일정 이름을 누르면 이슈 페이지의 이벤트 캘린더에서 그날 일정을 열어요.`],
     ["권장 추종 배율", `경로 2만 개의 한 달 평균 등락을 배율로 바꾼 분포예요. ${ink} 세로선이 권장 추종 배율이에요. 세로선이 회색 점선 1.0(지수 추종)보다 왼쪽이면 하락 쪽 판단이고, 오른쪽이면 상승 쪽 판단이에요.`],
   ];
   const INK = { nasdaq: "파란", biotech: "보라" };
-  // 설명이 있는 절 제목 뒤에 물음표 단추를 넣는다. 단추는 글자를 담지 않으므로 절 제목 글자로 절을 찾는 `jump`가 그대로 동작한다. `section`이 절 제목 안을 바꿔 쓴 뒤에 부른다.
+  // 설명이 있는 절 제목 뒤에 물음표 단추를 넣는다. 단추는 글자를 담지 않으므로 절 제목 글자로 절을 찾는 `paginate`와 이벤트 캘린더 찾기가 그대로 동작한다. `section`이 절 제목 안을 바꿔 쓴 뒤에 부른다.
   function help() {
     report.querySelectorAll("h2").forEach((head) => {
       const title = head.textContent.trim();
