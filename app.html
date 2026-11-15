@@ -578,8 +578,8 @@
 <script>
   const tg = window.Telegram && window.Telegram.WebApp;
   // 텔레그램 앱 안에서만 기기를 진동시킨다. 이슈 상자·달력 단추·달력 날짜·지수 전환 단추·바로가기 단추를 누르거나 접기 상자를 펼치면 가벼운 충격 진동을 낸다.
-  // 접기, 목록으로 돌아가기, 밀어서 넘기기는 진동하지 않는다. 1개월 지수 방향 예측의 날짜 레버로 고른 날짜,
-  // 미국 거시 지표에서 보는 지표, 이벤트 캘린더에서 보는 날짜가 바뀔 때마다 선택 변경 진동을 낸다.
+  // 접기, 목록으로 돌아가기는 진동하지 않는다. 1개월 지수 방향 예측에서 보는 카드와 날짜 레버로 고른 날짜, 이벤트 캘린더에서 보는 날짜,
+  // 주요 시세에서 보는 시세, 미국 거시 지표에서 보는 지표, 이슈 그림에서 보는 그림이 바뀔 때마다 선택 변경 진동을 낸다.
   // 브라우저에서는 진동하지 않는다.
   const haptic = (tg && tg.initData && tg.HapticFeedback) || null;
   const feelPress = () => haptic?.impactOccurred("light");
@@ -885,7 +885,7 @@
         bar.appendChild(button);
       });
       const change = (i) => [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j));
-      const box = slider(set.slides, report.querySelector("h2"), { change, name: "cards" });
+      const box = slider(set.slides, report.querySelector("h2"), { change, name: "cards", feel: true });
       box.prepend(bar);
       cardRewind(box, date, set);
       return;
@@ -903,7 +903,7 @@
       bar.appendChild(button);
     });
     const change = (i) => [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j));
-    const box = slider(shown.map(([img]) => [img]), report.querySelector("h2"), { change });
+    const box = slider(shown.map(([img]) => [img]), report.querySelector("h2"), { change, feel: true });
     box.prepend(bar);
   }
 
