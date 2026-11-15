@@ -1260,7 +1260,7 @@
     // 일정과 예측: 등락률 분위수의 10~90% 옅은 면과 25~75% 면, 50% 실선을 주가와 예측 카드와 같은 판단 색으로 그린다. 위쪽 번호는 이슈 일정이 있는 날이고,
     // 마지막 거래일에는 일정이 없어도 번호를 달고, 처음에는 첫 번호를 고른다. 번호를 누르면 위 값을 그날의 25~75% 등락률로 바꾸고
     // 세로선과 범위 끝이 만나는 곳에 그날의 등락률을 적는다. 그림 아래 줄 가운데에는 고른 일정의 날짜와 이름을 적고, 이름이 줄을 넘으면 말줄임표로 줄인다.
-    // 그 줄 양옆의 꺽쇠를 누르면 앞뒤 일정을 고르고, 일정 이름을 누르면 같은 페이지 아래의 이벤트 캘린더에서 그 일정의 날짜를 연다(`toCalendar`).
+    // 그 줄 양옆의 꺽쇠를 누르면 앞뒤 일정을 고르고, 일정 이름을 누르면 같은 페이지 아래의 이벤트 캘린더에서 같은 거래일을 연다(`toCalendar`).
     // 지난 날짜를 고르면 그날 기준 가격 뒤의 실제 종가 등락률을 흰 선으로 그린다.
     const tree = (() => {
       const c = card("25거래일 뒤 등락률 예측"), s = c.svg;
@@ -1278,7 +1278,7 @@
         const [d, names] = events[pick];
         if (!names.length || !toCalendar) return;
         feelPress();
-        toCalendar(frame.days[d], names);
+        toCalendar(frame.days[d]);
       });
       const percent = (v) => [signed(v), Object.assign(document.createElement("small"), { textContent: "%" })];
       const mark = () => {
@@ -1903,11 +1903,11 @@
     };
   }
 
-  // 이벤트 캘린더를 발표일마다 한 장으로 모아 넘기는 묶음으로 바꾸고, 위에 날짜 띠를 둔다.
+  // 이벤트 캘린더를 발표가 주가에 닿는 거래일마다 한 장으로 모아 넘기는 묶음으로 바꾸고, 위에 날짜 띠를 둔다.
   // 날짜 띠에는 리포트 날짜 뒤 35일까지 이벤트가 있는 날짜와 리포트 날짜를 두고, 리포트 날짜 전에는 `build.py`가 넣은 지난 이벤트의 날짜를 모두 둔다.
-  // 발표일은 `build.py`가 소제목에 단 `data-day`를 쓰고, 35일 뒤 이벤트는 지운다. 처음에는 리포트 날짜를 보여 주고,
+  // 거래일은 `build.py`가 소제목에 단 `data-day`를 쓰고, 35일 뒤 이벤트는 지운다. 일정과 예측 카드도 같은 거래일에 일정을 둔다. 처음에는 리포트 날짜를 보여 주고,
   // 그날 이벤트가 없으면 빈 안내 한 줄을 둔다. 날짜를 누르면 그 날짜의 장으로 넘어간다. 이벤트는 소제목과 표를 늘 펼쳐 둔다.
-  // 날짜를 꾹 누르면 그 날짜 위에 말풍선을 띄운다. 말풍선에는 그 날짜 뒤의 첫 리포트로 가는 단추를 두고, 그런 리포트가 아직 없으면 그 사실을 적는다.
+  // 날짜를 꾹 누르면 그 날짜 위에 말풍선을 띄운다. 말풍선에는 그 날짜의 리포트로 가는 단추를 둔다.
   // 지난 리포트에서 `title` 절의 제목부터 다음 절 제목 앞까지를 상자 하나에 담아 막을 씌우고, 막 위에 `target` 리포트로 가는 단추를 둔다.
   // 지난 리포트의 이벤트 캘린더는 그 리포트 날짜에서 본 예정이라, 날짜를 오가며 보면 지금 보는 리포트의 날짜와 헷갈린다.
   function freeze(title, target) {
@@ -2039,13 +2039,11 @@
     box.addEventListener("pointerdown", hold, { passive: true });
     box.querySelector(".track").addEventListener("touchstart", () => (aim = null), { passive: true });
     // 이벤트 캘린더 밖에서 일정을 고를 때 쓴다. 띠를 그 일정의 날짜로 바로 옮기고 그 날짜의 장을 바로 보여 준다.
-    // 캘린더는 미국 발표일에 일정을 두고, 일정과 예측 카드는 일정이 주가에 닿는 거래일에 일정을 두므로 날짜보다 이름으로 먼저 찾는다.
-    // `names`의 이름을 소제목에 담은 날짜 가운데 `day`에 가장 가까운 날짜를 고르고, 그런 날짜가 없으면 모든 날짜 가운데 고른다.
-    // 앞뒤 날짜가 같은 거리면 뒤 날짜를 고른다.
-    head.pick = (day, names) => {
+    // 캘린더와 일정과 예측 카드는 모두 일정이 주가에 닿는 거래일에 일정을 두므로 `day`의 장을 연다.
+    // 35일 뒤라 장이 없는 날짜면 `day`에 가장 가까운 날짜를 고르고, 앞뒤 날짜가 같은 거리면 뒤 날짜를 고른다.
+    head.pick = (day) => {
       const far = (d) => Math.abs(Date.parse(d) - Date.parse(day));
-      const named = days.filter((d) => groups.get(d).some((node) => node.tagName === "H3" && names.some((name) => node.textContent.includes(name))));
-      const near = (named.length ? named : days).reduce((best, d) => (far(d) <= far(best) ? d : best));
+      const near = days.reduce((best, d) => (far(d) <= far(best) ? d : best));
       const i = days.indexOf(near);
       reach(i, true);
       if (i === seen) return;
@@ -2798,7 +2796,7 @@
       help();
       turn = jump(pages);
       const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "이벤트 캘린더");
-      if (head?.pick) toCalendar = (day, names) => { turn(pages.findIndex((page) => page.contains(head)), head); head.pick(day, names); };
+      if (head?.pick) toCalendar = (day) => { turn(pages.findIndex((page) => page.contains(head)), head); head.pick(day); };
       toQuote = (tab) => { if (quotes.pick) { turn(pages.findIndex((page) => page.contains(quotes)), quotes); quotes.pick(tab); } };
       turn(land ? 1 : history.state?.page || 0);
     }
@@ -2905,7 +2903,7 @@
     report.append(...pages);
     return pages;
   }
-  // `turn(i, head, still)`은 i번 페이지를 연다. `toCalendar(day, names)`는 예측 페이지의 이벤트 캘린더에서 `names` 일정의 날짜를 연다.
+  // `turn(i, head, still)`은 i번 페이지를 연다. `toCalendar(day)`는 예측 페이지의 이벤트 캘린더에서 거래일 `day`의 장을 연다.
   // `toQuote(tab)`은 시장 페이지의 주요 시세 절에서 탭 이름이 `tab`인 시세 카드를 연다. 셋 다 리포트 화면에서만 만든다.
   let turn = null, toCalendar = null, toQuote = null;
   // 화면 아래 바로가기 알약에 페이지마다 단추를 두고 `turn`을 돌려준다. 단추를 누르면 그 페이지만 보여 주고, 페이지 맨 위로 옮긴다.
@@ -3032,7 +3030,7 @@
       ["날짜 슬라이더", "지난 30일 안의 리포트 날짜를 고르면 그날 리포트가 본 시세로 바뀌어요."],
     ],
     "이벤트 캘린더": [
-      ["이벤트 확률표", "앞으로 35일 안에 발표되는 이벤트마다 가능한 결과와 확률을 보여줘요. 주가 경로 2만 개를 만들 때 이벤트 확률을 써요."],
+      ["이벤트 확률표", "앞으로 35일 안에 발표되는 이벤트마다 가능한 결과와 확률을 보여줘요. 이벤트는 주가에 반영되는 거래일에 모아요. 장 마감 뒤나 휴일에 나온 발표는 다음 거래일에 두고 발표일을 함께 적어요. 주가 경로 2만 개를 만들 때 이벤트 확률을 써요."],
       ["확률 변화", "어제 리포트의 확률과 오늘 확률의 차이를 %p로 보여줘요."],
       ["실제 결과", "결과가 나온 다음 날에는 실제로 일어난 결과를 표시해요."],
     ],

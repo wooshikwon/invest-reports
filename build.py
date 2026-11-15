@@ -25,9 +25,11 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 리포트 날짜와 그 뒤 이벤트의 표는 리포트 폴더 `system/display.json` `next`의 갈래 변화(`change`)를 확률 아래 작은 글씨로
 붙인다. 표의 분기 이름이 모두 한 사안의 갈래 이름이면 그 사안의 표로 본다. 오르면 `▲`, 내리면 `▼`와 %p 차이를 쓰고,
 변화가 없으면 `–`, 어제 나무에 없던 갈래는 `신규`, 오늘 다시 정의한 갈래는 `재정의`를 쓴다.
-이벤트 소제목마다 발표일을 `data-day`로 달고 제목에서는 날짜를 지운다. `invest-reports` 미니 앱은 이 값으로 날짜 띠를 그리고
-같은 날 이벤트를 한 장에 모은다. 제목 위에는 사안 나무의 발표 시각(`announced`)을 한국 시각(KST)으로 적는다.
-발표 시각이 수집기가 채운 기본값(`PLACEHOLDER_TIMES`)이거나 사안 나무에 없으면 장전·장중·장후만 적는다.
+이벤트 소제목마다 발표가 주가에 닿는 뉴욕 정규장 거래일(`scenario_tree.reaction_session`)을 `data-day`로, 뉴욕 발표일을 `data-announced`로 달고
+제목에서는 날짜를 지운다. `invest-reports` 미니 앱은 `data-day`로 날짜 띠를 그리고 같은 거래일 이벤트를 한 장에 모은다.
+일정과 예측 카드도 같은 거래일에 일정을 두므로, 두 그림의 날짜가 같다. 제목 위에는 사안 나무의 발표 시각(`announced`)을 한국 시각(KST)으로 적는다.
+발표 시각이 수집기가 채운 기본값(`PLACEHOLDER_TIMES`)이거나 사안 나무에 없으면 장전·장중·장후만 적고,
+뉴욕 발표일이 거래일과 다르면 그 앞에 `12/09(수) 장후`처럼 발표일을 붙인다.
 중요도는 `data-level`로 달아 `invest-reports` 미니 앱이 날짜 띠에 점으로 그린다.
 
 `미국 거시 지표` 절의 지표 소제목에는 그날 지수 폴더의 `market-data.json`·`macro-data.json`에서 뽑은 카드 값을 `data-card`로 단다.
@@ -123,6 +125,8 @@ EVENT_DAY_RE = re.compile(r"^(?:(\d{4})-)?(\d{1,2})[-/](\d{1,2})\([^)]*\)(?:~\S+
 LEVEL_RE = re.compile(r"\s*`중요도 ([^`]*)`")
 LEVELS = {"높음": "high", "보통": "mid", "낮음": "low"}  # 소제목 중요도 표식의 말과 `data-level` 값
 LOOKBACK = 7  # 발표 시각을 찾을 때 리포트 날짜 뒤로 보는 리포트 날짜 수
+# 사안 나무에 발표 시각이 없는 이벤트를 소제목의 장 구분으로 거래일에 둘 때 쓰는 뉴욕 시각. `PLACEHOLDER_TIMES`의 장 구분 시각이다.
+PHASE_TIMES = {"장전": "08:00", "장중": "12:00", "장후": "16:00"}
 REGULAR_OPEN, REGULAR_CLOSE = "09:30", "16:00"  # 뉴욕 정규장 시각. 발표 시각을 장전·장중·장후로 나눈다
 # 발표 시각을 모를 때 채우는 뉴욕 시각. 실적의 장전(bmo)·장후(amc) 단서는 `calendar_store.py`가 08:00·16:05로,
 # 장중(dmh)은 `render_inputs.py`가 12:00으로 채우고, 단서가 없는 발표는 16:00으로 적는다. 이 시각은 장 구분만 적는다.
@@ -171,6 +175,12 @@ def glossary(vault: Path):
 def predictions_chart(vault: Path):
     sys.path.insert(0, str(vault / "agent/skills/tool/invest-report/scripts"))
     import predictions_chart as module
+    return module
+
+
+def scenario_tree(vault: Path):
+    sys.path.insert(0, str(vault / "agent/skills/tool/invest-report/scripts"))
+    import scenario_tree as module
     return module
 
 
@@ -548,8 +558,9 @@ def when_label(announced: str) -> str:
     return f"{moment:%m/%d}({'월화수목금토일'[moment.weekday()]}) {moment:%H:%M} KST"
 
 
-def timings(vault: Path, index: str, date: dt.date) -> dict[tuple[str, str], str]:
-    """(발표일, 이벤트 이름)마다 제목 위 발표 시각(`when_label`). 이름이 빈 키에는 그날 발표가 모두 같은 장 구분일 때만 그 구분을 둔다.
+def announcements(vault: Path, index: str, date: dt.date) -> dict[tuple[str, str], str]:
+    """(뉴욕 발표일, 이벤트 이름)마다 사안 나무의 발표 시각(`announced`). 이름이 빈 키에는 그날 발표가 모두 같은 장 구분일 때만
+    그 장 구분의 시각(`PHASE_TIMES`)을 둔다.
 
     리포트 날짜 뒤 `LOOKBACK`일까지의 모든 사안 나무에서 발표 시각을 읽고, 같은 사안은 가장 늦은 나무의 시각을 쓴다.
     """
@@ -562,12 +573,10 @@ def timings(vault: Path, index: str, date: dt.date) -> dict[tuple[str, str], str
             announced = issue.get("announced")
             if announced:
                 announced_at.setdefault((announced[:10], issue["name"]), announced)
-    found = {key: when_label(announced) for key, announced in announced_at.items()}
     days: dict[str, set[str]] = {}
     for (day, _), announced in announced_at.items():
         days.setdefault(day, set()).add(phase(announced))
-    found.update({(day, ""): values.pop() for day, values in days.items() if len(values) == 1})
-    return found
+    return announced_at | {(day, ""): f"{day} {PHASE_TIMES[values.pop()]}" for day, values in days.items() if len(values) == 1}
 
 
 def change_mark(change: int | str) -> str:
@@ -599,15 +608,17 @@ def mark_changes(table: str, upcoming: list[dict]) -> str:
     return table
 
 
-def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[tuple[str, str], str],
-              upcoming: list[dict]) -> str:
-    """`이벤트 캘린더` 절의 소제목에 발표일(`data-day`)을 달고 제목에서 날짜를 지운다.
+def mark_days(body: str, date: dt.date, branches: dict[str, dict], moments: dict[tuple[str, str], str],
+              upcoming: list[dict], reaction) -> str:
+    """`이벤트 캘린더` 절의 소제목에 발표가 주가에 닿는 거래일(`data-day`)과 뉴욕 발표일(`data-announced`)을 달고 제목에서 날짜를 지운다.
 
-    발표 시각은 제목 앞 `when` 이름표로 단다. `timing`에 그 이벤트가 없으면 소제목의 장 구분을, 그것도 없으면 그날의 장 구분을 쓴다.
+    발표 시각은 `moments`(`announcements`)의 그 이벤트 시각, 소제목의 장 구분 시각(`PHASE_TIMES`), 그날의 장 구분 시각 순으로 찾는다.
+    거래일은 발표 시각을 `reaction`(`scenario_tree.reaction_session`)에 넣어 얻고, 발표 시각이 없으면 발표일 0시로 넣는다.
+    발표 시각은 제목 앞 `when` 이름표(`when_label`)로 단다. 이름표가 한국 시각이 아니고 발표일이 거래일과 다르면 앞에 발표일을 붙인다.
     소제목의 중요도 표식은 `data-level`로도 단다.
-    리포트 날짜 전 이벤트의 표에는 `judged`를, 실제 갈래 줄에는 `hit`을 달고 그 줄의 전개 예상 뒤에 실제 전개를 붙인다.
+    리포트 날짜 전에 발표한 이벤트의 표에는 `judged`를, 실제 갈래 줄에는 `hit`을 달고 그 줄의 전개 예상 뒤에 실제 전개를 붙인다.
     결과를 다룬 이슈가 있으면 실제 갈래 줄에 `data-result`로 단다.
-    리포트 날짜와 그 뒤 이벤트의 표에는 `upcoming`(`display.json`의 `next`)의 갈래 변화를 붙인다.
+    리포트 날짜와 그 뒤에 발표하는 이벤트의 표에는 `upcoming`(`display.json`의 `next`)의 갈래 변화를 붙인다.
     """
     head = re.search(rf'<h2 id="[^"]*">{EVENTS_TITLE}</h2>', body)
     if not head:
@@ -623,12 +634,17 @@ def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[
             raise SystemExit(f"발표일이 없는 이벤트 소제목: {inner}")
         day, when, rest = parsed
         name = html.unescape(re.sub(r"<[^>]+>", "", re.sub(r"<code>.*?</code>", "", rest))).strip()
-        when = timing.get((f"{day}", name)) or when or timing.get((f"{day}", ""), "")
+        announced = (moments.get((f"{day}", name)) or (f"{day} {PHASE_TIMES[when]}" if when else None)
+                     or moments.get((f"{day}", "")))
+        session = reaction(announced or f"{day} 00:00")
+        when = when_label(announced) if announced else ""
+        if not when.endswith("KST") and session != f"{day}":
+            when = f"{day:%m/%d}({'월화수목금토일'[day.weekday()]}) {when}".strip()
         label = f'<span class="when">{when}</span>' if when else ""
         tag = re.search(r"<code>중요도 ([^<]*)</code>", rest)
         level = LEVELS.get(tag.group(1)) if tag else None
         mark = f' data-level="{level}"' if level else ""
-        return f'<h3{attrs} data-day="{day}"{mark}>{label}{rest}</h3>'
+        return f'<h3{attrs} data-day="{session}" data-announced="{day}"{mark}>{label}{rest}</h3>'
 
     section = re.sub(r"<h3([^>]*)>(.*?)</h3>", heading, section, flags=re.DOTALL)
 
@@ -650,7 +666,7 @@ def mark_days(body: str, date: dt.date, branches: dict[str, dict], timing: dict[
                 table = (table[:start] + f'<tr class="hit"{result}>' + table[start + 4:stop] + tail + table[stop:])
         return match.group(0)[:match.start(3) - match.start(0)] + table
 
-    section = re.sub(r'<h3[^>]* data-day="([^"]+)"(?: data-level="[^"]*")?>(?:<span class="when">[^<]*</span>)?(.*?)</h3>\s*(<table class="events">.*?</table>)',
+    section = re.sub(r'<h3[^>]* data-announced="([^"]+)"(?: data-level="[^"]*")?>(?:<span class="when">[^<]*</span>)?(.*?)</h3>\s*(<table class="events">.*?</table>)',
                      judge, section, flags=re.DOTALL)
     return body[:head.end()] + section + body[end:]
 
@@ -1082,7 +1098,8 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     display = source.parent / "system" / "display.json"
     # 10/21까지의 `display.json`은 `next`에 이슈 이름만 적어 갈래 값이 없으므로, 갈래를 적은 항목만 갈래 변화 표시에 쓴다.
     upcoming = [issue for issue in json.loads(display.read_text(encoding="utf-8"))["next"] if isinstance(issue, dict)] if display.is_file() else []
-    body = mark_days(body, day, branches, timings(vault, index, day), upcoming)
+    body = mark_days(body, day, branches, announcements(vault, index, day), upcoming,
+                     functools.cache(scenario_tree(vault).reaction_session))
     body = mark_indicators(body, indicator_cards(vault, index, day))
     body = mark_issue_ids(body, source.parent / "system" / "issues.json", issue_events(vault, index, day))
     body = mark_issue_images(body, source.parent / "assets", source.parent / "system" / "issue-images.json", target, out)
