@@ -278,7 +278,7 @@ def card_frame(date: str, folder: Path, scale: float) -> dict | None:
 def summary_cards(index: str, date: str, folder: Path, vault: Path) -> dict | None:
     """요약 절 그림 카드 값. `card_frame`이 `None`인 리포트는 `None`이다.
 
-    카드 값은 그날 판단(`card_frame`)에 판단 색, 기준 가격 날짜까지 `PRICE_YEARS`년 종가와 날짜, 기준 가격의 가로 거리,
+    카드 값은 그날 판단(`card_frame`)에 기준 가격 날짜까지 `PRICE_YEARS`년 종가와 날짜, 기준 가격의 가로 거리,
     지난 리포트가 예측한 25거래일 뒤 가격(`past`, 가로 위치·25·50·75% 가격)을 더한다. 종가와 가격에는 모두 `card_scale`을 곱한다. 지난 예측은 12M + Predictions 그림과
     같은 줄을 고르고, 오늘 판단과 같은 기준 가격 날짜의 줄과 오늘 판단의 끝보다 오른쪽 줄은 뺀다.
     """
@@ -303,8 +303,7 @@ def summary_cards(index: str, date: str, folder: Path, vault: Path) -> dict | No
             chart.read_ledger(chart.LEDGER_DIR / f"predictions-{index}.jsonl"), date).items():
         if base_date in dates and base_date != frame["base_date"] and dates.index(base_date) + ahead <= x0 + horizon:
             past[dates.index(base_date) + ahead] = [round(base * scale * (1 + v), 2) for v in values]
-    return {"color": chart.chart.JUDGMENT_COLORS.get(index, chart.chart.JUDGMENT_COLORS["nasdaq"])["line"],
-            "start_offset": chart.START_OFFSET, "dates": dates, "history": [round(c * scale, 2) for _, c in history],
+    return {"start_offset": chart.START_OFFSET, "dates": dates, "history": [round(c * scale, 2) for _, c in history],
             "past": [[x, *values] for x, values in sorted(past.items())], **frame}
 
 
