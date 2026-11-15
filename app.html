@@ -44,9 +44,9 @@
   /* 문서 맨 위에는 리포트 날짜와 요일을 절 제목과 같은 회색의 작은 글씨로 쓰고(`#day`), 그 아래에 제목(`#title`)을 쓴다. 둘은 본문과 함께 화면 위로 지나간다.
      날짜 줄 오른쪽 끝에는 달력 단추를 두고, 단추의 위 끝을 날짜 줄의 위 끝에 맞춘다. 제목은 달력 단추 아래로 들어가지 않게 오른쪽을 비운다.
      제목 아래의 머리 상자(`#masthead`)는 28px 높이의 한 줄(`header`)이고, 시세(`#ticker`)만 쓴다. 날짜와 제목이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
-     시세는 나스닥 100, 나스닥 바이오, S&P 500, 원/달러 네 줄이다. 줄마다 "나스닥 100 27,943.74달러 −1.22% (마감 후 +0.40%)"처럼 이름, 리포트 날짜 전날까지의 마지막 종가, 그 앞 종가 대비 등락률을 쓰고,
+     시세는 나스닥 100, 나스닥 바이오, S&P 500, 원/달러 네 줄이다. 줄마다 "나스닥 100 $27,943.74 −1.22% (마감 후 +0.40%)"처럼 이름, 리포트 날짜 전날까지의 마지막 종가, 그 앞 종가 대비 등락률을 쓰고,
      나스닥 100과 나스닥 바이오는 괄호 안에 장 마감 후 등락률을 더 쓴다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 시세는 28px 높이 창 안에 네 줄과 첫 줄을 위아래로 쌓고 한 줄씩 위로 굴려 네 줄을 차례로 보여 준다.
-     세 지수의 종가는 달러 단위, 원/달러는 원 단위로 쓴다. 보이는 줄을 누르면 시장 페이지의 그 시세 카드를 연다.
+     세 지수의 종가는 앞에 $를 붙인 달러 값, 원/달러는 원 단위로 쓴다. 보이는 줄을 누르면 시장 페이지의 그 시세 카드를 연다.
      상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 페이지 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
      흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
   #day { margin: 0; font-size: 12.5px; font-weight: 600; line-height: 20px; color: var(--dim); }
@@ -61,7 +61,7 @@
   @media (prefers-reduced-motion: reduce) { #ticker .rows { transition: none; } }
   #ticker .row { display: flex; align-items: baseline; gap: 6px; height: 28px; }
   /* 시세 이름은 시세마다 정한 이름색(`--ink`)과 옆 색상(`--ink-to`)의 그라데이션으로 칠한다(`--index-ink`와 같은 모양). */
-  #ticker .row > span { font-weight: 600; background: linear-gradient(100deg, var(--ink-to) -25%, var(--ink) 85%);
+  #ticker .row > span { font-weight: 600; background: linear-gradient(100deg, var(--ink-to) 0%, var(--ink) 90%);
                         -webkit-background-clip: text; background-clip: text; color: transparent; }
   #ticker .row small { font-size: 12px; font-weight: 600; color: var(--dim); }
   #ticker b { font-weight: 700; color: var(--accent); }
@@ -462,6 +462,7 @@
   .gauge .val { display: flex; align-items: baseline; column-gap: 10px; margin-top: 2px; }
   .gauge .val b { flex: none; white-space: nowrap; font-size: 30px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
   .gauge .val b small { font-size: 16px; font-weight: 700; margin-left: 1px; }
+  .gauge .val b small.etf { margin: 0 .3em 0 0; color: var(--dim); }
   .gauge .state { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; white-space: nowrap; }
   .gauge .state i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
   .gauge .note { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; color: var(--dim);
@@ -687,7 +688,9 @@
   const INDEX = { nasdaq: ["#8FBCE6", "#AFA6EC"], biotech: ["#AE9CE6", "#E09DCB"] };
   // 머리 상자 시세 이름의 색이다. 나스닥과 바이오는 지수색을 쓴다. S&P 500은 붉은 계열, 환율은 초록 계열에서 상승색(빨강)과 겹치지 않게
   // 채도를 낮춘 색을 쓰고, 옆 색상은 지수색처럼 색상환을 따라 보라 쪽으로 조금 옮긴 색이다.
-  const QUOTE_INK = { "S&P 500": ["#E89D91", "#E798A8"], 나스닥: INDEX.nasdaq, 바이오: INDEX.biotech, 환율: ["#8BD0A8", "#88CEC5"] };
+  const QUOTE_INK = { "S&P 500": ["#E89D91", "#E798A8"], 나스닥: INDEX.nasdaq, 바이오: INDEX.biotech, 환율: ["#8BD0A8", "#8ECDD7"] };
+  // 요약 절 주가와 예측 카드가 그리는 종가의 ETF다. 예측 범위는 지수가 아니라 이 ETF의 종가로 계산한다(path_bands.py SECTOR_DB_TICKERS).
+  const ETF = { nasdaq: "QQQ", biotech: "IBB" };
   // 달력의 지수 단추에 쓰는 지수 이름이다.
   const SHORT = { nasdaq: "나스닥", biotech: "바이오" };
   const paint = () => {
@@ -971,7 +974,6 @@
       const zoom = box.querySelector(".foot").appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
       zoom.innerHTML = `<button type="button" aria-label="기간 늘리기">−</button><span class="steps">${"<i></i>".repeat(SPAN.length)}</span><button type="button" aria-label="기간 줄이기">+</button>`;
       const [wider, narrower] = zoom.querySelectorAll("button");
-      const price = (v) => `${figure(v)}${line.unit}`;
       let span = 2, dates = [], closes = [], last = 0, raf = 0;
       const left = (k) => Math.max(0, last - SPAN[k]);
       const level = () => {
@@ -1009,7 +1011,7 @@
           const shown = closes.slice(i0, last + 1);
           [[i0 + shown.indexOf(Math.max(...shown)), -7, "최고"], [i0 + shown.indexOf(Math.min(...shown)), 15, "최저"]].forEach(([i, dy, text]) => {
             group.append(shape("circle", { cx: X(i), cy: Y(closes[i]), r: 2.5, fill: PRICE }));
-            group.append(shape("text", { x: Math.min(Math.max(X(i), L + 48), R - 48), y: Y(closes[i]) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${price(closes[i])}`));
+            group.append(shape("text", { x: Math.min(Math.max(X(i), L + 48), R - 48), y: Y(closes[i]) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${price(closes[i], line.unit)}`));
           });
         }
         s.append(shape("circle", { cx: X(last), cy: Y(closes[last]), r: 2.5, fill: "#EAEAEA", stroke: "#171719", "stroke-width": 1 }));
@@ -1042,7 +1044,7 @@
         const change = (closes[last] / closes[last - 1] - 1) * 100;
         const after = line.index && listing[`${day.replaceAll("-", "")}-${line.index}`]?.moves?.after;
         label.textContent = `${md(dates[last])} 종가` + (typeof after === "number" ? ` · 마감 후 ${signed(after)}%` : "");
-        value.innerHTML = line.unit ? `${figure(closes[last])}<small>${line.unit}</small>` : figure(closes[last]);
+        value.innerHTML = line.unit === "달러" ? price(closes[last], line.unit) : line.unit ? `${figure(closes[last])}<small>${line.unit}</small>` : figure(closes[last]);
         box.style.setProperty("--card-color", change > 0 ? "#ff5c5c" : change < 0 ? "#5b9bff" : DIMS);
         state.querySelector("span").textContent = `${signed(change)}%`;
         state.hidden = false;
@@ -1210,7 +1212,7 @@
         show(f) {
           frame = f;
           cancelAnimationFrame(raf);
-          c.head(f, `중앙값 ${signed((end(f, "q50") / f.base - 1) * 100)}%`, fmt(end(f, "q50")));
+          c.head(f, `중앙값 ${signed((end(f, "q50") / f.base - 1) * 100)}%`, [Object.assign(document.createElement("small"), { className: "etf", textContent: ETF[key.split("-")[1]] }), fmt(end(f, "q50"))]);
           tween(span, span, 1);
         },
       };
@@ -2669,6 +2671,8 @@
   const signed = (v, digits = 2) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(digits)}`;
   const tone = (v) => v > 0 ? "up" : v < 0 ? "down" : "";
   const figure = (v) => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // 달러 값은 주가와 예측 카드처럼 앞에 $를 붙이고, 다른 단위는 값 뒤에 붙인다.
+  const price = (v, unit) => unit === "달러" ? `$${figure(v)}` : `${figure(v)}${unit}`;
   (/^\d{8}-[a-z]+$/.test(key) ? Promise.resolve(key) : listed.then((listing) => latest(listing, "nasdaq"))).then((found) => {
     if (!found) throw new Error("no report");
     key = found;
@@ -2694,7 +2698,7 @@
     }
     report.innerHTML = body;
     calendar(listing, date);
-    // 머리 상자 시세는 나스닥 100, 나스닥 바이오, S&P 500, 원/달러를 "나스닥 100 27,943.74달러 −1.22% (마감 후 +0.40%)"처럼 한 줄씩 쓰고 첫 줄을 한 번 더 쌓는다.
+    // 머리 상자 시세는 나스닥 100, 나스닥 바이오, S&P 500, 원/달러를 "나스닥 100 $27,943.74 −1.22% (마감 후 +0.40%)"처럼 한 줄씩 쓰고 첫 줄을 한 번 더 쌓는다.
     // 종가는 리포트 날짜 전날까지의 마지막 종가이고, 등락률은 그 앞 종가 대비다. 장 마감 후 등락률은 그 날짜의 그 지수 리포트가 `moves.after`에 적은 값을 쓴다.
     marketed.then(({ series }) => {
       const ORDER = ["나스닥", "바이오", "S&P 500", "환율"];
@@ -2704,7 +2708,7 @@
         const last = closes.at(-1), change = (last / closes.at(-2) - 1) * 100;
         const ink = QUOTE_INK[line.tab] || ["var(--dim)", "var(--dim)"];
         const after = line.index && listing[`${key.slice(0, 8)}-${line.index}`]?.moves?.after;
-        return `<span class="row" data-tab="${line.tab}"><span style="--ink: ${ink[0]}; --ink-to: ${ink[1]}">${line.name}</span><b>${figure(last)}${line.unit}</b><b class="${tone(change)}">${signed(change)}%</b>`
+        return `<span class="row" data-tab="${line.tab}"><span style="--ink: ${ink[0]}; --ink-to: ${ink[1]}">${line.name}</span><b>${price(last, line.unit)}</b><b class="${tone(change)}">${signed(change)}%</b>`
           + (typeof after === "number" ? `<small>(마감 후 <b class="${tone(after)}">${signed(after)}%</b>)</small>` : "") + "</span>";
       }).filter(Boolean);
       if (rows.length) ticker.innerHTML = `<span class="rows">${rows.join("")}${rows[0].replace('class="row"', 'class="row" aria-hidden="true"')}</span>`;
