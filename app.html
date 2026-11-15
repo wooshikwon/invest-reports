@@ -356,6 +356,7 @@
   h2.issues .back { position: absolute; right: 0; bottom: 0; display: flex; align-items: center; gap: 4px; padding: 0 0 0 8px; height: 28px; border: 0;
                     transform: translateY(var(--shift, 0px)); background: none; color: var(--dim); font: inherit; cursor: pointer; opacity: 0; visibility: hidden; transition: opacity var(--glide), visibility 0s .3s; }
   h2.issues .back::after { content: "이슈 목록"; font-size: 13px; font-weight: 600; }
+  h2.issues .back.calendar::after { content: "이벤트 캘린더"; }
   h2.issues.inside .back { opacity: 1; visibility: visible; transition: opacity var(--glide); }
   /* 이벤트 캘린더는 발표일마다 한 장이고, 위 날짜 띠의 날짜마다 별·날짜·요일을 테두리 없는 둥근 회색 상자에 담는다. 보고 있는 날짜는 상자를
      진하게, 글자를 흰색으로 쓰고, 나머지 날짜는 상자를 연하게, 글자를 흐린 회색으로 쓴다. 리포트 날짜의 상자에는 절 제목 색의 얇은 회색 테두리를 두르고, 누르고 있는 상자는 조금 줄인다.
@@ -707,18 +708,22 @@
   // 몇 번 옮겨 왔는지(`depth`)를 `history.state`에 적는다. 옮기기 직전에 다음 깊이를 `sessionStorage`에 두고, 새 페이지가 그 값을 읽어 자기 기록에 적는다.
   // 뒤로 가기로 돌아온 페이지는 자기 기록에 적힌 깊이를 그대로 쓴다.
   // 리포트 화면에서 옮겨 온 페이지는 앞 화면의 리포트 키(`from`)도 같은 방법으로 자기 기록에 적는다. 이슈 화면에서 옮겨 왔으면 빈 글자를 적는다.
+  // 이벤트 캘린더의 "자세히 보기"로 연 이슈 화면은 `via`에 "calendar"를 적는다.
   const depth = history.state?.depth ?? (+sessionStorage.getItem("depth") || 0);
   const from = history.state?.from ?? (sessionStorage.getItem("from") || "");
+  const via = history.state?.via ?? (sessionStorage.getItem("via") || "");
   sessionStorage.removeItem("depth");
   sessionStorage.removeItem("from");
-  history.replaceState({ ...history.state, depth, from }, "");
+  sessionStorage.removeItem("via");
+  history.replaceState({ ...history.state, depth, from, via }, "");
   // 옮기기 직전의 화면 위치(`y`)도 자기 기록에 적는다. 브라우저는 리포트를 받아 그리기 전에 화면 위치를 되돌리려다 실패하므로, 되돌리기는 페이지가 맡는다.
   history.scrollRestoration = "manual";
-  // 이슈 화면(`issue`, `at`)은 `more`로 줄 때만 주소에 적고, 다른 리포트로 옮길 때는 지운다.
-  const visit = (target, more = {}) => {
+  // 이슈 화면(`issue`, `at`)은 `more`로 줄 때만 주소에 적고, 다른 리포트로 옮길 때는 지운다. `through`는 새 페이지의 `via`가 된다.
+  const visit = (target, more = {}, through = "") => {
     history.replaceState({ ...history.state, y: scrollY }, "");
     sessionStorage.setItem("depth", depth + 1);
     sessionStorage.setItem("from", query.get("issue") ? "" : key);
+    if (through) sessionStorage.setItem("via", through);
     const params = new URLSearchParams(location.search);
     params.delete("issue");
     params.delete("at");
@@ -1672,11 +1677,15 @@
     back.className = "back";
     back.innerHTML = '<svg width="8" height="12" viewBox="0 0 8 12" aria-hidden="true"><path d="M6.5 1 1.5 6l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     // 절 제목 글자로 절을 찾는 곳이 있으므로 단추 이름은 글자 대신 CSS로 쓴다.
-    back.setAttribute("aria-label", "이슈 목록");
-    // 이슈 목록 단추는 이 이슈를 담은 리포트 화면의 이슈 페이지를 맨 위부터 연다(`land`).
+    const calendar = via === "calendar" && depth > 0;
+    back.classList.toggle("calendar", calendar);
+    back.setAttribute("aria-label", calendar ? "이벤트 캘린더" : "이슈 목록");
+    // 이벤트 캘린더의 "자세히 보기"로 연 이슈 화면의 단추는 뒤로 가서 떠날 때의 리포트 화면(예측 페이지와 캘린더 날짜, 화면 위치)으로 돌아간다.
+    // 그 밖의 이슈 화면의 단추는 이슈 목록 단추로, 이 이슈를 담은 리포트 화면의 이슈 페이지를 맨 위부터 연다(`land`).
     // 그 리포트 화면에서 옮겨 왔으면 뒤로 가서 기록을 쌓지 않고, 아니면 이슈 화면 기록을 리포트 화면으로 바꾸며 깊이를 그대로 넘긴다.
     back.addEventListener("click", () => {
       feelPress();
+      if (calendar) return history.back();
       sessionStorage.setItem("land", key);
       if (depth > 0 && from === key) return history.back();
       if (depth > 0) sessionStorage.setItem("depth", depth);
@@ -1685,7 +1694,7 @@
       params.delete("at");
       location.replace(`?${params}`);
     });
-    // 이슈 화면 어디서든 오른쪽으로 60px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 이슈 목록 단추를 누른 것과 같이 이슈 목록으로 돌아간다.
+    // 이슈 화면 어디서든 오른쪽으로 60px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 절 제목 오른쪽 단추를 누른 것과 같다.
     // 그림을 크게 본 화면과 설명 상자, 이슈 그림 묶음 안에서 민 것은 세지 않는다.
     let swipe = null;
     document.addEventListener("touchstart", (event) => {
@@ -1930,7 +1939,7 @@
     });
     // 띠를 i번 날짜 상자가 문단 왼쪽 끝에 오는 위치로 옮긴다. `now`면 바로 옮기고, 아니면 `glide`로 미끄러뜨린다. 띠에 손을 대면 미끄러뜨리기를 멈춘다.
     // 날짜를 눌러 장이 여러 장을 지나가는 동안에는 지나가는 날짜마다 띠를 옮기지 않고, 누른 날짜로만 옮긴다.
-    let seen = days.indexOf(date), aim = null, sliding = null;
+    let seen = days.includes(history.state?.day) ? days.indexOf(history.state.day) : days.indexOf(date), aim = null, sliding = null;
     const reach = (i, now = false) => {
       sliding?.();
       const left = Math.min(bar.scrollWidth - bar.clientWidth,
@@ -1939,9 +1948,11 @@
       else sliding = glide(bar.scrollLeft, left, (x) => (bar.scrollLeft = x), () => (sliding = null));
     };
     bar.addEventListener("touchstart", () => { sliding?.(); sliding = null; }, { passive: true });
+    // 고른 날짜는 자기 기록(`day`)에 적고, 뒤로 가기로 다시 연 리포트 화면은 그 날짜의 장부터 보여 준다.
     const change = (i) => {
       [...strip.children].forEach((button, j) => button.classList.toggle("on", i === j));
       seen = i;
+      history.replaceState({ ...history.state, day: days[i] }, "");
       if (aim === null) reach(i); else if (aim === i) aim = null;
     };
     // 날짜 상자는 가장 넓은 상자의 폭으로 맞춘다.
@@ -1965,7 +1976,7 @@
     };
     bar.addEventListener("scroll", nudge, { passive: true });
     head.after(rail);
-    const box = slider(days.map((day) => groups.get(day)), rail, { fit: true, start: days.indexOf(date), change, name: "events", area: frozen ? null : head, feel: true });
+    const box = slider(days.map((day) => groups.get(day)), rail, { fit: true, start: seen, change, name: "events", area: frozen ? null : head, feel: true });
     box.prepend(rail);
     new ResizeObserver(() => { fill(); nudge(); }).observe(box);
     // 소제목마다 그 소제목과 다음 소제목 앞까지의 노드를 이벤트 상자 하나에 담는다.
@@ -2009,7 +2020,7 @@
     const arrow = '<svg width="6" height="10" viewBox="0 0 6 10" aria-hidden="true"><path d="M1 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     // 실제 갈래 줄에 `build.py`가 결과를 다룬 이슈(`data-result`, `리포트 키/이슈 번호`)를 달았으면 그 줄 바로 아래에 "자세히 보기" 줄을 넣는다.
     // 단추를 누르면 그 이슈를 히스토리에 담은 가장 늦은 리포트(`r/index.json`의 `later`)의 이슈 화면을 열고 히스토리에서 결과 리포트 날짜를 고른다.
-    // 그런 리포트가 없으면 결과 리포트의 그 이슈 화면을 연다.
+    // 그런 리포트가 없으면 결과 리포트의 그 이슈 화면을 연다. 연 이슈 화면은 캘린더에서 왔다고 적어(`via`) 뒤로 갈 때 이 캘린더로 돌아온다.
     box.querySelectorAll("table.judged tbody tr.hit[data-result]").forEach((row) => {
       const [source, number] = row.dataset.result.split("/");
       const more = document.createElement("tr");
@@ -2020,7 +2031,7 @@
       go.addEventListener("click", () => {
         feelPress();
         const [target, issue] = (listing[source]?.later?.[number] ?? row.dataset.result).split("/");
-        visit(target, target === source ? { issue } : { issue, at: listing[source].date });
+        visit(target, target === source ? { issue } : { issue, at: listing[source].date }, "calendar");
       });
       row.after(more);
     });
