@@ -141,7 +141,7 @@ CARD_INDEX = {"nasdaq": "close:^NDX"}
 MARKET = [("S&P 500", "S&P 500", None, "달러", ("fred:SP500", "close:^GSPC")),
           ("나스닥 100", "나스닥", "nasdaq", "달러", ("close:^NDX",)),
           ("나스닥 바이오", "바이오", "biotech", "달러", ("close:^NBI",)),
-          ("원/달러", "환율", None, "원", ("fred:DEXKOUS", "close:USDKRW=X"))]
+          ("원/달러", "원/달러", None, "원", ("fred:DEXKOUS", "close:USDKRW=X"))]
 TICK_STEP = 5  # 일정과 예측 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
 ISSUES_TITLE = "상세 이슈 해설"
