@@ -205,7 +205,7 @@
   .carousel .track::-webkit-scrollbar { display: none; }
   .carousel .slide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; }
   .carousel .slide img { margin: 0; }
-  /* 날짜 슬라이더는 그림 폭의 48%로 가운데에 둔다. 처음에는 슬라이더 자리에 "날짜 이동" 글자 단추(`open`)만 두고(`shut`),
+  /* 날짜 슬라이더는 그림 폭의 48%로 가운데에 둔다. 처음에는 슬라이더 자리에 "기준 날짜 이동" 글자 단추(`open`)만 두고(`shut`),
      단추를 누르면 그 자리에 슬라이더를 띄운다. 슬라이더에 댄 손가락은 넘기기 묶음을 옆으로 밀지 않는다.
      막대는 위아래 24px 칸(`bar`)으로만 손가락을 받아, 막대 근처에서 시작한 넘기기를 가로채지 않는다. 막대를 누르면 슬라이더를 닫는다.
      레버는 레버 중심을 둘러싼 56px 칸(`grip`)으로 손가락을 받아, 레버에서 조금 벗어나게 눌러도 레버를 잡는다. */
@@ -924,13 +924,13 @@
 
   // `box` 끝에 지난 판단 날짜를 고르는 슬라이더를 둔다. `days`는 고를 수 있는 날짜(오름차순)이고 `start`번 날짜에서 시작한다.
   // 슬라이더는 리포트 날짜와 그 앞 30일을 늘 같은 폭으로 보여 주고, 레버는 `days`의 날짜에만 선다. 레버가 선 날짜가 정해질 때마다 그 번호로 `pick`을 부른다.
-  // 슬라이더는 "날짜 이동" 단추를 누르면 열리고, 레버 밖의 막대를 누르면 닫힌다. 날짜는 레버를 잡고 옮길 때만 바뀌고, 닫아도 고른 날짜는 그대로 둔다.
+  // 슬라이더는 "기준 날짜 이동" 단추를 누르면 열리고, 레버 밖의 막대를 누르면 닫힌다. 날짜는 레버를 잡고 옮길 때만 바뀌고, 닫아도 고른 날짜는 그대로 둔다.
   function dial(box, date, days, start, pick) {
     const offset = (day) => rewindOffset(day, date);
     const control = document.createElement("div");
     control.className = "rewind shut";
     control.innerHTML = `<input type="range" min="0" max="${REWIND_SPAN}" step="1" value="${REWIND_SPAN}" tabindex="-1"><span></span><i class="bar"></i><i class="grip"></i>`
-      + '<button type="button" class="open">날짜 이동</button>';
+      + '<button type="button" class="open">기준 날짜 이동</button>';
     const [range, shown, bar, grip, open] = control.children;
     const toggle = (shut) => () => { feelPress(); control.classList.toggle("shut", shut); };
     open.addEventListener("click", toggle(false));
