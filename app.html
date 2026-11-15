@@ -726,22 +726,18 @@
   // 몇 번 옮겨 왔는지(`depth`)를 `history.state`에 적는다. 옮기기 직전에 다음 깊이를 `sessionStorage`에 두고, 새 페이지가 그 값을 읽어 자기 기록에 적는다.
   // 뒤로 가기로 돌아온 페이지는 자기 기록에 적힌 깊이를 그대로 쓴다.
   // 리포트 화면에서 옮겨 온 페이지는 앞 화면의 리포트 키(`from`)도 같은 방법으로 자기 기록에 적는다. 이슈 화면에서 옮겨 왔으면 빈 글자를 적는다.
-  // 이벤트 캘린더의 "자세히 보기"로 연 이슈 화면은 `via`에 "calendar"를 적는다.
   const depth = history.state?.depth ?? (+sessionStorage.getItem("depth") || 0);
   const from = history.state?.from ?? (sessionStorage.getItem("from") || "");
-  const via = history.state?.via ?? (sessionStorage.getItem("via") || "");
   sessionStorage.removeItem("depth");
   sessionStorage.removeItem("from");
-  sessionStorage.removeItem("via");
-  history.replaceState({ ...history.state, depth, from, via }, "");
+  history.replaceState({ ...history.state, depth, from }, "");
   // 옮기기 직전의 화면 위치(`y`)도 자기 기록에 적는다. 브라우저는 리포트를 받아 그리기 전에 화면 위치를 되돌리려다 실패하므로, 되돌리기는 페이지가 맡는다.
   history.scrollRestoration = "manual";
-  // 이슈 화면(`issue`, `at`)은 `more`로 줄 때만 주소에 적고, 다른 리포트로 옮길 때는 지운다. `through`는 새 페이지의 `via`가 된다.
-  const visit = (target, more = {}, through = "") => {
+  // 이슈 화면(`issue`, `at`)은 `more`로 줄 때만 주소에 적고, 다른 리포트로 옮길 때는 지운다.
+  const visit = (target, more = {}) => {
     history.replaceState({ ...history.state, y: scrollY }, "");
     sessionStorage.setItem("depth", depth + 1);
     sessionStorage.setItem("from", query.get("issue") ? "" : key);
-    if (through) sessionStorage.setItem("via", through);
     const params = new URLSearchParams(location.search);
     params.delete("issue");
     params.delete("at");
@@ -1714,15 +1710,12 @@
     // 절 제목 글자로 절을 찾는 곳이 있으므로 단추 이름은 글자 대신 CSS로 쓴다.
     // 단추 이름은 어디서 열었든 "뒤로가기"이고, 돌아가는 곳은 이슈 화면을 연 곳이다. 이슈 화면 안에서 다른 이슈로 넘겨도 돌아가는 곳은 바뀌지 않는다.
     back.setAttribute("aria-label", "뒤로가기");
-    const calendar = via === "calendar" && depth > 0;
-    // 이벤트 캘린더의 "자세히 보기"로 연 이슈 화면의 단추는 뒤로 가서 떠날 때의 리포트 화면(예측 페이지와 캘린더 날짜, 화면 위치)으로 돌아간다.
-    // 그 밖의 이슈 화면의 단추는 이 이슈를 담은 리포트 화면의 이슈 페이지를 맨 위부터 연다(`land`).
-    // 그 리포트 화면에서 옮겨 왔으면 뒤로 가서 기록을 쌓지 않고, 아니면 이슈 화면 기록을 리포트 화면으로 바꾸며 깊이를 그대로 넘긴다.
+    // 리포트 화면(이슈 목록이나 이벤트 캘린더의 "자세히 보기")에서 연 이슈 화면의 단추는 뒤로 가서, 떠날 때의 리포트 화면(페이지와 캘린더 날짜, 화면 위치)으로 돌아간다.
+    // 주소로 바로 연 이슈 화면의 단추는 이슈 화면 기록을 이 이슈를 담은 리포트 화면으로 바꾸며 이슈 페이지를 맨 위부터 연다(`land`). 깊이는 그대로 넘긴다.
     back.addEventListener("click", () => {
       feelPress();
-      if (calendar) return history.back();
+      if (depth > 0 && from) return history.back();
       sessionStorage.setItem("land", key);
-      if (depth > 0 && from === key) return history.back();
       if (depth > 0) sessionStorage.setItem("depth", depth);
       const params = new URLSearchParams(location.search);
       params.delete("issue");
@@ -2053,7 +2046,7 @@
     const arrow = '<svg width="6" height="10" viewBox="0 0 6 10" aria-hidden="true"><path d="M1 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     // 실제 갈래 줄에 `build.py`가 결과를 다룬 이슈(`data-result`, `리포트 키/이슈 번호`)를 달았으면 그 줄 바로 아래에 "자세히 보기" 줄을 넣는다.
     // 단추를 누르면 그 이슈를 히스토리에 담은 가장 늦은 리포트(`r/index.json`의 `later`)의 이슈 화면을 열고 히스토리에서 결과 리포트 날짜를 고른다.
-    // 그런 리포트가 없으면 결과 리포트의 그 이슈 화면을 연다. 연 이슈 화면은 캘린더에서 왔다고 적어(`via`) 뒤로 갈 때 이 캘린더로 돌아온다.
+    // 그런 리포트가 없으면 결과 리포트의 그 이슈 화면을 연다.
     box.querySelectorAll("table.judged tbody tr.hit[data-result]").forEach((row) => {
       const [source, number] = row.dataset.result.split("/");
       const more = document.createElement("tr");
@@ -2064,7 +2057,7 @@
       go.addEventListener("click", () => {
         feelPress();
         const [target, issue] = (listing[source]?.later?.[number] ?? row.dataset.result).split("/");
-        visit(target, target === source ? { issue } : { issue, at: listing[source].date }, "calendar");
+        visit(target, target === source ? { issue } : { issue, at: listing[source].date });
       });
       row.after(more);
     });
@@ -2786,7 +2779,7 @@
     section("상세 이슈 해설", focus, query.get("at"));
     // 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
     report.querySelectorAll("h3").forEach(trail);
-    // 이슈 화면의 뒤로가기 단추로 연 리포트 화면(`land`)은 이슈 페이지(1번)를 맨 위부터 보여 준다. 그 밖에는 `history.state`에 적힌 페이지를 연다.
+    // 주소로 바로 연 이슈 화면의 뒤로가기 단추로 연 리포트 화면(`land`)은 이슈 페이지(1번)를 맨 위부터 보여 준다. 그 밖에는 `history.state`에 적힌 페이지를 연다.
     const land = !focus && sessionStorage.getItem("land") === key;
     if (land) sessionStorage.removeItem("land");
     if (!focus) {
@@ -2806,19 +2799,26 @@
     // 이슈 목록 상자의 썸네일은 누르면 이슈를 열므로 띄우지 않는다.
     report.querySelectorAll("img:not(.thumb)").forEach((img) => img.addEventListener("click", () => viewer(img)));
     // 뒤로 가기로 새로 연 페이지는 그림을 모두 받아 문서 높이가 정해진 뒤 떠나기 전 화면 위치로 옮긴다. 그 사이에 사용자가 화면을 움직였으면 옮기지 않는다.
-    if (!land && performance.getEntriesByType("navigation")[0]?.type === "back_forward") {
+    // 옮긴 뒤 2초 안에 늦게 그린 카드가 문서 높이를 바꾸면 다시 옮긴다. 사용자가 화면을 움직였거나 떠나기 전 위치에 닿았으면 더 옮기지 않는다.
+    if (performance.getEntriesByType("navigation")[0]?.type === "back_forward") {
       Promise.all([...report.querySelectorAll("img")].map((img) => img.complete
         || new Promise((done) => { img.addEventListener("load", done, { once: true }); img.addEventListener("error", done, { once: true }); })))
-        .then(() => { if (scrollY === 0 && history.state?.y) scrollTo(0, history.state.y); });
+        .then(() => {
+          const y = history.state?.y;
+          if (scrollY !== 0 || !y) return;
+          let placed = 0;
+          const place = () => {
+            if (scrollY !== placed || placed === y) return watch.disconnect();
+            scrollTo(0, y);
+            placed = scrollY;
+          };
+          const watch = new ResizeObserver(place);
+          place();
+          watch.observe(report);
+          setTimeout(() => watch.disconnect(), 2000);
+        });
     }
   }).catch(() => fail("리포트를 찾지 못했다."));
-  // 이슈 화면의 뒤로가기 단추로 돌아간 리포트 화면이 브라우저 캐시에서 그대로 돌아오면, 떠날 때의 위치 대신 이슈 페이지를 맨 위부터 보여 준다.
-  addEventListener("pageshow", (event) => {
-    if (!event.persisted || !turn || sessionStorage.getItem("land") !== key) return;
-    sessionStorage.removeItem("land");
-    turn(1, null, true);
-    scrollTo(0, 0);
-  });
   // 미니 앱 안에서 다른 리포트로 옮겨 온 리포트 화면(`depth`가 0보다 크면)은 화면 왼쪽 끝 18px 띠에서 오른쪽으로 밀어 앞 화면으로 돌아간다.
   // 이슈 화면은 이 띠를 두지 않고, 화면 어디서든 오른쪽으로 밀면 뒤로가기 단추를 누른 것과 같다.
   // 띠는 손가락이 처음 6px 움직인 방향으로 할 일을 정한다. 가로로 움직인 거리가 세로의 0.6배 이상이면 뒤로 가기로 받고 페이지 스크롤을 막는다.
