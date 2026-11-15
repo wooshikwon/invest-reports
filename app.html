@@ -54,6 +54,8 @@
   #day:empty { display: none; }
   #day .written { font-size: 11px; font-weight: 400; }
   #title { margin: 2px 0 0; padding-right: 44px; font-size: 19px; font-weight: 900; line-height: 1.4; color: var(--accent); }
+  /* 리포트 제목 글자는 절 제목과 같은 지수색 그라데이션(`--index-ink`)으로 칠한다. 그라데이션이 글자 폭에 맞도록 글자를 `span`에 담는다. */
+  #title span { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
   #berth { height: 4px; }
   #masthead { position: sticky; top: calc(5px + var(--top-edge)); z-index: 4; height: 28px; margin-bottom: 10px; }
   #ticker { position: absolute; top: 0; left: 0; height: 28px; overflow: hidden; margin: 0; font-size: 13px; line-height: 28px; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -707,8 +709,8 @@
   // 요약 절 주가와 예측 카드가 ETF 눈금으로 그리는 지수와 그 ETF다. 예측 범위는 이 ETF의 종가로 계산한다(path_bands.py SECTOR_DB_TICKERS).
   // 여기 없는 나스닥은 build.py CARD_INDEX가 지수 눈금으로 늘려 적으므로 시장 탭의 나스닥 100 값과 같다.
   const ETF = { biotech: "IBB" };
-  // 달력의 지수 단추에 쓰는 지수 이름이다.
-  const SHORT = { nasdaq: "나스닥", biotech: "바이오" };
+  // 달력의 지수 단추에 쓰는 이름이다.
+  const SHORT = { nasdaq: "나스닥 리포트", biotech: "바이오 리포트" };
   const paint = () => {
     const tint = INDEX[key.split("-")[1]];
     if (!tint) return;
@@ -2724,7 +2726,7 @@
   }).then(([body, listing]) => {
     const entry = listing[key];
     if (entry) {
-      document.getElementById("title").textContent = entry.title;
+      document.getElementById("title").replaceChildren(Object.assign(document.createElement("span"), { textContent: entry.title }));
       document.title = `${entry.title} ${entry.day}`;
       // 제목 위 날짜 줄은 "2026년 11월 13일 (금)"처럼 쓴다.
       const [year, month, mday] = entry.date.split("-");
