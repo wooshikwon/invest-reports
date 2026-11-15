@@ -40,17 +40,17 @@
     word-break: keep-all; overflow-wrap: anywhere; -webkit-text-size-adjust: 100%;
   }
   /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
-  main { max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-edge)) 16px calc(40px + var(--offscreen, 0px)); }
+  main { position: relative; max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-edge)) 16px calc(40px + var(--offscreen, 0px)); }
   /* 문서 맨 위에는 리포트 날짜와 요일을 절 제목과 같은 회색의 작은 글씨로 쓰고(`#day`), 그 아래에 제목(`#title`)을 쓴다. 둘은 본문과 함께 화면 위로 지나간다.
-     제목 아래의 머리 상자(`#masthead`)는 28px 높이의 한 줄(`header`)이다. 왼쪽에 지수 시세(`#ticker`)를 쓰고, 오른쪽에 지수 전환 단추와 달력 단추를 같은 높이로 둔다.
-     날짜와 제목이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
-     지수 시세는 "나스닥 100 $688.15 −0.30%"처럼 지수 이름, 기준 가격 날짜의 환산 종가, 정규장 등락률을 쓴 줄과 "장 마감 후 $690.88 +0.40%"처럼 기준 가격과 장 마감 후 등락률을 쓴 줄로 이루어진다.
-     두 가격은 주가와 예측 카드와 같은 달러 눈금이고, 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 지수 시세는 28px 높이 창 안에 정규장 줄, 장 마감 후 줄, 정규장 줄을 위아래로 쌓고 한 줄씩 위로 굴려 두 줄을 번갈아 보여 준다.
+     날짜 줄 오른쪽 끝에는 달력 단추를 두고, 단추의 위 끝을 날짜 줄의 위 끝에 맞춘다. 제목은 달력 단추 아래로 들어가지 않게 오른쪽을 비운다.
+     제목 아래의 머리 상자(`#masthead`)는 28px 높이의 한 줄(`header`)이고, 시세(`#ticker`)만 쓴다. 날짜와 제목이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
+     시세는 나스닥 100, 나스닥 바이오, S&P 500, 원/달러 네 줄이다. 줄마다 "나스닥 100 27,943.74 −1.22% (마감 후 +0.40%)"처럼 이름, 리포트 날짜 전날까지의 마지막 종가, 그 앞 종가 대비 등락률을 쓰고,
+     나스닥 100과 나스닥 바이오는 괄호 안에 장 마감 후 등락률을 더 쓴다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 시세는 28px 높이 창 안에 네 줄과 첫 줄을 위아래로 쌓고 한 줄씩 위로 굴려 네 줄을 차례로 보여 준다.
      상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 페이지 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
      흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
   #day { margin: 0; font-size: 12.5px; font-weight: 600; line-height: 20px; color: var(--dim); }
   #day:empty { display: none; }
-  #title { margin: 2px 0 0; font-size: 19px; font-weight: 900; line-height: 1.4; color: var(--accent); }
+  #title { margin: 2px 0 0; padding-right: 44px; font-size: 19px; font-weight: 900; line-height: 1.4; color: var(--accent); }
   #berth { height: 4px; }
   #masthead { position: sticky; top: calc(5px + var(--top-edge)); z-index: 4; height: 28px; margin-bottom: 10px; }
   #ticker { position: absolute; top: 0; left: 0; height: 28px; overflow: hidden; margin: 0; font-size: 13px; line-height: 28px; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -59,6 +59,7 @@
   @media (prefers-reduced-motion: reduce) { #ticker .rows { transition: none; } }
   #ticker .row { display: flex; align-items: baseline; gap: 6px; height: 28px; }
   #ticker .row > span { font-weight: 600; color: var(--dim); }
+  #ticker .row small { font-size: 12px; font-weight: 600; color: var(--dim); }
   #ticker b { font-weight: 700; color: var(--accent); }
   #ticker b.up { color: #ff5c5c; }
   #ticker b.down { color: #5b9bff; }
@@ -86,7 +87,7 @@
      대신 머리 상자의 유리 띠와 같은 색·흐림의 한 줄 띠(`#issue-bar`)를 화면 맨 위에 고정하고, 가운데에 보고 있는 이슈의 제목을 작은 회색 글씨 한 줄로 쓴다. 줄을 넘는 제목은 말줄임표로 줄인다.
      이 띠가 전체화면 위쪽 높이까지 덮으므로 위쪽 높이의 유리는 감춘다. */
   :root.issue { --past: 0px; --issue-bar: 38px; }
-  :root.issue :is(#day, #title, #berth, #masthead, #past, #top-glass) { display: none; }
+  :root.issue :is(#day, #title, #berth, #masthead, #past, #top-glass, .cal-open) { display: none; }
   #issue-bar { display: none; }
   :root.issue #issue-bar { display: block; position: fixed; top: 0; left: 0; right: 0; z-index: 4; padding: var(--top-inset) 16px 0;
                            background: color-mix(in srgb, var(--bg) 40%, transparent); border-bottom: 1px solid rgba(255, 255, 255, .06);
@@ -96,24 +97,20 @@
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { :root.issue #issue-bar { background: var(--bg); } }
   :root.issue main { padding-top: calc(16px + var(--issue-bar) + var(--top-edge)); }
   :root.issue #report > h2:first-child { margin-top: 0; }
-  /* 머리 상자 줄 오른쪽 끝에 달력 단추를 둔다. 달력 단추와 지수 전환 단추는 날짜 상자·그림 이름 탭과 같은 색과 모서리의 같은 높이 상자로 그리고, 달력이 떠 있는 동안 달력 단추는 고른 날짜 상자와 같은 색으로 칠한다. 누르면 단추 바로 아래에 같은 지수의 리포트 날짜를 고르는 달력을 띄우고, 화면을 넘겨도 달력은 단추 아래에 붙어 함께 움직인다.
-     달력 상자는 설명 상자와 같은 색으로 그리고, 리포트가 있는 날짜는 흰 글자로 쓰고 그 아래에 그 리포트의 정규장 등락률을 머리말과 같은 색으로 적는다.
-     리포트가 없는 날짜는 회색으로 쓰고 누를 수 없다. 보고 있는 리포트의 날짜는 날짜 띠의 고른 상자와 같은 색으로 칠하고, 다른 리포트를 볼 때 오늘 날짜에는 테두리를 두른다. */
-  header .cal-open { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 36px; height: 28px;
-                     padding: 0; border: 0; border-radius: 8px; background: rgba(255, 255, 255, .05); color: var(--hint); cursor: pointer; }
-  header .cal-open.on { background: rgba(255, 255, 255, .16); color: var(--accent); }
-  /* 지수 전환 단추는 달력 단추 왼쪽에 두고 세로 위치를 달력 단추와 같게 맞춘다. */
-  header .index-switch { position: absolute; top: 0; right: 44px; height: 28px; padding: 0 10px;
-                         border: 0; border-radius: 8px; background: rgba(255, 255, 255, .05);
-                         font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
-                         --index-ink: linear-gradient(100deg, var(--index-to) -25%, var(--index) 85%); }
-  /* 지수 전환 단추의 글자는 절 제목과 같은 그라데이션으로 칠하되, 단추가 여는 지수의 두 색을 쓴다. */
-  header .index-switch span { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  /* 달력을 띄운 가림막은 머리 상자 안에 두고, 달력이 떠 있는 동안 머리 상자를 가림막 높이 위로 올린다. 가림막이 날짜, 제목, 머리 상자의 띠까지 덮고 달력만 그 위에 남는다. */
-  #masthead:has(.cal-layer) { z-index: 10; }
+  /* 달력 단추는 날짜 상자·그림 이름 탭과 같은 색과 모서리의 상자로 그리고, 달력이 떠 있는 동안 고른 날짜 상자와 같은 색으로 칠한다. 누르면 단추 바로 아래에 리포트 날짜를 고르는 달력을 띄우고, 화면을 넘기면 달력은 단추와 함께 움직인다.
+     달력 상자는 설명 상자와 같은 색으로 그린다. 맨 위에는 나스닥과 바이오를 고르는 두 칸 단추를 두고, 고른 지수의 리포트가 있는 날짜를 흰 글자로 쓰고 그 아래에 그 리포트의 정규장 등락률을 머리말과 같은 색으로 적는다.
+     리포트가 없는 날짜는 회색으로 쓰고 누를 수 없다. 보고 있는 리포트의 날짜는 날짜 띠의 고른 상자와 같은 색으로 칠하고, 다른 리포트를 볼 때 오늘 날짜에는 테두리를 두른다.
+     가림막은 문서 전체를 덮고, 달력만 그 위에 남는다. */
+  .cal-open { position: absolute; top: calc(16px + var(--top-edge)); right: 16px; display: grid; place-items: center; width: 36px; height: 28px;
+              padding: 0; border: 0; border-radius: 8px; background: rgba(255, 255, 255, .05); color: var(--hint); cursor: pointer; }
+  .cal-open.on { background: rgba(255, 255, 255, .16); color: var(--accent); }
   .cal-layer { position: fixed; inset: 0; z-index: 10; background: rgba(0, 0, 0, .35); }
   .cal { position: absolute; z-index: 11; width: min(320px, calc(100vw - 24px)); padding: 14px 12px 12px; border-radius: 16px; background: #222226;
          box-shadow: 0 12px 32px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .06); touch-action: pan-y; }
+  .cal .seg { display: flex; gap: 2px; margin: 0 0 10px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, .05); }
+  .cal .seg button { flex: 1; height: 30px; padding: 0; border: 0; border-radius: 7px; background: none; font: inherit; font-size: 13.5px; font-weight: 600;
+                     color: var(--hint); cursor: pointer; }
+  .cal .seg button.on { background: rgba(255, 255, 255, .16); color: #fff; font-weight: 700; }
   .cal .head { display: flex; align-items: center; justify-content: space-between; margin: 0 0 10px; }
   .cal .head b { font-size: 15.5px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
   .cal .head button { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; background: none;
@@ -612,14 +609,14 @@
   const berth = document.getElementById("berth");
   const stick = () => masthead.classList.toggle("stuck", scrollY > 0 && berth.getBoundingClientRect().bottom <= parseFloat(getComputedStyle(masthead).top) + .5);
   addEventListener("scroll", stick, { passive: true });
-  // `ROLL`ms마다 지수 시세를 한 줄씩 위로 굴려 정규장 줄과 장 마감 후 줄을 번갈아 보여 준다. 셋째 줄은 첫째 줄과 같으므로,
-  // 셋째 줄까지 굴린 다음에는 움직임 없이 첫째 줄로 되돌린 뒤 굴린다. 그래서 줄은 늘 위로만 움직인다.
+  // `ROLL`ms마다 시세를 한 줄씩 위로 굴려 네 시세를 차례로 보여 준다. 마지막 줄은 첫째 줄과 같으므로,
+  // 마지막 줄까지 굴린 다음에는 움직임 없이 첫째 줄로 되돌린 뒤 굴린다. 그래서 줄은 늘 위로만 움직인다.
   const ROLL = 7500;
   let rolled = 0;
   setInterval(() => {
     const rows = ticker.querySelector(".rows");
     if (!rows) return;
-    if (rolled === 2) {
+    if (rolled === rows.children.length - 1) {
       rolled = 0;
       rows.style.transition = "none";
       rows.style.transform = "";
@@ -629,9 +626,9 @@
     rolled++;
     rows.style.transform = `translateY(${-28 * rolled}px)`;
   }, ROLL);
-  // 붙어 있는 머리 상자를 누르면 문서 맨 위로 올라간다. 지수 전환 단추·달력 단추와 달력 창을 누르면 그 단추의 동작만 한다.
-  masthead.addEventListener("click", (event) => {
-    if (!masthead.classList.contains("stuck") || event.target.closest("button, .cal-layer")) return;
+  // 붙어 있는 머리 상자를 누르면 문서 맨 위로 올라간다.
+  masthead.addEventListener("click", () => {
+    if (!masthead.classList.contains("stuck")) return;
     feelPress();
     scrollTo({ top: 0, behavior: motion.matches ? "instant" : "smooth" });
   });
@@ -675,8 +672,8 @@
   // 소제목 위 말머리와 이벤트 시각은 지수마다 리포트 그림의 판단 색 계열에서 채도를 낮춘 색으로 쓴다(conviction_chart.py JUDGMENT_COLORS).
   // 두 번째 색은 그라데이션이 끝나는 색으로, 지수색에서 색상환을 따라 보라 쪽으로 조금 옮긴 색이다.
   const INDEX = { nasdaq: ["#8FBCE6", "#AFA6EC"], biotech: ["#AE9CE6", "#E09DCB"] };
-  // 머리 상자 지수 시세에 쓰는 지수 이름이다. 두 달러 가격은 build.py가 `moves`의 `close`와 `base`에 적는다.
-  const TICKER = { nasdaq: "나스닥 100", biotech: "나스닥 바이오" };
+  // 달력의 지수 단추에 쓰는 지수 이름이다.
+  const SHORT = { nasdaq: "나스닥", biotech: "바이오" };
   const paint = () => {
     const tint = INDEX[key.split("-")[1]];
     if (!tint) return;
@@ -939,6 +936,126 @@
     ["pointerup", "pointercancel"].forEach((type) => grip.addEventListener(type, hold(false)));
     box.appendChild(control);
     show(start);
+  }
+
+  // 시장 페이지의 주요 시세 절에 S&P 500, 나스닥 100, 나스닥 바이오, 원/달러의 종가 카드를 한 장씩 넘기는 묶음으로 두고, 위에 이름 탭을 둔다. `series`는 `r/market.json`의 시계열이다.
+  // 카드 위 줄에는 마지막 종가의 날짜를, 가운데 줄에는 마지막 종가와 그 앞 종가 대비 등락률을 쓰고, 나스닥 100과 나스닥 바이오는 위 줄에 장 마감 후 등락률을 더 쓴다.
+  // 그림은 주가와 예측 카드의 종가 선과 같은 모양이고, 예측 없이 마지막 종가까지 그린다. 기간은 주가와 예측 카드처럼 그림 아래 −·+ 단추로 다섯 단계를 고른다.
+  // 묶음 아래 슬라이더는 보고 있는 리포트 지수의 지난 30일 리포트 날짜를 고르고, 고른 날짜 전날까지의 종가로 네 장을 다시 그린다. 고른 기간은 그대로 둔다.
+  function marketCards(head, series, listing, date) {
+    const W = 320, H = 236, B = 212, L = 4, R = W - 6, T = 22;
+    const SPAN = [756, 504, 252, 126, 63];
+    const md = (day) => `${day.slice(5, 7)}/${day.slice(8, 10)}`;
+    const path = (points) => `M${points.map(([x, y]) => `${x} ${y}`).join("L")}`;
+    const cards = series.map((line, n) => {
+      const box = Object.assign(document.createElement("div"), { className: "gauge summary" });
+      box.innerHTML = '<div class="top"><span class="ctx"></span></div><div class="val"><b></b><span class="state"><i></i><span></span></span></div><div class="fig"></div><div class="foot"></div>';
+      const [label, value, state] = [box.querySelector(".ctx"), box.querySelector(".val b"), box.querySelector(".state")];
+      const s = box.querySelector(".fig").appendChild(shape("svg", { viewBox: `0 0 ${W} ${H}` }));
+      const zoom = box.querySelector(".foot").appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
+      zoom.innerHTML = `<button type="button" aria-label="기간 늘리기">−</button><span class="steps">${"<i></i>".repeat(SPAN.length)}</span><button type="button" aria-label="기간 줄이기">+</button>`;
+      const [wider, narrower] = zoom.querySelectorAll("button");
+      const price = (v) => `${figure(v)}${line.unit}`;
+      let span = 2, dates = [], closes = [], last = 0, raf = 0;
+      const left = (k) => Math.max(0, last - SPAN[k]);
+      const level = () => {
+        wider.disabled = span === 0;
+        narrower.disabled = span === SPAN.length - 1;
+        zoom.querySelectorAll(".steps i").forEach((dot, i) => dot.classList.toggle("on", i === span));
+      };
+      // 기간마다 세로 범위: 보이는 종가를 담고, 최저 점 아래에 글씨가 들어갈 20px을 비운다.
+      const range = (x0) => {
+        const shown = closes.slice(Math.max(0, Math.floor(x0)), last + 1), hi = Math.max(...shown), low = Math.min(...shown);
+        return [low - (hi - low || 1) * 20 / (B - T - 20), hi];
+      };
+      const draw = (x0, lo, hi, marks) => {
+        s.replaceChildren();
+        const X = (i) => L + (i - x0) / (last - x0) * (R - L), Y = (v) => B - (v - lo) / (hi - lo) * (B - T);
+        const clip = shape("clipPath", { id: `market-clip-${n}` });
+        clip.append(shape("rect", { x: L, y: 0, width: R - L + 4, height: B }));
+        s.append(clip);
+        const g = s.appendChild(shape("g", { "clip-path": `url(#market-clip-${n})` }));
+        // 달 이름은 주가와 예측 카드처럼 6월·12월, 분기 달, 나머지 달 순서로 남긴다.
+        const perMonth = 21 * (R - L) / (last - x0), fade = (months) => Math.max(0, Math.min(1, (months * perMonth - 30) / 12));
+        let month = "";
+        dates.forEach((d, i) => {
+          if (d.slice(0, 7) === month) return;
+          month = d.slice(0, 7);
+          const x = X(i), m = +d.slice(5, 7), opacity = fade(m % 6 === 0 ? 6 : m % 3 === 0 ? 3 : 1);
+          if (x >= L + 12 && x <= R - 12 && opacity > 0) s.append(shape("text", { x, y: B + 17, "font-size": 11, fill: DIMS, "text-anchor": "middle", opacity }, `${m}월`));
+        });
+        s.append(shape("line", { x1: L, x2: R, y1: B, y2: B, stroke: DIMS, "stroke-width": 1 }));
+        const i0 = Math.max(0, Math.floor(x0)), width = 1.4 - .4 * Math.max(0, Math.min(1, (last - x0 - 63) / 693));
+        g.append(shape("path", { d: path(closes.slice(i0, last + 1).map((v, k) => [X(i0 + k), Y(v)])), fill: "none", stroke: PRICE, "stroke-width": width, "stroke-linejoin": "round" }));
+        // 최고·최저 글씨는 기간이 정해진 뒤에만 그리고, 글씨가 그림 양 끝을 넘지 않게 가운데를 안쪽으로 당긴다.
+        if (marks) {
+          const group = s.appendChild(shape("g", { class: "marks" }));
+          const shown = closes.slice(i0, last + 1);
+          [[i0 + shown.indexOf(Math.max(...shown)), -7, "최고"], [i0 + shown.indexOf(Math.min(...shown)), 15, "최저"]].forEach(([i, dy, text]) => {
+            group.append(shape("circle", { cx: X(i), cy: Y(closes[i]), r: 2.5, fill: PRICE }));
+            group.append(shape("text", { x: Math.min(Math.max(X(i), L + 48), R - 48), y: Y(closes[i]) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${price(closes[i])}`));
+          });
+        }
+        s.append(shape("circle", { cx: X(last), cy: Y(closes[last]), r: 2.5, fill: "#EAEAEA", stroke: "#171719", "stroke-width": 1 }));
+      };
+      const ease = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+      const tween = (from, to, t) => {
+        const e = ease(t), [a0, a1] = range(left(from)), [b0, b1] = range(left(to));
+        const x0 = left(from) + (left(to) - left(from)) * e, [c0, c1] = range(x0);
+        draw(x0, Math.min(a0 + (b0 - a0) * e, c0), Math.max(a1 + (b1 - a1) * e, c1), t >= 1);
+      };
+      const move = (by) => {
+        const from = span;
+        span = Math.max(0, Math.min(SPAN.length - 1, span + by));
+        if (span === from) return;
+        level();
+        cancelAnimationFrame(raf);
+        const duration = motion.matches ? 0 : 550, t0 = performance.now();
+        const step = (now) => { const t = duration ? Math.min(1, (now - t0) / duration) : 1; tween(from, span, t); if (t < 1) raf = requestAnimationFrame(step); };
+        raf = requestAnimationFrame(step);
+      };
+      wider.addEventListener("click", () => move(-1));
+      narrower.addEventListener("click", () => move(1));
+      level();
+      // `day` 리포트의 시세로 카드를 그린다. 종가가 두 개보다 적으면 카드를 비운다.
+      const show = (day) => {
+        ({ dates, closes } = until(line, day));
+        last = closes.length - 1;
+        cancelAnimationFrame(raf);
+        if (last < 1) { s.replaceChildren(); value.textContent = "—"; state.hidden = true; label.textContent = ""; return; }
+        const change = (closes[last] / closes[last - 1] - 1) * 100;
+        const after = line.index && listing[`${day.replaceAll("-", "")}-${line.index}`]?.moves?.after;
+        label.textContent = `${md(dates[last])} 종가` + (typeof after === "number" ? ` · 마감 후 ${signed(after)}%` : "");
+        value.innerHTML = line.unit ? `${figure(closes[last])}<small>${line.unit}</small>` : figure(closes[last]);
+        box.style.setProperty("--card-color", change > 0 ? "#ff5c5c" : change < 0 ? "#5b9bff" : DIMS);
+        state.querySelector("span").textContent = `${signed(change)}%`;
+        state.hidden = false;
+        tween(span, span, 1);
+      };
+      return { box, show };
+    });
+    const bar = document.createElement("div");
+    bar.className = "tabs";
+    series.forEach((line, i) => {
+      const button = Object.assign(document.createElement("button"), { textContent: line.tab });
+      button.addEventListener("click", () => box.go(i));
+      bar.appendChild(button);
+    });
+    const change = (i) => [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j));
+    const box = slider(cards.map((c) => [c.box]), head, { change, name: "market", area: head, feel: true });
+    box.prepend(bar);
+    cards.forEach((c) => c.show(date));
+    const index = key.split("-")[1];
+    const days = Object.values(listing).filter((entry) => entry.index === index && entry.date <= date && rewindOffset(entry.date, date) >= 0)
+      .map((entry) => entry.date).sort();
+    const start = days.indexOf(date);
+    if (start < 0) return;
+    let drawn = start, frame = 0;
+    dial(box, date, days, start, (i) => {
+      if (i === drawn) return;
+      drawn = i;
+      if (!frame) frame = requestAnimationFrame(() => { frame = 0; cards.forEach((c) => c.show(days[drawn])); });
+    });
   }
 
   // 요약 절의 그림 카드 세 장(주가와 예측, 일정과 예측, 권장 배율)을 만든다. `data`는 `build.py` `summary_cards`의 값이다.
@@ -2367,36 +2484,42 @@
     }).catch(() => {});
   }
 
-  // 머리말에 달력 단추를 단다. `listing`은 `r/index.json`이다. 달력은 보고 있는 리포트의 달부터 보여 주고, 단추를 누르거나 달력을 옆으로 밀어 그림 넘기기와 같은 속도와 곡선으로 달을 넘기고, 리포트가 있는 첫 달과 마지막 달 밖으로는 넘기지 않는다.
-  // 리포트가 있는 날짜를 누르면 같은 지수의 그날 리포트를 연다. 정규장 등락률이 `null`이면 `—`로 적는다.
+  // 문서 오른쪽 위에 달력 단추를 단다. `listing`은 `r/index.json`이다. 달력은 보고 있는 리포트의 지수와 달부터 보여 주고, 단추를 누르거나 달력을 옆으로 밀어 그림 넘기기와 같은 속도와 곡선으로 달을 넘기고,
+  // 고른 지수의 리포트가 있는 첫 달과 마지막 달 밖으로는 넘기지 않는다. 리포트가 있는 지수가 둘 이상이면 달 이름 위의 두 칸 단추로 지수를 바꾸고, 보던 달이 그 지수의 달 범위 밖이면 범위 안의 가장 가까운 달을 보여 준다.
+  // 리포트가 있는 날짜를 누르면 고른 지수의 그날 리포트를 연다. 정규장 등락률이 `null`이면 `—`로 적는다.
   const CALENDAR = '<svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">'
     + '<rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M3 8.5h14M7 2.8v3M13 2.8v3"/></svg>';
   const CHEVRON = (d) => `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
   function calendar(listing, date) {
     const index = key.split("-")[1];
-    const moves = new Map(Object.values(listing).filter((entry) => entry.index === index)
-      .map((entry) => [entry.date, entry.moves ? entry.moves.session : null]));
-    if (!moves.size) return;
-    const months = [...moves.keys()].map((day) => day.slice(0, 7)).sort();
+    const order = Object.keys(INDEX).filter((name) => latest(listing, name));
+    if (!order.includes(index)) return;
+    // `pick` 지수의 리포트 날짜마다 정규장 등락률을 담은 표와 리포트가 있는 달 목록을 만든다.
+    const browse = (pick) => {
+      const moves = new Map(Object.values(listing).filter((entry) => entry.index === pick)
+        .map((entry) => [entry.date, entry.moves ? entry.moves.session : null]));
+      return { moves, months: [...moves.keys()].map((day) => day.slice(0, 7)).sort() };
+    };
     const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
     const shift = (month, n) => { const d = new Date(`${month}-01T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 7); };
     const pct = (v) => v === null ? "<small>—</small>"
       : `<small class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}%</small>`;
     const opener = Object.assign(document.createElement("button"), { className: "cal-open", innerHTML: CALENDAR });
     opener.setAttribute("aria-label", "다른 날짜 리포트");
-    document.querySelector("header").append(opener);
+    document.querySelector("main").append(opener);
     opener.addEventListener("click", () => {
       feelPress();
-      let month = date.slice(0, 7);
+      let month = date.slice(0, 7), pick = index, { moves, months } = browse(pick);
       const layer = Object.assign(document.createElement("div"), { className: "cal-layer" });
       const card = Object.assign(document.createElement("div"), { className: "cal" });
       card.style.top = `${opener.offsetTop + opener.offsetHeight + 6}px`;
       card.style.right = getComputedStyle(opener).right;
-      card.innerHTML = `<div class="head"><button class="prev" aria-label="이전 달">${CHEVRON("M10 3.5 5.5 8l4.5 4.5")}</button><b></b>`
+      const seg = order.length > 1 ? `<div class="seg">${order.map((name) => `<button data-index="${name}">${SHORT[name]}</button>`).join("")}</div>` : "";
+      card.innerHTML = `${seg}<div class="head"><button class="prev" aria-label="이전 달">${CHEVRON("M10 3.5 5.5 8l4.5 4.5")}</button><b></b>`
         + `<button class="next" aria-label="다음 달">${CHEVRON("M6 3.5 10.5 8 6 12.5")}</button></div><div class="pane"><div class="strip"></div></div>`;
       const [prev, title, next] = card.querySelector(".head").children, pane = card.querySelector(".pane"), strip = pane.firstElementChild;
       const inside = (m) => m >= months[0] && m <= months.at(-1);
-      // 달 하나의 날짜 판을 만든다. 리포트가 있는 달 범위 밖이면 빈 판을 만든다.
+      // 달 하나의 날짜 판을 만든다. 리포트가 있는 달 범위 밖이면 빈 판을 만든다. 보고 있는 리포트의 날짜는 그 리포트의 지수를 고른 동안에만 칠한다.
       const grid = (month) => {
         if (!inside(month)) return '<div class="grid"></div>';
         const [y, m] = month.split("-").map(Number);
@@ -2404,7 +2527,7 @@
         let cells = [..."일월화수목금토"].map((w) => `<span class="wd">${w}</span>`).join("") + '<span class="pad"></span>'.repeat(first);
         for (let d = 1; d <= count; d++) {
           const day = `${month}-${String(d).padStart(2, "0")}`, has = moves.has(day);
-          const name = [has && "has", day === date && "on", day === today && "today"].filter(Boolean).join(" ");
+          const name = [has && "has", day === date && pick === index && "on", day === today && "today"].filter(Boolean).join(" ");
           cells += `<button class="${name}" data-day="${day}"${has ? "" : " disabled"}><span>${d}</span>${has ? pct(moves.get(day)) : ""}</button>`;
         }
         return `<div class="grid">${cells}</div>`;
@@ -2432,10 +2555,26 @@
         pane.style.height = `${strip.children[1].offsetHeight}px`;
         strip.querySelectorAll(".grid button.has").forEach((button) => button.addEventListener("click", () => {
           feelPress();
-          if (button.dataset.day === date) return close();
-          visit(`${button.dataset.day.replaceAll("-", "")}-${index}`);
+          if (button.dataset.day === date && pick === index) return close();
+          visit(`${button.dataset.day.replaceAll("-", "")}-${pick}`);
         }));
       };
+      // 두 칸 단추로 지수를 고르면 그 지수의 날짜 판을 그린다. 넘기던 날짜 판은 그 자리에서 멈춘다.
+      const choose = (name) => {
+        card.querySelectorAll(".seg button").forEach((button) => button.classList.toggle("on", button.dataset.index === name));
+        if (name === pick) return;
+        aligning?.();
+        aligning = null;
+        pick = name;
+        ({ moves, months } = browse(pick));
+        month = month < months[0] ? months[0] : month > months.at(-1) ? months.at(-1) : month;
+        draw();
+      };
+      card.querySelectorAll(".seg button").forEach((button) => button.addEventListener("click", () => {
+        if (button.dataset.index === pick) return;
+        feelPress();
+        choose(button.dataset.index);
+      }));
       // `dir`이 1이면 다음 달로, -1이면 이전 달로, 0이면 보고 있는 달로 날짜 판을 그림 넘기기와 같은 `glide`로 옮긴다. 달을 넘기면 옮기기 시작할 때
       // 달 이름을 바꾸고, 이슈 제목처럼 같은 시간 동안 흐린 데서 선명하게 바꾼다.
       const go = (dir) => {
@@ -2494,35 +2633,25 @@
       const close = () => { aligning?.(); layer.remove(); card.remove(); opener.classList.remove("on"); };
       layer.addEventListener("click", (event) => { if (event.target === layer) close(); });
       opener.classList.add("on");
-      masthead.append(layer);
+      document.body.append(layer);
       opener.after(card);
+      choose(pick);
       draw();
-    });
-  }
-
-  // 머리말 달력 단추 왼쪽에 다른 지수의 리포트로 바꾸는 단추를 단다. 단추에는 바꿀 지수의 이름을 그 지수의 그라데이션으로 쓴다. 누르면 보고 있는 리포트와 같은 날짜의
-  // 그 지수 리포트를 열고, 그 날짜의 리포트가 없으면 그 지수의 가장 늦은 리포트를 연다. 지수는 `INDEX`의 순서로 돌고, 리포트가 있는 지수가 하나뿐이면 단추를 달지 않는다.
-  function switcher(listing, date) {
-    const index = key.split("-")[1];
-    const order = Object.keys(INDEX).filter((name) => latest(listing, name));
-    if (order.length < 2 || !order.includes(index)) return;
-    const other = order[(order.indexOf(index) + 1) % order.length];
-    const same = `${date.replaceAll("-", "")}-${other}`;
-    const target = listing[same] ? same : latest(listing, other);
-    const button = Object.assign(document.createElement("button"), { className: "index-switch" });
-    button.append(Object.assign(document.createElement("span"), { textContent: listing[target].title.replace(/ (투자 )?리포트$/, "") }));
-    button.setAttribute("aria-label", `${listing[target].title} 열기`);
-    button.style.setProperty("--index", INDEX[other][0]);
-    button.style.setProperty("--index-to", INDEX[other][1]);
-    document.querySelector("header").append(button);
-    button.addEventListener("click", () => {
-      feelPress();
-      visit(target);
     });
   }
 
   // 리포트 키가 없거나 형식이 다르면 목록에서 가장 늦은 나스닥 리포트를 연다. 목록에 나스닥 리포트가 없으면 열 리포트를 찾지 못했다고 적는다.
   const listed = fetch("r/index.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  // `r/market.json`은 build.py가 적는 S&P 500, 나스닥 100, 나스닥 바이오, 원/달러의 일별 종가다. 머리 상자 시세와 시장 페이지의 시세 그림이 쓴다.
+  const marketed = fetch("r/market.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : { series: [] })).catch(() => ({ series: [] }));
+  // `series`의 종가 가운데 `date`보다 앞선 날짜의 종가만 남긴 시계열을 돌려준다.
+  const until = (series, date) => {
+    const n = series.dates.findLastIndex((day) => day < date) + 1;
+    return { ...series, dates: series.dates.slice(0, n), closes: series.closes.slice(0, n) };
+  };
+  const signed = (v, digits = 2) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(digits)}`;
+  const tone = (v) => v > 0 ? "up" : v < 0 ? "down" : "";
+  const figure = (v) => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   (/^\d{8}-[a-z]+$/.test(key) ? Promise.resolve(key) : listed.then((listing) => latest(listing, "nasdaq"))).then((found) => {
     if (!found) throw new Error("no report");
     key = found;
@@ -2539,15 +2668,6 @@
       // 제목 위 날짜 줄은 "2026년 11월 13일 (금)"처럼 쓴다.
       const [year, month, mday] = entry.date.split("-");
       document.getElementById("day").textContent = `${+year}년 ${+month}월 ${+mday}일 (${"일월화수목금토"[new Date(entry.date).getUTCDay()]})`;
-      // 지수 시세는 "나스닥 100 $688.15 −0.30%"처럼 쓴 정규장 줄 아래에 "장 마감 후 $690.88 +0.40%"를 쓴 줄과 정규장 줄을 한 번 더 쌓는다. 정규장 등락률이 `null`이면 `—`로 쓴다.
-      if (entry.moves) {
-        const pct = (v) => v === null ? "<b>—</b>"
-          : `<b class="${v > 0 ? "up" : v < 0 ? "down" : ""}">${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(2)}%</b>`;
-        const usd = (v) => `<b>$${v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>`;
-        const regular = `<span>${TICKER[entry.index]}</span>${usd(entry.moves.close)}${pct(entry.moves.session)}`;
-        const after = `<span>장 마감 후</span>${usd(entry.moves.base)}${pct(entry.moves.after)}`;
-        ticker.innerHTML = `<span class="rows"><span class="row">${regular}</span><span class="row">${after}</span><span class="row" aria-hidden="true">${regular}</span></span>`;
-      }
     }
     const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
     if (key !== latest(listing, key.split("-")[1])) {
@@ -2557,14 +2677,34 @@
     }
     report.innerHTML = body;
     calendar(listing, date);
-    switcher(listing, date);
+    // 머리 상자 시세는 나스닥 100, 나스닥 바이오, S&P 500, 원/달러를 "나스닥 100 27,943.74 −1.22% (마감 후 +0.40%)"처럼 한 줄씩 쓰고 첫 줄을 한 번 더 쌓는다.
+    // 종가는 리포트 날짜 전날까지의 마지막 종가이고, 등락률은 그 앞 종가 대비다. 장 마감 후 등락률은 그 날짜의 그 지수 리포트가 `moves.after`에 적은 값을 쓴다.
+    marketed.then(({ series }) => {
+      const ORDER = ["나스닥", "바이오", "S&P 500", "환율"];
+      const rows = [...series].sort((a, b) => ORDER.indexOf(a.tab) - ORDER.indexOf(b.tab)).map((line) => {
+        const { closes } = until(line, date);
+        if (closes.length < 2) return "";
+        const last = closes.at(-1), change = (last / closes.at(-2) - 1) * 100;
+        const after = line.index && listing[`${key.slice(0, 8)}-${line.index}`]?.moves?.after;
+        return `<span class="row"><span>${line.name}</span><b>${figure(last)}${line.unit}</b><b class="${tone(change)}">${signed(change)}%</b>`
+          + (typeof after === "number" ? `<small>(마감 후 <b class="${tone(after)}">${signed(after)}%</b>)</small>` : "") + "</span>";
+      }).filter(Boolean);
+      if (rows.length) ticker.innerHTML = `<span class="rows">${rows.join("")}${rows[0].replace('class="row"', 'class="row" aria-hidden="true"')}</span>`;
+    });
     const focus = +query.get("issue") || 0;
+    // 시장 페이지 첫 절인 주요 시세 절의 제목을 미국 거시 지표 절 앞에 둔다. 미국 거시 지표 절이 없으면 문서 끝에 둔다.
+    const quotes = focus ? null : Object.assign(document.createElement("h2"), { textContent: "주요 시세" });
+    if (quotes) {
+      const macro = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "미국 거시 지표");
+      if (macro) macro.before(quotes); else report.append(quotes);
+    }
     const pages = focus ? null : paginate();
     if (!focus) {
       figures(date);
       heads("1개월 지수 방향 예측");
       fold("1개월 지수 방향 예측");
       indicators(date);
+      marketed.then(({ series }) => { if (series.length) marketCards(quotes, series, listing, date); else quotes.remove(); });
     }
     issueCharts();
     toneTags(report);
@@ -2669,11 +2809,12 @@
   }
   // 리포트 화면의 절을 `PAGES`의 페이지에 나눠 담는다. 페이지마다 단추 이름과 그 페이지에 넣을 절 제목을 두고, 목록에 없는 절은 앞 절의 페이지에 넣는다.
   // 넘기기 묶음은 노드를 옮기면 스크롤 위치가 처음으로 돌아가므로, 리포트를 받은 직후 묶음을 만들기 전에 나눈다.
-  const PAGES = [["예측", ["1개월 지수 방향 예측", "이벤트 캘린더"]], ["이슈", ["상세 이슈 해설", "미국 거시 지표"]]];
-  // 바로가기 단추의 선 아이콘이다. 예측은 돋보기, 이슈는 불꽃이다.
+  const PAGES = [["예측", ["1개월 지수 방향 예측", "이벤트 캘린더"]], ["이슈", ["상세 이슈 해설"]], ["시장", ["주요 시세", "미국 거시 지표"]]];
+  // 바로가기 단추의 선 아이콘이다. 예측은 돋보기, 이슈는 불꽃, 시장은 고리를 두른 행성이다.
   const PAGE_ICONS = {
     예측: '<circle cx="11" cy="11" r="7"/><path d="M20.5 20.5l-4.6-4.6"/>',
     이슈: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+    시장: '<g transform="translate(12 12) rotate(-20)"><circle r="5.5"/><path d="M-10 0A10 3.2 0 0 1 -5.97 -2.57M5.97 -2.57A10 3.2 0 0 1 10 0M10 0A10 3.2 0 0 1 -10 0"/></g>',
   };
   function paginate() {
     const pages = PAGES.map(() => Object.assign(document.createElement("div"), { className: "page" }));
@@ -2746,6 +2887,11 @@
       ["이슈를 고르는 기준", "주가 예측에 영향이 큰 이슈부터 보여줘요. 이슈 하나를 빼고 다시 계산했을 때 예측이 크게 바뀔수록 영향이 커요."],
       ["상승 요인과 하락 요인", "이슈 때문에 주가 예측이 올랐는지 내렸는지 보여줘요. 나쁜 소식도 반등 가능성을 높이면 상승 요인이에요."],
       ["히스토리", "같은 이슈를 다룬 지난 리포트의 해설 제목이에요. 제목을 누르면 그날의 해설이 나와요."],
+    ],
+    "주요 시세": [
+      ["종가", "리포트 날짜 전날까지의 마지막 종가와 그 앞 거래일 대비 등락률이에요. 나스닥 100과 나스닥 바이오는 장 마감 후 등락률도 함께 보여줘요."],
+      ["기간", "그림 아래 −와 +로 3년, 2년, 1년, 6개월, 3개월 가운데 하나를 골라요."],
+      ["날짜 슬라이더", "지난 30일 안의 리포트 날짜를 고르면 그날 리포트가 본 시세로 바뀌어요."],
     ],
     "이벤트 캘린더": [
       ["이벤트 확률표", "앞으로 35일 안에 발표되는 이벤트마다 가능한 결과와 확률을 보여줘요. 주가 경로 2만 개를 만들 때 이벤트 확률을 써요."],

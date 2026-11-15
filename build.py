@@ -72,11 +72,17 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 가장 늦은 리포트의 `리포트 키/이슈 번호`를 적는다. 미니 앱의 "자세히 보기" 단추는 이 값으로 이슈의 가장 늦은 히스토리를 연다. `invest-reports` 미니 앱은 제목 위
 작은 글씨로 날짜 줄을 그린다. 같은 리포트를 다시 만들어도 처음 만든 시각은 그대로 둔다.
 `invest-reports` 미니 앱의 달력은 같은 목록에서 그 지수의 리포트 날짜를 찾아 흰 글자로 쓰고, 날짜 아래에 `moves`의 `session`을 적는다.
+달력 위 `나스닥 | 바이오` 단추로 지수를 바꾸면 달력은 그 지수의 리포트 날짜로 다시 그려지고, 날짜를 누르면 그 날짜의 그 지수 리포트가 열린다.
 `moves`에는 리포트 날짜 전날 정규장 종가의 앞 세션 종가 대비 등락률(`session`, %)과 기준 가격의 기준 가격 날짜 종가 대비
 등락률(`after`, %), 기준 가격 날짜의 환산 종가(`close`, 달러)와 기준 가격(`base`, 달러)을 적는다. 전날이 휴장일이면 `session`은 `null`이다.
 두 등락률과 두 가격은 `path-bands.json`의 ^NDX·^NBI 환산 가격과 `reference.db` 환산 종가로 재므로 12M + Predictions 그림의 종가 선, 기준 가격과 같은 눈금이다.
-`invest-reports` 미니 앱은 제목 아래 머리 줄에 지수 이름, 환산 종가, `session` 등락률을 적은 줄과 `장 마감 후`, 기준 가격, `after` 등락률을
-적은 줄을 번갈아 보여 준다. 등락률만 오르면 빨강, 내리면 파랑으로 칠하고 `null`은 `—`로 적는다. 화면을 내리면 머리 줄은 화면 위에 붙어 남는다.
+`invest-reports` 미니 앱은 제목 아래 머리 줄에 나스닥 100, 나스닥 바이오, S&P 500, 원/달러를 한 줄씩 돌려 보여 준다. 줄마다 `r/market.json`에서
+리포트 날짜 전날까지의 마지막 종가와 그 앞 종가 대비 등락률을 적고, 나스닥 100과 나스닥 바이오는 괄호 안에 그 날짜 리포트의 `after` 등락률을 덧붙인다.
+등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 화면을 내리면 머리 줄은 화면 위에 붙어 남는다.
+
+`r/market.json`에는 S&P 500, 나스닥 100, 나스닥 바이오, 원/달러의 날짜별 종가를 적는다(`market`). `invest-reports` 미니 앱의 시장 페이지는
+이 값으로 `주요 시세` 절에 네 시세의 종가 선 카드를 그리고, 카드마다 다섯 단계 기간을 바꾸며, 슬라이더로 지난 한 달의 리포트 날짜를 고르면
+그 날짜 전날까지의 종가로 네 카드를 다시 그린다.
 
 `system/simulation.json`의 `quantiles`에 5% 값이 있는 리포트는 요약 절 세 그림을 그림 파일 대신 값으로 그린다.
 그런 리포트의 공개본에서는 12M + Predictions·Montecarlo·권장 추종 배율 그림을 빼고, `report.html` 끝에 카드 값을
@@ -125,6 +131,12 @@ TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
 CARD_QUANTILES = (10, 25, 50, 75, 90)  # 일정과 예측 카드가 그리는 수익률 분위수
 PRICE_YEARS = 3  # 주가와 예측 카드가 그리는 종가 기간(년)
+# 시장 탭과 머리 줄이 보여 주는 시세. (이름, 탭 이름, 지수 폴더 이름, 단위, `observation` 계열)이고, 지수 폴더 이름이 있는 시세는
+# 그 지수의 `market_price` 종가로 `observation`보다 앞 날짜를 잇는다. S&P 500과 원/달러는 FRED 계열로 `observation` 종가보다 앞 날짜를 잇는다.
+MARKET = [("S&P 500", "S&P 500", None, "", ("fred:SP500", "close:^GSPC")),
+          ("나스닥 100", "나스닥", "nasdaq", "", ("close:^NDX",)),
+          ("나스닥 바이오", "바이오", "biotech", "", ("close:^NBI",)),
+          ("원/달러", "환율", None, "원", ("fred:DEXKOUS", "close:USDKRW=X"))]
 TICK_STEP = 5  # 일정과 예측 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
 ISSUES_TITLE = "상세 이슈 해설"
@@ -293,6 +305,43 @@ def rewind(index: str, vault: Path, out: Path) -> Path | None:
     if not frames and not gauges:
         shutil.rmtree(target)
         return None
+    return target
+
+
+def market(vault: Path, out: Path) -> Path:
+    """`r/market.json`에 `MARKET`의 시세마다 이름, 탭 이름, 지수 폴더 이름, 단위, 날짜와 종가를 쓴다.
+
+    날짜는 공개본이 있는 가장 늦은 리포트 날짜에서 `REWIND_DAYS`일과 `PRICE_YEARS`년을 거슬러 간 날부터다. 지수 종가는
+    `market_price`의 ETF 환산 종가에 마지막으로 겹치는 날의 `observation` 지수 종가 비율을 곱해 지수 눈금으로 늘리고,
+    `observation` 값이 있는 날은 그 값을 쓴다. 시세 하나가 `observation` 계열을 여럿 가지면 뒤 계열의 값이 앞 계열의 같은 날 값을 덮는다.
+    """
+    published = sorted(p.name[:8] for p in (out / "r").glob("*-*") if p.name[:8].isdigit())
+    latest = dt.date.fromisoformat(f"{published[-1][:4]}-{published[-1][4:6]}-{published[-1][6:]}")
+    start = (latest - dt.timedelta(days=REWIND_DAYS + round(365.25 * PRICE_YEARS))).isoformat()
+    chart = predictions_chart(vault)
+    con = sqlite3.connect(f"file:{chart.path_bands.REFERENCE_DB_PATH}?mode=ro", uri=True)
+    series = []
+    try:
+        for name, tab, index, unit, ids in MARKET:
+            closes = {}
+            observed = [dict(con.execute(
+                "SELECT period, value FROM observation o WHERE series_id = ? AND value IS NOT NULL AND period >= ? AND retrieved_at = "
+                "(SELECT MAX(retrieved_at) FROM observation WHERE series_id = o.series_id AND period = o.period)",
+                (series_id, start)).fetchall()) for series_id in ids]
+            if index:
+                prices = dict(con.execute("SELECT price_date, close FROM market_price WHERE ticker = ? AND price_date >= ?",
+                                          (chart.path_bands.SECTOR_DB_TICKERS[index], start)).fetchall())
+                common = max(set(prices) & set(observed[-1]))
+                closes = {day: close * observed[-1][common] / prices[common] for day, close in prices.items()}
+            for values in observed:
+                closes.update(values)
+            days = sorted(closes)
+            series.append({"name": name, "tab": tab, "index": index, "unit": unit, "dates": days,
+                           "closes": [round(closes[day], 2) for day in days]})
+    finally:
+        con.close()
+    target = out / "r" / "market.json"
+    target.write_text(json.dumps({"series": series}, ensure_ascii=False) + "\n", encoding="utf-8")
     return target
 
 
@@ -1025,6 +1074,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     listing.write_text(json.dumps(dict(sorted(entries.items(), reverse=True)), ensure_ascii=False, indent=1) + "\n",
                        encoding="utf-8")
     rewind(index, vault, out)
+    market(vault, out)
     return key
 
 
