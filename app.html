@@ -2907,32 +2907,31 @@
   // `turn(i, head, still)`은 i번 페이지를 연다. `toCalendar(day, names)`는 예측 페이지의 이벤트 캘린더에서 `names` 일정의 날짜를 연다.
   // `toQuote(tab)`은 시장 페이지의 주요 시세 절에서 탭 이름이 `tab`인 시세 카드를 연다. 셋 다 리포트 화면에서만 만든다.
   let turn = null, toCalendar = null, toQuote = null;
-  // 화면 아래 바로가기 알약에 페이지마다 단추를 두고 `turn`을 돌려준다. 단추를 누르면 그 페이지만 보여 주고, 그 페이지를 떠날 때의 화면 위치로 옮긴다.
-  // 처음 여는 페이지는 맨 위에서 시작한다. 보고 있는 페이지의 단추를 다시 누르면 페이지 맨 위로 부드럽게 옮긴다.
+  // 화면 아래 바로가기 알약에 페이지마다 단추를 두고 `turn`을 돌려준다. 단추를 누르면 그 페이지만 보여 주고, 페이지 맨 위로 옮긴다.
+  // 보고 있는 페이지의 단추를 다시 누르면 페이지 맨 위로 부드럽게 옮긴다.
   // 보고 있는 페이지 번호(`page`)는 `history.state`에 적어, 뒤로 가기와 새로 고침으로 돌아와도 그 페이지를 연다.
   // 알약 위에서 누른 채 6px 넘게 움직이면 레버가 손가락을 따라 움직이고, 레버 가운데에서 가장 가까운 단추를 흰색으로 쓴다. 손을 떼면 그 단추를 누른 것과 같이 그 페이지를 연다.
   // `turn`이 `head`를 받으면 그 절 제목 글자가 화면 맨 위에서 본 페이지 첫 절 제목 글자의 높이에 오도록 옮긴다. 문서 끝이 모자라면 그 페이지 아래 여백을 늘린다.
   // 다른 페이지를 열면 페이지들이 바로가기 단추 순서대로 옆으로 흘러간다(`flow`). 오른쪽 페이지를 열면 화면이 왼쪽으로, 왼쪽 페이지를 열면 오른쪽으로 흐르고,
-  // 두 칸 떨어진 페이지를 열면 가운데 페이지가 떠날 때의 화면 위치로 한가운데를 지나간다. `turn`이 `still`을 받거나 움직임 줄이기 설정이면 흐르지 않고 바로 바꾼다.
+  // 두 칸 떨어진 페이지를 열면 가운데 페이지가 맨 위부터 한가운데를 지나간다. `turn`이 `still`을 받거나 움직임 줄이기 설정이면 흐르지 않고 바로 바꾼다.
   function jump(pages) {
     const nav = document.createElement("nav");
     nav.className = "jump";
     const lever = nav.appendChild(Object.assign(document.createElement("i"), { className: "lever" }));
-    const spots = pages.map(() => 0);
     let page = -1;
     const textTop = (head) => {
       const band = getComputedStyle(head, "::before");
       return head.getBoundingClientRect().top + (band.content === "none" ? 0 : parseFloat(band.height) + parseFloat(band.marginBottom));
     };
-    // 화면 위치를 여는 페이지의 위치로 먼저 옮기고, 흐르는 동안 다른 페이지는 자기 화면 위치에 있는 것처럼 위아래로 맞춰 그린다.
+    // 화면 위치를 여는 페이지의 위치(`y`)로 먼저 옮기고, 흐르는 동안 떠나는 페이지는 떠날 때의 화면 위치(`left`)에, 가운데 페이지는 맨 위에 있는 것처럼 위아래로 맞춰 그린다.
     // 흐르는 도중에 다른 페이지를 열면 앞 흐름을 끝낸 자리에서 새로 흐른다. 흐름이 끝나면 여는 페이지만 남긴다.
     let flowing = null;
-    const flow = (from, to, y) => {
+    const flow = (from, to, y, left) => {
       flowing?.forEach((run) => run.finish());
       const w = innerWidth, low = Math.min(from, to), steps = Math.abs(to - from);
       report.classList.add("flow");
       const runs = pages.slice(low, Math.max(from, to) + 1).map((node, k) => {
-        const j = low + k, dy = j === to ? 0 : y - spots[j];
+        const j = low + k, dy = j === to ? 0 : j === from ? y - left : y;
         node.classList.remove("off");
         return node.animate([{ transform: `translate(${(j - from) * w}px, ${dy}px)` }, { transform: `translate(${(j - to) * w}px, ${dy}px)` }],
           { duration: 320 + 180 * (steps - 1), easing: "cubic-bezier(.45, 0, .15, 1)" });
@@ -2946,9 +2945,8 @@
       });
     };
     const open = (i, head, still = false) => {
-      const from = page;
+      const from = page, left = scrollY;
       if (i !== page) {
-        if (page >= 0) spots[page] = scrollY;
         pages.forEach((node, j) => node.classList.toggle("off", j !== i));
         buttons.forEach((button, j) => button.classList.toggle("on", j === i));
         if (page < 0) lever.style.transition = "none";
@@ -2959,13 +2957,13 @@
         page = i;
         history.replaceState({ ...history.state, page: i }, "");
       }
-      let top = spots[i];
+      let top = 0;
       if (head) {
         top = Math.max(0, textTop(head) - textTop(pages[i].querySelector("h2")));
         const lack = top + innerHeight - document.documentElement.scrollHeight;
         if (lack > 0) pages[i].style.paddingBottom = `${parseFloat(getComputedStyle(pages[i]).paddingBottom) + lack}px`;
       }
-      if (from >= 0 && from !== i && !still && !motion.matches) flow(from, i, top);
+      if (from >= 0 && from !== i && !still && !motion.matches) flow(from, i, top, left);
       scrollTo(0, top);
     };
     const press = (i) => {
