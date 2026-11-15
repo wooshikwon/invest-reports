@@ -258,7 +258,6 @@
   .issue-page > figure.issue-image + * { margin-top: 28px; }
   .issue-page > figure.issue-chart { margin: 0 0 28px; }
   .issue-chart > figcaption { margin-top: 8px; padding: 0 18px; color: var(--dim); font-size: 12px; line-height: 1.5; }
-  .issue-chart .gauge .val { flex-wrap: wrap; }
   /* 같은 이슈를 다룬 앞 날짜 리포트가 있으면 이슈 그림과 이슈 해설 말머리 사이에 히스토리 말머리와 이슈 목록 상자 같은 연한 둥근 상자를 둔다. 상자에는 줄마다 날짜와
      그날 이슈 해설 소제목을 오늘부터 앞 날짜 순으로 쓰고, 줄 사이에 옅은 선을 긋는다. 보고 있는 날짜의 줄은 본문 색 굵은 글씨로, 나머지 줄은 흐린 글씨로 쓴다. 누르고 있는 줄은 3% 줄인다.
      최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝에 지수 색으로 칠하고 위로 갈수록 투명해지는 띠와 펼침 단추를 둔다. 펼치면 단추 글을 `이전 해설 숨기기`로
@@ -472,10 +471,10 @@
   .gauge .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .gauge .name { font-size: 15.5px; font-weight: 700; color: var(--accent); }
   .gauge .asof { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .gauge .val { display: flex; align-items: baseline; column-gap: 10px; margin-top: 2px; }
+  .gauge .val { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; margin-top: 2px; }
   .gauge .val b { flex: none; white-space: nowrap; font-size: 30px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
   .gauge .val b small { font-size: 16px; font-weight: 700; margin-left: 1px; }
-  .gauge .val b small.etf { margin: 0 .3em 0 0; color: var(--dim); }
+  .gauge .val b small.name { margin: 0 .3em 0 0; color: var(--dim); }
   .gauge .state { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; white-space: nowrap; }
   .gauge .state i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
   .gauge .note { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; color: var(--dim);
@@ -707,9 +706,9 @@
   // 소제목 위 말머리와 이벤트 시각은 지수마다 리포트 그림의 판단 색 계열에서 채도를 낮춘 색으로 쓴다(conviction_chart.py JUDGMENT_COLORS).
   // 두 번째 색은 그라데이션이 끝나는 색으로, 지수색에서 색상환을 따라 보라 쪽으로 조금 옮긴 색이다.
   const INDEX = { nasdaq: ["#8FBCE6", "#AFA6EC"], biotech: ["#AE9CE6", "#E09DCB"] };
-  // 요약 절 주가와 예측 카드가 ETF 눈금으로 그리는 지수와 그 ETF다. 예측 범위는 이 ETF의 종가로 계산한다(path_bands.py SECTOR_DB_TICKERS).
-  // 여기 없는 나스닥은 build.py CARD_INDEX가 지수 눈금으로 늘려 적으므로 시장 탭의 나스닥 100 값과 같다.
-  const ETF = { biotech: "IBB" };
+  // 요약 절 주가와 예측 카드가 예측 중앙값 앞에 붙이는 가격의 이름이다. 바이오는 예측 범위를 계산한 ETF(path_bands.py SECTOR_DB_TICKERS)의 눈금으로 그리므로 그 ETF 이름을 쓰고,
+  // 나스닥은 build.py CARD_INDEX가 지수 눈금으로 늘려 시장 탭의 나스닥 100 값과 같으므로 지수 이름을 쓴다.
+  const PRICE_NAME = { nasdaq: "나스닥 100", biotech: "IBB" };
   // 달력의 지수 단추에 쓰는 이름이다.
   const SHORT = { nasdaq: "나스닥 리포트", biotech: "바이오 리포트" };
   const paint = () => {
@@ -1249,8 +1248,8 @@
         show(f) {
           frame = f;
           cancelAnimationFrame(raf);
-          const etf = ETF[key.split("-")[1]];
-          c.head(f, `중앙값 ${signed((end(f, "q50") / f.base - 1) * 100)}%`, [etf && Object.assign(document.createElement("small"), { className: "etf", textContent: etf }), fmt(end(f, "q50"))].filter(Boolean));
+          const name = PRICE_NAME[key.split("-")[1]];
+          c.head(f, `중앙값 ${signed((end(f, "q50") / f.base - 1) * 100)}%`, [Object.assign(document.createElement("small"), { className: "name", textContent: name }), fmt(end(f, "q50"))]);
           tween(span, span, 1);
         },
       };
