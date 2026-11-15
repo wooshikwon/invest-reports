@@ -60,7 +60,9 @@
   #ticker .rows { display: block; transition: transform .5s cubic-bezier(.2, .8, .2, 1); }
   @media (prefers-reduced-motion: reduce) { #ticker .rows { transition: none; } }
   #ticker .row { display: flex; align-items: baseline; gap: 6px; height: 28px; }
-  #ticker .row > span { font-weight: 600; color: var(--dim); }
+  /* 시세 이름은 시세마다 정한 이름색(`--ink`)과 옆 색상(`--ink-to`)의 그라데이션으로 칠한다(`--index-ink`와 같은 모양). */
+  #ticker .row > span { font-weight: 600; background: linear-gradient(100deg, var(--ink-to) -25%, var(--ink) 85%);
+                        -webkit-background-clip: text; background-clip: text; color: transparent; }
   #ticker .row small { font-size: 12px; font-weight: 600; color: var(--dim); }
   #ticker b { font-weight: 700; color: var(--accent); }
   #ticker b.up { color: #ff5c5c; }
@@ -683,6 +685,9 @@
   // 소제목 위 말머리와 이벤트 시각은 지수마다 리포트 그림의 판단 색 계열에서 채도를 낮춘 색으로 쓴다(conviction_chart.py JUDGMENT_COLORS).
   // 두 번째 색은 그라데이션이 끝나는 색으로, 지수색에서 색상환을 따라 보라 쪽으로 조금 옮긴 색이다.
   const INDEX = { nasdaq: ["#8FBCE6", "#AFA6EC"], biotech: ["#AE9CE6", "#E09DCB"] };
+  // 머리 상자 시세 이름의 색이다. 나스닥과 바이오는 지수색을 쓴다. S&P 500은 붉은 계열, 환율은 초록 계열에서 상승색(빨강)과 겹치지 않게
+  // 채도를 낮춘 색을 쓰고, 옆 색상은 지수색처럼 색상환을 따라 보라 쪽으로 조금 옮긴 색이다.
+  const QUOTE_INK = { "S&P 500": ["#E89D91", "#E798A8"], 나스닥: INDEX.nasdaq, 바이오: INDEX.biotech, 환율: ["#8BD0A8", "#88CEC5"] };
   // 달력의 지수 단추에 쓰는 지수 이름이다.
   const SHORT = { nasdaq: "나스닥", biotech: "바이오" };
   const paint = () => {
@@ -2697,8 +2702,9 @@
         const { closes } = until(line, date);
         if (closes.length < 2) return "";
         const last = closes.at(-1), change = (last / closes.at(-2) - 1) * 100;
+        const ink = QUOTE_INK[line.tab] || ["var(--dim)", "var(--dim)"];
         const after = line.index && listing[`${key.slice(0, 8)}-${line.index}`]?.moves?.after;
-        return `<span class="row" data-tab="${line.tab}"><span>${line.name}</span><b>${figure(last)}${line.unit}</b><b class="${tone(change)}">${signed(change)}%</b>`
+        return `<span class="row" data-tab="${line.tab}"><span style="--ink: ${ink[0]}; --ink-to: ${ink[1]}">${line.name}</span><b>${figure(last)}${line.unit}</b><b class="${tone(change)}">${signed(change)}%</b>`
           + (typeof after === "number" ? `<small>(마감 후 <b class="${tone(after)}">${signed(after)}%</b>)</small>` : "") + "</span>";
       }).filter(Boolean);
       if (rows.length) ticker.innerHTML = `<span class="rows">${rows.join("")}${rows[0].replace('class="row"', 'class="row" aria-hidden="true"')}</span>`;
