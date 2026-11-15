@@ -201,12 +201,18 @@
   .carousel .track::-webkit-scrollbar { display: none; }
   .carousel .slide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; }
   .carousel .slide img { margin: 0; }
-  /* 날짜 슬라이더는 그림 폭의 48%로 가운데에 둔다. 슬라이더에 댄 손가락은 넘기기 묶음을 옆으로 밀지 않는다.
-     막대는 위아래 24px 안에서만 손가락을 받아, 막대 근처에서 시작한 넘기기를 가로채지 않는다.
+  /* 날짜 슬라이더는 그림 폭의 48%로 가운데에 둔다. 처음에는 슬라이더 자리에 "날짜 이동" 글자 단추(`open`)만 두고(`shut`),
+     단추를 누르면 그 자리에 슬라이더를 띄운다. 슬라이더에 댄 손가락은 넘기기 묶음을 옆으로 밀지 않는다.
+     막대는 위아래 24px 칸(`bar`)으로만 손가락을 받아, 막대 근처에서 시작한 넘기기를 가로채지 않는다. 막대를 누르면 슬라이더를 닫는다.
      레버는 레버 중심을 둘러싼 56px 칸(`grip`)으로 손가락을 받아, 레버에서 조금 벗어나게 눌러도 레버를 잡는다. */
   .carousel .rewind { position: relative; width: 48%; margin: 10px auto 12px; padding: 8px 0; }
-  .carousel .rewind input { display: block; width: 100%; height: 24px; margin: 0; background: none; -webkit-appearance: none; appearance: none; touch-action: none; }
+  .carousel .rewind input { display: block; width: 100%; height: 24px; margin: 0; background: none; -webkit-appearance: none; appearance: none; pointer-events: none; }
+  .carousel .rewind .bar { position: absolute; top: 8px; left: 0; right: 0; height: 24px; touch-action: none; }
   .carousel .rewind .grip { position: absolute; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; touch-action: none; }
+  .carousel .rewind .open { position: absolute; inset: 8px 0; display: none; width: 100%; padding: 0; border: 0; background: none; color: var(--dim);
+    font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .carousel .rewind.shut > :not(.open) { visibility: hidden; }
+  .carousel .rewind.shut .open { display: block; }
   .carousel .rewind input { --track: linear-gradient(to right, rgba(58, 63, 74, .35) calc(9px + var(--from, 0) * (100% - 18px)), var(--line) 0); }
   .carousel .rewind input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--track); }
   .carousel .rewind input::-moz-range-track { height: 4px; border-radius: 2px; background: var(--track); }
@@ -914,12 +920,17 @@
 
   // `box` 끝에 지난 판단 날짜를 고르는 슬라이더를 둔다. `days`는 고를 수 있는 날짜(오름차순)이고 `start`번 날짜에서 시작한다.
   // 슬라이더는 리포트 날짜와 그 앞 30일을 늘 같은 폭으로 보여 주고, 레버는 `days`의 날짜에만 선다. 레버가 선 날짜가 정해질 때마다 그 번호로 `pick`을 부른다.
+  // 슬라이더는 "날짜 이동" 단추를 누르면 열리고, 레버 밖의 막대를 누르면 닫힌다. 날짜는 레버를 잡고 옮길 때만 바뀌고, 닫아도 고른 날짜는 그대로 둔다.
   function dial(box, date, days, start, pick) {
     const offset = (day) => rewindOffset(day, date);
     const control = document.createElement("div");
-    control.className = "rewind";
-    control.innerHTML = `<input type="range" min="0" max="${REWIND_SPAN}" step="1" value="${REWIND_SPAN}"><span></span><i class="grip"></i>`;
-    const [range, shown, grip] = control.children;
+    control.className = "rewind shut";
+    control.innerHTML = `<input type="range" min="0" max="${REWIND_SPAN}" step="1" value="${REWIND_SPAN}" tabindex="-1"><span></span><i class="bar"></i><i class="grip"></i>`
+      + '<button type="button" class="open">날짜 이동</button>';
+    const [range, shown, bar, grip, open] = control.children;
+    const toggle = (shut) => () => { feelPress(); control.classList.toggle("shut", shut); };
+    open.addEventListener("click", toggle(false));
+    bar.addEventListener("click", toggle(true));
     const first = offset(days[0]);
     range.style.setProperty("--from", first / REWIND_SPAN);
     let wanted = start;
@@ -946,8 +957,6 @@
       show(i);
     });
     const hold = (on) => () => { control.classList.toggle("held", on); if (on) show(nearest()); };
-    range.addEventListener("pointerdown", hold(true));
-    ["pointerup", "pointercancel", "change", "blur"].forEach((type) => range.addEventListener(type, hold(false)));
     // 레버 칸을 누르면 누른 자리와 레버 중심의 거리(`grab`)를 기억하고, 손가락이 움직인 만큼 레버를 옮긴다.
     let grab = 0;
     const lever = () => 9 + range.value / REWIND_SPAN * (range.clientWidth - 18);
@@ -2868,10 +2877,11 @@
   // 넘기기 묶음은 노드를 옮기면 스크롤 위치가 처음으로 돌아가므로, 리포트를 받은 직후 묶음을 만들기 전에 나눈다.
   const PAGES = [["예측", ["1개월 지수 방향 예측", "이벤트 캘린더"]], ["이슈", ["상세 이슈 해설"]], ["시장", ["주요 시세", "미국 거시 지표"]]];
   // 바로가기 단추의 선 아이콘이다. 예측은 돋보기, 이슈는 불꽃, 시장은 고리를 두른 행성이다. 행성은 앞쪽 고리 둘레를 마스크로 비워 고리가 행성 앞을 지나게 그린다.
+  // 행성은 다른 아이콘보다 작아 보여 1.05배로 키우고, 선 굵기는 다른 아이콘과 같게 둔다.
   const PAGE_ICONS = {
     예측: '<circle cx="11" cy="11" r="7"/><path d="M20.5 20.5l-4.6-4.6"/>',
     이슈: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
-    시장: '<g transform="translate(12 12) rotate(-28)"><mask id="market-ring" maskUnits="userSpaceOnUse" x="-12" y="-12" width="24" height="24"><rect x="-12" y="-12" width="24" height="24" fill="#fff" stroke="none"/><path d="M10.6 0A10.6 4.2 0 0 1 -10.6 0" stroke="#000" stroke-width="3.2"/></mask><circle r="6.8" mask="url(#market-ring)"/><path d="M-10.6 0A10.6 4.2 0 0 1 -6.77 -3.23M6.77 -3.23A10.6 4.2 0 0 1 10.6 0M10.6 0A10.6 4.2 0 0 1 -10.6 0"/></g>',
+    시장: '<g transform="translate(12 12) scale(1.05) rotate(-28)"><mask id="market-ring" maskUnits="userSpaceOnUse" x="-12" y="-12" width="24" height="24"><rect x="-12" y="-12" width="24" height="24" fill="#fff" stroke="none"/><path d="M10.6 0A10.6 4.2 0 0 1 -10.6 0" stroke="#000" stroke-width="3.2"/></mask><circle r="6.8" mask="url(#market-ring)" vector-effect="non-scaling-stroke"/><path vector-effect="non-scaling-stroke" d="M-10.6 0A10.6 4.2 0 0 1 -6.77 -3.23M6.77 -3.23A10.6 4.2 0 0 1 10.6 0M10.6 0A10.6 4.2 0 0 1 -10.6 0"/></g>',
   };
   function paginate() {
     const pages = PAGES.map(() => Object.assign(document.createElement("div"), { className: "page" }));
