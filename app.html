@@ -639,7 +639,7 @@
   addEventListener("scroll", stick, { passive: true });
   // `ROLL`ms마다 시세를 한 줄씩 위로 굴려 네 시세를 차례로 보여 준다. 마지막 줄은 첫째 줄과 같으므로,
   // 마지막 줄까지 굴린 다음에는 움직임 없이 첫째 줄로 되돌린 뒤 굴린다. 그래서 줄은 늘 위로만 움직인다.
-  const ROLL = 3750;
+  const ROLL = 3000;
   let rolled = 0;
   setInterval(() => {
     const rows = ticker.querySelector(".rows");
