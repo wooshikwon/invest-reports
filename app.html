@@ -46,7 +46,7 @@
      날짜 줄 오른쪽 끝에는 달력 단추를 두고, 단추의 위 끝을 날짜 줄의 위 끝에 맞춘다. 제목은 달력 단추 아래로 들어가지 않게 오른쪽을 비운다.
      제목 아래의 머리 상자(`#masthead`)는 28px 높이의 한 줄(`header`)이고, 시세(`#ticker`)만 쓴다. 날짜와 제목이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
      시세는 나스닥 100, 바이오, S&P 500, 원/달러 네 줄이다. 줄마다 "나스닥 100 $27,943.74 −1.22% → 마감 후 +0.40%"처럼 흰 이름, 리포트 날짜 전날까지의 마지막 종가, 그 앞 종가 대비 등락률을 쓰고,
-     나스닥 100과 바이오는 정규장 등락률 뒤에 화살표와 장 마감 후 등락률을 더 쓴다. 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 시세는 28px 높이 창 안에 네 줄과 첫 줄을 위아래로 쌓고 한 줄씩 위로 굴려 네 줄을 차례로 보여 준다.
+     나스닥 100과 바이오는 정규장 등락률 뒤에 화살표와 장 마감 후 등락률을 더 쓴다. 종가와 정규장 등락률은 정규장 등락률이 오르면 빨강, 내리면 파랑으로 칠하고, 장 마감 후 등락률은 그 값이 오르고 내린 대로 칠한다. 시세는 28px 높이 창 안에 네 줄과 첫 줄을 위아래로 쌓고 한 줄씩 위로 굴려 네 줄을 차례로 보여 준다.
      세 지수의 종가는 앞에 $를 붙인 달러 값, 원/달러는 원 단위로 쓴다. 보이는 줄을 누르면 시장 페이지의 그 시세 카드를 연다.
      상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 페이지 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
      흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
@@ -2759,7 +2759,7 @@
         if (closes.length < 2) return "";
         const last = closes.at(-1), change = (last / closes.at(-2) - 1) * 100;
         const after = line.index && listing[`${key.slice(0, 8)}-${line.index}`]?.moves?.after;
-        return `<span class="row" data-tab="${line.tab}"><span>${line.name}</span><b>${price(last, line.unit)}</b><b class="${tone(change)}">${signed(change)}%</b>`
+        return `<span class="row" data-tab="${line.tab}"><span>${line.name}</span><b class="${tone(change)}">${price(last, line.unit)}</b><b class="${tone(change)}">${signed(change)}%</b>`
           + (typeof after === "number" ? `<small>→ 마감 후 <b class="${tone(after)}">${signed(after)}%</b></small>` : "") + "</span>";
       }).filter(Boolean);
       if (rows.length) ticker.innerHTML = `<span class="rows">${rows.join("")}${rows[0].replace('class="row"', 'class="row" aria-hidden="true"')}</span>`;
