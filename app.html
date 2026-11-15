@@ -923,8 +923,9 @@
   }
 
   // 되감기 슬라이더가 보여 주는 날짜 수와, 리포트 날짜 `date`에서 그 앞 30일의 첫날을 0으로 센 `day`의 자리.
-  // "기준 날짜 이동" 단추의 아이콘이다. 시계 둘레의 화살이 9시 조금 위에서 반시계 방향으로 나아가고, 꺾쇠의 두 날개는 그 진행 방향의 양쪽 45°로 벌어진다.
-  const REWIND_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.75 8.62A8 8 0 1 1 4.48 14.74"/><path d="M7.94 7.46L4.75 8.62L3.59 5.42"/>'
+  // "기준 날짜 이동" 단추의 아이콘이다. 시계 둘레의 화살이 10시에서 반시계 방향으로 나아간다.
+// 꺾쇠의 두 날개는 90°로 벌어지고, 두 날개 끝이 시계 둘레에서 같은 거리만큼 안팎으로 떨어지도록 꺾쇠를 돌려 둔다.
+  const REWIND_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.07 8A8 8 0 1 1 4.48 14.74"/><path d="M8.44 7.64L5.07 8L4.71 4.63"/>'
     + '<path d="M12 8v4.2l2.8 1.8"/></svg>';
   const REWIND_SPAN = 30, rewindOffset = (day, date) => Math.round((Date.parse(day) - Date.parse(date)) / 864e5) + REWIND_SPAN;
 
