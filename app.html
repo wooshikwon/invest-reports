@@ -207,7 +207,7 @@
   .carousel .track::-webkit-scrollbar { display: none; }
   .carousel .slide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; }
   .carousel .slide img { margin: 0; }
-  /* 날짜 슬라이더는 그림 폭의 48%로 가운데에 둔다. 처음에는 슬라이더 자리에 "기준 날짜 이동" 글자 단추(`open`)만 두고(`shut`),
+  /* 날짜 슬라이더는 그림 폭의 48%로 가운데에 둔다. 처음에는 슬라이더 자리에 "기준 날짜 이동" 글자 단추(`open`)만 두고(`shut`), 글자 왼쪽에 시계를 거꾸로 돌리는 선 아이콘을 단다.
      단추를 누르면 그 자리에 슬라이더를 띄운다. 슬라이더에 댄 손가락은 넘기기 묶음을 옆으로 밀지 않는다.
      막대는 위아래 24px 칸(`bar`)으로만 손가락을 받아, 막대 근처에서 시작한 넘기기를 가로채지 않는다. 막대를 누르면 슬라이더를 닫는다.
      레버는 레버 중심을 둘러싼 56px 칸(`grip`)으로 손가락을 받아, 레버에서 조금 벗어나게 눌러도 레버를 잡는다. */
@@ -218,7 +218,8 @@
   .carousel .rewind .open { position: absolute; inset: 8px 0; display: none; width: 100%; padding: 0; border: 0; background: none; color: var(--dim);
     font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
   .carousel .rewind.shut > :not(.open) { visibility: hidden; }
-  .carousel .rewind.shut .open { display: block; }
+  .carousel .rewind.shut .open { display: flex; align-items: center; justify-content: center; gap: 5px; }
+  .carousel .rewind .open svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
   .carousel .rewind input { --track: linear-gradient(to right, rgba(58, 63, 74, .35) calc(9px + var(--from, 0) * (100% - 18px)), var(--line) 0); }
   .carousel .rewind input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--track); }
   .carousel .rewind input::-moz-range-track { height: 4px; border-radius: 2px; background: var(--track); }
@@ -922,6 +923,9 @@
   }
 
   // 되감기 슬라이더가 보여 주는 날짜 수와, 리포트 날짜 `date`에서 그 앞 30일의 첫날을 0으로 센 `day`의 자리.
+  // "기준 날짜 이동" 단추의 아이콘이다. 시계 둘레의 화살이 9시 조금 위에서 반시계 방향으로 나아가고, 꺾쇠의 두 날개는 그 진행 방향의 양쪽 45°로 벌어진다.
+  const REWIND_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.75 8.62A8 8 0 1 1 4.48 14.74"/><path d="M7.94 7.46L4.75 8.62L3.59 5.42"/>'
+    + '<path d="M12 8v4.2l2.8 1.8"/></svg>';
   const REWIND_SPAN = 30, rewindOffset = (day, date) => Math.round((Date.parse(day) - Date.parse(date)) / 864e5) + REWIND_SPAN;
 
   // `box` 끝에 지난 판단 날짜를 고르는 슬라이더를 둔다. `days`는 고를 수 있는 날짜(오름차순)이고 `start`번 날짜에서 시작한다.
@@ -932,7 +936,7 @@
     const control = document.createElement("div");
     control.className = "rewind shut";
     control.innerHTML = `<input type="range" min="0" max="${REWIND_SPAN}" step="1" value="${REWIND_SPAN}" tabindex="-1"><span></span><i class="bar"></i><i class="grip"></i>`
-      + '<button type="button" class="open">기준 날짜 이동</button>';
+      + `<button type="button" class="open">${REWIND_ICON}기준 날짜 이동</button>`;
     const [range, shown, bar, grip, open] = control.children;
     const toggle = (shut) => () => { feelPress(); control.classList.toggle("shut", shut); };
     open.addEventListener("click", toggle(false));
