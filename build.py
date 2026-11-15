@@ -80,7 +80,8 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 리포트 날짜 전날까지의 마지막 종가와 그 앞 종가 대비 등락률을 적고, 나스닥 100과 나스닥 바이오는 괄호 안에 그 날짜 리포트의 `after` 등락률을 덧붙인다.
 등락률만 오르면 빨강, 내리면 파랑으로 칠한다. 화면을 내리면 머리 줄은 화면 위에 붙어 남는다.
 
-`r/market.json`에는 S&P 500, 나스닥 100, 나스닥 바이오, 원/달러의 날짜별 종가를 적는다(`market`). `invest-reports` 미니 앱의 시장 페이지는
+`r/market.json`에는 S&P 500, 나스닥 100, 나스닥 바이오, 원/달러의 날짜별 종가를 적는다(`market`). 야후 지수 일봉은 1년뿐이므로 그보다 앞 날짜는
+S&P 500이 토스 SPY 일봉을, 두 나스닥 지수가 `market_price`의 ETF 환산 종가를 지수 눈금으로 늘려 잇고, 원/달러는 FRED 환율로 잇는다. `invest-reports` 미니 앱의 시장 페이지는
 이 값으로 `주요 시세` 절에 네 시세의 종가 선 카드를 그리고, 카드마다 다섯 단계 기간을 바꾸며, 슬라이더로 지난 한 달의 리포트 날짜를 고르면
 그 날짜 전날까지의 종가로 네 카드를 다시 그린다.
 
@@ -131,12 +132,13 @@ TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
 CARD_QUANTILES = (10, 25, 50, 75, 90)  # 일정과 예측 카드가 그리는 수익률 분위수
 PRICE_YEARS = 3  # 주가와 예측 카드가 그리는 종가 기간(년)
-# 시장 탭과 머리 줄이 보여 주는 시세. (이름, 탭 이름, 지수 폴더 이름, 단위, `observation` 계열)이고, 지수 폴더 이름이 있는 시세는
-# 그 지수의 `market_price` 종가로 `observation`보다 앞 날짜를 잇는다. S&P 500과 원/달러는 FRED 계열로 `observation` 종가보다 앞 날짜를 잇는다.
-MARKET = [("S&P 500", "S&P 500", None, "", ("fred:SP500", "close:^GSPC")),
-          ("나스닥 100", "나스닥", "nasdaq", "", ("close:^NDX",)),
-          ("나스닥 바이오", "바이오", "biotech", "", ("close:^NBI",)),
-          ("원/달러", "환율", None, "원", ("fred:DEXKOUS", "close:USDKRW=X"))]
+# 시장 탭과 머리 줄이 보여 주는 시세. (이름, 탭 이름, 지수 폴더 이름, 단위, ETF 종가 계열, `observation` 계열)이다. 지수 폴더 이름이 있는
+# 시세는 그 지수의 `market_price` 종가로, ETF 종가 계열이 있는 시세는 그 `observation` 계열로 지수 종가보다 앞 날짜를 잇는다.
+# S&P 500은 토스 SPY 일봉으로, 원/달러는 FRED 계열로 앞 날짜를 잇는다. 토스는 환율의 지난 값을 주지 않는다.
+MARKET = [("S&P 500", "S&P 500", None, "", "close_toss:SPY", ("close:^GSPC",)),
+          ("나스닥 100", "나스닥", "nasdaq", "", None, ("close:^NDX",)),
+          ("나스닥 바이오", "바이오", "biotech", "", None, ("close:^NBI",)),
+          ("원/달러", "환율", None, "원", None, ("fred:DEXKOUS", "close:USDKRW=X"))]
 TICK_STEP = 5  # 일정과 예측 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
 ISSUES_TITLE = "상세 이슈 해설"
@@ -312,7 +314,7 @@ def market(vault: Path, out: Path) -> Path:
     """`r/market.json`에 `MARKET`의 시세마다 이름, 탭 이름, 지수 폴더 이름, 단위, 날짜와 종가를 쓴다.
 
     날짜는 공개본이 있는 가장 늦은 리포트 날짜에서 `REWIND_DAYS`일과 `PRICE_YEARS`년을 거슬러 간 날부터다. 지수 종가는
-    `market_price`의 ETF 환산 종가에 마지막으로 겹치는 날의 `observation` 지수 종가 비율을 곱해 지수 눈금으로 늘리고,
+    `market_price`의 ETF 환산 종가나 ETF 종가 계열에 마지막으로 겹치는 날의 `observation` 지수 종가 비율을 곱해 지수 눈금으로 늘리고,
     `observation` 값이 있는 날은 그 값을 쓴다. 시세 하나가 `observation` 계열을 여럿 가지면 뒤 계열의 값이 앞 계열의 같은 날 값을 덮는다.
     """
     published = sorted(p.name[:8] for p in (out / "r").glob("*-*") if p.name[:8].isdigit())
@@ -321,16 +323,23 @@ def market(vault: Path, out: Path) -> Path:
     chart = predictions_chart(vault)
     con = sqlite3.connect(f"file:{chart.path_bands.REFERENCE_DB_PATH}?mode=ro", uri=True)
     series = []
+
+    def observation(series_id: str) -> dict:
+        return dict(con.execute(
+            "SELECT period, value FROM observation o WHERE series_id = ? AND value IS NOT NULL AND period >= ? AND retrieved_at = "
+            "(SELECT MAX(retrieved_at) FROM observation WHERE series_id = o.series_id AND period = o.period)",
+            (series_id, start)).fetchall())
+
     try:
-        for name, tab, index, unit, ids in MARKET:
+        for name, tab, index, unit, etf, ids in MARKET:
             closes = {}
-            observed = [dict(con.execute(
-                "SELECT period, value FROM observation o WHERE series_id = ? AND value IS NOT NULL AND period >= ? AND retrieved_at = "
-                "(SELECT MAX(retrieved_at) FROM observation WHERE series_id = o.series_id AND period = o.period)",
-                (series_id, start)).fetchall()) for series_id in ids]
+            observed = [observation(series_id) for series_id in ids]
             if index:
                 prices = dict(con.execute("SELECT price_date, close FROM market_price WHERE ticker = ? AND price_date >= ?",
                                           (chart.path_bands.SECTOR_DB_TICKERS[index], start)).fetchall())
+            else:
+                prices = observation(etf) if etf else {}
+            if prices:
                 common = max(set(prices) & set(observed[-1]))
                 closes = {day: close * observed[-1][common] / prices[common] for day, close in prices.items()}
             for values in observed:
