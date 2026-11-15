@@ -757,8 +757,6 @@
   // `fit`이면 넘기기가 멈춘 뒤와 슬라이드 높이가 바뀐 뒤 묶음 높이를 보고 있는 슬라이드에 맞춘다. `change`가 있으면 보고 있는
   // 슬라이드가 바뀔 때마다 그 번호로 `change`를 부른다. `start`번 슬라이드부터 보여 준다.
   // `feel`이면 보고 있는 슬라이드가 바뀔 때마다 선택 변경 진동을 낸다. 상자의 `go(i)`는 i번 슬라이드로 넘기고, `go(i, true)`는 넘기는 움직임 없이 바로 옮긴다.
-  // 넘기기 영역(`area`)을 둔 묶음은 화면 높이 `y`가 그 영역 안인지 답하는 함수를 `swipeAreas`에 넣는다. 화면 양끝 띠의 페이지 넘기기는 이 영역에서 일하지 않는다.
-  const swipeAreas = [];
   function slider(slides, after, { fit = false, start = 0, change = null, name = "", area = null, feel = false } = {}) {
     const box = document.createElement("div");
     box.className = ["carousel", fit && "fit", name].filter(Boolean).join(" ");
@@ -849,19 +847,14 @@
     // 가로로 40px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 민 방향의 다음 장으로 넘긴다. 절이 가린 페이지에 있으면 넘기지 않는다.
     if (area) {
       let begin = null;
-      const inside = (y) => {
-        if (area.closest(".page.off")) return false;
-        let next = area.nextElementSibling;
-        while (next && next.tagName !== "H2") next = next.nextElementSibling;
-        return y >= area.getBoundingClientRect().top && !(next && y >= next.getBoundingClientRect().top);
-      };
-      swipeAreas.push(inside);
       document.addEventListener("touchstart", (event) => {
         begin = null;
         const { target, touches } = event;
-        if (touches.length !== 1 || track.contains(target) || target.closest(".viewer, .help-card, .cal-layer, .cal, .days, .back-edge, .frozen, input")) return;
+        if (touches.length !== 1 || area.closest(".page.off") || track.contains(target) || target.closest(".viewer, .help-card, .cal-layer, .cal, .days, .back-edge, .frozen, input")) return;
+        let next = area.nextElementSibling;
+        while (next && next.tagName !== "H2") next = next.nextElementSibling;
         const y = touches[0].clientY;
-        if (!inside(y)) return;
+        if (y < area.getBoundingClientRect().top || (next && y >= next.getBoundingClientRect().top)) return;
         begin = { x: touches[0].clientX, y };
       }, { passive: true });
       document.addEventListener("touchend", (event) => {
@@ -2972,29 +2965,6 @@
     nav.addEventListener("pointerup", end);
     nav.addEventListener("pointercancel", end);
     document.body.append(nav);
-    // 화면 왼쪽과 오른쪽 끝 `EDGE`px 띠에서 손을 대 가로로 40px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 단추를 누른 것과 같이 옆 페이지를 연다.
-    // 왼쪽으로 밀면 다음 페이지를, 오른쪽으로 밀면 앞 페이지를 연다. 보이는 넘기기 묶음과 날짜 띠의 위아래 범위, 넘기기 영역(`swipeAreas`)에서 댄 손과
-    // 바로가기 알약, 뒤로 가기 띠, 그림을 크게 본 화면과 설명 상자, 입력 칸에서 댄 손은 세지 않는다.
-    const EDGE = 32;
-    let edge = null;
-    document.addEventListener("touchstart", (event) => {
-      edge = null;
-      const { target, touches } = event;
-      if (touches.length !== 1) return;
-      const { clientX: x, clientY: y } = touches[0];
-      if (x > EDGE && x < innerWidth - EDGE) return;
-      if (target.closest("nav.jump, .back-edge, .viewer, .help-card, .cal-layer, input") || swipeAreas.some((inside) => inside(y))) return;
-      const span = (node) => { const { top, bottom } = node.getBoundingClientRect(); return !node.closest(".page.off") && y >= top && y < bottom; };
-      if ([...document.querySelectorAll(".carousel, .days")].some(span)) return;
-      edge = { x, y };
-    }, { passive: true });
-    document.addEventListener("touchend", (event) => {
-      if (!edge) return;
-      const touch = event.changedTouches[0], dx = touch.clientX - edge.x, dy = touch.clientY - edge.y;
-      edge = null;
-      const next = page - Math.sign(dx);
-      if (Math.abs(dx) > 40 && Math.abs(dx) > 1.5 * Math.abs(dy) && next >= 0 && next < pages.length) { feelPress(); open(next); }
-    }, { passive: true });
     return open;
   }
 
