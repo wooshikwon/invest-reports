@@ -850,9 +850,10 @@ def mark_indicators(body: str, cards: dict[str, dict]) -> str:
 
 
 
-def mark_issue_ids(body: str, bundles: Path, events: dict[int, list[tuple[str, str | None]]]) -> str:
+def mark_issue_ids(body: str, bundles: Path, events: dict[int, list[tuple[str, str | None]]], day: dt.date) -> str:
     """`상세 이슈 해설` 절의 번호 붙은 이슈 소제목에 `system/issues.json`의 그 번호 `id`를 `data-issue`로 단다.
-    그 이슈를 새로 썼으면(`rewrite`) `data-new`를, 앞 리포트에서 옮겨 왔으면(`carry`) 처음 쓴 날짜를 `data-carried`로 함께 단다.
+    이슈 해설을 쓴 날짜를 `data-written`으로 함께 달고, 그 이슈를 새로 썼으면(`rewrite`) `data-new`를,
+    앞 리포트에서 옮겨 왔으면(`carry`) 처음 쓴 날짜부터 리포트 날짜까지의 날 수를 `data-age`로 단다.
     `events`에 그 번호가 있으면 결과를 다룬 이벤트 이름을 `data-event`로 함께 달고, 그 이벤트가 모두 중요도 낮음이면 `data-event-level="low"`도 단다."""
     head = re.search(rf'<h2 id="[^"]*">{ISSUES_TITLE}</h2>', body)
     if not head or not bundles.is_file():
@@ -866,9 +867,10 @@ def mark_issue_ids(body: str, bundles: Path, events: dict[int, list[tuple[str, s
         bundle = marked.get(int(number.group(1))) if number else None
         if not bundle:
             return match.group(0)
-        state = " data-new" if "rewrite" in bundle else ""
+        written = dt.date.fromisoformat(bundle["carry"]["date"]) if "carry" in bundle else day
+        state = f' data-written="{written}"' + (" data-new" if "rewrite" in bundle else "")
         if "carry" in bundle:
-            state += f' data-carried="{bundle["carry"]["date"]}"'
+            state += f' data-age="{(day - written).days}"'
         found = events.get(int(number.group(1)), [])
         event = f' data-event="{html.escape(" · ".join(name for name, _ in found))}"' if found else ""
         if found and all(level == "low" for _, level in found):
@@ -1070,7 +1072,7 @@ def issue_history(vault: Path, index: str, day: dt.date, out: Path) -> dict[str,
 
 def mark_issue_history(body: str, history: dict[str, list[tuple[dt.date, int, str]]], day: dt.date) -> str:
     """번호 붙은 이슈 뒤에 앞 날짜 이슈 조각과 날짜마다 이슈 해설 소제목을 담은 `issue-history` 템플릿을 넣는다.
-    마지막 항목은 오늘 이슈이고, 앞 리포트에서 옮겨 온 이슈(`data-carried`)는 그 항목에 처음 쓴 날짜를 적는다."""
+    마지막 항목은 오늘 이슈이고, 그 항목의 날짜는 이슈 해설을 쓴 날짜(`data-written`)다."""
     parts, last = [], 0
     for start, stop in issue_segments(body):
         segment = body[start:stop]
@@ -1079,8 +1081,8 @@ def mark_issue_history(body: str, history: dict[str, list[tuple[dt.date, int, st
         if not past:
             continue
         days = [(when, explainer_title(chunk), re.sub(r'\sid="[^"]*"', "", chunk)) for when, _, chunk in past]
-        carried = re.match(r'<h3[^>]*data-carried="([^"]*)"', segment)
-        days.append((dt.date.fromisoformat(carried.group(1)) if carried else day, explainer_title(segment), ""))
+        written = re.match(r'<h3[^>]*data-written="([^"]*)"', segment)
+        days.append((dt.date.fromisoformat(written.group(1)) if written else day, explainer_title(segment), ""))
         sections = "".join(f'<section data-day="{when}" data-title="{html.escape(title)}">{chunk}</section>'
                            for when, title, chunk in days)
         parts += [body[last:stop].rstrip(), f'\n<template class="issue-history">{sections}</template>\n']
@@ -1137,7 +1139,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     body = mark_days(body, day, branches, announcements(vault, index, day), upcoming,
                      functools.cache(scenario_tree(vault).reaction_session))
     body = mark_indicators(body, indicator_cards(vault, index, day))
-    body = mark_issue_ids(body, source.parent / "system" / "issues.json", issue_events(vault, index, day))
+    body = mark_issue_ids(body, source.parent / "system" / "issues.json", issue_events(vault, index, day), day)
     body = mark_issue_images(body, source.parent / "assets", source.parent / "system" / "issue-images.json", target, out)
     body = mark_issue_charts(body, source.parent / "system" / "issue-charts.json")
     body = mark_issue_carry(body, source.parent / "system" / "issues.json", index, out)
