@@ -766,18 +766,14 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
     when = month_day(date)
     if name == "공포·탐욕 지수":
         score = value["score"]
-        guide = ["CNN이 미국 주식시장의 투자 심리를 0점에서 100점 사이로 매긴 점수예요. CNN은 지표 7개를 합쳐 점수를 계산해요: S&P500의 추세, "
-                 "52주 신고가와 신저가 종목 수, 상승 종목과 하락 종목의 거래량, 풋옵션과 콜옵션의 거래 비율, VIX, 주식과 국채의 수익률 차이, 정크본드 수요.",
-                 "점수가 25 이하면 극단 공포, 45 이하면 공포, 55 이하면 중립, 75 이하면 탐욕, 그보다 크면 극단 탐욕이에요. "
-                 "점수가 낮을수록 투자자는 주식을 팔고 국채 같은 안전자산을 더 많이 사요. 시장에서는 극단 공포를 매도가 지나쳤다는 신호로 보기도 해요."]
+        guide = ["CNN이 지표 7개를 합쳐 미국 주식시장의 투자 심리를 0점에서 100점 사이로 매긴 점수예요.",
+                 "25 이하면 극단 공포, 75를 넘으면 극단 탐욕이에요. 점수가 낮을수록 투자자는 주식을 팔고 안전자산을 사요."]
         return {"tab": "공포·탐욕", "help": guide, "asof": f"CNN · {when}", "value": f"{score:g}", "state": zone(FEAR_GREED_ZONES, score),
                 "figure": {"type": "semi", "min": 0, "max": 100, "zones": FEAR_GREED_ZONES, "value": score, "ends": ["공포", "탐욕"]}}
     if name == "하이일드 스프레드":
         level = value["value"]
-        guide = ["미국 하이일드 회사채의 금리에서 만기가 비슷한 미국 국채의 금리를 뺀 값이에요. 하이일드 회사채는 신용등급이 투자 적격 등급보다 낮은 회사채예요. "
-                 "스프레드는 채권 투자자가 회사의 부도 위험을 떠안는 대가로 국채보다 더 요구하는 금리예요.",
-                 "투자자는 경기가 나빠질 것으로 보면 하이일드 회사채를 팔아요. 그러면 회사채 금리가 올라 스프레드가 커져요. "
-                 "상태의 1년 상위 %는 지난 1년 가운데 오늘보다 스프레드가 높았던 날의 비율이에요. 1년 상위 3%면 오늘보다 높았던 날이 3%뿐이에요."]
+        guide = ["신용등급이 낮은 미국 회사채의 금리에서 미국 국채의 금리를 뺀 값이에요. 투자자가 경기를 나쁘게 볼수록 스프레드가 커져요.",
+                 "1년 상위 3%면 지난 1년 가운데 오늘보다 스프레드가 높았던 날이 3%뿐이에요."]
         top = math.ceil(max(item["value"] for _, item in weeks) + 0.3)
         return {"tab": "신용", "help": guide, "asof": f"FRED · {when}", "value": f"{level:.2f}", "unit": "%",
                 "state": year_rank(value["pct_1y"]),
@@ -785,10 +781,8 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
                            "max": top, "lines": [[step, f"{step}%"] for step in range(1, top + 1)]}}
     if name == "WTI 유가":
         level = value["value"]
-        guide = ["미국 텍사스산 원유(WTI)의 선물 가격이에요. 뉴욕상업거래소에서 거래하는 가장 가까운 만기 계약의 1배럴 값을 달러로 적어요. "
-                 "카드의 값은 CME가 발표한 그날의 정산가이고, 그림은 지난 1년 동안 날마다의 정산가를 이어 그려요.",
-                 "유가가 오르면 기업의 연료비와 운송비가 늘고 소비자 물가도 올라요. 물가가 오르면 연준이 기준금리를 내리기 어려워져 주가에 부정적이에요. "
-                 "상태의 1년 상위 %는 지난 1년 가운데 오늘보다 유가가 높았던 날의 비율이에요."]
+        guide = ["미국 텍사스산 원유(WTI) 1배럴의 선물 정산가를 달러로 적은 값이에요.",
+                 "유가가 오르면 물가가 올라요. 물가가 오르면 연준이 기준금리를 내리기 어려워져요. 1년 상위 %는 지난 1년 가운데 오늘보다 유가가 높았던 날의 비율이에요."]
         points = [[(dt.date.fromisoformat(day) + dt.timedelta(days=1)).isoformat(), price, f"${price:.2f}"]
                   for day, price in value["daily_close"]]
         return {"tab": "유가", "help": guide, "asof": f"WTI 정산가 · {when}", "value": f"{level:.2f}", "unit": "달러",
@@ -802,11 +796,9 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
              else [f"{month} 동결 예상", NEUTRAL])
     rows = [[f"{int(item['meeting'][5:7])}월", item["cumulative_bp"], f"{signed(item['cumulative_bp'] / 100, 2)}%p"]
             for item in meetings]
-    guide = ["연방기금 금리 선물은 미국 기준금리의 한 달 평균에 거는 계약이에요. 선물 가격에서 시장이 예상하는 기준금리를 계산해요. "
-             "카드는 앞으로 열리는 연준 회의 세 번마다 기준금리의 누적 변화를 %p로 보여 줘요. 누적 변화는 지금 기준금리와 그 회의 뒤 예상 기준금리의 차이예요.",
-             "값이 +0.25%p면 시장은 그 회의까지 0.25%p 인상 한 번을 예상해요. "
-             f"다음 회의까지 누적 변화가 +{RATE_MOVE_BP / 100:g}%p 이상이면 인상 예상, −{RATE_MOVE_BP / 100:g}%p 이하면 인하 예상, 그 사이면 동결 예상이에요. "
-             "기준금리가 오르면 기업의 차입 비용이 커져요. 그래서 인상 예상은 주가에 부정적이에요."]
+    guide = ["앞으로 열리는 연준 회의 세 번마다 시장이 예상하는 기준금리의 누적 변화예요. 예상치는 연방기금 금리 선물에서 계산해요.",
+             f"다음 회의까지 +{RATE_MOVE_BP / 100:g}%p 이상이면 인상 예상, −{RATE_MOVE_BP / 100:g}%p 이하면 인하 예상, 그 사이면 동결 예상이에요. "
+             "인상 예상은 기업의 차입 비용을 키우므로 주가에 부정적이에요."]
     return {"tab": "금리 경로", "help": guide, "asof": f"연방기금 선물 · {when}", "value": signed(move / 100, 2), "unit": "%p", "state": state,
             "figure": {"type": "diverge", "rows": rows, "max": RATE_RANGE_BP, "step": RATE_STEP_BP}}
 
