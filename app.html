@@ -2777,11 +2777,12 @@
       if (rows.length) ticker.innerHTML = `<span class="rows">${rows.join("")}${rows[0].replace('class="row"', 'class="row" aria-hidden="true"')}</span>`;
     });
     const focus = +query.get("issue") || 0;
-    // 시장 페이지 첫 절인 주요 시세 절의 제목을 미국 거시 지표 절 앞에 둔다. 미국 거시 지표 절이 없으면 문서 끝에 둔다.
+    // 시장 페이지 둘째 절인 주요 시세 절의 제목을 미국 거시 지표 절 끝, 곧 다음 절 제목 앞에 둔다. 뒤에 절이 없거나 미국 거시 지표 절이 없으면 문서 끝에 둔다.
     const quotes = focus ? null : Object.assign(document.createElement("h2"), { textContent: "주요 시세" });
     if (quotes) {
-      const macro = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "미국 거시 지표");
-      if (macro) macro.before(quotes); else report.append(quotes);
+      const titles = [...report.querySelectorAll("h2")], at = titles.findIndex((h) => h.textContent.trim() === "미국 거시 지표");
+      const next = at >= 0 ? titles[at + 1] : null;
+      if (next) next.before(quotes); else report.append(quotes);
     }
     const pages = focus ? null : paginate();
     if (!focus) {
@@ -2902,7 +2903,7 @@
   }
   // 리포트 화면의 절을 `PAGES`의 페이지에 나눠 담는다. 페이지마다 단추 이름과 그 페이지에 넣을 절 제목을 두고, 목록에 없는 절은 앞 절의 페이지에 넣는다.
   // 넘기기 묶음은 노드를 옮기면 스크롤 위치가 처음으로 돌아가므로, 리포트를 받은 직후 묶음을 만들기 전에 나눈다.
-  const PAGES = [["예측", ["1개월 지수 방향 예측", "이벤트 캘린더"]], ["이슈", ["상세 이슈 해설"]], ["시장", ["주요 시세", "미국 거시 지표"]]];
+  const PAGES = [["예측", ["1개월 지수 방향 예측", "이벤트 캘린더"]], ["이슈", ["상세 이슈 해설"]], ["시장", ["미국 거시 지표", "주요 시세"]]];
   // 바로가기 단추의 선 아이콘이다. 예측은 마디 셋이 앞으로 굵어지는 접이식 망원경, 이슈는 불꽃, 시장은 고리를 두른 행성이다. 행성은 앞쪽 고리 둘레를 마스크로 비워 고리가 행성 앞을 지나게 그리고, 뒤쪽 고리는 행성 원판 자리를 비운 마스크로 가려 행성 뒤를 지나게 그린다.
   // 행성은 다른 아이콘보다 작아 보여 1.05배로 키우고, 선 굵기는 다른 아이콘과 같게 둔다.
   const PAGE_ICONS = {
