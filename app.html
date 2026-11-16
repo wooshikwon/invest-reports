@@ -355,6 +355,12 @@
   .issue-list .pick .num .tone-both { color: #8b95a1; }
   .issue-list .pick .text { flex: 1; }
   .issue-list .pick h3 { margin: 0; }
+  /* 리포트가 새로 쓴 이슈는 목록 상자 제목 끝에 이벤트 이름표와 같은 지수색 바탕의 "NEW" 알약을 붙인다. */
+  .issue-list .pick h3[data-new]::after { content: "NEW"; display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--index-ink);
+                                          color: var(--bg); font-size: 10px; font-weight: 800; line-height: 16px; letter-spacing: .02em; vertical-align: 2px; }
+  /* 앞 리포트에서 옮겨 온 이슈는 이슈 해설 말머리 오른쪽에 해설을 처음 쓴 날짜를 흐린 글씨로 붙인다. */
+  h4:has(> .dated) { display: flex; align-items: baseline; gap: 8px; }
+  h4 > .dated { color: var(--hint); font-size: 12px; font-weight: 600; }
   .issue-list .pick p { margin: 6px 0 0; color: var(--dim); font-size: 14px; line-height: 1.5; word-break: normal; }
   .issue-list .pick .thumb { flex: none; width: 88px; height: 88px; margin: 0; border-radius: 12px; object-fit: cover; cursor: inherit; }
   .issue-box { position: relative; margin-top: 12px; }
@@ -1503,6 +1509,10 @@
         if (now) text.append(Object.assign(document.createElement("p"), { textContent: [...now.childNodes].filter((n) => n.nodeName !== "MARK").map((n) => n.textContent).join("").trim() }));
         // 이슈 해설의 소제목은 목록 상자에만 쓰고, 이슈 문단에서는 말머리만 남긴다. 현재 상태 소제목은 접는 문단의 제목이므로 그대로 둔다.
         if (now?.querySelector("mark").textContent.trim() === "이슈 해설") [...now.childNodes].filter((n) => n.nodeName !== "MARK").forEach((n) => n.remove());
+        // 앞 리포트에서 옮겨 온 이슈(`data-carried`)는 이슈 해설 말머리 뒤에 "11/14 해설"처럼 해설을 처음 쓴 날짜를 붙인다.
+        const carried = nodes[0].dataset.carried;
+        if (carried && now?.querySelector("mark").textContent.trim() === "이슈 해설")
+          now.append(Object.assign(document.createElement("span"), { className: "dated", textContent: `${+carried.slice(5, 7)}/${+carried.slice(8)} 해설` }));
         const num = Object.assign(document.createElement("span"), { className: "num", textContent: i + 1 });
         const tone = [...title.querySelectorAll("code")].map((code) => Object.keys(arrows).find((t) => code.classList.contains(t))).find(Boolean);
         title.querySelectorAll("code").forEach((code) => code.remove());

@@ -852,24 +852,28 @@ def mark_indicators(body: str, cards: dict[str, dict]) -> str:
 
 def mark_issue_ids(body: str, bundles: Path, events: dict[int, list[tuple[str, str | None]]]) -> str:
     """`상세 이슈 해설` 절의 번호 붙은 이슈 소제목에 `system/issues.json`의 그 번호 `id`를 `data-issue`로 단다.
+    그 이슈를 새로 썼으면(`rewrite`) `data-new`를, 앞 리포트에서 옮겨 왔으면(`carry`) 처음 쓴 날짜를 `data-carried`로 함께 단다.
     `events`에 그 번호가 있으면 결과를 다룬 이벤트 이름을 `data-event`로 함께 달고, 그 이벤트가 모두 중요도 낮음이면 `data-event-level="low"`도 단다."""
     head = re.search(rf'<h2 id="[^"]*">{ISSUES_TITLE}</h2>', body)
     if not head or not bundles.is_file():
         return body
-    ids = {bundle["issue"]: bundle["id"] for bundle in json.loads(bundles.read_text(encoding="utf-8"))["issues"]}
+    marked = {bundle["issue"]: bundle for bundle in json.loads(bundles.read_text(encoding="utf-8"))["issues"]}
     end = body.find("<h2", head.end())
     end = len(body) if end < 0 else end
 
     def heading(match: re.Match) -> str:
         number = re.match(r"(\d+)\.\s", html.unescape(re.sub(r"<[^>]+>", "", match.group(2))).strip())
-        issue = ids.get(int(number.group(1))) if number else None
-        if not issue:
+        bundle = marked.get(int(number.group(1))) if number else None
+        if not bundle:
             return match.group(0)
+        state = " data-new" if "rewrite" in bundle else ""
+        if "carry" in bundle:
+            state += f' data-carried="{bundle["carry"]["date"]}"'
         found = events.get(int(number.group(1)), [])
         event = f' data-event="{html.escape(" · ".join(name for name, _ in found))}"' if found else ""
         if found and all(level == "low" for _, level in found):
             event += ' data-event-level="low"'
-        return f'<h3{match.group(1)} data-issue="{html.escape(issue)}"{event}>{match.group(2)}</h3>'
+        return f'<h3{match.group(1)} data-issue="{html.escape(bundle["id"])}"{state}{event}>{match.group(2)}</h3>'
 
     section = re.sub(r"<h3([^>]*)>(.*?)</h3>", heading, body[head.end():end], flags=re.DOTALL)
     return body[:head.end()] + section + body[end:]
@@ -941,6 +945,31 @@ def mark_issue_charts(body: str, plan: Path) -> str:
     return body[:head.end()] + "".join(parts) + body[end:]
 
 
+def mark_issue_carry(body: str, bundles: Path, index: str, out: Path) -> str:
+    """앞 리포트에서 옮겨 온 이슈(`system/issues.json`의 `carry`)는 소제목 뒤 내용을 처음 쓴 리포트 공개본의 그 번호 이슈 조각으로 바꿔,
+    그날의 그림과 그래프를 그대로 보인다. 처음 쓴 리포트의 공개본이 없으면 그대로 둔다."""
+    if not bundles.is_file():
+        return body
+    origins = {bundle["id"]: bundle["carry"] for bundle in json.loads(bundles.read_text(encoding="utf-8"))["issues"] if "carry" in bundle}
+    parts, last = [], 0
+    for start, stop in issue_segments(body):
+        segment = body[start:stop]
+        issue = re.match(r'<h3[^>]*data-issue="([^"]*)"', segment)
+        origin = origins.get(html.unescape(issue.group(1))) if issue else None
+        page = out / "r" / f"{origin['date'].replace('-', '')}-{index}" / "report.html" if origin else None
+        if not page or not page.is_file():
+            continue
+        earlier = HISTORY_RE.sub("", page.read_text(encoding="utf-8"))
+        found = next((earlier[at:end] for at, end in issue_segments(earlier)
+                      if re.match(rf"{origin['issue']}\.\s", html.unescape(re.sub(r"<[^>]+>", "", earlier[at:earlier.find("</h3>", at)])).strip())), None)
+        if found is None:
+            continue
+        cut = segment.find("</h3>") + len("</h3>")
+        parts += [body[last:start], segment[:cut], re.sub(r'\sid="[^"]*"', "", found[found.find("</h3>") + len("</h3>"):])]
+        last = stop
+    return "".join(parts) + body[last:]
+
+
 def issue_segments(body: str) -> list[tuple[int, int]]:
     """`상세 이슈 해설` 절에서 이슈 소제목마다 소제목부터 다음 소제목 앞까지의 위치."""
     head = re.search(rf'<h2 id="[^"]*">{ISSUES_TITLE}</h2>', body)
@@ -1009,11 +1038,14 @@ def issue_events(vault: Path, index: str, day: dt.date) -> dict[int, list[tuple[
 
 
 def issue_history(vault: Path, index: str, day: dt.date, out: Path) -> dict[str, list[tuple[dt.date, int, str]]]:
-    """오늘 이슈 `id`마다, 그 `id`를 노드로 묶은 앞 날짜 이슈의 날짜와 이슈 번호와 공개본 이슈 조각을 날짜 순으로."""
+    """오늘 이슈 `id`마다, 그 `id`를 노드로 묶은 앞 날짜 이슈의 날짜와 이슈 번호와 공개본 이슈 조각을 날짜 순으로.
+    앞 리포트에서 옮겨 온 앞 날짜 이슈는 처음 쓴 날짜의 이슈와 같은 조각이므로 넣지 않고, 오늘 옮겨 온 이슈는 처음 쓴 날짜의 이슈를 넣지 않는다."""
     bundles = report_path(vault, day, index).parent / "system" / "issues.json"
     if not bundles.is_file():
         return {}
-    history = {bundle["id"]: [] for bundle in json.loads(bundles.read_text(encoding="utf-8"))["issues"]}
+    today = json.loads(bundles.read_text(encoding="utf-8"))["issues"]
+    history = {bundle["id"]: [] for bundle in today}
+    carried = {bundle["id"]: bundle["carry"]["date"] for bundle in today if "carry" in bundle}
     for source in sorted(vault.glob(f"routine/invest/*/*/{index}/system/issues.json")):
         name = source.parent.parent.parent.name
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", name) or (past := dt.date.fromisoformat(name)) >= day:
@@ -1028,14 +1060,17 @@ def issue_history(vault: Path, index: str, day: dt.date, out: Path) -> dict[str,
             if issue:
                 segments[html.unescape(issue.group(1))] = body[start:stop]
         for bundle in json.loads(source.read_text(encoding="utf-8"))["issues"]:
+            if "carry" in bundle:
+                continue
             for issue in history:
-                if issue in bundle["nodes"] and bundle["id"] in segments:
+                if issue in bundle["nodes"] and bundle["id"] in segments and carried.get(issue) != name:
                     history[issue].append((past, bundle["issue"], segments[bundle["id"]]))
     return history
 
 
 def mark_issue_history(body: str, history: dict[str, list[tuple[dt.date, int, str]]], day: dt.date) -> str:
-    """번호 붙은 이슈 뒤에 앞 날짜 이슈 조각과 날짜마다 이슈 해설 소제목을 담은 `issue-history` 템플릿을 넣는다."""
+    """번호 붙은 이슈 뒤에 앞 날짜 이슈 조각과 날짜마다 이슈 해설 소제목을 담은 `issue-history` 템플릿을 넣는다.
+    마지막 항목은 오늘 이슈이고, 앞 리포트에서 옮겨 온 이슈(`data-carried`)는 그 항목에 처음 쓴 날짜를 적는다."""
     parts, last = [], 0
     for start, stop in issue_segments(body):
         segment = body[start:stop]
@@ -1044,7 +1079,8 @@ def mark_issue_history(body: str, history: dict[str, list[tuple[dt.date, int, st
         if not past:
             continue
         days = [(when, explainer_title(chunk), re.sub(r'\sid="[^"]*"', "", chunk)) for when, _, chunk in past]
-        days.append((day, explainer_title(segment), ""))
+        carried = re.match(r'<h3[^>]*data-carried="([^"]*)"', segment)
+        days.append((dt.date.fromisoformat(carried.group(1)) if carried else day, explainer_title(segment), ""))
         sections = "".join(f'<section data-day="{when}" data-title="{html.escape(title)}">{chunk}</section>'
                            for when, title, chunk in days)
         parts += [body[last:stop].rstrip(), f'\n<template class="issue-history">{sections}</template>\n']
@@ -1104,6 +1140,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     body = mark_issue_ids(body, source.parent / "system" / "issues.json", issue_events(vault, index, day))
     body = mark_issue_images(body, source.parent / "assets", source.parent / "system" / "issue-images.json", target, out)
     body = mark_issue_charts(body, source.parent / "system" / "issue-charts.json")
+    body = mark_issue_carry(body, source.parent / "system" / "issues.json", index, out)
     history = issue_history(vault, index, day, out)
     body = mark_issue_history(body, history, day)
     if card:
