@@ -1101,6 +1101,7 @@
     const box = slider(cards.map((c) => [c.box]), head, { change, name: "market", area: head, feel: true });
     box.prepend(bar);
     head.tabs = series.map((line) => line.tab);
+    head.names = series.map((line) => line.name);
     head.pick = (tab) => box.go(head.tabs.indexOf(tab));
     cards.forEach((c) => c.show(date));
     const index = key.split("-")[1];
@@ -1136,16 +1137,16 @@
     const md = (day) => `${day.slice(5, 7)}/${day.slice(8, 10)}`;
     const path = (points) => `M${points.map(([x, y]) => `${x} ${y}`).join("L")}`;
     const last = dates.length - 1;
-    // 카드 틀. 위 줄 맥락 글씨, 가운데 줄 값과 상태, 그림 칸, 그림 아래 줄을 둔다. 맥락 글씨는 지난 날짜를 고르면 그 리포트 날짜를 앞에 붙이고,
-    // 맥락 글씨가 날짜를 스스로 적으면(`dated`) 붙이지 않는다. 값은 글씨나 노드 목록으로 받고, 상태 글씨가 없으면 상태 칸을 숨긴다.
+    // 카드 틀. 위 줄 맥락 글씨, 가운데 줄 값과 상태, 그림 칸, 그림 아래 줄을 둔다. 맥락 글씨는 지난 날짜를 고르면 그 리포트 날짜를 앞에 붙인다.
+    // 값은 글씨나 노드 목록으로 받고, 상태 글씨가 없으면 상태 칸을 숨긴다.
     // 맥락 글씨를 따로 받으면 카드를 만들 때의 맥락 글씨 대신 쓴다.
     const card = (ctx) => {
       const box = Object.assign(document.createElement("div"), { className: "gauge summary ink" });
       box.innerHTML = '<div class="top"><span class="ctx"></span></div><div class="val"><b></b><span class="state"><i></i><span></span></span></div><div class="fig"></div><div class="foot"></div>';
       const [label, value, state] = [box.querySelector(".ctx"), box.querySelector(".val b"), box.querySelector(".state")];
       const svg = box.querySelector(".fig").appendChild(shape("svg", { viewBox: `0 0 ${W} ${H}` }));
-      const head = (frame, text, big, context = ctx, dated = false) => {
-        label.textContent = dated || frame.day === date ? context : `${md(frame.day)} 리포트, ${context}`;
+      const head = (frame, text, big, context = ctx) => {
+        label.textContent = frame.day === date ? context : `${md(frame.day)} 리포트, ${context}`;
         value.replaceChildren(...[big].flat());
         state.querySelector("span").textContent = text;
         state.hidden = !text;
@@ -1154,8 +1155,8 @@
     };
 
     // 주가와 예측: 그림 아래 −·+ 단추로 고른 기간의 종가와 고른 날짜 판단의 25~75% 범위, 50% 선을 그린다. 회색 점선과 면은 지난 리포트의 예측이다.
-    // 위 줄은 "나스닥 11/13 마감 후 $27,712 −0.83% → 25거래일 뒤"처럼 고른 날짜 판단의 기준 가격 날짜, 기준 가격, 그날 종가 대비 기준 가격의 등락률을 적고,
-    // 화살표 뒤 "25거래일 뒤"를 가운데 줄의 25거래일 뒤 50% 값으로 이어 읽게 한다. 기준 가격 날짜를 적으므로 지난 날짜를 골라도 리포트 날짜를 붙이지 않는다.
+    // 위 줄은 "나스닥 $27,712 (장 마감 후)"처럼 지수 이름과 고른 날짜 판단의 기준 가격을 적는다. 기준 가격은 정규장 뒤 시간 외 거래까지 반영한 마지막 가격이다.
+    // 가운데 줄은 25거래일 뒤 50% 값과 "25거래일 뒤 −1.8%"처럼 기준 가격 대비 등락률을 적는다.
     // 기간은 3년, 2년, 1년, 6개월, 3개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
     // 고른 날짜가 리포트 날짜보다 앞이면 종가 선은 그날 판단의 출발점에서 다시 이어 리포트 날짜 판단의 기준 가격 날짜 종가까지 그리고,
     // 그 오른쪽 `start_offset` 거래일에 리포트 날짜 판단의 기준 가격을 점으로 찍어 점선으로 잇는다.
@@ -1257,9 +1258,8 @@
         show(f) {
           frame = f;
           cancelAnimationFrame(raf);
-          const after = signed((f.base / hist[at(f)] - 1) * 100, 2);
-          c.head(f, `${signed((end(f, "q50") / f.base - 1) * 100)}%`, fmt(end(f, "q50")),
-            `${PRICE_NAME[key.split("-")[1]]} ${md(f.base_date)} 마감 후 ${fmt(f.base)} ${after}% \u2192 25거래일 뒤`, true);
+          c.head(f, `25거래일 뒤 ${signed((end(f, "q50") / f.base - 1) * 100)}%`, fmt(end(f, "q50")),
+            `${PRICE_NAME[key.split("-")[1]]} ${fmt(f.base)} (장 마감 후)`);
           tween(span, span, 1);
         },
       };
@@ -3094,9 +3094,10 @@
       ["히스토리", "같은 이슈를 다룬 지난 리포트의 해설 제목이에요. 제목을 누르면 그날의 해설이 나와요."],
     ],
     "주요 시세": [
-      ["종가", "리포트 날짜 전날까지의 마지막 종가와 그 앞 거래일 대비 등락률이에요. 나스닥 100은 장 마감 후 등락률도 함께 보여줘요. 이 리포트 지수와 바이오의 시세는 각 리포트 예측 페이지의 주가와 예측 카드에 있어요."],
-      ["기간", "그림 아래 −와 +로 3년, 2년, 1년, 6개월, 3개월 가운데 하나를 골라요."],
-      ["날짜 슬라이더", "지난 30일 안의 리포트 날짜를 고르면 그날 리포트가 본 시세로 바뀌어요."],
+      ["S&P 500", "미국 대형주 500개로 만든 지수예요. 미국 주식시장 전체의 흐름을 보여줘요."],
+      ["나스닥 100", "나스닥에 상장한 금융주를 뺀 대형주 100개로 만든 지수예요. 기술주 비중이 커요."],
+      ["러셀 2000", "미국 소형주 2,000개로 만든 지수예요. 대형주 지수와 다른 소형주의 흐름을 보여줘요."],
+      ["원/달러", "1달러를 사는 데 드는 원화예요. 값이 오르면 원화 가치가 내려가요."],
     ],
     "이벤트 캘린더": [
       ["이벤트 확률표", "앞으로 35일 안에 발표되는 이벤트마다 가능한 결과와 확률을 보여줘요. 이벤트는 주가에 반영되는 거래일에 모아요. 장 마감 뒤나 휴일에 나온 발표는 다음 거래일에 두고 발표일을 함께 적어요. 주가 경로 2만 개를 만들 때 이벤트 확률을 써요."],
@@ -3109,12 +3110,13 @@
     + '<circle cx="8" cy="11.6" r=".8" fill="currentColor"/></svg>';
   // 그림 카드가 있는 리포트의 1개월 지수 방향 예측 설명. 판단 색 이름은 지수마다 다르다.
   const CARD_HELP = (ink) => [
-    ["주가와 예측", `위 줄의 가격은 예측이 출발하는 기준 가격이에요. 그날 정규장이 끝난 뒤 시간 외 거래까지 반영한 마지막 가격이고, 옆의 등락률은 그날 종가 대비예요. 아래 큰 값은 25거래일 뒤 예측 중앙값이에요. ${ink} 실선은 예측 중앙값이에요. ${ink} 면에는 25거래일 뒤 가격이 25~75% 확률로 들어와요. 회색 점선과 면은 지난 리포트의 예측이에요.`],
-    ["일정과 예측", `이슈와 이벤트를 반영한 경로 2만 개의 등락률 분포예요. 진한 면에 경로의 가운데 50%가, 옅은 면에 가운데 80%가 들어와요. 번호나 그림 아래 꺽쇠를 누르면 그날의 등락률 범위와 일정이 나와요. 밑줄 친 일정 이름을 누르면 아래 이벤트 캘린더에서 그날 일정을 열어요.`],
+    ["주가와 예측", `위 줄의 가격은 예측이 출발하는 기준 가격이에요. 그날 정규장이 끝난 뒤 시간 외 거래까지 반영한 마지막 가격이에요. 아래 큰 값은 25거래일 뒤 예측 중앙값이고, 옆의 등락률은 기준 가격 대비예요. ${ink} 실선은 예측 중앙값이에요. ${ink} 면에는 25거래일 뒤 가격이 25~75% 확률로 들어와요. 회색 점선과 면은 지난 리포트의 예측이에요.`],
+    ["일정과 예측", `이슈와 이벤트를 반영한 경로 2만 개의 등락률 분포예요. 진한 면에 경로의 가운데 50%가, 옅은 면에 가운데 80%가 들어와요.`],
     ["권장 배율", `경로 2만 개의 한 달 평균 등락을 배율로 바꾼 분포예요. ${ink} 세로선이 권장 배율이에요. 세로선이 회색 점선 1.0(지수 추종)보다 왼쪽이면 하락 쪽 판단이고, 오른쪽이면 상승 쪽 판단이에요.`],
   ];
   const INK = { nasdaq: "파란", biotech: "보라" };
   // 설명이 있는 절 제목 뒤에 물음표 단추를 넣는다. 단추는 글자를 담지 않으므로 절 제목 글자로 절을 찾는 `paginate`와 이벤트 캘린더 찾기가 그대로 동작한다. `section`이 절 제목 안을 바꿔 쓴 뒤에 부른다.
+  // 주요 시세 설명은 시세 카드가 정한 시세 이름(`names`)의 설명만 띄운다.
   function help() {
     report.querySelectorAll("h2").forEach((head) => {
       const title = head.textContent.trim();
@@ -3122,7 +3124,7 @@
       const items = title === "1개월 지수 방향 예측" && report.querySelector(".carousel.cards") ? CARD_HELP(INK[key.split("-")[1]] || "파란") : HELP[title];
       head.append(question(title, () => {
         const list = document.createElement("ul");
-        items.forEach(([name, text]) => {
+        items.filter(([name]) => !head.names || head.names.includes(name)).forEach(([name, text]) => {
           const li = list.appendChild(document.createElement("li"));
           li.append(Object.assign(document.createElement("b"), { textContent: name }), text);
         });
