@@ -355,11 +355,12 @@
   .issue-list .pick .num .tone-both { color: #8b95a1; }
   .issue-list .pick .text { flex: 1; }
   .issue-list .pick h3 { margin: 0; }
-  /* 목록 상자의 제목과 소제목 아래 왼쪽에 아주 작은 글씨로, 새로 쓴 이슈는 지수색 "NEW"를, 앞 리포트에서 옮겨 온 이슈는 흐린 "N일 전"을 쓴다. */
+  /* 목록 상자의 제목과 소제목 아래 왼쪽에 아주 작은 글씨로, 새로 쓴 이슈는 빨간 "NEW"를, 앞 리포트에서 옮겨 온 이슈는 흐린 "N일 전"을 쓴다. */
   .issue-list .pick .age { margin: 6px 0 0; color: var(--hint); font-size: 10px; font-weight: 700; line-height: 14px; letter-spacing: .02em; }
-  .issue-list .pick .age.new { color: var(--index-ink); font-weight: 800; }
-  /* 이슈 해설 말머리 아래, 본문 앞에 해설을 쓴 날짜를 흐린 글씨로 쓴다. */
+  .issue-list .pick .age.new { color: #ff5c5c; font-weight: 800; }
+  /* 이슈 해설 말머리 아래, 본문 앞에 해설을 쓴 날짜를 흐린 글씨로 쓰고, 새로 쓴 이슈는 날짜 뒤에 빨간 "NEW"를 붙인다. */
   .issue-page .written { margin: -4px 0 10px; color: var(--hint); font-size: 12px; font-weight: 600; letter-spacing: .02em; }
+  .issue-page .written .new { margin-left: 6px; color: #ff5c5c; font-weight: 800; }
   .issue-list .pick p { margin: 6px 0 0; color: var(--dim); font-size: 14px; line-height: 1.5; word-break: normal; }
   /* 썸네일은 제목부터 NEW·N일 전 줄까지 담은 상자 내용의 높이만큼 위아래로 늘려 상자 위·아래·오른쪽 여백을 같게 두고, 내용이 낮아도 96px 정사각형보다 작아지지 않는다.
      크기 격리(contain: size)로 그림 비율이 상자 높이를 바꾸지 않게 한다. */
@@ -1533,7 +1534,7 @@
       const page = box.appendChild(document.createElement("div"));
       page.className = "issue-page";
       page.append(...nodes);
-      if (lead) written(lead, nodes[0].dataset.written);
+      if (lead) written(lead, nodes[0].dataset.written, "new" in nodes[0].dataset);
       if (image) gallery(image);
       const past = nodes.find((node) => node.matches?.("template.issue-history"));
       if (past) Object.assign(page, chronicle(page, past));
@@ -1579,9 +1580,12 @@
     // 줄을 누르면 진동을 내고, 상자 위의 제목·그림과 상자 아래의 해설·그래프를 그날 내용으로 바꿔 서서히 보이며 화면을 맨 위로 옮긴다.
     // 돌려준 `restore`는 이슈 문단을 오늘 내용으로 돌리고 앞선 줄을 다시 접으며, 이슈를 열 때마다 부른다.
     // 돌려준 `recall`은 `day` 날짜 항목을 고른다. 그 줄이 접힌 앞선 줄이면 목록을 펼치고 목록 안에서 그 줄이 보이게 스크롤한다.
-    // 이슈 해설 말머리 바로 뒤에 해설을 쓴 날짜(YYYY-MM-DD)를 "2026.11.14"처럼 쓴 줄을 넣는다.
-    function written(lead, date) {
-      if (date) lead.after(Object.assign(document.createElement("p"), { className: "written", textContent: date.replaceAll("-", ".") }));
+    // 이슈 해설 말머리 바로 뒤에 해설을 쓴 날짜(YYYY-MM-DD)를 "2026.11.14"처럼 쓴 줄을 넣는다. 새로 쓴 이슈(`fresh`)는 날짜 뒤에 "NEW"를 붙인다.
+    function written(lead, date, fresh) {
+      if (!date) return;
+      const line = Object.assign(document.createElement("p"), { className: "written", textContent: date.replaceAll("-", ".") });
+      if (fresh) line.append(Object.assign(document.createElement("span"), { className: "new", textContent: "NEW" }));
+      lead.after(line);
     }
     function chronicle(page, template) {
       const entries = [...template.content.children], today = entries.length - 1;
