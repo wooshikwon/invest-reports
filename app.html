@@ -2910,7 +2910,7 @@
     시장: '<g transform="translate(12 12) scale(1.05) rotate(-28)"><mask id="market-ring" maskUnits="userSpaceOnUse" x="-12" y="-12" width="24" height="24"><rect x="-12" y="-12" width="24" height="24" fill="#fff" stroke="none"/><path class="ring" d="M10.6 0A10.6 4.2 0 0 1 -10.6 0" stroke="#000" stroke-width="3.2"/></mask><mask id="market-body" maskUnits="userSpaceOnUse" x="-30" y="-30" width="60" height="60"><rect x="-30" y="-30" width="60" height="60" fill="#fff" stroke="none"/><circle r="7.5" fill="#000" stroke="none"/></mask><circle r="6.8" mask="url(#market-ring)" vector-effect="non-scaling-stroke"/><g mask="url(#market-body)"><path class="ring" vector-effect="non-scaling-stroke" d="M-10.6 0A10.6 4.2 0 0 1 10.6 0"/></g><path class="ring" vector-effect="non-scaling-stroke" d="M10.6 0A10.6 4.2 0 0 1 -10.6 0"/></g>',
   };
   // 바로가기 단추로 다른 페이지를 열면 그 단추의 아이콘을 한 번 움직인다. 예측은 접안 마디 위로 접혀 있던 망원경 마디가 아래 마디부터 하나씩 위로 펼쳐지고, 끝에 별이 잠깐 반짝인다.
-  // 이슈는 불꽃 끝과 몸통, 안쪽 불꽃의 모양이 매 순간 달라지며 밑동을 축으로 흔들리다 잦아든다. 모양 변화는 iOS WebKit이 CSS `d` 애니메이션을 지원하지 않아 SVG `<animate>`로 돌린다. 시장은 고리 없는 행성 위로 고리가 떨어져 걸린 뒤 행성 둘레를 한 바퀴 돈다.
+  // 이슈는 불꽃 끝과 몸통, 안쪽 불꽃의 모양이 매 순간 달라지며 밑동을 축으로 흔들리고, 그동안 한 번 크게 타올랐다가 원래 크기로 잦아든다. 모양 변화는 iOS WebKit이 CSS `d` 애니메이션을 지원하지 않아 SVG `<animate>`로 돌린다. 시장은 고리 없는 행성 위로 고리가 떨어져 걸린 뒤 행성 둘레를 한 바퀴 돈다.
   // 고리는 끊긴 데 없는 타원으로 떨어지고, 뒤쪽 반은 행성 원판에 겹친 부분만 가려진다. 행성 앞을 지나는 마스크도 고리와 함께 움직이므로, 고리가 떨어지기 전에는 행성이 온전히 보인다.
   const ICON_MOTIONS = {
     예측: (svg) => {
@@ -2925,7 +2925,7 @@
     },
     이슈: (svg) => {
       svg.querySelector(".flame animate").beginElement();
-      return [svg.querySelector(".flame").animate([0, -8, 6, -4, 2.5, -1, 0].map((skew) => ({ transform: `rotate(${skew / 2}deg) skewX(${skew}deg)` })),
+      return [svg.querySelector(".flame").animate([[0, 1], [-8, 1.1], [6, 1.15], [-4, 1.12], [2.5, 1.06], [-1, 1.02], [0, 1]].map(([skew, size]) => ({ transform: `rotate(${skew / 2}deg) skewX(${skew}deg) scale(${size})` })),
         { duration: 1300, easing: "ease-out" })];
     },
     시장: (svg) => [...svg.querySelectorAll(".ring")].map((ring) => ring.animate([
