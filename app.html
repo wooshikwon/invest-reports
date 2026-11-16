@@ -511,13 +511,13 @@
   .gauge .zoom .steps { display: flex; align-items: center; gap: 5px; }
   .gauge .zoom .steps i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, .22); }
   /* 고른 기간의 돋보기는 + 쪽 기간일수록 크게 그린다. 차지하는 너비는 11px로 두어 크기가 바뀌어도 −, + 단추가 움직이지 않는다. */
-  .gauge .zoom .steps i.on { --size: 11px; width: var(--size); height: var(--size); margin: 0 calc((11px - var(--size)) / 2); border-radius: 0; background: #fff;
+  .gauge .zoom .steps i.on { --size: 12.1px; width: var(--size); height: var(--size); margin: 0 calc((11px - var(--size)) / 2); border-radius: 0; background: #fff;
     -webkit-mask: var(--magnifier) center / contain no-repeat; mask: var(--magnifier) center / contain no-repeat;
     --magnifier: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='6' cy='6' r='4.3'/%3E%3Cpath d='M9.2 9.2L12.6 12.6'/%3E%3C/svg%3E"); }
-  .gauge .zoom .steps i.on:nth-child(1) { --size: 7px; }
-  .gauge .zoom .steps i.on:nth-child(2) { --size: 9px; }
-  .gauge .zoom .steps i.on:nth-child(4) { --size: 13px; }
-  .gauge .zoom .steps i.on:nth-child(5) { --size: 15px; }
+  .gauge .zoom .steps i.on:nth-child(1) { --size: 7.7px; }
+  .gauge .zoom .steps i.on:nth-child(2) { --size: 9.9px; }
+  .gauge .zoom .steps i.on:nth-child(4) { --size: 14.3px; }
+  .gauge .zoom .steps i.on:nth-child(5) { --size: 16.5px; }
   .gauge .evbox { display: flex; align-items: center; gap: 4px; height: 28px; font-size: 13px; color: var(--text); white-space: nowrap; }
   .gauge .evbox button { flex: none; appearance: none; border: 0; padding: 0; width: 28px; height: 28px; background: transparent; color: var(--text);
                          display: grid; place-items: center; cursor: pointer; }
