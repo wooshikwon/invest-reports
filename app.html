@@ -2016,13 +2016,13 @@
       history.replaceState({ ...history.state, day: days[i] }, "");
       if (aim === null) reach(i); else if (aim === i) aim = null;
     };
-    // 날짜 상자는 가장 넓은 상자의 폭으로 맞춘다.
+    // 날짜 상자는 가장 넓은 상자의 폭으로 맞추고, 띠를 보고 있는 날짜나 누른 날짜(`aim`)로 바로 옮긴다. 띠가 미끄러지는 중이면 그 날짜로 다시 미끄러뜨린다.
     const fill = () => {
       const buttons = [...strip.children];
       buttons.forEach((button) => (button.style.width = ""));
       const width = Math.max(...buttons.map((button) => button.getBoundingClientRect().width));
       buttons.forEach((button) => (button.style.width = `${width}px`));
-      reach(seen, true);
+      reach(aim ?? seen, !sliding);
     };
     // 리포트 날짜 상자가 모두 화면 왼쪽이나 오른쪽 밖으로 나가 있으면 그쪽 끝의 빛을 켠다. 상자가 조금이라도 보이면 켜지 않는다.
     const rail = Object.assign(document.createElement("div"), { className: "days-rail" });
