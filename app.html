@@ -3122,18 +3122,18 @@
     + '<circle cx="8" cy="11.6" r=".8" fill="currentColor"/></svg>';
   // 그림 카드가 있는 리포트의 1개월 지수 방향 예측 설명. 판단 색 이름은 지수마다 다르다.
   const CARD_HELP = (ink) => [
-    ["주가와 예측", `위 줄은 장 마감 후 거래까지 반영한 기준 가격과 그날의 등락률이에요. 큰 값은 예측한 25거래일 뒤 가격의 중앙값이에요. ${ink} 면에는 25거래일 뒤 가격이 50% 확률로 들어와요. 회색 점선과 면은 지난 리포트의 예측이에요.`],
+    ["주가와 예측", `예측한 25거래일 뒤 가격 범위의 중앙값을 알려드려요. ${ink} 면에는 25거래일 뒤 가격이 50% 확률로 들어와요. 회색 점선과 면은 지난 리포트의 예측이에요.`],
     ["일정과 예측", `이슈와 이벤트를 반영한 주가 경로 2만 개로 거래일마다 등락률 범위를 계산해요. 진한 면에 경로의 가운데 50%가, 옅은 면에 가운데 80%가 들어와요.`],
     ["권장 배율", `${ink} 세로선이 권장 배율이에요. 권장 배율이 1.0(지수 추종)보다 작으면 리포트가 하락을 예상한다는 뜻이고, 크면 상승을 예상한다는 뜻이에요.`],
   ];
-  const INK = { nasdaq: "파란", biotech: "보라" };
+  const INK = { nasdaq: "하늘색", biotech: "보라색" };
   // 설명이 있는 절 제목 뒤에 물음표 단추를 넣는다. 단추는 글자를 담지 않으므로 절 제목 글자로 절을 찾는 `paginate`와 이벤트 캘린더 찾기가 그대로 동작한다. `section`이 절 제목 안을 바꿔 쓴 뒤에 부른다.
   // 주요 시세 설명은 시세 카드가 정한 시세 이름(`names`)의 설명만 띄운다.
   function help() {
     report.querySelectorAll("h2").forEach((head) => {
       const title = head.textContent.trim();
       if (!HELP[title]) return;
-      const items = title === "1개월 지수 방향 예측" && report.querySelector(".carousel.cards") ? CARD_HELP(INK[key.split("-")[1]] || "파란") : HELP[title];
+      const items = title === "1개월 지수 방향 예측" && report.querySelector(".carousel.cards") ? CARD_HELP(INK[key.split("-")[1]] || "하늘색") : HELP[title];
       head.append(question(title, () => {
         const list = document.createElement("ul");
         items.filter(([name]) => !head.names || head.names.includes(name)).forEach(([name, text]) => {
