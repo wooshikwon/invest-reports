@@ -1279,7 +1279,7 @@
     // 그 줄 양옆의 꺽쇠를 누르면 앞뒤 일정을 고르고, 일정 이름을 누르면 같은 페이지 아래의 이벤트 캘린더에서 같은 거래일을 연다(`toCalendar`).
     // 지난 날짜를 고르면 그날 기준 가격 뒤의 실제 종가 등락률을 흰 선으로 그린다.
     const tree = (() => {
-      const c = card("25거래일 뒤 등락률 예측"), s = c.svg;
+      const c = card("25거래일 뒤 등락률 범위"), s = c.svg;
       const L = 4, R = W - 4, T = 38;
       const box = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "evbox" }));
       const chevron = (d, label) => Object.assign(document.createElement("button"), { type: "button", ariaLabel: label,
@@ -1318,7 +1318,7 @@
           ...["90", "75", "25", "10"].map((q, k) => shape("text", { x: X(d) + (right ? 5 : -5), y: at[k] + shift, "font-size": 11, fill: ink(q),
           "text-anchor": right ? "start" : "end", stroke: "#171719", "stroke-width": 3, "stroke-linejoin": "round", "paint-order": "stroke" }, `${signed(pct[q][d])}%`)));
         c.head(frame, "", [...percent(pct["25"][d]), Object.assign(document.createElement("span"), { className: "sep", textContent: "~" }), ...percent(pct["75"][d])],
-          `${d}거래일 뒤 등락률 예측`);
+          `${d}거래일 뒤 등락률 범위`);
         line.replaceChildren(Object.assign(document.createElement("span"), { className: "d", textContent: day }),
           Object.assign(document.createElement("span"), { className: "n", textContent: names.length ? names.join(", ") : "예측 마지막 날" }));
         line.classList.toggle("go", names.length > 0);
@@ -3118,9 +3118,9 @@
     + '<circle cx="8" cy="11.6" r=".8" fill="currentColor"/></svg>';
   // 그림 카드가 있는 리포트의 1개월 지수 방향 예측 설명. 판단 색 이름은 지수마다 다르다.
   const CARD_HELP = (ink) => [
-    ["주가와 예측", `위 줄의 가격은 예측이 출발하는 기준 가격이에요. 그날 정규장이 끝난 뒤 시간 외 거래까지 반영한 마지막 가격이에요. 괄호 안은 그날 정규장 등락률과 정규장 종가 대비 장 마감 후 등락률이에요. 아래 큰 값은 25거래일 뒤 예측 중앙값이고, 옆의 등락률은 기준 가격 대비예요. ${ink} 실선은 예측 중앙값이에요. ${ink} 면에는 25거래일 뒤 가격이 25~75% 확률로 들어와요. 회색 점선과 면은 지난 리포트의 예측이에요.`],
-    ["일정과 예측", `이슈와 이벤트를 반영한 경로 2만 개의 등락률 분포예요. 진한 면에 경로의 가운데 50%가, 옅은 면에 가운데 80%가 들어와요.`],
-    ["권장 배율", `경로 2만 개의 한 달 평균 등락을 배율로 바꾼 분포예요. ${ink} 세로선이 권장 배율이에요. 세로선이 회색 점선 1.0(지수 추종)보다 왼쪽이면 하락 쪽 판단이고, 오른쪽이면 상승 쪽 판단이에요.`],
+    ["주가와 예측", `위 줄은 장 마감 후 거래까지 반영한 기준 가격과 그날의 등락률이에요. 큰 값은 예측한 25거래일 뒤 가격의 중앙값이에요. ${ink} 면에는 25거래일 뒤 가격이 50% 확률로 들어와요. 회색 점선과 면은 지난 리포트의 예측이에요.`],
+    ["일정과 예측", `이슈와 이벤트를 반영한 주가 경로 2만 개로 거래일마다 등락률 범위를 계산해요. 진한 면에 경로의 가운데 50%가, 옅은 면에 가운데 80%가 들어와요.`],
+    ["권장 배율", `${ink} 세로선이 권장 배율이에요. 권장 배율이 1.0(지수 추종)보다 작으면 리포트가 하락을 예상한다는 뜻이고, 크면 상승을 예상한다는 뜻이에요.`],
   ];
   const INK = { nasdaq: "파란", biotech: "보라" };
   // 설명이 있는 절 제목 뒤에 물음표 단추를 넣는다. 단추는 글자를 담지 않으므로 절 제목 글자로 절을 찾는 `paginate`와 이벤트 캘린더 찾기가 그대로 동작한다. `section`이 절 제목 안을 바꿔 쓴 뒤에 부른다.
