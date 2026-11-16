@@ -493,6 +493,9 @@
      가로축 높이가 같아, 카드를 넘겨도 가로축이 같은 높이에 있다. 카드의 상태 글씨와 점(`--card-color`)은 카드마다 정한 색으로 칠하고,
      예측 카드(`ink`)는 절 제목 글씨와 같은 지수색 그라데이션(`--index-ink`)으로 칠한다. 범위 값의 물결표는 흐린 글씨로 띄어 쓴다. */
   .gauge .ctx { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  /* 주가와 예측 카드의 위 줄(`base`)은 기준 가격 날짜부터 장 마감 후 등락률까지 한 줄에 담도록, 폭이 390px보다 좁은 화면에서 글씨를 10px까지 줄인다.
+     줄 높이는 12px 글씨의 줄 높이로 두어 그림이 다른 카드와 같은 높이에 있다. */
+  .gauge .ctx.base { font-size: clamp(10px, calc((100vw - 68px) / 27), 12px); line-height: 20px; }
   .gauge .ctx .up { color: #ff5c5c; }
   .gauge .ctx .down { color: #5b9bff; }
   .gauge.summary .state { color: var(--card-color); }
@@ -1157,7 +1160,7 @@
     };
 
     // 주가와 예측: 그림 아래 −·+ 단추로 고른 기간의 종가와 고른 날짜 판단의 25~75% 범위, 50% 선을 그린다. 회색 점선과 면은 지난 리포트의 예측이다.
-    // 위 줄은 "나스닥 $27,712 (정규장 −0.38%, 장 마감 후 −0.83%)"처럼 지수 이름과 고른 날짜 판단의 기준 가격을 적는다. 기준 가격은 정규장 뒤 시간 외 거래까지 반영한
+    // 위 줄은 "11/13 나스닥 $27,712 (정규장 −0.38%, 장 마감 후 −0.83%)"처럼 기준 가격 날짜와 지수 이름, 고른 날짜 판단의 기준 가격을 적는다. 기준 가격은 정규장 뒤 시간 외 거래까지 반영한
     // 마지막 가격이다. 괄호 안은 기준 가격 날짜 종가의 앞 거래일 종가 대비 등락률과 기준 가격의 그날 종가 대비 등락률이고, 오르면 빨강, 내리면 파랑으로 칠한다.
     // 위 줄이 카드 폭을 거의 다 쓰므로 지난 날짜를 골라도 리포트 날짜를 붙이지 않는다.
     // 가운데 줄은 25거래일 뒤 50% 값과 "25거래일 뒤 −1.8%"처럼 기준 가격 대비 등락률을 적는다.
@@ -1166,6 +1169,7 @@
     // 그 오른쪽 `start_offset` 거래일에 리포트 날짜 판단의 기준 가격을 점으로 찍어 점선으로 잇는다.
     const predict = (() => {
       const c = card(), s = c.svg;
+      c.box.querySelector(".ctx").classList.add("base");
       const L = 4, R = W - 4, T = 22, xmax = last + so + 25;
       const SPAN = [756, 504, 252, 126, 63].map((days) => Math.max(0, last - days));
       let span = 2, frame = null, raf = 0;
@@ -1267,7 +1271,7 @@
           frame = f;
           cancelAnimationFrame(raf);
           c.head(f, `25거래일 뒤 ${signed((end(f, "q50") / f.base - 1) * 100)}%`, fmt(end(f, "q50")),
-            [`${PRICE_NAME[key.split("-")[1]]} ${fmt(f.base)} (정규장 `, rate(hist[at(f)] / hist[at(f) - 1] - 1), ", 장 마감 후 ", rate(f.base / hist[at(f)] - 1), ")"], true);
+            [`${md(f.base_date)} ${PRICE_NAME[key.split("-")[1]]} ${fmt(f.base)} (정규장 `, rate(hist[at(f)] / hist[at(f) - 1] - 1), ", 장 마감 후 ", rate(f.base / hist[at(f)] - 1), ")"], true);
           tween(span, span, 1);
         },
       };
