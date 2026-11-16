@@ -695,8 +695,8 @@
   const PRICE_NAME = { nasdaq: "나스닥", biotech: "IBB" };
   // 달력의 지수 단추에 쓰는 이름이다.
   const SHORT = { nasdaq: "나스닥 리포트", biotech: "바이오 리포트" };
-  // 리포트의 "1개월 지수 방향 예측" 절은 "나스닥 1개월 예측"처럼 지수 이름을 붙인 제목으로 보인다. 제목으로 절을 찾는 코드는 이 제목을 쓴다.
-  const forecast = () => `${{ nasdaq: "나스닥", biotech: "바이오" }[key.split("-")[1]]} 1개월 예측`;
+  // 1개월 예측 절의 첫 카드 탭에 쓰는 리포트 지수의 이름이다.
+  const INDEX_NAME = { nasdaq: "나스닥", biotech: "바이오" };
   const paint = () => {
     const tint = INDEX[key.split("-")[1]];
     if (!tint) return;
@@ -890,7 +890,7 @@
     const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
     const chart = pick("chart"), tree = pick("tree"), predict = pick("predict");
     if (!chart || !tree) return;
-    const shown = [[predict, "주가"], [tree, "일정"], [chart, "권장 배율"]].filter(([img]) => img);
+    const shown = [[predict, INDEX_NAME[key.split("-")[1]]], [tree, "일정"], [chart, "권장 배율"]].filter(([img]) => img);
     shown.forEach(([img]) => (img.closest("p") || img).remove());
     const bar = document.createElement("div");
     bar.className = "tabs";
@@ -1104,7 +1104,7 @@
     });
   }
 
-  // 요약 절의 그림 카드 세 장(주가와 예측, 일정과 예측, 권장 배율)을 만든다. 카드 이름 탭에는 "주가", "일정", "권장 배율"로 쓴다. `data`는 `build.py` `summary_cards`의 값이다.
+  // 요약 절의 그림 카드 세 장(주가와 예측, 일정과 예측, 권장 배율)을 만든다. 카드 이름 탭에는 리포트 지수의 이름(`INDEX_NAME`), "일정", "권장 배율"로 쓴다. `data`는 `build.py` `summary_cards`의 값이다.
   // 돌려준 `show(frame)`은 되감기 슬라이더가 고른 날짜의 판단(`cards.json`의 프레임)으로 세 장을 다시 그린다.
   // 주가와 예측의 종가 바탕(날짜·종가·지난 예측)은 늘 리포트 날짜의 값이고, 고른 날짜의 판단만 그 위에 바꿔 그린다.
   function summaryCards(data, date) {
@@ -1398,7 +1398,7 @@
     const day = rate(hist[at] / hist[at - 1] - 1), after = rate(data.base / hist[at] - 1);
     const quote = `<span class="row"><span>${PRICE_NAME[key.split("-")[1]]}</span><b class="price ${tone(day)}">${fmt(data.base)}</b>`
       + `<b class="${tone(day)}">${signed(day, 2)}%</b><small>→ 마감 후 ${signed(after, 2)}%</small></span>`;
-    return { names: ["주가", "일정", "권장 배율"], slides: parts.map((part) => [part.box]), show, quote };
+    return { names: [INDEX_NAME[key.split("-")[1]], "일정", "권장 배율"], slides: parts.map((part) => [part.box]), show, quote };
   }
 
   // 그림 카드 묶음 아래에 지난 판단 날짜로 되감는 슬라이더를 둔다(build.py `r/rewind-{지수}/cards.json`). 리포트 날짜와 그 앞 날짜만
@@ -2752,7 +2752,8 @@
     }
     report.innerHTML = body;
     const outlook = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "1개월 지수 방향 예측");
-    if (outlook) outlook.textContent = forecast();
+    // 리포트의 "1개월 지수 방향 예측" 절은 "1개월 예측"이라는 제목으로 보인다. 제목으로 절을 찾는 코드는 이 제목을 쓴다.
+    if (outlook) outlook.textContent = "1개월 예측";
     calendar(listing, date);
     // 시장 페이지의 주요 시세는 리포트 지수와 바이오 시세를 뺀다. 리포트 지수는 주가와 예측 카드가, 바이오는 바이오 리포트의 주가와 예측 카드가 보여 준다.
     const focus = +query.get("issue") || 0;
@@ -2766,8 +2767,8 @@
     const pages = focus ? null : paginate();
     if (!focus) {
       figures(date);
-      heads(forecast());
-      fold(forecast());
+      heads("1개월 예측");
+      fold("1개월 예측");
       indicators(date);
       marketed.then(({ series }) => series.filter((line) => line.index !== key.split("-")[1] && line.index !== "biotech"))
         .then((series) => { if (series.length) marketCards(quotes, series, listing, date); else quotes.remove(); });
@@ -2882,7 +2883,7 @@
   }
   // 리포트 화면의 절을 `PAGES`의 페이지에 나눠 담는다. 페이지마다 단추 이름과 그 페이지에 넣을 절 제목을 두고, 목록에 없는 절은 앞 절의 페이지에 넣는다.
   // 넘기기 묶음은 노드를 옮기면 스크롤 위치가 처음으로 돌아가므로, 리포트를 받은 직후 묶음을 만들기 전에 나눈다.
-  const PAGES = () => [["예측", [forecast(), "이벤트 캘린더"]], ["이슈", ["상세 이슈 해설"]], ["시장", ["미국 거시 지표", "주요 시세"]]];
+  const PAGES = [["예측", ["1개월 예측", "이벤트 캘린더"]], ["이슈", ["상세 이슈 해설"]], ["시장", ["미국 거시 지표", "주요 시세"]]];
   // 바로가기 단추의 선 아이콘이다. 예측은 마디 셋이 앞으로 굵어지는 접이식 망원경, 이슈는 불꽃, 시장은 고리를 두른 행성이다. 행성은 앞쪽 고리 둘레를 마스크로 비워 고리가 행성 앞을 지나게 그리고, 뒤쪽 고리는 행성 원판 자리를 비운 마스크로 가려 행성 뒤를 지나게 그린다.
   // 행성은 다른 아이콘보다 작아 보여 1.05배로 키우고, 선 굵기는 다른 아이콘과 같게 둔다.
   const PAGE_ICONS = {
@@ -2919,10 +2920,10 @@
     ], { duration: 1500 })),
   };
   function paginate() {
-    const pages = PAGES().map(() => Object.assign(document.createElement("div"), { className: "page" }));
+    const pages = PAGES.map(() => Object.assign(document.createElement("div"), { className: "page" }));
     let at = 0;
     [...report.children].forEach((node) => {
-      const i = node.tagName === "H2" ? PAGES().findIndex(([, titles]) => titles.includes(node.textContent.trim())) : -1;
+      const i = node.tagName === "H2" ? PAGES.findIndex(([, titles]) => titles.includes(node.textContent.trim())) : -1;
       if (i >= 0) at = i;
       pages[at].append(node);
     });
@@ -2982,7 +2983,7 @@
         if (page >= 0 && !motion.matches) {
           const svg = buttons[i].querySelector("svg");
           svg.getAnimations({ subtree: true }).forEach((run) => run.cancel());
-          ICON_MOTIONS[PAGES()[i][0]](svg);
+          ICON_MOTIONS[PAGES[i][0]](svg);
         }
         page = i;
         history.replaceState({ ...history.state, page: i }, "");
@@ -3002,7 +3003,7 @@
       else open(i);
     };
     let drag = null, dragged = false;
-    const buttons = PAGES().map(([name], i) => {
+    const buttons = PAGES.map(([name], i) => {
       const button = nav.appendChild(Object.assign(document.createElement("button"), { type: "button" }));
       button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${PAGE_ICONS[name]}</svg><span>${name}</span>`;
       button.addEventListener("click", () => { if (dragged) dragged = false; else press(i); });
@@ -3043,13 +3044,8 @@
     return open;
   }
 
-  // 절 제목마다 설명 상자에 쓸 항목을 둔다. 항목마다 이름을 굵게 쓰고 그 아래에 설명을 쓴다. 지수 이름을 붙인 1개월 예측 절은 "1개월 예측" 항목을 쓴다.
+  // 절 제목마다 설명 상자에 쓸 항목을 둔다. 항목마다 이름을 굵게 쓰고 그 아래에 설명을 쓴다. 1개월 예측 절은 `OUTLOOK_HELP`와 `CARD_HELP`가 항목을 만든다.
   const HELP = {
-    "1개월 예측": [
-      ["주가", "파란 실선은 예측 중앙값이에요. 파란 면에는 25거래일 뒤 가격이 25~75% 확률로 들어와요. 회색 점과 면은 지난 리포트의 예측이에요."],
-      ["일정", "이슈와 이벤트를 반영한 경로 2만 개의 등락률 분포예요. 두 파란 선 사이에 경로의 가운데 50%가 들어와요."],
-      ["권장 배율", "경로 2만 개의 한 달 평균 등락을 배율로 바꾼 분포예요. 파란 실선이 1.0(지수 추종)보다 왼쪽이면 하락 쪽 판단이고, 오른쪽이면 상승 쪽 판단이에요."],
-    ],
     "상세 이슈 해설": [
       ["이슈를 고르는 기준", "주가 예측에 영향이 큰 이슈부터 보여줘요. 이슈 하나를 빼고 다시 계산했을 때 예측이 크게 바뀔수록 영향이 커요."],
       ["상승 요인과 하락 요인", "이슈 때문에 주가 예측이 올랐는지 내렸는지 보여줘요. 나쁜 소식도 반등 가능성을 높이면 상승 요인이에요."],
@@ -3071,9 +3067,15 @@
   const QUESTION = '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1"/>'
     + '<path d="M6.2 6.2a1.8 1.8 0 1 1 2.6 1.6c-.5.3-.8.6-.8 1.2v.4" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
     + '<circle cx="8" cy="11.6" r=".8" fill="currentColor"/></svg>';
+  // 그림 카드가 없는 리포트의 1개월 예측 설명. 첫 항목 이름은 카드 탭과 같은 리포트 지수의 이름이다.
+  const OUTLOOK_HELP = (name) => [
+    [name, "파란 실선은 예측 중앙값이에요. 파란 면에는 25거래일 뒤 가격이 25~75% 확률로 들어와요. 회색 점과 면은 지난 리포트의 예측이에요."],
+    ["일정", "이슈와 이벤트를 반영한 경로 2만 개의 등락률 분포예요. 두 파란 선 사이에 경로의 가운데 50%가 들어와요."],
+    ["권장 배율", "경로 2만 개의 한 달 평균 등락을 배율로 바꾼 분포예요. 파란 실선이 1.0(지수 추종)보다 왼쪽이면 하락 쪽 판단이고, 오른쪽이면 상승 쪽 판단이에요."],
+  ];
   // 그림 카드가 있는 리포트의 1개월 예측 설명. 판단 색 이름은 지수마다 다르다.
-  const CARD_HELP = (ink) => [
-    ["주가", `예측한 25거래일 뒤 가격 범위의 중앙값을 알려드려요. ${ink} 면에는 25거래일 뒤 가격이 50% 확률로 들어와요. 회색 점선과 면은 지난 리포트의 예측이에요.`],
+  const CARD_HELP = (ink, name) => [
+    [name, `예측한 25거래일 뒤 가격 범위의 중앙값을 알려드려요. ${ink} 면에는 25거래일 뒤 가격이 50% 확률로 들어와요. 회색 점선과 면은 지난 리포트의 예측이에요.`],
     ["일정", `이슈와 이벤트를 반영한 주가 경로 2만 개로 거래일마다 등락률 범위를 계산해요. 진한 면에 경로의 가운데 50%가, 옅은 면에 가운데 80%가 들어와요.`],
     ["권장 배율", `${ink} 세로선이 권장 배율이에요. 권장 배율이 1.0(지수 추종)보다 작으면 리포트가 하락을 예상한다는 뜻이고, 크면 상승을 예상한다는 뜻이에요.`],
   ];
@@ -3082,9 +3084,10 @@
   // 주요 시세 설명은 시세 카드가 정한 시세 이름(`names`)의 설명만 띄운다.
   function help() {
     report.querySelectorAll("h2").forEach((head) => {
-      const title = head.textContent.trim(), outlook = title === forecast();
-      if (!HELP[outlook ? "1개월 예측" : title]) return;
-      const items = outlook && report.querySelector(".carousel.cards") ? CARD_HELP(INK[key.split("-")[1]] || "하늘색") : HELP[outlook ? "1개월 예측" : title];
+      const title = head.textContent.trim(), index = key.split("-")[1];
+      if (title !== "1개월 예측" && !HELP[title]) return;
+      const items = title !== "1개월 예측" ? HELP[title]
+        : report.querySelector(".carousel.cards") ? CARD_HELP(INK[index] || "하늘색", INDEX_NAME[index]) : OUTLOOK_HELP(INDEX_NAME[index]);
       head.append(question(title, () => {
         const list = document.createElement("ul");
         items.filter(([name]) => !head.names || head.names.includes(name)).forEach(([name, text]) => {
