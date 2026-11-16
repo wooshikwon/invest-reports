@@ -381,7 +381,7 @@
      진하게, 글자를 흰색으로 쓰고, 나머지 날짜는 상자를 연하게, 글자를 흐린 회색으로 쓴다. 리포트 날짜의 상자에는 절 제목 색의 얇은 회색 테두리를 두르고, 누르고 있는 상자는 조금 줄인다.
      상자는 같은 폭이고 넘기기 장 사이만큼 띄운다.
      띠는 아래 장 묶음과 따로 손가락으로 밀어 여러 날짜를 한 번에 지나가고, 스크롤 막대는 숨긴다. 장을 넘기면 보고 있는 날짜의 상자가
-     문단 왼쪽 끝에 오도록 띠를 미끄러뜨리되, 띠 끝이 문단 오른쪽 끝에 닿으면 더 밀지 않는다. 띠는 화면 양 끝 여백까지 보여서, 앞 날짜가 있으면 그 상자 끝이 왼쪽 여백에 보인다. */
+     화면 가운데에 오도록 띠를 미끄러뜨리되, 띠의 첫 상자나 마지막 상자가 문단 끝에 닿으면 더 밀지 않는다. 띠는 화면 양 끝 여백까지 보인다. */
   /* 띠는 가로로 넘치는 부분을 잘라 내므로 날짜 상자의 위아래 끝도 띠 끝에서 잘린다. 띠 위아래에 12px 여백을 두어 상자 테두리와 리포트 날짜 상자 뒤의 빛이 잘리지 않게 한다. */
   .days-rail { position: relative; display: flow-root; }
   .days { position: relative; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; margin: -12px -16px; padding: 12px 16px; }
@@ -1982,13 +1982,14 @@
       if (day === date) button.classList.add("today");
       strip.appendChild(button);
     });
-    // 띠를 i번 날짜 상자가 문단 왼쪽 끝에 오는 위치로 옮긴다. `now`면 바로 옮기고, 아니면 `glide`로 미끄러뜨린다. 띠에 손을 대면 미끄러뜨리기를 멈춘다.
+    // 띠를 i번 날짜 상자가 화면 가운데에 오는 위치로 옮긴다. `now`면 바로 옮기고, 아니면 `glide`로 미끄러뜨린다. 띠에 손을 대면 미끄러뜨리기를 멈춘다.
     // 날짜를 눌러 장이 여러 장을 지나가는 동안에는 지나가는 날짜마다 띠를 옮기지 않고, 누른 날짜로만 옮긴다.
     let seen = days.includes(history.state?.day) ? days.indexOf(history.state.day) : days.indexOf(date), aim = null, sliding = null;
     const reach = (i, now = false) => {
       sliding?.();
-      const left = Math.min(bar.scrollWidth - bar.clientWidth,
-        bar.scrollLeft + strip.children[i].getBoundingClientRect().left - bar.getBoundingClientRect().left - 16);
+      const spot = strip.children[i].getBoundingClientRect();
+      const left = Math.max(0, Math.min(bar.scrollWidth - bar.clientWidth,
+        bar.scrollLeft + spot.left - bar.getBoundingClientRect().left - (bar.clientWidth - spot.width) / 2));
       if (now) bar.scrollLeft = left;
       else sliding = glide(bar.scrollLeft, left, (x) => (bar.scrollLeft = x), () => (sliding = null));
     };
