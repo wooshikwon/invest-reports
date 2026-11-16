@@ -559,7 +559,10 @@
   /* 단추마다 위에 선 아이콘을, 아래에 작은 페이지 이름을 둔다. 보고 있는 페이지의 단추는 흰색으로, 나머지는 회색으로 쓴다. */
   nav.jump button { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; width: 76px; padding: 6.8px 0 4.8px;
                     appearance: none; border: 0; background: none; font: inherit; font-size: 11px; font-weight: 600; line-height: 1.3; color: var(--hint); cursor: pointer; }
-  nav.jump button svg { width: 26.4px; height: 26.4px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  nav.jump button svg { width: 26.4px; height: 26.4px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  /* 망원경 끝의 별은 페이지를 바꿀 때만 잠깐 보이고, 불꽃은 밑동 가운데를 축으로 흔든다. */
+  nav.jump button svg .star { opacity: 0; fill: currentColor; stroke: none; transform-box: fill-box; transform-origin: center; }
+  nav.jump button svg .flame { transform-box: fill-box; transform-origin: 50% 100%; }
   nav.jump button.on { color: #fff; }
   nav.jump button:active { opacity: .6; }
   /* 보고 있는 페이지의 단추 뒤에 밝은 레버를 깔고, 페이지를 바꾸면 레버를 그 단추로 미끄러뜨린다. 끄는 동안 레버는 손가락을 바로 따라가고 조금 밝아진다. */
@@ -2902,9 +2905,34 @@
   // 바로가기 단추의 선 아이콘이다. 예측은 마디 셋이 앞으로 굵어지는 접이식 망원경, 이슈는 불꽃, 시장은 고리를 두른 행성이다. 행성은 앞쪽 고리 둘레를 마스크로 비워 고리가 행성 앞을 지나게 그린다.
   // 행성은 다른 아이콘보다 작아 보여 1.05배로 키우고, 선 굵기는 다른 아이콘과 같게 둔다.
   const PAGE_ICONS = {
-    예측: '<g transform="translate(12 12) scale(1.05) rotate(-40)"><rect vector-effect="non-scaling-stroke" x="-10.5" y="-1.5" width="5" height="3"/><rect vector-effect="non-scaling-stroke" x="-5.5" y="-2.3" width="6.5" height="4.6"/><rect vector-effect="non-scaling-stroke" x="1" y="-3.2" width="8.5" height="6.4"/></g>',
-    이슈: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
-    시장: '<g transform="translate(12 12) scale(1.05) rotate(-28)"><mask id="market-ring" maskUnits="userSpaceOnUse" x="-12" y="-12" width="24" height="24"><rect x="-12" y="-12" width="24" height="24" fill="#fff" stroke="none"/><path d="M10.6 0A10.6 4.2 0 0 1 -10.6 0" stroke="#000" stroke-width="3.2"/></mask><circle r="6.8" mask="url(#market-ring)" vector-effect="non-scaling-stroke"/><path vector-effect="non-scaling-stroke" d="M-10.6 0A10.6 4.2 0 0 1 -6.77 -3.23M6.77 -3.23A10.6 4.2 0 0 1 10.6 0M10.6 0A10.6 4.2 0 0 1 -10.6 0"/></g>',
+    예측: '<g transform="translate(12 12) scale(1.05) rotate(-40)"><rect class="eyepiece" vector-effect="non-scaling-stroke" x="-10.5" y="-1.5" width="5" height="3"/><rect class="tube" vector-effect="non-scaling-stroke" x="-5.5" y="-2.3" width="6.5" height="4.6"/><rect vector-effect="non-scaling-stroke" x="1" y="-3.2" width="8.5" height="6.4"/><path class="star" d="M12 -3.5Q12.4 -.4 15.5 0Q12.4 .4 12 3.5Q11.6 .4 8.5 0Q11.6 -.4 12 -3.5Z"/></g>',
+    이슈: '<path class="flame" d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+    시장: '<g transform="translate(12 12) scale(1.05) rotate(-28)"><mask id="market-ring" maskUnits="userSpaceOnUse" x="-12" y="-12" width="24" height="24"><rect x="-12" y="-12" width="24" height="24" fill="#fff" stroke="none"/><path class="ring" d="M10.6 0A10.6 4.2 0 0 1 -10.6 0" stroke="#000" stroke-width="3.2"/></mask><circle r="6.8" mask="url(#market-ring)" vector-effect="non-scaling-stroke"/><path class="ring" vector-effect="non-scaling-stroke" d="M-10.6 0A10.6 4.2 0 0 1 -6.77 -3.23M6.77 -3.23A10.6 4.2 0 0 1 10.6 0M10.6 0A10.6 4.2 0 0 1 -10.6 0"/></g>',
+  };
+  // 바로가기 단추로 다른 페이지를 열면 그 단추의 아이콘을 한 번 움직인다. 예측은 접혀 있던 망원경 마디가 굵은 마디부터 하나씩 펼쳐지고, 끝에 별이 잠깐 반짝인다.
+  // 이슈는 불꽃이 밑동을 축으로 좌우로 흔들리다 잦아든다. 시장은 고리 없는 행성 위로 고리가 떨어져 걸린 뒤 행성 둘레를 한 바퀴 돈다.
+  // 고리는 행성 앞을 지나는 마스크와 함께 움직이므로, 고리가 떨어지기 전에는 행성이 온전히 보인다.
+  const ICON_MOTIONS = {
+    예측: (svg) => {
+      const out = "cubic-bezier(.2, .8, .3, 1)";
+      return [
+        svg.querySelector(".tube").animate([{ transform: "translateX(6.5px)" }, { transform: "translateX(6.5px)", offset: .1, easing: out }, { transform: "none", offset: .45 }, { transform: "none" }], { duration: 900 }),
+        svg.querySelector(".eyepiece").animate([{ transform: "translateX(11.5px)" }, { transform: "translateX(11.5px)", offset: .1, easing: out }, { transform: "translateX(5px)", offset: .45 },
+          { transform: "translateX(5px)", offset: .5, easing: out }, { transform: "none", offset: .8 }, { transform: "none" }], { duration: 900 }),
+        svg.querySelector(".star").animate([{ opacity: 0, transform: "scale(0)" }, { opacity: 0, transform: "scale(0)", offset: .7 }, { opacity: 1, transform: "scale(1.5) rotate(45deg)", offset: .84 },
+          { opacity: 0, transform: "scale(0) rotate(90deg)" }], { duration: 1100, easing: "ease-out" }),
+      ];
+    },
+    이슈: (svg) => [svg.querySelector(".flame").animate([0, -16, 12, -8, 5, -2, 0].map((skew, k) => ({ transform: `rotate(${skew / 2}deg) skewX(${skew}deg) scaleY(${k % 2 ? 1.06 : 1})` })),
+      { duration: 1000, easing: "ease-out" })],
+    시장: (svg) => [...svg.querySelectorAll(".ring")].map((ring) => ring.animate([
+      { opacity: 0, transform: "translate(7px, -13.2px) rotate(0deg)" },
+      { opacity: 1, transform: "translate(5.3px, -9.9px) rotate(0deg)", offset: .1, easing: "cubic-bezier(.55, 0, 1, .45)" },
+      { transform: "translate(0px, 0px) rotate(0deg)", offset: .35, easing: "ease-out" },
+      { transform: "translate(.6px, -1.1px) rotate(0deg)", offset: .43, easing: "ease-in" },
+      { transform: "translate(0px, 0px) rotate(0deg)", offset: .5, easing: "cubic-bezier(.3, 0, .2, 1)" },
+      { transform: "translate(0px, 0px) rotate(-360deg)" },
+    ], { duration: 1500 })),
   };
   function paginate() {
     const pages = PAGES.map(() => Object.assign(document.createElement("div"), { className: "page" }));
@@ -2967,6 +2995,11 @@
         lever.style.transform = `translateX(${buttons[i].offsetLeft}px)`;
         lever.offsetWidth;
         lever.style.transition = "";
+        if (page >= 0 && !motion.matches) {
+          const svg = buttons[i].querySelector("svg");
+          svg.getAnimations({ subtree: true }).forEach((run) => run.cancel());
+          ICON_MOTIONS[PAGES[i][0]](svg);
+        }
         page = i;
         history.replaceState({ ...history.state, page: i }, "");
       }
