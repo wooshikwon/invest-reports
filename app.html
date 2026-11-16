@@ -46,7 +46,7 @@
      제목 아래의 머리 상자(`#masthead`)는 28px 높이의 한 줄(`header`)이고, 시세(`#ticker`)만 쓴다. 날짜와 제목이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
      시세는 리포트 지수의 기준 가격 한 줄이다. "나스닥 $27,712 −1.22% → 마감 후 −0.83%"처럼 흰 지수 이름, 리포트 판단의 기준 가격,
      기준 가격 날짜 종가의 앞 거래일 종가 대비 등락률, 화살표와 기준 가격의 그날 종가 대비 등락률을 쓴다. 기준 가격은 정규장 뒤 시간 외 거래까지 반영한 마지막 가격이다.
-     화살표와 "마감 후", 장 마감 후 등락률은 지수 이름과 같은 크기의 회색 글씨로 쓴다. 기준 가격과 정규장 등락률은 정규장 등락률이 오르면 빨강, 내리면 파랑으로 칠한다.
+     화살표와 "마감 후", 장 마감 후 등락률은 지수 이름과 같은 크기의 굵지 않은 회색 글씨로 쓴다. 기준 가격과 정규장 등락률은 정규장 등락률이 오르면 빨강, 내리면 파랑으로 칠한다.
      상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 페이지 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
      흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
   #day { margin: 0; font-size: 12.5px; font-weight: 600; line-height: 20px; color: var(--dim); }
@@ -60,7 +60,7 @@
   #ticker:empty { display: none; }
   #ticker .row { display: flex; align-items: baseline; gap: 6px; height: 28px; }
   #ticker .row > span { font-weight: 600; color: #fff; }
-  #ticker .row small { font-size: inherit; font-weight: 600; color: var(--dim); }
+  #ticker .row small { font-size: inherit; font-weight: 400; color: var(--dim); }
   #ticker b { font-weight: 700; color: var(--accent); }
   #ticker b.up { color: #ff5c5c; }
   #ticker b.down { color: #5b9bff; }
