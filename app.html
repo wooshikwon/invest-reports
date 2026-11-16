@@ -43,7 +43,7 @@
   main { position: relative; max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-edge)) 16px calc(40px + var(--offscreen, 0px)); }
   /* 문서 맨 위에는 리포트 날짜와 요일을 절 제목과 같은 회색의 작은 글씨로 쓰고(`#day`), 그 아래에 제목(`#title`)을 쓴다. 둘은 본문과 함께 화면 위로 지나간다.
      날짜 줄에는 날짜에 이어 " - 작성 시각 11:38"처럼 리포트를 처음 게시한 서울 시각을 같은 색의 더 작고 굵지 않은 글씨로 쓴다(`.written`).
-     날짜 줄 오른쪽 끝에는 달력 단추를 두고, 단추의 위 끝을 날짜 줄의 위 끝에 맞춘다. 제목은 달력 단추 아래로 들어가지 않게 오른쪽을 비운다.
+     제목 오른쪽 끝에는 달력 단추를 두고, 단추의 세로 가운데를 제목 첫 줄의 세로 가운데에 맞춘다. 제목은 달력 단추 아래로 들어가지 않게 오른쪽을 비운다.
      제목 아래의 머리 상자(`#masthead`)는 28px 높이의 한 줄(`header`)이고, 시세(`#ticker`)만 쓴다. 날짜와 제목이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
      시세는 나스닥 100, 바이오, S&P 500, 원/달러 네 줄이다. 줄마다 "나스닥 100 $27,943.74 −1.22% → 마감 후 +0.40%"처럼 흰 이름, 리포트 날짜 전날까지의 마지막 종가, 그 앞 종가 대비 등락률을 쓰고,
      나스닥 100과 바이오는 정규장 등락률 뒤에 화살표와 장 마감 후 등락률을 더 쓴다. 종가와 정규장 등락률은 정규장 등락률이 오르면 빨강, 내리면 파랑으로 칠하고, 장 마감 후 등락률은 그 값이 오르고 내린 대로 칠한다. 시세는 28px 높이 창 안에 네 줄과 첫 줄을 위아래로 쌓고 한 줄씩 위로 굴려 네 줄을 차례로 보여 준다.
@@ -107,7 +107,7 @@
      달력 상자는 설명 상자와 같은 색으로 그린다. 맨 위에는 나스닥과 바이오를 고르는 두 칸 단추를 두고, 고른 지수의 리포트가 있는 날짜를 흰 글자로 쓰고 그 아래에 그 리포트의 정규장 등락률을 머리말과 같은 색으로 적는다.
      리포트가 없는 날짜는 회색으로 쓰고 누를 수 없다. 보고 있는 리포트의 날짜는 날짜 띠의 고른 상자와 같은 색으로 칠하고, 다른 리포트를 볼 때 오늘 날짜에는 테두리를 두른다.
      가림막은 문서 전체를 덮고, 달력만 그 위에 남는다. */
-  .cal-open { position: absolute; top: calc(16px + var(--top-edge)); right: 16px; display: grid; place-items: center; width: 36px; height: 28px;
+  .cal-open { position: absolute; top: calc(16px + var(--top-edge) + 22px + (19px * 1.4 - 28px) / 2); right: 16px; display: grid; place-items: center; width: 36px; height: 28px;
               padding: 0; border: 0; border-radius: 8px; background: rgba(255, 255, 255, .05); color: var(--hint); cursor: pointer; }
   .cal-open.on { background: rgba(255, 255, 255, .16); color: var(--accent); }
   .cal-layer { position: fixed; inset: 0; z-index: 10; background: rgba(0, 0, 0, .35); }
