@@ -48,7 +48,7 @@
   /* 문서 맨 위에는 리포트 날짜와 요일을 절 제목과 같은 회색의 작은 글씨로 쓰고(`#day`), 그 아래에 머리 상자(`#masthead`)를 둔다. 날짜 줄은 본문과 함께 화면 위로 지나간다.
      머리 상자는 32px 높이의 위 줄과 18px 높이의 아래 줄(`header`)이고, 왼쪽에 시세(`#ticker`)를, 위 줄 오른쪽 끝에 달력 단추를 쓴다. 날짜 줄이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
      시세 위 줄은 "나스닥 $27,940 −1.22%"처럼 흰 지수 이름, 리포트 판단의 기준 가격 날짜의 정규장 종가, 그 종가의 앞 거래일 종가 대비 등락률을 쓴다.
-     아래 줄은 화살표 가운데가 지수 이름 가운데에 오도록 들여 써서 "→ 애프터마켓 $27,712 −0.83%"처럼 화살표, 리포트 판단의 기준 가격, 기준 가격의 정규장 종가 대비 등락률을 쓴다. 기준 가격은 정규장 뒤 애프터마켓 거래까지 반영한 마지막 가격이다.
+     아래 줄은 지수 이름과 같은 왼쪽 끝에서 "애프터마켓 $27,712 −0.83%"처럼 리포트 판단의 기준 가격과 기준 가격의 정규장 종가 대비 등락률을 쓴다. 기준 가격은 정규장 뒤 애프터마켓 거래까지 반영한 마지막 가격이다.
      지수 이름과 정규장 종가는 절 제목과 같은 크기로, 정규장 등락률은 그보다 작은 13px로 쓴다. 아래 줄은 모두 13px의 굵지 않은 회색 글씨로 쓴다.
      정규장 종가와 정규장 등락률은 정규장 등락률이 오르면 빨강, 내리면 파랑으로 칠한다.
      상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 페이지 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
@@ -61,7 +61,6 @@
   #ticker:empty { display: none; }
   #ticker .row { display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; column-gap: 6px; }
   #ticker .row > span { font-size: 15.5px; font-weight: 700; color: #fff; }
-  #ticker .row small i { font-style: normal; }
   #ticker .row small { grid-column: 1 / -1; font-size: inherit; font-weight: 400; line-height: 18px; color: var(--dim); }
   #ticker b { font-weight: 700; color: var(--accent); }
   #ticker b.price { font-size: 15.5px; }
@@ -884,8 +883,6 @@
       data.remove();
       const set = summaryCards(JSON.parse(data.textContent), date);
       ticker.innerHTML = set.quote;
-      const name = ticker.querySelector(".row > span"), arrow = ticker.querySelector(".row small i");
-      arrow.parentElement.style.paddingLeft = `${Math.max(0, (name.offsetWidth - arrow.offsetWidth) / 2)}px`;
       const bar = document.createElement("div");
       bar.className = "tabs";
       set.names.forEach((name, i) => {
@@ -1406,7 +1403,7 @@
     const at = dates.indexOf(data.base_date), rate = (ratio) => Math.round(ratio * 1e4) / 100;
     const day = rate(hist[at] / hist[at - 1] - 1), after = rate(data.base / hist[at] - 1);
     const quote = `<span class="row"><span>${PRICE_NAME[key.split("-")[1]]}</span><b class="price ${tone(day)}">${fmt(hist[at])}</b>`
-      + `<b class="${tone(day)}">${signed(day, 2)}%</b><small><i>→</i> 애프터마켓 ${fmt(data.base)} ${signed(after, 2)}%</small></span>`;
+      + `<b class="${tone(day)}">${signed(day, 2)}%</b><small>애프터마켓 ${fmt(data.base)} ${signed(after, 2)}%</small></span>`;
     return { names: [INDEX_NAME[key.split("-")[1]], "일정", "권장 배율"], slides: parts.map((part) => [part.box]), show, quote };
   }
 
