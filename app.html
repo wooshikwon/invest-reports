@@ -3087,7 +3087,7 @@
       svg.querySelector(".flame animate").beginElement();
       return [svg.querySelector(".flame").animate([[0, 1], [-8, 1.1], [6, 1.15], [-4, 1.12], [2.5, 1.06], [-1, 1.02], [0, 1]].map(([skew, size]) => ({ transform: `rotate(${skew / 2}deg) skewX(${skew}deg) scale(${size})` })),
         { duration: 1300, easing: "ease-out" }),
-        ...[[[.17, -2.5, 2.6, 0, 0, .4], [.19, -2.3, 2.1, -8, 1, .6], [.25, -1.4, .6, -7, 1, .9], [.31, -.4, -1, -6, 1, 1], [.45, .2, -3, 6, 1, .7], [.57, .3, -4.2, 2, 1, .35], [.62, .3, -4.6, 0, 0, .15]],
+        ...[[[.17, -2, 3, 0, 0, .65], [.19, -1.8, 2.5, -8, 1, .8], [.25, -1.1, .9, -7, 1, .95], [.31, -.4, -1, -6, 1, 1], [.45, .2, -3, 6, 1, .7], [.57, .3, -4.2, 2, 1, .35], [.62, .3, -4.6, 0, 0, .15]],
           [[.23, -.4, 2.1, 0, 0, .4], [.25, -.5, 1.5, -8, 1, .6], [.3, -.6, 0, -7, 1, .9], [.36, -.7, -1.8, -6, 1, 1], [.49, -.4, -3.4, 6, 1, .7], [.6, -.3, -4.6, 2, 1, .35], [.65, -.2, -5, 0, 0, .15]]].map((path, k) => {
           const frames = path.map(([offset, x, y, tilt, opacity, size]) => ({ offset, opacity, transform: `translate(${x}px, ${y}px) rotate(${tilt}deg) scale(${size})` }));
           return svg.querySelectorAll(".spark")[k].animate([{ ...frames[0], offset: 0 }, ...frames, { ...frames[frames.length - 1], offset: 1 }], { duration: 1300 });
