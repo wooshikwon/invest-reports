@@ -84,6 +84,10 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `invest-reports` 미니 앱의 시장 페이지는 리포트 지수의 값으로 맨 위 `나스닥 한 눈에 보기`·`바이오 한 눈에 보기` 절에 시가총액을 칸 넓이로, 전 거래일 대비 등락률을 칸 색으로 쓴 지도를 그리고,
 슬라이더로 지난 한 달의 리포트 날짜를 고르면 그 날짜 전날의 종가로 지도를 다시 그린다. 그 날짜 전날의 애프터장 값이 있으면 절 제목 오른쪽의
 `정규장 | 애프터장` 단추로 칸 값과 색을 애프터장 체결가와 정규장 종가 대비 등락률로 바꾼다.
+`r/premarket.json`에는 지수마다 서울 날짜와 같은 뉴욕 날짜를 키로 그날 프리장의 마지막 체결가를 적는다(`premarket`). 값은 지수 ETF의
+정규장 종가 대비 비율(`ratio`), 지도 종목마다의 체결가(`stocks`), 값을 받은 시각(`time`)과 앞 세션 날짜(`session`)다. cron이 프리장 동안 10분마다
+부르고, 프리장이 닫힌 뒤에는 마지막 값을 그대로 둔다. 미니 앱은 그 날짜 리포트의 머리 상자 아래 줄을 프리마켓 값으로 바꾸고,
+지도의 단추를 `정규장 | 다음날 프리장`으로 바꿔 애프터장 값 자리에 프리장 체결가와 정규장 종가 대비 등락률을 쓴다.
 지도 칸을 누르면 칸 위 말풍선에 종목 이름, 종가와 등락률, 설명 첫 문장을 적고, 말풍선의 `자세히 보기` 단추는 `?stock=심볼` 종목 상세 페이지를 연다.
 `r/stocks/{심볼}.json`에는 종목 상세 페이지의 값으로 한글 이름, 업종, 설명, 지도 지수와 그 지수 안 시가총액 순위, 1년 종가, 공시 카드 세 장(실적·매출 구성·최근 공시),
 대표 이미지 한~세 장의 주소와 사진 설명을 적는다(`stock_pages`). 대표 이미지는 `STOCK_IMAGES`의 `{심볼}-{순번}.webp`를 `r/stocks/`로 복사한다.
@@ -156,6 +160,7 @@ PRICE_YEARS = 3  # 주가와 예측 카드가 그리는 종가 기간(년)
 MAP_LEAD_DAYS = 7
 STOCK_DAYS = 366  # 종목 상세 페이지의 주가 카드가 그리는 종가 기간(일)
 AFTER_CLOSE = dt.time(20)  # 뉴욕 애프터장이 끝나는 시각. 지도의 애프터장 값은 이 시각까지의 마지막 체결가다
+PREMARKET_OPEN, PREMARKET_CLOSE = dt.time(4), dt.time(9, 30)  # 뉴욕 프리장이 열리고 닫히는 시각. 지도와 머리 상자의 프리장 값은 닫히는 시각까지의 마지막 체결가다
 STOCK_IMAGES = Path.home() / "data" / "invest-reports" / "stock-images"  # invest-stock-profile 스킬이 고르고 `profile_store.py --draw`가 그린 대표 이미지
 TICK_STEP = 5  # 일정과 예측 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
@@ -498,6 +503,51 @@ def market(vault: Path, out: Path) -> Path:
             page.unlink()
     for symbol, page in pages.items():
         (folder / f"{symbol}.json").write_text(json.dumps(page, ensure_ascii=False) + "\n", encoding="utf-8")
+    return target
+
+
+def premarket(vault: Path, out: Path) -> Path | None:
+    """`r/premarket.json`에 지수마다 오늘 뉴욕 프리장의 지금까지 마지막 체결가를 오늘 날짜를 키로 쓴다.
+
+    값은 지수 ETF(`SECTOR_DB_TICKERS`)의 앞 세션 정규장 종가 대비 비율(`ratio`)과 `r/market.json` 지도 종목마다의 체결가(`stocks`)이고,
+    앞 세션 날짜(`session`)와 체결가를 받은 끝 시각(`time`, 뉴욕 시각)을 함께 적는다. 체결가는 그 시각까지의 마지막 체결가를 토스 1분봉에서,
+    답하지 않으면 야후 1분봉에서 받는다(`price_source.batch_time_price`). 마지막 체결이 오늘 `PREMARKET_OPEN` 전이면 프리장 체결이 없으므로 null이다.
+    끝 시각은 지금과 정규장이 열리는 `PREMARKET_CLOSE` 가운데 이른 쪽이라, 정규장이 열린 뒤에는 프리장 마지막 체결가가 남는다.
+    오늘이 뉴욕 정규장 세션이 아니거나, 지금이 `PREMARKET_OPEN` 전이거나, 오늘 값을 `PREMARKET_CLOSE`까지 이미 받았으면 쓰지 않고 `None`이다.
+    지도의 첫 날짜보다 앞선 날짜의 값은 지운다.
+    """
+    now = dt.datetime.now(NEW_YORK)
+    today = now.date()
+    xnys = exchange_calendars.get_calendar("XNYS")
+    if not xnys.is_session(today.isoformat()) or now.time() < PREMARKET_OPEN:
+        return None
+    board = json.loads((out / "r" / "market.json").read_text(encoding="utf-8"))["map"]
+    target = out / "r" / "premarket.json"
+    kept = json.loads(target.read_text(encoding="utf-8")) if target.exists() else {}
+    end = min(now, dt.datetime.combine(today, PREMARKET_CLOSE, NEW_YORK)).replace(second=0, microsecond=0)
+    if all(kept.get(index, {}).get(today.isoformat(), {}).get("time") == end.isoformat() for index in board):
+        return None
+    session = xnys.previous_session(today.isoformat()).date().isoformat()
+    opened = dt.datetime.combine(today, PREMARKET_OPEN, NEW_YORK)
+    source, etfs = render_inputs(vault).price_source, predictions_chart(vault).path_bands.SECTOR_DB_TICKERS
+
+    @functools.cache
+    def trade(symbol: str) -> dict | None:
+        try:
+            found = source.batch_time_price(symbol, session, end.isoformat())
+        except RuntimeError as error:
+            print(f"프리장 체결가를 받지 못함: {error}", file=sys.stderr)
+            return None
+        return found if dt.datetime.fromisoformat(found["time"]) > opened else None
+
+    for index, found in board.items():
+        etf = trade(etfs[index])
+        own = kept.setdefault(index, {})
+        own[today.isoformat()] = {"session": session, "time": end.isoformat(), "ratio": etf and round(etf["ratio"], 6),
+                                  "stocks": {stock["symbol"]: (got := trade(stock["symbol"])) and round(got["price"], 2) for stock in found["stocks"]}}
+        for day in [day for day in own if day < found["dates"][0]]:
+            del own[day]
+    target.write_text(json.dumps(kept, ensure_ascii=False) + "\n", encoding="utf-8")
     return target
 
 def public_markdown(text: str, vault: Path, out_dir: Path, base: str) -> str:
@@ -1415,13 +1465,19 @@ def running(date: str, index: str, vault: Path, out: Path) -> str | None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="판단 리포트 공개본을 `invest-reports` 미니 앱 조각으로 만든다")
-    parser.add_argument("--date", required=True, help="리포트 날짜 YYYY-MM-DD")
-    parser.add_argument("--index", required=True, help="지수 폴더 이름 (nasdaq, biotech)")
+    parser.add_argument("--date", help="리포트 날짜 YYYY-MM-DD")
+    parser.add_argument("--index", help="지수 폴더 이름 (nasdaq, biotech)")
     parser.add_argument("--vault", default=str(Path.home() / "obsidian-vault"))
     parser.add_argument("--out", default=str(ROOT))
     parser.add_argument("--stage", choices=("pre", "running"), help="본 리포트 대신 사전 리포트를 만들거나(pre) 사전 리포트를 분석 중으로 바꾼다(running)")
+    parser.add_argument("--premarket", action="store_true", help="리포트 대신 오늘 프리장 값(`r/premarket.json`)만 쓴다")
     args = parser.parse_args()
     vault, out = Path(args.vault).expanduser(), Path(args.out)
+    if args.premarket:
+        print(premarket(vault, out) or "")
+        return 0
+    if not (args.date and args.index):
+        parser.error("--premarket이 아니면 --date와 --index가 필요하다")
     if args.stage == "pre":
         print(pre(args.date, args.index, vault, out))
     elif args.stage == "running":

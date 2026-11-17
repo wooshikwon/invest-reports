@@ -52,6 +52,7 @@
      사전 리포트는 시세에 아래 줄이 없으므로 머리 상자를 위 줄 높이로 줄인다.
      시세 위 줄은 "나스닥 $27,940 −1.22%"처럼 흰 지수 이름, 리포트 판단의 기준 가격 날짜의 정규장 종가, 그 종가의 앞 거래일 종가 대비 등락률을 쓴다.
      아래 줄은 지수 이름과 같은 왼쪽 끝에서 "애프터마켓 $27,712 −0.83%"처럼 리포트 판단의 기준 가격과 기준 가격의 정규장 종가 대비 등락률을 쓴다. 기준 가격은 정규장 뒤 애프터마켓 거래까지 반영한 마지막 가격이다.
+     리포트 날짜에 뉴욕 프리장이 열려 프리장 값이 오면 아래 줄을 "프리마켓 $27,850 +0.50%"처럼 정규장 종가를 지수 ETF의 프리장 체결가로 옮긴 가격과 그 등락률로 바꾼다.
      지수 이름과 정규장 종가는 절 제목과 같은 크기로, 정규장 등락률은 그보다 작은 13px로 쓴다. 아래 줄은 모두 13px의 굵지 않은 회색 글씨로 쓴다.
      정규장 종가와 정규장 등락률은 정규장 등락률이 오르면 빨강, 내리면 파랑으로 칠한다.
      상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 페이지 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
@@ -1085,7 +1086,8 @@
     if (data) {
       data.remove();
       const cards = JSON.parse(data.textContent), set = summaryCards(cards, date);
-      ticker.innerHTML = set.quote;
+      ticker.innerHTML = set.quote();
+      onPremarket((found) => { ticker.innerHTML = set.quote(found[key.split("-")[1]]?.[date]); });
       const bar = document.createElement("div");
       bar.className = "tabs";
       set.names.forEach((name, i) => {
@@ -1189,11 +1191,13 @@
   // 지도는 리포트 날짜 전날까지의 마지막 종가로 그린다. 칸 넓이는 종가에 주식 수를 곱한 시가총액에 비례하고, 큰 종목부터 가로세로 비가 1에 가까운 칸으로 나눠 담는다(squarified treemap).
   // 그 날짜의 애프터장 마지막 체결가(`after`)가 있으면 절 제목 오른쪽에 `정규장 | 애프터장` 단추를 둔다. 애프터장을 고르면 칸 넓이는 그대로 두고
   // 칸과 말풍선의 가격과 등락률, 칸 색을 애프터장 체결가와 그 체결가의 정규장 종가 대비 등락률로 바꾼다. 애프터장 체결가가 없는 종목은 등락률 자리에 "–"를 쓰고 회색으로 칠한다.
+  // `watch`는 리포트 날짜의 프리장 값(`r/premarket.json`)을 받을 때마다 부를 함수를 건다. 프리장 값의 앞 세션이 지도 날짜이고 체결가가 있는 종목이 있으면
+  // 단추를 `정규장 | 다음날 프리장`으로 바꾸고, 애프터장 체결가 대신 프리장 체결가로 같은 자리를 그린다. 위 줄에는 프리장 날짜와 체결가를 받은 뉴욕 시각을 쓴다.
   // 칸 색은 앞 세션 종가 대비 등락률로 정한다. 오르면 빨강, 내리면 파랑이고, 보합의 회색에서 등락률이 클수록 채도를 올려 2.5%에서 가장 선명하다. 칸이 작아 글씨가 넘치면 글씨를 줄이고,
   // 그래도 넘치면 이름 대신 티커를 쓰고, 다음에 등락률을, 끝으로 티커를 뺀다.
   // 칸을 누르면 누른 자리 위(위에 자리가 없으면 아래)에 말풍선을 띄워 종목 이름, 종가와 등락률, 종목 설명 첫 문장을 쓰고, 말풍선의 단추로 그 종목의 상세 화면(`stock`)을 연다.
   // 말풍선을 띄운 종목의 칸은 흰 테두리로 표시한다. 같은 칸을 다시 누르거나 지도 밖을 누르면 말풍선을 닫는다.
-  function indexMap(head, map, scope, date) {
+  function indexMap(head, map, scope, date, watch) {
     const box = Object.assign(document.createElement("div"), { className: "carousel indexmap" });
     box.innerHTML = `<div class="top"><span></span><span>${scope}</span></div><div class="board"></div>`;
     const label = box.querySelector(".top span"), board = box.querySelector(".board");
@@ -1205,33 +1209,43 @@
     const n = map.dates.findLastIndex((d) => d < date);
     const stocks = map.stocks.map((stock) => {
       const [now, k] = close(stock, n), [before] = close(stock, k - 1);
-      return now && before ? { ...stock, now, change: (now / before - 1) * 100, cap: stock.shares * now, late: k === n ? stock.after?.[n] ?? null : null } : null;
+      return now && before ? { ...stock, now, change: (now / before - 1) * 100, cap: stock.shares * now, fresh: k === n } : null;
     }).filter(Boolean).sort((a, b) => b.cap - a.cap);
     if (!stocks.length) return head.remove();
     head.after(box);
-    // 애프터장 단추를 고르면 참이다.
-    let late = false;
-    // 칸과 말풍선에 쓰는 [가격, 등락률]. 애프터장 체결가가 없는 종목의 애프터장 값은 [null, null]이다.
-    const quote = (stock) => !late ? [stock.now, stock.change] : stock.late == null ? [null, null] : [stock.late, (stock.late / stock.now - 1) * 100];
-    if (stocks.some((stock) => stock.late != null)) {
-      const seg = box.appendChild(Object.assign(document.createElement("div"), { className: "seg" }));
-      seg.innerHTML = '<button type="button" class="on">정규장</button><button type="button">애프터장</button>';
-      seg.addEventListener("click", (event) => {
-        const button = event.target.closest("button");
-        if (!button || button.classList.contains("on")) return;
-        feelPress();
-        late = button === seg.lastElementChild;
-        [...seg.children].forEach((other) => other.classList.toggle("on", other === button));
-        draw();
-      });
-    }
+    // 정규장 다음 단추(애프터장이나 다음날 프리장)를 고르면 참이다. `early`는 지도 날짜 다음 프리장의 값이고, 없으면 null이다.
+    let late = false, early = null;
+    // 정규장 다음 단추의 체결가. 지도 날짜에 종가가 없는 종목은 null이다.
+    const extra = (stock) => !stock.fresh ? null : early ? early.stocks[stock.symbol] ?? null : stock.after?.[n] ?? null;
+    // 칸과 말풍선에 쓰는 [가격, 등락률]. 체결가가 없는 종목의 애프터장·프리장 값은 [null, null]이다.
+    const quote = (stock) => !late ? [stock.now, stock.change] : extra(stock) == null ? [null, null] : [extra(stock), (extra(stock) / stock.now - 1) * 100];
+    const seg = Object.assign(document.createElement("div"), { className: "seg" });
+    seg.innerHTML = '<button type="button" class="on">정규장</button><button type="button"></button>';
+    seg.addEventListener("click", (event) => {
+      const button = event.target.closest("button");
+      if (!button || button.classList.contains("on")) return;
+      feelPress();
+      late = button === seg.lastElementChild;
+      [...seg.children].forEach((other) => other.classList.toggle("on", other === button));
+      draw();
+    });
+    // 체결가가 있는 종목이 있으면 단추를 두고 두 번째 단추 이름을 정하고, 없으면 단추를 빼고 정규장 값으로 돌린다.
+    const segment = () => {
+      seg.lastElementChild.textContent = early ? "다음날 프리장" : "애프터장";
+      if (stocks.some((stock) => extra(stock) != null)) return box.append(seg);
+      seg.remove();
+      late = false;
+      [...seg.children].forEach((button, i) => button.classList.toggle("on", !i));
+    };
+    segment();
     // 칸 색은 보합의 무채색 회색에서 출발해 등락률의 크기만큼 빨강이나 파랑의 채도를 올리고, 2.5%부터는 가장 선명한 색으로 칠한다.
     const shade = (change) => `color-mix(in oklab, ${change > 0 ? "#ec3b47" : "#1f78ee"} ${Math.round(100 * Math.min(1, Math.abs(change) / 2.5))}%, #3a3d44)`;
     let tip = null, width = 0;
     const untip = () => { tip?.tile.classList.remove("on"); tip?.remove(); tip = null; };
     const draw = () => {
       untip();
-      label.textContent = `${map.dates[n].slice(5, 7)}/${map.dates[n].slice(8, 10)} ${usZone(map.dates[n])} ${late ? "애프터장" : "종가"}`;
+      const day = late && early ? date : map.dates[n];
+      label.textContent = `${day.slice(5, 7)}/${day.slice(8, 10)} ${usZone(day)} ${!late ? "종가" : early ? `프리장 ${early.time.slice(11, 16)}` : "애프터장"}`;
       board.replaceChildren();
       const W = board.clientWidth, H = Math.round(W * .95), total = stocks.reduce((sum, stock) => sum + stock.cap, 0);
       board.style.height = `${H}px`;
@@ -1298,7 +1312,7 @@
         + (past ? "" : '<button type="button">자세히 보기<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>');
       tip.querySelector("b").textContent = stock.name;
       const [value, change] = tip.querySelectorAll("p.price span");
-      value.textContent = now == null ? "애프터장 체결 없음" : price(now, "달러");
+      value.textContent = now != null ? price(now, "달러") : early ? "프리장 체결 없음" : "애프터장 체결 없음";
       change.textContent = move == null ? "" : `${signed(move)}%`;
       const lead = tip.querySelector("p.lead");
       lead.textContent = (stock.about || "").split(/(?<=다\.)\s+/)[0];
@@ -1323,6 +1337,14 @@
       width = board.clientWidth;
       draw();
     }).observe(board);
+    // 프리장 값은 받은 시각이 바뀔 때만 다시 그린다. 지도를 아직 그리지 않았으면 처음 그릴 때 새 값을 쓴다.
+    watch((own) => {
+      const found = own?.session === map.dates[n] && Object.values(own.stocks).some((value) => value != null) ? own : null;
+      if (found?.time === early?.time) return;
+      early = found;
+      segment();
+      if (width) draw();
+    });
   }
 
   // 요약 절의 그림 카드 세 장(주가와 예측, 일정과 예측, 권장 배율)을 만든다. 카드 이름 탭에는 리포트 지수의 이름(`INDEX_NAME`), "일정", "권장 배율"로 쓴다. `data`는 `build.py` `summary_cards`의 값이다.
@@ -1625,11 +1647,17 @@
     const show = (frame) => parts.forEach((part) => part.show(frame));
     show(data);
     // 머리 상자 시세는 위 줄에 기준 가격 날짜의 정규장 종가를, 아래 줄에 리포트 날짜 판단의 기준 가격을 쓴다. 사전 리포트는 아래 줄을 두지 않는다.
-    // 등락률은 반올림한 값으로 색을 정해 0.00%를 칠하지 않는다.
+    // `quote(early)`는 리포트 날짜의 프리장 값(`r/premarket.json`)의 앞 세션이 기준 가격 날짜이고 지수 ETF 체결가가 있으면, 아래 줄에 기준 가격 대신
+    // 정규장 종가에 지수 ETF의 프리장 등락 비율을 곱한 프리마켓 가격과 그 등락률을 쓴다. 등락률은 반올림한 값으로 색을 정해 0.00%를 칠하지 않는다.
     const at = dates.indexOf(data.base_date), rate = (ratio) => Math.round(ratio * 1e4) / 100;
-    const day = rate(hist[at] / hist[at - 1] - 1), after = rate(data.base / hist[at] - 1);
-    const quote = `<span class="row"><span>${INDEX_NAME[key.split("-")[1]]}</span><b class="price ${tone(day)}">${fmt(hist[at])}</b>`
-      + `<b class="${tone(day)}">${signed(day, 2)}%</b>${data.pre ? "" : `<small>애프터마켓 ${fmt(data.base)} ${signed(after, 2)}%</small>`}</span>`;
+    const day = rate(hist[at] / hist[at - 1] - 1);
+    const quote = (early) => {
+      const ratio = early?.session === data.base_date ? early.ratio : null;
+      const tail = ratio != null ? `<small>프리마켓 ${fmt(hist[at] * ratio)} ${signed(rate(ratio - 1), 2)}%</small>`
+        : data.pre ? "" : `<small>애프터마켓 ${fmt(data.base)} ${signed(rate(data.base / hist[at] - 1), 2)}%</small>`;
+      return `<span class="row"><span>${INDEX_NAME[key.split("-")[1]]}</span><b class="price ${tone(day)}">${fmt(hist[at])}</b>`
+        + `<b class="${tone(day)}">${signed(day, 2)}%</b>${tail}</span>`;
+    };
     const names = [INDEX_NAME[key.split("-")[1]], "일정", "권장 배율"].slice(0, parts.length);
     return { names, slides: parts.map((part) => [part.box]), show, quote };
   }
@@ -3052,6 +3080,18 @@
   const listed = fetch("r/index.json", { cache }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   // `r/market.json`은 build.py가 지수마다 적는 상위 20종목의 이름, 주식 수, 일별 종가(`map`)다. 시장 페이지의 지수 지도가 쓴다.
   const marketed = fetch("r/market.json", { cache }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  // `r/premarket.json`은 build.py `premarket`이 뉴욕 프리장 동안 10분마다 지수마다 적는 그날 프리장의 마지막 체결가다. 머리 상자와 지도가 쓴다.
+  // `onPremarket(hook)`은 받은 값으로 `hook`을 부르고, 가장 늦은 리포트를 보는 동안 화면이 보이면 5분마다, 화면이 다시 보일 때마다 새로 받아 다시 부른다.
+  const hooks = [];
+  let premarketed = null;
+  const premarket = () => (premarketed = fetch("r/premarket.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})));
+  const onPremarket = (hook) => { hooks.push(hook); (premarketed || premarket()).then(hook); };
+  const refresh = () => {
+    if (!hooks.length || document.visibilityState !== "visible" || document.documentElement.classList.contains("past")) return;
+    premarket().then((found) => hooks.forEach((hook) => hook(found)));
+  };
+  setInterval(refresh, 5 * 60e3);
+  document.addEventListener("visibilitychange", refresh);
   const signed = (v, digits = 2) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(digits)}`;
   const tone = (v) => v > 0 ? "up" : v < 0 ? "down" : "";
   const figure = (v) => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -3110,7 +3150,10 @@
       heads("1개월 예측");
       fold("1개월 예측");
       indicators(date);
-      marketed.then(({ map }) => { if (map?.[index]?.stocks.length) indexMap(glance, map[index], MAP_SCOPE[index], date); else glance.remove(); });
+      marketed.then(({ map }) => {
+        if (!map?.[index]?.stocks.length) return glance.remove();
+        indexMap(glance, map[index], MAP_SCOPE[index], date, (hook) => onPremarket((found) => hook(found[index]?.[date])));
+      });
     }
     issueCharts();
     toneTags(report);
