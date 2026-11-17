@@ -286,7 +286,7 @@
      그림이 두 장 이상이면 그림과 사진 설명을 한 장씩 넘겨 보는 묶음에 싣고, 묶음 아래 가운데에 장마다 점 하나를 찍어 보고 있는 장의 점을 밝게 칠한다. 점을 누르면 그 장으로 넘긴다.
      이슈 그래프는 이슈 해설 문단 사이에 미국 거시 지표 카드와 같은 모양으로 싣고, 그래프 설명은 카드 내용과 같은 좌우 여백을 두고 단다.
      그림의 사진 설명과 그래프 설명 아래에서 다음 말머리나 문단까지는 위 문단에서 그래프 제목까지와 같은 28px을 띄운다. 히스토리 상자 아래 이슈 해설 말머리도 28px을 띄운다.
-     종목 상세의 대표 이미지는 같은 모양으로 절 제목 위, 화면 맨 위에 싣는다. */
+     종목 상세의 대표 이미지는 같은 모양으로 절 제목 위, 화면 맨 위에 싣고, 그림과 절 제목 사이에는 절 사이 띠를 두지 않는다. */
   .issue-page > h4 { margin-top: 15.5px; }
   .issue-page > :is(p, ul, ol) { color: var(--hint); }
   :is(.issue-page, #report) > figure.issue-image { margin: 12px calc(50% - 50vw) 0; }
@@ -301,6 +301,8 @@
   :is(.issue-page, #report) > figure.issue-image .dots i.on { background: var(--hint); }
   .issue-page > figure.issue-image + * { margin-top: 28px; }
   #report > figure.issue-image { margin-top: 0; }
+  #report > figure.issue-image + h2:not(:first-child) { margin-top: 28px; }
+  #report > figure.issue-image + h2:not(:first-child)::before { content: none; }
   .issue-page > figure.issue-chart { margin: 0 0 28px; }
   .issue-chart > figcaption { margin-top: 8px; padding: 0 18px; color: var(--dim); font-size: 12px; line-height: 1.5; }
   /* 같은 이슈를 다룬 앞 날짜 리포트가 있으면 이슈 그림과 이슈 해설 말머리 사이에 히스토리 말머리와 이슈 목록 상자 같은 연한 둥근 상자를 둔다. 상자에는 줄마다 날짜와
