@@ -876,12 +876,10 @@
   // 소제목 위 말머리와 이벤트 시각은 지수마다 리포트 그림의 판단 색 계열에서 채도를 낮춘 색으로 쓴다(conviction_chart.py JUDGMENT_COLORS).
   // 두 번째 색은 그라데이션이 끝나는 색으로, 지수색에서 색상환을 따라 보라 쪽으로 조금 옮긴 색이다.
   const INDEX = { nasdaq: ["#8FBCE6", "#AFA6EC"], biotech: ["#AE9CE6", "#E09DCB"] };
-  // 머리 상자가 기준 가격 앞에 붙이는 가격의 이름이다. 바이오는 예측 범위를 계산한 ETF(path_bands.py SECTOR_DB_TICKERS)의 가격을 적으므로 그 ETF 이름을 쓰고,
-  // 나스닥은 build.py CARD_INDEX가 지수 눈금으로 늘려 시장 탭의 나스닥 100 값과 같으므로 시장 탭의 탭 이름을 쓴다.
-  const PRICE_NAME = { nasdaq: "나스닥", biotech: "IBB" };
   // 달력의 지수 단추에 쓰는 이름이다.
   const SHORT = { nasdaq: "나스닥 리포트", biotech: "바이오 리포트" };
-  // 1개월 예측 절의 첫 카드 탭과 시장 페이지의 한 눈에 보기 절 제목에 쓰는 리포트 지수의 이름이다.
+  // 1개월 예측 절의 첫 카드 탭, 머리 상자 기준 가격, 시장 페이지의 한 눈에 보기 절 제목에 쓰는 리포트 지수의 이름이다.
+  // build.py card_scale이 카드 가격을 지수 눈금으로 늘려 적으므로 머리 상자 가격은 시장 탭의 같은 이름 지수 값과 같다.
   const INDEX_NAME = { nasdaq: "나스닥", biotech: "바이오" };
   // 한 눈에 보기 절의 지도 위 줄에 쓰는 종목 범위다.
   const MAP_SCOPE = { nasdaq: "나스닥 100 상위 20종목", biotech: "나스닥 바이오테크놀로지 상위 20종목" };
@@ -1590,7 +1588,7 @@
     // 등락률은 반올림한 값으로 색을 정해 0.00%를 칠하지 않는다.
     const at = dates.indexOf(data.base_date), rate = (ratio) => Math.round(ratio * 1e4) / 100;
     const day = rate(hist[at] / hist[at - 1] - 1), after = rate(data.base / hist[at] - 1);
-    const quote = `<span class="row"><span>${PRICE_NAME[key.split("-")[1]]}</span><b class="price ${tone(day)}">${fmt(hist[at])}</b>`
+    const quote = `<span class="row"><span>${INDEX_NAME[key.split("-")[1]]}</span><b class="price ${tone(day)}">${fmt(hist[at])}</b>`
       + `<b class="${tone(day)}">${signed(day, 2)}%</b>${data.pre ? "" : `<small>애프터마켓 ${fmt(data.base)} ${signed(after, 2)}%</small>`}</span>`;
     const names = [INDEX_NAME[key.split("-")[1]], "일정", "권장 배율"].slice(0, parts.length);
     return { names, slides: parts.map((part) => [part.box]), show, quote };

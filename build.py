@@ -87,7 +87,7 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 그런 리포트의 공개본에서는 12M + Predictions·Montecarlo·권장 추종 배율 그림을 빼고, `report.html` 끝에 카드 값을
 `<script type="application/json" id="cards">`로 붙인다. 카드 값은 `PRICE_YEARS`년 종가와 날짜, 지난 리포트가 예측한 25거래일 뒤 가격,
 그날 25·50·75% 가격, 10~90% 수익률 분위수와 사안 일정, 체류 적분 밀도를 담는다(`summary_cards`). 종가와 가격은 예측을 계산한
-ETF 눈금이고, `CARD_INDEX`에 있는 나스닥은 지수 눈금으로 늘려 적는다. 공개본이 있는 그 지수 리포트
+ETF 눈금을 지수 눈금으로 늘려 적는다(`card_scale`). 공개본이 있는 그 지수 리포트
 가운데 가장 늦은 날짜에서 `REWIND_DAYS`일 안의 카드 값 리포트는 되감기 날짜가 되고, `r/rewind-{지수}/cards.json`에 날짜마다
 같은 판단 값과 그날 기준 가격 뒤의 실제 종가 수익률(%)을 쓴다. `invest-reports` 미니 앱은 카드 값으로 그림 카드를
 그리고, 슬라이더를 옮기면 그날 판단 값으로 세 카드를 다시 그린다.
@@ -146,9 +146,6 @@ TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
 CARD_QUANTILES = (10, 25, 50, 75, 90)  # 일정과 예측 카드가 그리는 수익률 분위수
 PRICE_YEARS = 3  # 주가와 예측 카드가 그리는 종가 기간(년)
-# 주가와 예측 카드를 예측을 계산한 ETF 눈금 대신 지수 눈금으로 그리는 지수와 그 지수 종가의 `observation` 계열이다.
-# 여기 없는 지수는 ETF(`path_bands.SECTOR_DB_TICKERS`) 눈금 그대로 그린다.
-CARD_INDEX = {"nasdaq": "close:^NDX"}
 # 시장 페이지의 지수 지도가 되감기 날짜의 첫날보다 앞서 종가를 받는 날 수다. 첫날의 앞 두 세션이 들도록 일주일을 더 받는다.
 MAP_LEAD_DAYS = 7
 TICK_STEP = 5  # 일정과 예측 카드 가로축 날짜의 거래일 간격
@@ -221,25 +218,18 @@ def actual_returns(db: Path, ticker: str, days: list[str], base: float, scale: f
     return values
 
 
-def index_scale(con: sqlite3.Connection, ticker: str, series_id: str) -> float:
-    """`market_price`의 ETF 환산 종가 `ticker`를 지수 눈금으로 늘리는 배율. 마지막으로 겹치는 날의 `observation` 지수 종가 ÷ 환산 종가다.
-
-    `market_price`의 두 나스닥 ETF 행은 지수 수익률을 ETF 눈금으로 환산한 값이라, 이 배율은 날짜와 관계없이 일정하다.
-    """
-    return con.execute(
-        "SELECT o.value / p.close FROM observation o JOIN market_price p ON p.price_date = o.period "
-        "WHERE p.ticker = ? AND o.series_id = ? AND o.value IS NOT NULL ORDER BY o.period DESC, o.retrieved_at DESC LIMIT 1",
-        (ticker, series_id)).fetchone()[0]
-
-
 def card_scale(index: str, vault: Path) -> float:
-    """주가와 예측 카드가 가격에 곱하는 배율. `CARD_INDEX`에 있는 지수는 `index_scale`이고, 없는 지수는 1이다."""
-    if index not in CARD_INDEX:
-        return 1.0
-    chart = predictions_chart(vault)
-    con = sqlite3.connect(f"file:{chart.path_bands.REFERENCE_DB_PATH}?mode=ro", uri=True)
+    """주가와 예측 카드가 ETF 환산 종가에 곱해 지수 눈금으로 늘리는 배율. 마지막으로 겹치는 날의 `observation` 지수 종가 ÷ `market_price` 환산 종가다.
+
+    `market_price`의 QQQ·IBB 행은 지수 수익률을 ETF 눈금으로 환산한 값이라, 이 배율은 날짜와 관계없이 일정하다.
+    """
+    bands = predictions_chart(vault).path_bands
+    con = sqlite3.connect(f"file:{bands.REFERENCE_DB_PATH}?mode=ro", uri=True)
     try:
-        return index_scale(con, chart.path_bands.SECTOR_DB_TICKERS[index], CARD_INDEX[index])
+        return con.execute(
+            "SELECT o.value / p.close FROM observation o JOIN market_price p ON p.price_date = o.period "
+            "WHERE p.ticker = ? AND o.series_id = ? AND o.value IS NOT NULL ORDER BY o.period DESC, o.retrieved_at DESC LIMIT 1",
+            (bands.SECTOR_DB_TICKERS[index], f"close:{bands.SECTOR_INDEX_TICKERS[index]}")).fetchone()[0]
     finally:
         con.close()
 
@@ -414,7 +404,7 @@ def market(vault: Path, out: Path) -> Path:
     try:
         cm = render_inputs(vault).cm
         start = (latest - dt.timedelta(days=REWIND_DAYS + MAP_LEAD_DAYS)).isoformat()
-        board = {index: index_map(con, cm, index, start) for index in cm.EPS_INDEX}
+        board = {index: index_map(con, cm, index, start) for index in cm.ROSTER_INDEX}
     finally:
         con.close()
     target = out / "r" / "market.json"
