@@ -575,7 +575,7 @@
   .gauge :is(th, td).focus { color: var(--accent); font-weight: 700; }
   .gauge tr:last-child td { border-bottom: 0; }
   /* 지수 지도는 본문 폭을 다 쓰고, 위 줄에 종가 날짜와 종목 범위를 흐린 작은 글씨로 쓴다. 칸은 2px 틈을 두고 모서리를 둥글린 단추이고,
-     종목 이름을 굵은 글씨로, 그 아래에 등락률을 옅은 글씨로 가운데에 쓴다. 글씨는 진한 칸에서 흰색, 연한 칸에서 검은색이다. 칸을 누르면 날짜 말풍선과 같은 상자에 종목 이름을 굵게,
+     종목 이름을 굵은 글씨로, 그 아래에 등락률을 옅은 글씨로 가운데에 쓴다. 글씨는 흰색이다. 칸을 누르면 날짜 말풍선과 같은 상자에 종목 이름을 굵게,
      그 아래에 종가와 등락률을 쓴다. 등락률은 오르면 빨강, 내리면 파랑으로 칠한다. */
   .indexmap .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 10px;
                  font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
@@ -587,9 +587,6 @@
   .indexmap .board > button b { font-weight: 700; }
   .indexmap .board > button span { white-space: nowrap; font-size: .86em; font-weight: 600; color: rgba(255, 255, 255, .78); font-variant-numeric: tabular-nums; }
   .indexmap .board > button.on { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .85); }
-  .indexmap .board > button.light { color: #15181d; }
-  .indexmap .board > button.light span { color: rgba(21, 24, 29, .72); }
-  .indexmap .board > button.light.on { box-shadow: inset 0 0 0 2px rgba(21, 24, 29, .8); }
   .bubble.quote { padding: 10px 14px; pointer-events: none; }
   .bubble.quote b { position: relative; z-index: 1; display: block; color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap; }
   .bubble.quote p { display: flex; gap: 8px; padding: 0; margin-top: 2px; color: var(--accent); font-variant-numeric: tabular-nums; }
@@ -1176,10 +1173,8 @@
       for (let k = i; k >= 0; k--) if (stock.closes[k] != null) return [stock.closes[k], k];
       return [null, -1];
     };
-    const shade = (change) => Math.abs(change) < .005 ? "#c4c7cd"
-      : `color-mix(in oklab, ${change > 0 ? "#d0222d" : "#1f4fcc"} ${Math.round(100 * Math.min(1, Math.abs(change) / 3))}%, ${change > 0 ? "#f4b4b8" : "#b3cbf7"})`;
-    // 연한 칸은 흰 글씨보다 검은 글씨가 잘 보인다. 흰 글씨의 대비가 검은 글씨보다 커지는 등락률은 오를 때 2.4%, 내릴 때 2.1%다.
-    const light = (change) => Math.abs(change) < (change > 0 ? 2.4 : 2.1);
+    // 칸 색은 보합의 무채색 회색에서 출발해 등락률의 크기만큼 빨강이나 파랑의 채도를 올리고, 2.5%부터는 가장 선명한 색으로 칠한다.
+    const shade = (change) => `color-mix(in oklab, ${change > 0 ? "#ec3b47" : "#1f78ee"} ${Math.round(100 * Math.min(1, Math.abs(change) / 2.5))}%, #3a3d44)`;
     let day = date, width = 0, tip = null;
     const untip = () => { tip?.tile.classList.remove("on"); tip?.remove(); tip = null; };
     const draw = () => {
@@ -1222,7 +1217,6 @@
         tile.type = "button";
         tile.stock = cell.stock;
         Object.assign(tile.style, { left: `${cell.x + 1}px`, top: `${cell.y + 1}px`, width: `${cell.w - 2}px`, height: `${cell.h - 2}px`, background: shade(cell.stock.change) });
-        tile.classList.toggle("light", light(cell.stock.change));
         tile.append(Object.assign(document.createElement("b"), { textContent: cell.stock.name }),
                     Object.assign(document.createElement("span"), { textContent: `${signed(cell.stock.change)}%` }));
         const [name, move] = tile.children;
@@ -3239,7 +3233,7 @@
   // 두 한 눈에 보기 절이 함께 쓰는 설명 항목이다.
   const MAP_HELP = [
     ["칸 크기", "칸이 클수록 시가총액이 커요."],
-    ["칸 색", "그 앞 거래일 종가보다 오르면 빨간색, 내리면 파란색이에요. 조금 움직이면 색이 연하고, 많이 움직일수록 색이 진해요. 칸을 누르면 종가와 등락률이 나와요."],
+    ["칸 색", "그 앞 거래일 종가보다 오르면 빨간색, 내리면 파란색이에요. 조금 움직이면 회색에 가깝고, 많이 움직일수록 색이 선명해요. 칸을 누르면 종가와 등락률이 나와요."],
   ];
   // 절 제목마다 설명 상자에 쓸 항목을 둔다. 항목마다 이름을 굵게 쓰고 그 아래에 설명을 쓴다. 1개월 예측 절은 `OUTLOOK_HELP`와 `CARD_HELP`가 항목을 만든다.
   const HELP = {
