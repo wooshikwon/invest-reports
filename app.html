@@ -46,7 +46,7 @@
   /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
   main { position: relative; max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-edge)) 16px calc(40px + var(--offscreen, 0px)); }
   /* 문서 맨 위에는 리포트 날짜와 요일을 절 제목과 같은 회색의 작은 글씨로 쓰고(`#day`), 그 아래에 머리 상자(`#masthead`)를 둔다. 날짜 줄은 본문과 함께 화면 위로 지나간다.
-     날짜 오른쪽에는 그날 판단 배치의 단계를 작은 알약(`.stage`)으로 쓴다. 사전 리포트는 회색 "예측 전", 판단 배치가 도는 동안은 노란 "예측 중"과 깜박이는 점, 본 리포트는 흐린 "예측 완료"다.
+     날짜 오른쪽에는 그날 판단 배치의 단계를 작은 알약(`.stage`)으로 쓴다. 사전 리포트는 회색 "예측 전", 판단 배치가 도는 동안은 노란 "예측 중"과 깜박이는 점, 본 리포트는 지수색 그라데이션 글자와 옅은 지수색 바탕의 "예측 완료"다.
      머리 상자는 32px 높이의 위 줄과 18px 높이의 아래 줄(`header`)이고, 왼쪽에 시세(`#ticker`)를, 위 줄 오른쪽 끝에 달력 단추를 쓴다. 날짜 줄이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
      사전 리포트는 시세에 아래 줄이 없으므로 머리 상자를 위 줄 높이로 줄인다.
      시세 위 줄은 "나스닥 $27,940 −1.22%"처럼 흰 지수 이름, 리포트 판단의 기준 가격 날짜의 정규장 종가, 그 종가의 앞 거래일 종가 대비 등락률을 쓴다.
@@ -59,7 +59,8 @@
   #day:empty { display: none; }
   #day .stage { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 0 6px; border-radius: 6px;
                 background: rgba(255, 255, 255, .08); color: var(--hint); font-size: 10.5px; font-weight: 700; line-height: 16px; }
-  #day .stage.done { background: none; padding: 0; color: var(--dim); }
+  #day .stage.done { background: var(--index-ink), linear-gradient(100deg, color-mix(in srgb, var(--index-to) 16%, transparent), color-mix(in srgb, var(--index) 16%, transparent));
+                     -webkit-background-clip: text, padding-box; background-clip: text, padding-box; color: transparent; }
   #day .stage.running { background: rgba(255, 200, 87, .14); color: #ffc857; }
   #day .stage.running::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: stage-blink 1.2s ease-in-out infinite; }
   @keyframes stage-blink { 50% { opacity: .25; } }
