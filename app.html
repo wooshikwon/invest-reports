@@ -46,7 +46,8 @@
   /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
   main { position: relative; max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-edge)) 16px calc(40px + var(--offscreen, 0px)); }
   /* 문서 맨 위에는 리포트 날짜와 요일을 절 제목과 같은 회색의 작은 글씨로 쓰고(`#day`), 그 아래에 머리 상자(`#masthead`)를 둔다. 날짜 줄은 본문과 함께 화면 위로 지나간다.
-     날짜 오른쪽에는 그날 판단 배치의 단계를 작은 알약(`.stage`)으로 쓴다. 사전 리포트는 회색 "예측 전", 판단 배치가 도는 동안은 노란 "예측 중"과 깜박이는 점, 본 리포트는 지수색 그라데이션 글자와 옅은 지수색 바탕의 "예측 완료"다.
+     날짜 오른쪽에는 그날 판단 배치의 단계를 작은 알약(`.stage`)으로 쓴다. 알약 왼쪽에는 점을 찍는다. 사전 리포트는 회색 "예측 전", 판단 배치가 도는 동안은 노란 "예측 중"과 깜박이는 점이다.
+     본 리포트는 지수색 그라데이션 점과 글자, 옅은 지수색 바탕으로 "예측 완료 11:22"처럼 본 리포트를 처음 만든 서울 시각을 함께 쓴다.
      머리 상자는 32px 높이의 위 줄과 18px 높이의 아래 줄(`header`)이고, 왼쪽에 시세(`#ticker`)를, 위 줄 오른쪽 끝에 달력 단추를 쓴다. 날짜 줄이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
      사전 리포트는 시세에 아래 줄이 없으므로 머리 상자를 위 줄 높이로 줄인다.
      시세 위 줄은 "나스닥 $27,940 −1.22%"처럼 흰 지수 이름, 리포트 판단의 기준 가격 날짜의 정규장 종가, 그 종가의 앞 거래일 종가 대비 등락률을 쓴다.
@@ -59,10 +60,12 @@
   #day:empty { display: none; }
   #day .stage { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 0 6px; border-radius: 6px;
                 background: rgba(255, 255, 255, .08); color: var(--hint); font-size: 10.5px; font-weight: 700; line-height: 16px; }
+  #day .stage::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  #day .stage.done::before { background: var(--index-ink); }
   #day .stage.done { background: var(--index-ink), linear-gradient(100deg, color-mix(in srgb, var(--index-to) 16%, transparent), color-mix(in srgb, var(--index) 16%, transparent));
                      -webkit-background-clip: text, padding-box; background-clip: text, padding-box; color: transparent; }
   #day .stage.running { background: rgba(255, 200, 87, .14); color: #ffc857; }
-  #day .stage.running::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: stage-blink 1.2s ease-in-out infinite; }
+  #day .stage.running::before { animation: stage-blink 1.2s ease-in-out infinite; }
   @keyframes stage-blink { 50% { opacity: .25; } }
   @media (prefers-reduced-motion: reduce) { #day .stage.running::before { animation: none; } }
   /* 문서 맨 위에서 화면을 아래로 끌면 본문(`main`)이 손가락을 따라 내려오고, 위쪽 높이와 본문 사이에 벌어진 틈의 가운데에 새로고침 표시(`#pull`)가 나타난다.
@@ -674,17 +677,17 @@
     tg.onEvent("viewportChanged", offscreen);
     window.addEventListener("resize", offscreen);
   }
-  // 문서 맨 위에서 시작해 아래로 끈 거리의 절반만큼 본문을 내리고, 새로고침 표시를 벌어진 틈의 가운데에 두며 호를 그만큼 늘린다.
-  // 본문이 64px까지 내려오면 손을 뗄 때 본문을 48px 아래에 멈춰 두고 미니 앱을 다시 연다. 다시 연 문서가 그려질 때까지 본문은 올라가지 않는다.
+  // 문서 맨 위에서 시작해 아래로 끈 거리의 60%만큼 본문을 내리고, 새로고침 표시를 벌어진 틈의 가운데에 두며 호를 그만큼 늘린다.
+  // 본문이 128px까지 내려오면 손을 뗄 때 본문을 96px 아래에 멈춰 두고 미니 앱을 다시 연다. 다시 연 문서가 그려질 때까지 본문은 올라가지 않는다.
   // 판단 배치의 단계가 바뀌면 `r/index.json`과 리포트가 바뀌므로, 다시 열면 그날 리포트의 새 단계를 받는다. 이슈 화면에서는 끌지 않는다.
   {
-    const pull = document.getElementById("pull"), arc = pull.querySelector("circle"), main = document.querySelector("main"), FULL = 64, HOLD = 48;
+    const pull = document.getElementById("pull"), arc = pull.querySelector("circle"), main = document.querySelector("main"), FULL = 128, HOLD = 96;
     let from = null, shown = 0;
     const place = (y, grown = Math.min(1, y / FULL)) => {
       shown = y;
       main.style.top = y ? `${y}px` : "";
       pull.style.transform = `translateY(${y / 2}px) scale(${.7 + .3 * grown})`;
-      pull.style.opacity = Math.min(1, y / 32);
+      pull.style.opacity = Math.min(1, y / 48);
       arc.setAttribute("stroke-dasharray", `${grown * 75} 100`);
       pull.classList.toggle("ready", grown === 1);
     };
@@ -704,7 +707,7 @@
         if (dy <= 0 || Math.abs(dx) > dy || scrollY > 0) { from = null; return; }
         from.down = true;
       }
-      place(Math.min(FULL, Math.max(0, dy / 2)));
+      place(Math.min(FULL, Math.max(0, dy * .6)));
     }, { passive: true });
     addEventListener("touchend", () => {
       if (!from) return;
@@ -2844,7 +2847,7 @@
       day.textContent = `${+year}년 ${+month}월 ${+mday}일 (${"일월화수목금토"[new Date(entry.date).getUTCDay()]})`;
       const stage = entry.stage || "done";
       day.append(Object.assign(document.createElement("span"), { className: `stage ${stage}`,
-        textContent: { pre: "예측 전", running: "예측 중", done: "예측 완료" }[stage] }));
+        textContent: { pre: "예측 전", running: "예측 중", done: `예측 완료${entry.written ? ` ${entry.written.slice(11)}` : ""}` }[stage] }));
     }
     const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
     if (key !== latest(listing, key.split("-")[1])) {
