@@ -683,9 +683,10 @@
     tg.onEvent("viewportChanged", offscreen);
     window.addEventListener("resize", offscreen);
   }
-  // 문서 맨 위에서 시작해 아래로 끌면 본문이 손가락을 따라 내려온다. 본문은 끈 거리의 60%만큼 내려오다가 128px을 넘으면 끈 거리의 30%씩 더 내려오고, 끄는 거리에 한계는 없다.
+  // 문서 맨 위에서 시작해 아래로 끌면 본문이 손가락을 따라 내려온다. 본문은 처음에 끈 거리의 70%만큼 내려오고, 더 끌수록 따라오는 비율이 조금씩 줄어 손가락보다 덜 내려온다.
+  // 끈 거리 `d`에 본문은 560 × (√(1 + d/400) − 1)px 내려오므로 비율은 줄어도 끄는 거리에 한계는 없다.
   // 새로고침 표시는 벌어진 틈의 가운데에 두고, 본문이 128px에 닿을 때까지 호를 그만큼 늘린다. 128px에 닿으면 호가 돌기 시작하고, 손을 떼기 전에 미니 앱 문서와 `r/index.json`, 리포트를 서버에서 새로 받는다.
-  // 새로 받기가 손을 떼기 전에 끝나도 호는 계속 돈다. 손을 떼면 본문을 96px 아래에 멈춰 두고, 새로 받기가 끝나면 미니 앱을 다시 연다.
+  // 새로 받기가 손을 떼기 전에 끝나도 호는 계속 돈다. 손을 떼면 본문과 표시가 96px 아래 자리로 올라가 멈춘다. 그 자리에 닿고 새로 받기도 끝나면 미니 앱을 다시 연다.
   // 다시 연 문서는 `sessionStorage`의 `pulled`를 읽어 본문을 96px 아래에 둔 채 호를 돌리며 리포트를 그린다. 리포트를 다 그리면(`landed`) 새로고침 완료 동작을 보이고 본문과 표시를 제자리로 올린다.
   // 128px에 닿기 전에 떼거나 옆으로 밀면 새로 받지 않고 제자리로 돌아간다. 새로 받기에 실패하면 다시 열지 않고 제자리로 돌아간다.
   // 판단 배치의 단계가 바뀌면 `r/index.json`과 리포트가 바뀌므로, 다시 열면 그날 리포트의 새 단계를 받는다. 이슈 화면에서는 끌지 않는다.
@@ -713,7 +714,7 @@
       from = null;
       if (!fetching) return settle(0);
       settle(HOLD);
-      fetching.then((ok) => {
+      Promise.all([fetching, new Promise((done) => setTimeout(done, 250))]).then(([ok]) => {
         if (ok) {
           sessionStorage.setItem("pulled", "1");
           return location.reload();
@@ -738,7 +739,7 @@
         if (dy <= 0 || Math.abs(dx) > dy || scrollY > 0) { from = null; return; }
         from.down = true;
       }
-      const y = Math.max(0, dy * .6 <= FULL ? dy * .6 : FULL + (dy - FULL / .6) * .3);
+      const y = Math.max(0, 560 * (Math.sqrt(1 + dy / 400) - 1));
       if (y >= FULL && !fetching) refresh();
       place(y);
     }, { passive: true });
