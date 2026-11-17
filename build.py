@@ -96,8 +96,9 @@ ETF 눈금이고, `CARD_INDEX`에 있는 나스닥은 지수 눈금으로 늘려
 `--stage pre`는 판단 배치가 돌기 전에 그날 리포트 키로 사전 리포트를 만든다. 사전 리포트는 그 지수의 가장 늦은 본 리포트 공개본에서
 `1개월 지수 방향 예측` 절의 본문과 카드 값을 빼고, 이슈 소제목의 `data-new`를 지우고 `data-age`를 그날 기준으로 다시 단다.
 `미국 거시 지표` 카드 값은 그 시각까지 `reference.db`에 적재한 값으로 판단 배치와 같은 `render_inputs.py` 함수가 만든 입력에서 다시 뽑는다.
-카드 값은 `pre`를 참으로 두고 전날까지 `PRICE_YEARS`년 종가만 담는다. `invest-reports` 미니 앱은 주가 카드 한 장만 종가 선으로 그리고
-일정·권장 배율 카드, 되감기 슬라이더, 머리 상자의 애프터마켓 줄을 두지 않는다. 이벤트 캘린더와 이슈 그림은 앞 리포트의 것을 그대로 쓴다.
+카드 값은 `pre`를 참으로 두고 전날까지 `PRICE_YEARS`년 종가와 앞 리포트들이 예측한 25거래일 뒤 가격(`past_cards`)을 담는다.
+`invest-reports` 미니 앱은 주가 카드 한 장만 종가 선과 지난 예측 범위로 그리고, 그날 종가의 등락률을 등락 색으로 적는다.
+되감기 슬라이더는 앞 날짜의 판단과 사전 리포트의 종가를 고르게 하고, 일정·권장 배율 카드와 머리 상자의 애프터마켓 줄은 두지 않는다. 이벤트 캘린더와 이슈 그림은 앞 리포트의 것을 그대로 쓴다.
 `r/index.json` 항목에는 `stage: "pre"`와 전날 정규장 `session`·`close`만 적은 `moves`를 쓰고, 앞 날짜의 사전 리포트 항목과 폴더는 지운다.
 전날이 뉴욕 정규장 세션이 아니면 종료 코드 3, 그날 본 리포트가 이미 있으면 종료 코드 4로 끝내고 아무것도 쓰지 않는다. 전날 세션의 종가가 `reference.db`에 아직 없으면 실패로 끝낸다.
 `--stage running`은 그날 사전 리포트 항목의 `stage`를 `running`으로 바꾼다. 본 리포트를 만들면 같은 키의 항목을 새로 쓰므로 `stage`가 없어지고,
@@ -301,12 +302,27 @@ def card_frame(date: str, folder: Path, scale: float) -> dict | None:
                       **{k: [round(v, 4) for v in density[k]] for k in ("today", "quiet")}}}
 
 
+def past_cards(index: str, date: str, dates: list[str], reach: int, scale: float, vault: Path, skip: str | None = None) -> list[list[float]]:
+    """리포트 날짜 `date` 앞 리포트들이 예측한 25거래일 뒤 가격을 `[가로 위치, 25·50·75% 가격]` 줄로 가로 위치 순서에 둔다.
+
+    가로 위치는 종가 날짜 `dates`의 번호로 센다. 줄은 12M + Predictions 그림과 같은 줄을 고르고, 가격에는 `card_scale`의 `scale`을 곱한다.
+    기준 가격 날짜가 `dates`에 없거나 `skip`인 줄과 가로 위치가 `reach`보다 오른쪽인 줄은 뺀다.
+    """
+    chart = predictions_chart(vault)
+    past = {}
+    for base_date, (base, ahead, values) in chart.past_judgments(
+            chart.read_ledger(chart.LEDGER_DIR / f"predictions-{index}.jsonl"), date).items():
+        if base_date in dates and base_date != skip and dates.index(base_date) + ahead <= reach:
+            past[dates.index(base_date) + ahead] = [round(base * scale * (1 + v), 2) for v in values]
+    return [[x, *values] for x, values in sorted(past.items())]
+
+
 def summary_cards(index: str, date: str, folder: Path, vault: Path) -> dict | None:
     """요약 절 그림 카드 값. `card_frame`이 `None`인 리포트는 `None`이다.
 
     카드 값은 그날 판단(`card_frame`)에 기준 가격 날짜까지 `PRICE_YEARS`년 종가와 날짜, 기준 가격의 가로 거리,
-    지난 리포트가 예측한 25거래일 뒤 가격(`past`, 가로 위치·25·50·75% 가격)을 더한다. 종가와 가격에는 모두 `card_scale`을 곱한다. 지난 예측은 12M + Predictions 그림과
-    같은 줄을 고르고, 오늘 판단과 같은 기준 가격 날짜의 줄과 오늘 판단의 끝보다 오른쪽 줄은 뺀다.
+    지난 리포트가 예측한 25거래일 뒤 가격(`past`, `past_cards`)을 더한다. 종가에는 `card_scale`을 곱한다. 지난 예측에서는 오늘 판단과 같은
+    기준 가격 날짜의 줄과 오늘 판단의 끝보다 오른쪽 줄을 뺀다.
     """
     scale = card_scale(index, vault)
     frame = card_frame(date, folder, scale)
@@ -323,14 +339,8 @@ def summary_cards(index: str, date: str, folder: Path, vault: Path) -> dict | No
     finally:
         con.close()
     dates = [day for day, _ in history]
-    x0, horizon = len(dates) - 1, len(frame["predict"]["q50"]) - 1
-    past = {}
-    for base_date, (base, ahead, values) in chart.past_judgments(
-            chart.read_ledger(chart.LEDGER_DIR / f"predictions-{index}.jsonl"), date).items():
-        if base_date in dates and base_date != frame["base_date"] and dates.index(base_date) + ahead <= x0 + horizon:
-            past[dates.index(base_date) + ahead] = [round(base * scale * (1 + v), 2) for v in values]
-    return {"start_offset": chart.START_OFFSET, "dates": dates, "history": [round(c * scale, 2) for _, c in history],
-            "past": [[x, *values] for x, values in sorted(past.items())], **frame}
+    past = past_cards(index, date, dates, len(dates) - 1 + len(frame["predict"]["q50"]) - 1, scale, vault, frame["base_date"])
+    return {"start_offset": chart.START_OFFSET, "dates": dates, "history": [round(c * scale, 2) for _, c in history], "past": past, **frame}
 
 
 def rewind(index: str, vault: Path, out: Path) -> Path | None:
@@ -791,8 +801,9 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
     주별 막대 그림(`columns`)은 가로축이 시간이므로 지난주를 왼쪽에, 오늘을 오른쪽에 둔다. 연준 금리 경로(`diverge`)도 가로축이 시간이므로 가까운 회의를 왼쪽에 두고, 0 가로선 위에 인상을, 아래에 인하를 둔다.
     금리 경로의 세로축 상한(`max`)은 날마다 같은 `RATE_RANGE_BP`이고, 그림은 금리 한 번 변경 폭(`step`)의 위아래 높이에 점선 가로선을 긋는다.
     유가의 일별 선 그림(`daily`)은 원값의 일별 정산가를 앞 날짜부터 오늘까지 왼쪽에서 오른쪽으로 잇는다. 정산가 날짜도 미국 장의 날짜이므로 하루를 더해 적는다.
-    `help`는 카드 이름 뒤의 물음표 단추가 띄우는 설명 상자의 문단 목록이고, 지표를 무엇으로 계산하는지와 값을 읽는 법을 쓴다."""
-    when = month_day(date)
+    `help`는 카드 이름 뒤의 물음표 단추가 띄우는 설명 상자의 문단 목록이고, 지표를 무엇으로 계산하는지와 값을 읽는 법을 쓴다.
+    `asof`는 출처와 기준일이고, 기준일은 한국 날짜이므로 날짜 뒤에 KST를 붙인다."""
+    when = f"{month_day(date)} KST"
     if name == "공포·탐욕 지수":
         score = value["score"]
         guide = ["CNN이 지표 7개를 합쳐 미국 주식시장의 투자 심리를 0점에서 100점 사이로 매긴 점수예요.",
@@ -1270,7 +1281,9 @@ def pre(date: str, index: str, vault: Path, out: Path) -> str:
     body = mark_indicators(body, indicator_cards(vault, index, day, stored_data(vault, index)))
     scale = card_scale(index, vault)
     closes = [round(close * scale, 2) for _, close in history]
-    card = {"pre": True, "start_offset": chart.START_OFFSET, "dates": [d for d, _ in history], "history": closes, "past": [],
+    dates = [d for d, _ in history]
+    card = {"pre": True, "start_offset": chart.START_OFFSET, "dates": dates, "history": closes,
+            "past": past_cards(index, date, dates, len(dates) - 1 + chart.path_bands.PATH_BAND_HORIZON, scale, vault),
             "day": date, "base_date": history[-1][0], "base": closes[-1]}
     body += f'<script type="application/json" id="cards">{json.dumps(card, ensure_ascii=False)}</script>\n'
     target = out / "r" / key

@@ -54,9 +54,9 @@
      정규장 종가와 정규장 등락률은 정규장 등락률이 오르면 빨강, 내리면 파랑으로 칠한다.
      상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 페이지 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
      흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
-  #day { margin: 0; font-size: 12.5px; font-weight: 600; line-height: 20px; color: var(--dim); }
+  #day { display: flex; align-items: center; margin: 0; font-size: 12.5px; font-weight: 600; line-height: 20px; color: var(--dim); }
   #day:empty { display: none; }
-  #day .stage { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 0 6px; border-radius: 6px; vertical-align: 1px;
+  #day .stage { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 0 6px; border-radius: 6px;
                 background: rgba(255, 255, 255, .08); color: var(--hint); font-size: 10.5px; font-weight: 700; line-height: 16px; }
   #day .stage.done { background: none; padding: 0; color: var(--dim); }
   #day .stage.running { background: rgba(255, 200, 87, .14); color: #ffc857; }
@@ -496,10 +496,13 @@
   .gauge p { margin: 20px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--hint); }
   /* 요약 절 그림 카드는 위 줄에 회색 맥락 글씨, 가운데 줄에 값과 상태를 두고, 그림은 카드 폭에 맞춘 SVG로 그린다. 세 카드의 그림은 높이와
      가로축 높이가 같아, 카드를 넘겨도 가로축이 같은 높이에 있다. 카드의 상태 글씨와 점(`--card-color`)은 카드마다 정한 색으로 칠하고,
-     예측 카드(`ink`)는 절 제목 글씨와 같은 지수색 그라데이션(`--index-ink`)으로 칠한다. 범위 값의 물결표는 흐린 글씨로 띄어 쓴다. */
+     예측 카드(`ink`)는 절 제목 글씨와 같은 지수색 그라데이션(`--index-ink`)으로 칠하고, 사전 리포트의 종가 카드는 정규장 등락률 색(`up`·`down`)으로 칠한다.
+     범위 값의 물결표는 흐린 글씨로 띄어 쓴다. */
   .gauge .ctx { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
   .gauge.summary .state { color: var(--card-color); }
   .gauge.summary .state[hidden] { display: none; }
+  .gauge.summary .state.up { color: #ff5c5c; }
+  .gauge.summary .state.down { color: #5b9bff; }
   .gauge.ink .state span { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .gauge.ink .state i { background: var(--index-ink); }
   .gauge.summary .val b .sep { margin: 0 .28em; font-weight: 400; color: var(--dim); }
@@ -934,7 +937,7 @@
   // Montecarlo 그림은 원래 이벤트 캘린더 절에 있으므로 그 자리에서는 뺀다. 12M + Predictions가 없는 리포트는 두 장을 넘긴다.
   // 묶음 위에는 그림 이름 탭을 둔다. 탭을 누르면 그 그림으로 넘기고, 넘기면 보고 있는 그림의 탭을 밝힌다.
   // 그림 카드 값(`build.py`가 리포트 끝에 둔 `#cards`)이 있는 리포트는 그림 대신 같은 이름의 카드 세 장을 넘긴다.
-  // 사전 리포트의 카드 값(`pre`)은 주가 카드 한 장만 두고 되감기 슬라이더를 두지 않는다.
+  // 사전 리포트의 카드 값(`pre`)은 주가 카드 한 장만 두고, 되감기 슬라이더는 앞 날짜의 판단과 사전 리포트의 종가를 고르게 한다.
   function figures(date) {
     const data = report.querySelector("#cards");
     if (data) {
@@ -951,7 +954,7 @@
       const change = (i) => [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j));
       const box = slider(set.slides, report.querySelector("h2"), { change, name: "cards", feel: true });
       box.prepend(bar);
-      if (!cards.pre) cardRewind(box, date, set);
+      cardRewind(box, date, set, cards.pre ? cards : null);
       return;
     }
     const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
@@ -1041,6 +1044,9 @@
   // 카드 위 줄에는 마지막 종가의 날짜를, 가운데 줄에는 마지막 종가와 그 앞 종가 대비 등락률을 쓰고, 나스닥 100은 위 줄에 애프터마켓 등락률을 더 쓴다.
   // 그림은 주가와 예측 카드의 종가 선과 같은 모양이고, 예측 없이 마지막 종가까지 그린다. 기간은 주가와 예측 카드처럼 그림 아래 −·+ 단추로 다섯 단계를 고른다.
   // 묶음 아래 슬라이더는 보고 있는 리포트 지수의 지난 30일 리포트 날짜를 고르고, 고른 날짜 전날까지의 종가로 카드를 다시 그린다. 고른 기간은 그대로 둔다.
+  // 미국 장의 날짜를 적는 곳은 날짜 뒤에 그날 뉴욕 시간대 이름(EST·EDT)을 붙인다.
+  const NEW_YORK = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", timeZoneName: "short" });
+  const usZone = (day) => NEW_YORK.formatToParts(new Date(`${day}T17:00:00Z`)).find((part) => part.type === "timeZoneName").value;
   function marketCards(head, series, listing, date) {
     const W = 320, H = 236, B = 212, L = 4, R = W - 6, T = 22;
     const SPAN = [756, 504, 252, 126, 63];
@@ -1123,7 +1129,7 @@
         if (last < 1) { s.replaceChildren(); value.textContent = "—"; state.hidden = true; label.textContent = ""; return; }
         const change = (closes[last] / closes[last - 1] - 1) * 100;
         const after = line.index && listing[`${day.replaceAll("-", "")}-${line.index}`]?.moves?.after;
-        label.textContent = `${md(dates[last])} 종가` + (typeof after === "number" ? ` · 애프터마켓 ${signed(after)}%` : "");
+        label.textContent = `${md(dates[last])} ${usZone(dates[last])} 종가` + (typeof after === "number" ? ` · 애프터마켓 ${signed(after)}%` : "");
         value.innerHTML = line.unit === "달러" ? price(closes[last], line.unit) : line.unit ? `${figure(closes[last])}<small>${line.unit}</small>` : figure(closes[last]);
         box.style.setProperty("--card-color", change > 0 ? "#ff5c5c" : change < 0 ? "#5b9bff" : DIMS);
         state.querySelector("span").textContent = `${signed(change)}%`;
@@ -1213,10 +1219,11 @@
     // 기간은 3년, 2년, 1년, 6개월, 3개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
     // 고른 날짜가 리포트 날짜보다 앞이면 종가 선은 그날 판단의 출발점에서 다시 이어 리포트 날짜 판단의 기준 가격 날짜 종가까지 그리고,
     // 그 오른쪽 `start_offset` 거래일에 리포트 날짜 판단의 기준 가격을 점으로 찍어 점선으로 잇는다.
-    // 사전 리포트(`data.pre`)는 예측 없이 종가 선만 그리고, 위 줄에 마지막 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 적는다.
+    // 사전 리포트(`data.pre`)의 리포트 날짜 값은 예측 없이 종가 선과 지난 예측만 그리고, 위 줄에 마지막 종가 날짜를,
+    // 가운데 줄에 그 종가와 전날 대비 등락률을 정규장 등락률 색(`tone`)의 점과 글씨로 적는다.
     const predict = (() => {
-      const c = card(data.pre ? `${md(dates[last])} 종가` : "25거래일 뒤 예측 중앙값"), s = c.svg;
-      const L = 4, R = W - 4, T = 22, xmax = data.pre ? last : last + so + 25;
+      const c = card("25거래일 뒤 예측 중앙값"), s = c.svg;
+      const L = 4, R = W - 4, T = 22, xmax = last + so + 25;
       const SPAN = [756, 504, 252, 126, 63].map((days) => Math.max(0, last - days));
       let span = 2, frame = null, raf = 0;
       const zoom = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
@@ -1319,8 +1326,11 @@
         show(f) {
           frame = f;
           cancelAnimationFrame(raf);
+          const session = Math.round((hist[last] / hist[last - 1] - 1) * 1e4) / 100;
+          c.box.classList.toggle("ink", !!f.predict);
+          c.box.querySelector(".state").className = `state ${f.predict ? "" : tone(session)}`;
           if (f.predict) c.head(f, `${signed((end(f, "q50") / f.base - 1) * 100)}%`, fmt(end(f, "q50")));
-          else c.head(f, `${signed((hist[last] / hist[last - 1] - 1) * 100, 2)}%`, fmt(hist[last]));
+          else c.head(f, `${signed(session, 2)}%`, fmt(hist[last]), `${md(dates[last])} ${usZone(dates[last])} 종가`);
           tween(span, span, 1);
         },
       };
@@ -1478,10 +1488,12 @@
 
   // 그림 카드 묶음 아래에 지난 판단 날짜로 되감는 슬라이더를 둔다(build.py `r/rewind-{지수}/cards.json`). 리포트 날짜와 그 앞 날짜만
   // 고를 수 있고, 리포트 날짜가 되감기 범위에 없으면 슬라이더를 두지 않는다. 날짜를 고르면 그날 판단으로 카드 세 장을 다시 그린다.
-  function cardRewind(box, date, set) {
+  // 사전 리포트는 되감기 값에 리포트 날짜의 판단이 없으므로 사전 리포트의 카드 값(`own`)을 리포트 날짜의 값으로 끝에 붙인다.
+  function cardRewind(box, date, set, own) {
     fetch(`r/rewind-${key.split("-")[1]}/cards.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((data) => {
       if (!data) return;
-      const frames = data.frames.filter((frame) => frame.day <= date && rewindOffset(frame.day, date) >= 0);
+      const frames = data.frames.filter((frame) => (own ? frame.day < date : frame.day <= date) && rewindOffset(frame.day, date) >= 0)
+        .concat(own ? [own] : []);
       const start = frames.findIndex((frame) => frame.day === date);
       if (start < 0) return;
       let drawn = start, frame = 0;
