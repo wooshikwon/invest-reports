@@ -80,8 +80,10 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 두 등락률과 두 가격은 `path-bands.json`의 ^NDX·^NBI 환산 가격과 `reference.db` 환산 종가로 재므로 12M + Predictions 그림의 종가 선, 기준 가격과 같은 눈금이다.
 
 `r/market.json`의 `map`에는 지수마다 비중 상위 20종목(나스닥 100, 나스닥 바이오테크놀로지)의 한글 이름, 주식 수, 날짜별 종가를 적는다(`market`, `index_map`).
+날짜별 애프터장 마지막 체결가도 적는다. 마지막 날짜의 값은 그날 애프터장이 끝난 뒤(20:00 ET) 받고, 앞 날짜의 값은 앞서 쓴 `r/market.json`에서 옮긴다(`after_prices`).
 `invest-reports` 미니 앱의 시장 페이지는 리포트 지수의 값으로 맨 위 `나스닥 한 눈에 보기`·`바이오 한 눈에 보기` 절에 시가총액을 칸 넓이로, 전 거래일 대비 등락률을 칸 색으로 쓴 지도를 그리고,
-슬라이더로 지난 한 달의 리포트 날짜를 고르면 그 날짜 전날의 종가로 지도를 다시 그린다.
+슬라이더로 지난 한 달의 리포트 날짜를 고르면 그 날짜 전날의 종가로 지도를 다시 그린다. 그 날짜 전날의 애프터장 값이 있으면 절 제목 오른쪽의
+`정규장 | 애프터장` 단추로 칸 값과 색을 애프터장 체결가와 정규장 종가 대비 등락률로 바꾼다.
 지도 칸을 누르면 칸 위 말풍선에 종목 이름, 종가와 등락률, 설명 첫 문장을 적고, 말풍선의 `자세히 보기` 단추는 `?stock=심볼` 종목 상세 페이지를 연다.
 `r/stocks/{심볼}.json`에는 종목 상세 페이지의 값으로 한글 이름, 업종, 설명, 지도 지수와 그 지수 안 시가총액 순위, 1년 종가, 공시 카드 세 장(실적·매출 구성·최근 공시),
 대표 이미지 한~세 장의 주소와 사진 설명을 적는다(`stock_pages`). 대표 이미지는 `STOCK_IMAGES`의 `{심볼}-{순번}.webp`를 `r/stocks/`로 복사한다.
@@ -105,7 +107,7 @@ ETF 눈금을 지수 눈금으로 늘려 적는다(`card_scale`). 공개본이 �
 되감기 슬라이더는 앞 날짜의 판단과 사전 리포트의 종가를 고르게 하고, 일정·권장 배율 카드와 머리 상자의 애프터마켓 줄은 두지 않는다. 이벤트 캘린더와 이슈 그림은 앞 리포트의 것을 그대로 쓴다.
 `r/index.json` 항목에는 `stage: "pre"`와 전날 정규장 `session`·`close`만 적은 `moves`를 쓰고, 앞 날짜의 사전 리포트 항목과 폴더는 지운다.
 전날이 뉴욕 정규장 세션이 아니면 종료 코드 3, 그날 본 리포트가 이미 있으면 종료 코드 4로 끝내고 아무것도 쓰지 않는다. 전날 세션의 종가가 `reference.db`에 아직 없으면 실패로 끝낸다.
-`--stage running`은 그날 사전 리포트 항목의 `stage`를 `running`으로 바꾼다. 본 리포트를 만들면 같은 키의 항목을 새로 쓰므로 `stage`가 없어지고,
+`--stage running`은 그날 사전 리포트 항목의 `stage`를 `running`으로 바꾸고, 판단 배치가 애프터장이 끝난 뒤 시작하므로 `r/market.json`을 다시 써서 전날 애프터장 값을 단다. 본 리포트를 만들면 같은 키의 항목을 새로 쓰므로 `stage`가 없어지고,
 `invest-reports` 미니 앱은 `stage`가 없는 항목을 분석 완료로 그리고, 그 옆에 `written`의 시각을 적는다.
 """
 import argparse
@@ -153,6 +155,7 @@ PRICE_YEARS = 3  # 주가와 예측 카드가 그리는 종가 기간(년)
 # 시장 페이지의 지수 지도가 되감기 날짜의 첫날보다 앞서 종가를 받는 날 수다. 첫날의 앞 두 세션이 들도록 일주일을 더 받는다.
 MAP_LEAD_DAYS = 7
 STOCK_DAYS = 366  # 종목 상세 페이지의 주가 카드가 그리는 종가 기간(일)
+AFTER_CLOSE = dt.time(20)  # 뉴욕 애프터장이 끝나는 시각. 지도의 애프터장 값은 이 시각까지의 마지막 체결가다
 STOCK_IMAGES = Path.home() / "data" / "invest-reports" / "stock-images"  # invest-stock-profile 스킬이 고르고 `profile_store.py --draw`가 그린 대표 이미지
 TICK_STEP = 5  # 일정과 예측 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
@@ -407,6 +410,28 @@ def index_map(con: sqlite3.Connection, cm, index: str, start: str) -> dict:
     return {"dates": dates, "stocks": stocks}
 
 
+def after_prices(board: dict, previous: dict, price_source) -> None:
+    """지도(`board`)의 종목마다 날짜별 애프터장 마지막 체결가 `after`를 `closes`와 같은 순서로 단다.
+
+    날짜별 값은 앞서 쓴 `r/market.json`의 지도(`previous`)에서 옮기고, 적힌 값이 없는 날짜는 null이다. 지도의 마지막 날짜에 적힌 값이 없고
+    그날 애프터장이 끝났으면(`AFTER_CLOSE`) 그 시각까지의 마지막 체결가를 토스 1분봉에서, 답하지 않으면 야후 1분봉에서 받는다
+    (`price_source.batch_time_price`). 애프터장 체결이 없거나 두 출처가 모두 답하지 않은 종목은 null로 두고 다음 빌드에서 다시 받는다.
+    """
+    kept = {stock["symbol"]: dict(zip(found["dates"], stock.get("after", [])))
+            for found in previous.values() for stock in found["stocks"]}
+    for found in board.values():
+        last = found["dates"][-1]
+        end = dt.datetime.combine(dt.date.fromisoformat(last), AFTER_CLOSE, NEW_YORK)
+        for stock in found["stocks"]:
+            own = kept.setdefault(stock["symbol"], {})
+            if own.get(last) is None and dt.datetime.now(NEW_YORK) >= end:
+                try:
+                    own[last] = round(price_source.batch_time_price(stock["symbol"], last, end.isoformat())["price"], 2)
+                except RuntimeError as error:
+                    print(f"애프터장 체결가를 받지 못함: {error}", file=sys.stderr)
+            stock["after"] = [own.get(day) for day in found["dates"]]
+
+
 def stock_pages(con: sqlite3.Connection, cm, board: dict, start: str, folder: Path, out: Path) -> dict:
     """지도 종목 → 종목 상세 페이지의 값. 심볼, 한글 이름, 업종, 설명, 지도 지수와 그 지수 안 시가총액 순위, `start`부터의 [날짜, 정규장 종가],
     공시 카드 세 장, 대표 이미지다.
@@ -446,8 +471,8 @@ def stock_pages(con: sqlite3.Connection, cm, board: dict, start: str, folder: Pa
 
 
 def market(vault: Path, out: Path) -> Path:
-    """`r/market.json`의 `map`에 지수마다 지도의 값(`index_map`)을 쓰고, `r/stocks/{심볼}.json`에 지도 종목마다 종목 상세 페이지의 값(`stock_pages`)을,
-    `r/stocks/{심볼}-{순번}.webp`에 대표 이미지를 쓴다.
+    """`r/market.json`의 `map`에 지수마다 지도의 값(`index_map`)과 애프터장 값(`after_prices`)을 쓰고, `r/stocks/{심볼}.json`에 지도 종목마다
+    종목 상세 페이지의 값(`stock_pages`)을, `r/stocks/{심볼}-{순번}.webp`에 대표 이미지를 쓴다.
 
     지도 날짜는 공개본이 있는 가장 늦은 리포트 날짜에서 `REWIND_DAYS`일과 `MAP_LEAD_DAYS`일을 거슬러 간 날부터다.
     종목 상세 페이지의 종가는 그 날짜에서 `STOCK_DAYS`일을 거슬러 간 날부터다. 지도에서 내려간 종목의 파일과 페이지가 싣지 않는 그림 파일은 지운다.
@@ -459,12 +484,13 @@ def market(vault: Path, out: Path) -> Path:
         cm = render_inputs(vault).cm
         start = (latest - dt.timedelta(days=REWIND_DAYS + MAP_LEAD_DAYS)).isoformat()
         board = {index: index_map(con, cm, index, start) for index in cm.ROSTER_INDEX}
+        target = out / "r" / "market.json"
+        after_prices(board, json.loads(target.read_text(encoding="utf-8"))["map"] if target.exists() else {}, render_inputs(vault).price_source)
         folder = out / "r" / "stocks"
         folder.mkdir(exist_ok=True)
         pages = stock_pages(con, cm, board, (latest - dt.timedelta(days=STOCK_DAYS)).isoformat(), folder, out)
     finally:
         con.close()
-    target = out / "r" / "market.json"
     target.write_text(json.dumps({"map": board}, ensure_ascii=False) + "\n", encoding="utf-8")
     shown = {f"{symbol}.json" for symbol in pages} | {image["src"].split("?")[0].rsplit("/", 1)[1] for page in pages.values() for image in page["images"]}
     for page in folder.iterdir():
@@ -1374,12 +1400,14 @@ def pre(date: str, index: str, vault: Path, out: Path) -> str:
     return key
 
 
-def running(date: str, index: str, out: Path) -> str | None:
-    """리포트 날짜 `date`의 사전 리포트 목록 항목의 `stage`를 `running`으로 바꾼다. 사전 리포트가 없으면 `None`이다."""
+def running(date: str, index: str, vault: Path, out: Path) -> str | None:
+    """리포트 날짜 `date`의 사전 리포트 목록 항목의 `stage`를 `running`으로 바꾸고, 시장 페이지의 지도와 종목 상세 페이지의 값(`market`)을
+    다시 써서 지도에 전날 애프터장 값을 단다. 사전 리포트가 없으면 `None`이다."""
     key = f"{date.replace('-', '')}-{index}"
     entries = published_entries(out)
     if entries.get(key, {}).get("stage") != "pre":
         return None
+    market(vault, out)
     entries[key]["stage"] = "running"
     write_entries(out, entries)
     return key
@@ -1397,7 +1425,7 @@ def main() -> int:
     if args.stage == "pre":
         print(pre(args.date, args.index, vault, out))
     elif args.stage == "running":
-        print(running(args.date, args.index, out) or "")
+        print(running(args.date, args.index, vault, out) or "")
     else:
         print(build(args.date, args.index, vault, out))
     return 0
