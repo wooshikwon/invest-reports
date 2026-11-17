@@ -49,7 +49,6 @@
      날짜 오른쪽에는 그날 판단 배치의 단계를 작은 알약(`.stage`)으로 쓴다. 알약 왼쪽에는 점을 찍는다. 사전 리포트는 회색 "분석 전", 판단 배치가 도는 동안은 노란 "분석 중"과 깜박이는 점이다.
      본 리포트는 지수색 그라데이션 점과 글자, 옅은 지수색 바탕으로 "분석 완료 11:22"처럼 본 리포트를 처음 만든 서울 시각을 함께 쓴다.
      머리 상자는 32px 높이의 위 줄과 18px 높이의 아래 줄(`header`)이고, 왼쪽에 시세(`#ticker`)를, 위 줄 오른쪽 끝에 달력 단추를 쓴다. 날짜 줄이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
-     아래 줄 오른쪽 끝에는 아래 줄 값을 받은 서울 시각을 "업데이트 07:40"처럼 아래 줄과 같은 색의 12px 글씨로 쓴다(`#stamp`).
      시세에 아래 줄이 없으면(애프터장 값이 아직 없는 사전 리포트) 머리 상자를 위 줄 높이로 줄인다.
      시세 위 줄은 "나스닥 $27,940 −1.22%"처럼 흰 지수 이름, 리포트 판단의 기준 가격 날짜의 정규장 종가, 그 종가의 앞 거래일 종가 대비 등락률을 쓴다.
      아래 줄은 지수 이름과 같은 왼쪽 끝에서 "애프터마켓 $27,712 −0.83%"처럼 리포트 판단의 기준 가격과 기준 가격의 정규장 종가 대비 등락률을 쓴다. 기준 가격은 정규장 뒤 애프터마켓 거래까지 반영한 마지막 가격이다.
@@ -113,8 +112,6 @@
   #ticker b.price { font-size: 15.5px; }
   #ticker b.up { color: #ff5c5c; }
   #ticker b.down { color: #5b9bff; }
-  #stamp { position: absolute; right: 0; bottom: 0; font-size: 12px; line-height: 18px; color: var(--dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
-  #masthead:not(:has(#ticker small)) #stamp { display: none; }
   #masthead::before { content: ""; position: absolute; inset: calc(-5px - var(--top-edge)) -16px -9px; z-index: -1;
                   background: color-mix(in srgb, var(--bg) 40%, transparent);
                   border-bottom: 1px solid rgba(255, 255, 255, .06);
@@ -153,7 +150,7 @@
      달력 상자는 설명 상자와 같은 색으로 그린다. 맨 위에는 나스닥과 바이오를 고르는 두 칸 단추를 두고, 고른 지수의 리포트가 있는 날짜를 흰 글자로 쓰고 그 아래에 그 리포트의 정규장 등락률을 머리말과 같은 색으로 적는다.
      리포트가 없는 날짜는 회색으로 쓰고 누를 수 없다. 보고 있는 리포트의 날짜는 날짜 띠의 고른 상자와 같은 색으로 칠하고, 다른 리포트를 볼 때 오늘 날짜에는 테두리를 두른다.
      가림막은 문서 전체를 덮고, 달력만 그 위에 남는다. */
-  .cal-open { position: absolute; top: -3px; right: 0; display: grid; place-items: center; width: 36px; height: 28px;
+  .cal-open { position: absolute; top: 2px; right: 0; display: grid; place-items: center; width: 36px; height: 28px;
               padding: 0; border: 0; border-radius: 8px; background: rgba(255, 255, 255, .05); color: var(--hint); cursor: pointer; }
   .cal-open.on { background: rgba(255, 255, 255, .16); color: var(--accent); }
   .cal-layer { position: fixed; inset: 0; z-index: 10; background: rgba(0, 0, 0, .35); }
@@ -697,7 +694,7 @@
 <div id="past"></div>
 <div id="issue-bar"></div>
 <main>
-  <p id="day"></p><div id="berth"></div><div id="masthead"><header><p id="ticker"></p><span id="stamp"></span></header></div>
+  <p id="day"></p><div id="berth"></div><div id="masthead"><header><p id="ticker"></p></header></div>
   <article id="report"><p class="status">리포트를 불러오는 중이다.</p></article>
 </main>
 <script>
@@ -860,7 +857,7 @@
   // 머리 상자가 화면 위에 붙어 있으면 `stuck`을 단다. 문서 맨 위에서는 달지 않는다.
   // 붙었는지는 머리 상자 바로 위의 빈 띠(`#berth`)의 아래 끝이 머리 상자가 붙는 높이보다 위로 올라갔는지로 정한다. iOS는 코드가 화면을 옮긴 직후 붙는 상자의 위치를 옮기기 전 화면 기준으로 알려 주므로 머리 상자의 위치로 정하지 않는다.
   const masthead = document.getElementById("masthead");
-  const ticker = document.getElementById("ticker"), stamp = document.getElementById("stamp");
+  const ticker = document.getElementById("ticker");
   const berth = document.getElementById("berth");
   const stick = () => masthead.classList.toggle("stuck", scrollY > 0 && berth.getBoundingClientRect().bottom <= parseFloat(getComputedStyle(masthead).top) + .5);
   addEventListener("scroll", stick, { passive: true });
@@ -1208,6 +1205,10 @@
     return (hour - 16) / 24 + (hour < 16 ? 1 : 0);
   };
   const BASE_AFTER = 4 / 24;
+  // 종가 뒤 세션의 기준 시각은 "애프터장 08:15 KST"처럼 세션 이름과 체결 시각을 서울 시각으로 쓴다(`sessionAt(name, time)`).
+  // `afterEnd(day)`는 그날 애프터장이 닫히는 20:00 ET의 뉴욕 시각 글씨다.
+  const sessionAt = (name, time) => `${name} ${new Date(Date.parse(time) + 9 * 3600e3).toISOString().slice(11, 16)} KST`;
+  const afterEnd = (day) => `${day}T20:00:00${usZone(day) === "EDT" ? "-04:00" : "-05:00"}`;
 
   // 세션 단추의 그림이다. 정규장은 해, 애프터장은 초승달, 프리장은 언덕 위로 반쯤 오른 해와 빛살이다.
   const SESSION_ICON = {
@@ -1297,8 +1298,8 @@
     const draw = () => {
       untip();
       const day = late && early ? date : map.dates[n];
-      const moment = !late ? "종가" : early ? `프리장 ${early.time.slice(11, 16)}` : after ? `애프터장 ${after.time.slice(11, 16)}` : "애프터장";
-      label.textContent = `${day.slice(5, 7)}/${day.slice(8, 10)} ${usZone(day)} ${moment}`;
+      label.textContent = !late ? `${day.slice(5, 7)}/${day.slice(8, 10)} ${usZone(day)} 종가`
+        : early ? sessionAt("프리장", early.time) : sessionAt("애프터장", after?.time ?? afterEnd(day));
       board.replaceChildren();
       const W = board.clientWidth, H = Math.round(W * .95), total = stocks.reduce((sum, stock) => sum + stock.cap, 0);
       board.style.height = `${H}px`;
@@ -1464,12 +1465,10 @@
       // 리포트 날짜 값의 정규장 다음 세션 [값, 거래일 번호, 위 줄 글씨, 프리장 여부]. 없으면 null이다.
       const extra = () => {
         if (early?.session === data.base_date) {
-          const day = early.time.slice(0, 10);
-          return [hist[close] * early.ratio, close + afterClose(early.time), `${md(day)} ${usZone(day)} 프리장 ${early.time.slice(11, 16)}`, true];
+          return [hist[close] * early.ratio, close + afterClose(early.time), sessionAt("프리장", early.time), true];
         }
-        const zone = `${md(data.base_date)} ${usZone(data.base_date)} 애프터장`;
-        if (!data.pre) return [data.base, close + BASE_AFTER, zone, false];
-        return after ? [hist[close] * after.ratio, close + afterClose(after.time), `${zone} ${after.time.slice(11, 16)}`, false] : null;
+        if (!data.pre) return [data.base, close + BASE_AFTER, sessionAt("애프터장", afterEnd(data.base_date)), false];
+        return after ? [hist[close] * after.ratio, close + afterClose(after.time), sessionAt("애프터장", after.time), false] : null;
       };
       const seg = sessionSeg((on) => { late = on; chosen = true; show(frame); });
       const L = 4, R = W - 4, T = 22, xmax = last + 25;
@@ -1754,7 +1753,6 @@
     // `quote(early, afters)`는 리포트 날짜의 프리장 값(`r/premarket.json`)의 앞 세션이 기준 가격 날짜이고 지수 ETF 체결가가 있으면, 아래 줄에 기준 가격 대신
     // 정규장 종가에 지수 ETF의 프리장 등락 비율을 곱한 프리마켓 가격과 그 등락률을 쓴다. 사전 리포트는 프리장 값이 없을 때 지수의 애프터장 값(`r/afterhours.json`)에서
     // 기준 가격 날짜의 지수 ETF 등락 비율을 정규장 종가에 곱한 애프터마켓 가격과 그 등락률을 쓴다. 등락률은 반올림한 값으로 색을 정해 0.00%를 칠하지 않는다.
-    // 아래 줄 값을 받은 시각은 머리 상자 오른쪽 아래(`#stamp`)에 "업데이트 07:40"처럼 서울 시각으로 쓰고, 받은 시각이 없으면 비운다.
     const at = dates.indexOf(data.base_date), rate = (ratio) => Math.round(ratio * 1e4) / 100;
     const day = rate(hist[at] / hist[at - 1] - 1);
     const quote = (early, afters) => {
@@ -1763,8 +1761,6 @@
       const line = (name, value) => `<small>${name} ${fmt(value)} ${signed(rate(value / hist[at] - 1), 2)}%</small>`;
       const tail = ahead ? line("프리마켓", hist[at] * ahead.ratio) : !data.pre ? line("애프터마켓", data.base)
         : behind ? line("애프터마켓", hist[at] * behind.ratio) : "";
-      const time = (ahead ?? behind)?.time;
-      stamp.textContent = time ? `업데이트 ${new Date(Date.parse(time) + 9 * 3600e3).toISOString().slice(11, 16)}` : "";
       return `<span class="row"><span>${INDEX_NAME[key.split("-")[1]]}</span><b class="price ${tone(day)}">${fmt(hist[at])}</b>`
         + `<b class="${tone(day)}">${signed(day, 2)}%</b>${tail}</span>`;
     };
@@ -2897,10 +2893,10 @@
       // `early`는 그 다음 프리장 값이다. 없으면 null이다.
       const asked = query.get("session"), date = `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
       let late = asked !== "regular", after = null, tail = null, early = null;
-      // 정규장 다음 세션의 [체결가, 기준일 글씨, 마지막 종가에서 거래일 거리]. 애프터장 마지막 체결가는 애프터장이 닫히는 20:00 ET 자리다. 없으면 null이다.
-      const extra = () => early ? [early.price, `${md(early.time)} ${usZone(early.time.slice(0, 10))} 프리장 ${early.time.slice(11, 16)}`, afterClose(early.time)]
-        : after != null ? [after, `${md(day)} ${usZone(day)} 애프터장`, BASE_AFTER]
-        : tail ? [tail.price, `${md(day)} ${usZone(day)} 애프터장 ${tail.time.slice(11, 16)}`, afterClose(tail.time)] : null;
+      // 정규장 다음 세션의 [체결가, 기준 시각 글씨, 마지막 종가에서 거래일 거리]. 애프터장 마지막 체결가는 애프터장이 닫히는 20:00 ET 자리다. 없으면 null이다.
+      const extra = () => early ? [early.price, sessionAt("프리장", early.time), afterClose(early.time)]
+        : after != null ? [after, sessionAt("애프터장", afterEnd(day)), BASE_AFTER]
+        : tail ? [tail.price, sessionAt("애프터장", tail.time), afterClose(tail.time)] : null;
       // 가로축은 단추와 관계없이 다음 세션 값의 자리까지 담아, 단추를 바꿔도 종가 선이 움직이지 않는다.
       const plot = () => {
         const shown = extra();
