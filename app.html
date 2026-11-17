@@ -354,7 +354,7 @@
      번호와 제목 묶음은 위를 맞춰 한 묶음으로 두고, 그 묶음을 썸네일과 세로 가운데로 맞춘다. 제목 묶음이 썸네일보다 낮아도 번호는 제목 첫 줄에 놓인다.
      소제목은 짧은 폭에서 줄 끝이 들쭉날쭉하지 않게 단어 대신 글자 단위로 줄을 바꾼다.
      마지막 상자에는 "비중이 낮은 이슈 N건"을 제목으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 문단을 보이거나
-     검토했지만 비중을 낮춘 이슈를 보이고, 절 제목 줄 오른쪽 끝에 이슈 화면을 연 곳으로 돌아가는 뒤로가기 단추를 띄운다. 단추는 내용을 옮기는 동안 나타나거나 사라진다.
+     검토했지만 비중을 낮춘 이슈를 보인다.
      목록과 내용을 바꾸는 동안에는 두 쪽을 넘기기 장처럼 장 사이만큼 띄워 나란히 옆으로 옮기고, 묶음 밖으로 나간 부분은 가린다. */
   .issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); cursor: pointer; }
   /* 바로 앞 리포트의 이벤트 캘린더가 적은 이벤트의 결과를 다룬 이슈 상자는 지수색 그라데이션으로 외곽선을 두르고, 외곽선 위쪽 왼쪽에 "10월 CPI 결과"처럼
@@ -413,12 +413,6 @@
   .issue-page > :first-child { margin-top: 0; }
   .issue-box.inside .issue-list:not(.leaving) { display: none; }
   .issue-box.inside .issue-page.on { display: block; }
-  h2.issues { position: relative; }
-  h2.issues .back { position: absolute; right: 0; bottom: 0; display: flex; align-items: center; gap: 4px; padding: 0 0 0 8px; height: 28px; border: 0;
-                    transform: translateY(var(--shift, 0px)); background: none; color: var(--dim); font: inherit; cursor: pointer; opacity: 0; visibility: hidden; transition: opacity var(--glide), visibility 0s .3s, transform .1s ease-out; }
-  h2.issues .back::after { content: "뒤로가기"; font-size: 13px; font-weight: 600; }
-  h2.issues.inside .back { opacity: 1; visibility: visible; transition: opacity var(--glide), transform .1s ease-out; }
-  h2.issues .back.pressed { transform: translateY(var(--shift, 0px)) scale(.97); }
   /* 이벤트 캘린더는 발표일마다 한 장이고, 위 날짜 띠의 날짜마다 별·날짜·요일을 테두리 없는 둥근 회색 상자에 담는다. 보고 있는 날짜는 상자를
      진하게, 글자를 흰색으로 쓰고, 나머지 날짜는 상자를 연하게, 글자를 흐린 회색으로 쓴다. 리포트 날짜의 상자에는 절 제목 색의 얇은 회색 테두리를 두르고, 누르고 있는 상자는 조금 줄인다.
      상자는 같은 폭이고 넘기기 장 사이만큼 띄운다.
@@ -641,6 +635,19 @@
   /* 설명이 있는 절 제목과 지표 카드 이름은 글자 바로 뒤에 원 안 물음표 단추를 둔다. 단추를 누르면 화면 가운데에 설명 상자를 띄우고, 닫기 단추나 상자 바깥을 누르면 닫는다. */
   .help { display: inline-grid; place-items: center; vertical-align: top; width: 26px; height: 1lh; margin-left: 2px; padding: 0; border: 0; font: inherit;
              background: none; color: var(--dim); cursor: pointer; }
+  /* 이슈 화면과 종목 상세는 화면 왼쪽 아래에 바로가기 알약과 같은 높이, 같은 아래 여백의 동그란 유리 단추를 띄우고 가운데에 왼쪽 꺽쇠를 그린다.
+     바탕색·흐림·그림자·가장자리 빛줄기는 알약과 같다. 본문 끝에는 단추만큼 여백을 더해 마지막 줄이 단추에 가리지 않게 한다. */
+  :root.issue #report { padding-bottom: 36px; }
+  button.back { position: fixed; z-index: 5; left: 16px; bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
+                display: grid; place-items: center; width: 65px; height: 65px; padding: 0; border: 0; border-radius: 50%; color: var(--text); cursor: pointer;
+                background: color-mix(in srgb, var(--bg) 40%, transparent);
+                box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+                -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: blur(3px) saturate(150%); transition: transform .1s ease-out; }
+  button.back::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+                        background: linear-gradient(150deg, rgba(255, 255, 255, .42), rgba(255, 255, 255, .08) 28%, rgba(255, 255, 255, 0) 55%,
+                                    rgba(255, 255, 255, .06) 80%, rgba(255, 255, 255, .22));
+                        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+                        -webkit-mask-composite: xor; mask-composite: exclude; }
   /* 왼쪽 끝 뒤로 가기 띠는 보이지 않고, 미는 동안 손가락 높이에 반투명 원과 왼쪽 꺽쇠가 따라 나온다. 돌아갈 거리를 넘기면 원을 희게 칠한다. */
   .back-edge { position: fixed; top: 0; bottom: 0; left: 0; z-index: 6; width: 18px; touch-action: pan-y; }
   /* iOS는 띠 아래에 놓인 스크롤 상자(날짜 띠, 넘기기 묶음)가 띠의 가로 밀기를 그 상자의 스크롤로 가져가 뒤로 가기를 끊는다.
@@ -1640,13 +1647,12 @@
     h3.childNodes.forEach((node) => { if (node.nodeType === 3) node.textContent = node.textContent.replace(/\s+$/, ""); });
   }
 
-  // 이슈 화면과 종목 상세의 절 제목(`head`) 오른쪽에 뒤로가기 단추를 달고, 단추 가운데를 절 제목 글자(`label`)에 맞추는 함수를 돌려준다.
+  // 이슈 화면과 종목 상세의 왼쪽 아래에 뒤로가기 단추를 띄운다.
   // 주소로 바로 연 화면의 단추는 주소에서 `names`를 지우고 리포트 화면의 `page`번 페이지를 맨 위부터 연다.
-  function backward(head, label, names, page) {
-    const back = head.appendChild(document.createElement("button"));
+  function backward(names, page) {
+    const back = document.body.appendChild(document.createElement("button"));
     back.className = "back";
-    back.innerHTML = '<svg width="8" height="12" viewBox="0 0 8 12" aria-hidden="true"><path d="M6.5 1 1.5 6l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    // 절 제목 글자로 절을 찾는 곳이 있으므로 단추 이름은 글자 대신 CSS로 쓴다.
+    back.innerHTML = '<svg width="12" height="20" viewBox="0 0 12 20" aria-hidden="true"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     // 단추 이름은 어디서 열었든 "뒤로가기"이고, 돌아가는 곳은 이 화면을 연 곳이다. 이슈 화면 안에서 다른 이슈로 넘겨도 돌아가는 곳은 바뀌지 않는다.
     back.setAttribute("aria-label", "뒤로가기");
     // 리포트 화면(이슈 목록이나 이벤트 캘린더, 지수 지도 말풍선의 "자세히 보기")에서 연 화면의 단추는 뒤로 가서, 떠날 때의 리포트 화면(페이지와 캘린더 날짜, 화면 위치)으로 돌아간다.
@@ -1660,7 +1666,7 @@
       names.forEach((name) => params.delete(name));
       location.replace(`?${params}`);
     });
-    // 화면 어디서든 오른쪽으로 60px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 절 제목 오른쪽 단추를 누른 것과 같다.
+    // 화면 어디서든 오른쪽으로 60px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 뒤로가기 단추를 누른 것과 같다.
     // 그림을 크게 본 화면과 설명 상자, 넘기기 묶음 안에서 민 것은 세지 않는다.
     let swipe = null;
     document.addEventListener("touchstart", (event) => {
@@ -1673,29 +1679,13 @@
       swipe = null;
       if (dx > 60 && dx > 1.5 * Math.abs(dy)) back.click();
     }, { passive: true });
-    // 단추 가운데를 절 제목 글자 획의 위아래 가운데에 맞춘다. 글꼴마다 글자 줄 안에서 획이 놓이는 높이가 달라서, 기준선 위치와 그 글꼴로 잰 획의 높이로 정한다.
-    // 단추 위치는 옮기기 전 자리(`offsetTop`)에서 재므로, 옮기는 중에 다시 맞춰도 어긋나지 않는다.
-    const ink = document.createElement("canvas").getContext("2d");
-    const align = () => {
-      const probe = label.appendChild(Object.assign(document.createElement("i"), { style: "display: inline-block; width: 0; height: 0" }));
-      const base = probe.getBoundingClientRect().bottom;
-      probe.remove();
-      const style = getComputedStyle(label);
-      ink.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-      const { actualBoundingBoxAscent: up, actualBoundingBoxDescent: down } = ink.measureText(label.textContent);
-      const center = head.getBoundingClientRect().top + back.offsetTop + back.offsetHeight / 2;
-      back.style.setProperty("--shift", `${base - (up - down) / 2 - center}px`);
-    };
-    new ResizeObserver(align).observe(head);
-    document.fonts?.ready.then(align);
-    return align;
   }
 
   // 상세 이슈 해설을 이슈 목록으로 바꾼다. 이슈는 `###` 제목부터 다음 `###`·`##` 앞까지다.
   // 템플릿이 검토했지만 비중을 낮춘 이슈를 번호 이슈 뒤에 두므로, 그 항목은 목록 끝의 "비중이 낮은 이슈 N건" 상자가 된다.
   // 상자를 누르면 주소의 `issue`에 그 이슈 번호를 적어 이슈 화면을 새 페이지로 연다. 이슈 번호는 소제목 앞 번호이고, 번호가 없는 상자는 목록 순서다.
   // `focus`가 있으면 이슈 화면이다. 그 번호의 이슈 내용과 절 제목만 남기고 리포트의 다른 절은 지운다. 그 번호의 이슈가 없으면 리포트 화면을 다시 연다.
-  // 절 제목 오른쪽의 돌아가는 단추를 누르면 앞 페이지로 돌아가고, 앞 페이지가 없으면 같은 리포트의 리포트 화면을 연다.
+  // 왼쪽 아래의 뒤로가기 단추를 누르면 앞 페이지로 돌아가고, 앞 페이지가 없으면 같은 리포트의 리포트 화면을 연다.
   // `at`이 있으면 히스토리에서 그 날짜 항목을 고른 채로 연다.
   // 이슈 화면의 절 제목은 보고 있는 이슈의 번호로 "이슈 N위"라고 쓰고, 검토했지만 비중을 낮춘 이슈를 보는 동안에는 "검토했지만 비중을 낮춘 이슈"로 쓴다.
   function section(title, focus = 0, at = null) {
@@ -1960,7 +1950,7 @@
       return;
     }
     [...report.children].forEach((node) => node === head || node === box || node.remove());
-    const align = backward(head, label, ["issue", "at"], 1);
+    backward(["issue", "at"], 1);
     const bar = document.getElementById("issue-bar");
     const rename = (next) => {
       if (label.textContent === next) return;
@@ -1978,7 +1968,6 @@
         fold.lastElementChild.style.overflow = "";
       });
       rename(reviewed && i === pages.length - 1 ? other : `이슈 ${numbers[i]}위`);
-      align();
       // 위쪽 한 줄 띠에는 이슈 제목만 쓰고 방향 표식은 뺀다. 비중을 낮춘 이슈 묶음은 묶음 이름을 쓴다.
       const title = reviewed && i === pages.length - 1 ? other : (() => {
         const copy = items[i][0].cloneNode(true);
@@ -2666,7 +2655,7 @@
 
   // 종목 상세(`stock`)를 이슈 화면과 같은 틀에 그린다. `data`는 `build.py` `stock_pages`가 적는 `r/stocks/{티커}.json`이다.
   // 대표 이미지(`images`)가 있으면 절 제목 위에 이슈 그림과 같은 모양으로 싣고, 두 장 이상이면 넘기기 묶음에 담는다.
-  // 절 제목은 "나스닥 시총 3위"처럼 지도 지수의 이름과 그 지수 안 시가총액 순위이고 오른쪽에 뒤로가기 단추를 단다. 위쪽 한 줄 띠와 창 제목에는 종목 이름을 쓴다.
+  // 절 제목은 "나스닥 시총 3위"처럼 지도 지수의 이름과 그 지수 안 시가총액 순위다. 위쪽 한 줄 띠와 창 제목에는 종목 이름을 쓴다.
   // 첫 상자에는 주가 카드와 기업 설명을 둔다. 주가 카드는 이름 자리에 종목 이름과 티커를 쓰고, 마지막 종가와 앞 세션 종가 대비 등락률을 쓰며,
   // 그림 아래 −·+ 단추로 1년, 6개월, 3개월 가운데 기간을 골라 일별 종가 선을 다시 그린다. 종가가 기간보다 짧으면 있는 종가를 모두 그리고, 같은 그림이 되는 기간은 하나만 둔다.
   // 처음에는 가장 긴 기간을 그린다.
@@ -2693,7 +2682,7 @@
       head.before(figure);
       gallery(figure);
     }
-    backward(head, label, ["stock"], 2);
+    backward(["stock"], 2);
     const closes = data.closes, last = closes.length - 1;
     if (last > 0) {
       const [day, now] = closes[last], change = (now / closes[last - 1][1] - 1) * 100;
