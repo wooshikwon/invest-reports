@@ -99,7 +99,7 @@ ETF 눈금이고, `CARD_INDEX`에 있는 나스닥은 지수 눈금으로 늘려
 카드 값은 `pre`를 참으로 두고 전날까지 `PRICE_YEARS`년 종가만 담는다. `invest-reports` 미니 앱은 주가 카드 한 장만 종가 선으로 그리고
 일정·권장 배율 카드, 되감기 슬라이더, 머리 상자의 애프터마켓 줄을 두지 않는다. 이벤트 캘린더와 이슈 그림은 앞 리포트의 것을 그대로 쓴다.
 `r/index.json` 항목에는 `stage: "pre"`와 전날 정규장 `session`·`close`만 적은 `moves`를 쓰고, 앞 날짜의 사전 리포트 항목과 폴더는 지운다.
-전날 미국 정규장 종가가 없으면 종료 코드 3, 그날 본 리포트가 이미 있으면 종료 코드 4로 끝내고 아무것도 쓰지 않는다.
+전날이 뉴욕 정규장 세션이 아니면 종료 코드 3, 그날 본 리포트가 이미 있으면 종료 코드 4로 끝내고 아무것도 쓰지 않는다. 전날 세션의 종가가 `reference.db`에 아직 없으면 실패로 끝낸다.
 `--stage running`은 그날 사전 리포트 항목의 `stage`를 `running`으로 바꾼다. 본 리포트를 만들면 같은 키의 항목을 새로 쓰므로 `stage`가 없어지고,
 `invest-reports` 미니 앱은 `stage`가 없는 항목을 예측 완료로 그린다.
 """
@@ -118,6 +118,7 @@ import sys
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import exchange_calendars
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent
@@ -1225,7 +1226,8 @@ def pre_issues(body: str, day: dt.date) -> str:
 def pre(date: str, index: str, vault: Path, out: Path) -> str:
     """리포트 날짜 `date`의 사전 리포트를 그 지수의 가장 늦은 본 리포트 공개본으로 만든다. 목록 항목의 `stage`는 `pre`다.
 
-    전날 미국 정규장 종가가 `reference.db`에 없으면 만들지 않고 종료 코드 3으로 끝낸다. 그날 본 리포트가 이미 있으면 종료 코드 4로 끝낸다.
+    전날이 뉴욕 정규장 세션이 아니면 만들지 않고 종료 코드 3으로 끝낸다. 그날 본 리포트가 이미 있으면 종료 코드 4로 끝낸다.
+    전날 세션의 종가가 `reference.db`에 아직 없으면 실패로 끝낸다.
     """
     day = dt.date.fromisoformat(date)
     key = f"{date.replace('-', '')}-{index}"
@@ -1233,18 +1235,21 @@ def pre(date: str, index: str, vault: Path, out: Path) -> str:
     if key in entries and "stage" not in entries[key]:
         print(f"본 리포트가 이미 있다: {key}", file=sys.stderr)
         sys.exit(4)
+    session = day - dt.timedelta(days=1)
+    if not exchange_calendars.get_calendar("XNYS").is_session(session.isoformat()):
+        print(f"전날 뉴욕 정규장이 열리지 않았다: {session}", file=sys.stderr)
+        sys.exit(3)
     chart = predictions_chart(vault)
     con = sqlite3.connect(f"file:{chart.path_bands.REFERENCE_DB_PATH}?mode=ro", uri=True)
     try:
         history = con.execute(
             "SELECT price_date, close FROM market_price WHERE ticker=? AND price_date BETWEEN ? AND ? ORDER BY price_date",
             (chart.path_bands.SECTOR_DB_TICKERS[index], (day - dt.timedelta(days=round(365.25 * PRICE_YEARS) + 1)).isoformat(),
-             (day - dt.timedelta(days=1)).isoformat())).fetchall()
+             session.isoformat())).fetchall()
     finally:
         con.close()
-    if not history or history[-1][0] != (day - dt.timedelta(days=1)).isoformat():
-        print(f"전날 미국 정규장 종가가 없다: {index} 마지막 종가 {history[-1][0] if history else '없음'}", file=sys.stderr)
-        sys.exit(3)
+    if not history or history[-1][0] != session.isoformat():
+        raise SystemExit(f"전날 정규장 종가가 reference.db에 없다: {index} 마지막 종가 {history[-1][0] if history else '없음'}")
     for name in [name for name, entry in entries.items()
                  if entry["index"] == index and entry.get("stage") and entry["date"] < date]:
         del entries[name]
