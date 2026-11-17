@@ -83,8 +83,9 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `invest-reports` 미니 앱의 시장 페이지는 리포트 지수의 값으로 맨 위 `나스닥 한 눈에 보기`·`바이오 한 눈에 보기` 절에 시가총액을 칸 넓이로, 전 거래일 대비 등락률을 칸 색으로 쓴 지도를 그리고,
 슬라이더로 지난 한 달의 리포트 날짜를 고르면 그 날짜 전날의 종가로 지도를 다시 그린다.
 지도 칸을 누르면 칸 위 말풍선에 종목 이름, 종가와 등락률, 설명 첫 문장을 적고, 말풍선의 `자세히 보기` 단추는 `?stock=심볼` 종목 상세 페이지를 연다.
-`r/stocks/{심볼}.json`에는 종목 상세 페이지의 값으로 한글 이름, 업종, 설명, 지도 지수와 그 지수 안 시가총액 순위, 1년 종가, 공시 카드 세 장(실적·매출 구성·최근 공시)을 적는다(`stock_pages`).
-종목 상세 페이지는 이슈 상세 페이지의 틀로 주가 카드와 기업 설명을 그리고, `공시 상세` 절에 공시 카드를 탭 세 개로 그린다.
+`r/stocks/{심볼}.json`에는 종목 상세 페이지의 값으로 한글 이름, 업종, 설명, 지도 지수와 그 지수 안 시가총액 순위, 1년 종가, 공시 카드 세 장(실적·매출 구성·최근 공시),
+대표 이미지 한~세 장의 주소와 사진 설명을 적는다(`stock_pages`). 대표 이미지는 `STOCK_IMAGES`의 `{심볼}-{순번}.webp`를 `r/stocks/`로 복사한다.
+종목 상세 페이지는 맨 위에 대표 이미지를 싣고, 이슈 상세 페이지의 틀로 주가 카드와 기업 설명을 그리고, `공시 상세` 절에 공시 카드를 탭 세 개로 그린다.
 
 `system/simulation.json`의 `quantiles`에 5% 값이 있는 리포트는 요약 절 세 그림을 그림 파일 대신 값으로 그린다.
 그런 리포트의 공개본에서는 12M + Predictions·Montecarlo·권장 추종 배율 그림을 빼고, `report.html` 끝에 카드 값을
@@ -152,6 +153,7 @@ PRICE_YEARS = 3  # 주가와 예측 카드가 그리는 종가 기간(년)
 # 시장 페이지의 지수 지도가 되감기 날짜의 첫날보다 앞서 종가를 받는 날 수다. 첫날의 앞 두 세션이 들도록 일주일을 더 받는다.
 MAP_LEAD_DAYS = 7
 STOCK_DAYS = 366  # 종목 상세 페이지의 주가 카드가 그리는 종가 기간(일)
+STOCK_IMAGES = Path.home() / "data" / "invest-reports" / "stock-images"  # invest-stock-profile 스킬이 고르고 `profile_store.py --draw`가 그린 대표 이미지
 TICK_STEP = 5  # 일정과 예측 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
 ISSUES_TITLE = "상세 이슈 해설"
@@ -405,16 +407,31 @@ def index_map(con: sqlite3.Connection, cm, index: str, start: str) -> dict:
     return {"dates": dates, "stocks": stocks}
 
 
-def stock_pages(con: sqlite3.Connection, cm, board: dict, start: str) -> dict:
+def stock_pages(con: sqlite3.Connection, cm, board: dict, start: str, folder: Path, out: Path) -> dict:
     """지도 종목 → 종목 상세 페이지의 값. 심볼, 한글 이름, 업종, 설명, 지도 지수와 그 지수 안 시가총액 순위, `start`부터의 [날짜, 정규장 종가],
-    공시 카드 세 장이다.
+    공시 카드 세 장, 대표 이미지다.
 
     시가총액은 지도의 주식 수 × 마지막 종가다. 종가는 지도와 같이 야후 원 종가에 토스 종가를 메운다. 공시 카드는 invest-stock-profile 스킬이
-    `stock_detail` 표에 쓴 값이고, 카드가 아직 없는 종목은 빈 목록으로 둔다.
+    `stock_detail` 표에 쓴 값이고, 카드가 아직 없는 종목은 빈 목록으로 둔다. 대표 이미지는 `stock_image` 표의 그린 묶음(`images`)에서
+    그림 파일이 있는 그림마다 `folder`로 복사한 파일의 `app.html` 기준 주소, 폭과 높이, 사진 설명이고, 그린 묶음이 없는 종목은 빈 목록으로 둔다.
     """
-    cards = {}
-    if con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'stock_detail'").fetchone():
-        cards = {symbol: json.loads(text) for symbol, text in con.execute("SELECT symbol, cards FROM stock_detail")}
+    tables = {name for (name,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    cards = {symbol: json.loads(text) for symbol, text in con.execute("SELECT symbol, cards FROM stock_detail")} if "stock_detail" in tables else {}
+    drawn = ({symbol: json.loads(text) for symbol, text in con.execute("SELECT symbol, images FROM stock_image WHERE images IS NOT NULL")}
+             if "stock_image" in tables else {})
+
+    def pictures(symbol: str) -> list[dict]:
+        found = []
+        for k, image in enumerate(drawn.get(symbol, []), 1):
+            source = STOCK_IMAGES / f"{symbol}-{k}.webp"
+            if not source.is_file():
+                continue
+            shutil.copy2(source, folder / source.name)
+            with Image.open(source) as picture:
+                width, height = picture.size
+            found.append({"src": versioned(folder / source.name, out), "width": width, "height": height, "caption": image["caption"]})
+        return found
+
     pages = {}
     for index, found in board.items():
         cap = lambda stock: stock["shares"] * next((close for close in reversed(stock["closes"]) if close is not None), 0)
@@ -423,15 +440,17 @@ def stock_pages(con: sqlite3.Connection, cm, board: dict, start: str) -> dict:
                 continue
             closes = {**observed(con, cm.toss_id(stock["symbol"]), "value", start), **observed(con, cm.breadth_id(stock["symbol"]), "value", start)}
             pages[stock["symbol"]] = {key: stock[key] for key in ("symbol", "name", "sector", "about")} | {
-                "index": index, "rank": rank, "closes": [[day, round(closes[day], 2)] for day in sorted(closes)], "cards": cards.get(stock["symbol"], [])}
+                "index": index, "rank": rank, "closes": [[day, round(closes[day], 2)] for day in sorted(closes)], "cards": cards.get(stock["symbol"], []),
+                "images": pictures(stock["symbol"])}
     return pages
 
 
 def market(vault: Path, out: Path) -> Path:
-    """`r/market.json`의 `map`에 지수마다 지도의 값(`index_map`)을 쓰고, `r/stocks/{심볼}.json`에 지도 종목마다 종목 상세 페이지의 값(`stock_pages`)을 쓴다.
+    """`r/market.json`의 `map`에 지수마다 지도의 값(`index_map`)을 쓰고, `r/stocks/{심볼}.json`에 지도 종목마다 종목 상세 페이지의 값(`stock_pages`)을,
+    `r/stocks/{심볼}-{순번}.webp`에 대표 이미지를 쓴다.
 
     지도 날짜는 공개본이 있는 가장 늦은 리포트 날짜에서 `REWIND_DAYS`일과 `MAP_LEAD_DAYS`일을 거슬러 간 날부터다.
-    종목 상세 페이지의 종가는 그 날짜에서 `STOCK_DAYS`일을 거슬러 간 날부터다. 지도에서 내려간 종목의 파일은 지운다.
+    종목 상세 페이지의 종가는 그 날짜에서 `STOCK_DAYS`일을 거슬러 간 날부터다. 지도에서 내려간 종목의 파일과 페이지가 싣지 않는 그림 파일은 지운다.
     """
     published = sorted(p.name[:8] for p in (out / "r").glob("*-*") if p.name[:8].isdigit())
     latest = dt.date.fromisoformat(f"{published[-1][:4]}-{published[-1][4:6]}-{published[-1][6:]}")
@@ -440,15 +459,16 @@ def market(vault: Path, out: Path) -> Path:
         cm = render_inputs(vault).cm
         start = (latest - dt.timedelta(days=REWIND_DAYS + MAP_LEAD_DAYS)).isoformat()
         board = {index: index_map(con, cm, index, start) for index in cm.ROSTER_INDEX}
-        pages = stock_pages(con, cm, board, (latest - dt.timedelta(days=STOCK_DAYS)).isoformat())
+        folder = out / "r" / "stocks"
+        folder.mkdir(exist_ok=True)
+        pages = stock_pages(con, cm, board, (latest - dt.timedelta(days=STOCK_DAYS)).isoformat(), folder, out)
     finally:
         con.close()
     target = out / "r" / "market.json"
     target.write_text(json.dumps({"map": board}, ensure_ascii=False) + "\n", encoding="utf-8")
-    folder = out / "r" / "stocks"
-    folder.mkdir(exist_ok=True)
-    for page in folder.glob("*.json"):
-        if page.stem not in pages:
+    shown = {f"{symbol}.json" for symbol in pages} | {image["src"].split("?")[0].rsplit("/", 1)[1] for page in pages.values() for image in page["images"]}
+    for page in folder.iterdir():
+        if page.name not in shown:
             page.unlink()
     for symbol, page in pages.items():
         (folder / f"{symbol}.json").write_text(json.dumps(page, ensure_ascii=False) + "\n", encoding="utf-8")
