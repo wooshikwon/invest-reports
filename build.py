@@ -79,11 +79,9 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 등락률(`after`, %), 기준 가격 날짜의 환산 종가(`close`, 달러)와 기준 가격(`base`, 달러)을 적는다. 전날이 휴장일이면 `session`은 `null`이다.
 두 등락률과 두 가격은 `path-bands.json`의 ^NDX·^NBI 환산 가격과 `reference.db` 환산 종가로 재므로 12M + Predictions 그림의 종가 선, 기준 가격과 같은 눈금이다.
 
-`r/market.json`에는 S&P 500, 나스닥 100, 바이오, 다우존스, 러셀 2000, 원/달러의 날짜별 종가를 적는다(`market`). 야후 지수 일봉은 1년뿐이므로 그보다 앞 날짜는
-S&P 500, 다우존스, 원/달러가 FRED 계열(`SP500`·`DJIA`·`DEXKOUS`)로 잇고, 두 나스닥 지수가 `market_price`의 ETF 환산 종가를 지수 눈금으로 늘려 잇는다. 러셀 2000은
-`observation`에 받아 둔 5년 야후 일봉을 그대로 쓴다. `invest-reports` 미니 앱의 시장 페이지는 이 값으로 `주요 시세` 절에 바이오와 리포트 지수를 뺀 시세의 종가 선 카드를 그리고, 카드마다 다섯 단계 기간을 바꾸며, 슬라이더로 지난 한 달의 리포트 날짜를 고르면
-그 날짜 전날까지의 종가로 카드를 다시 그린다. `map`에는 나스닥 100 비중 상위 20종목의 한글 이름, 주식 수, 날짜별 종가를 적는다(`nasdaq_map`).
-시장 페이지는 이 값으로 맨 위 `나스닥 한 눈에 보기` 절에 시가총액을 칸 넓이로, 전 거래일 대비 등락률을 칸 색으로 쓴 지도를 그리고, 같은 슬라이더로 고른 날짜의 종가로 지도를 다시 그린다.
+`r/market.json`의 `map`에는 나스닥 100 비중 상위 20종목의 한글 이름, 주식 수, 날짜별 종가를 적는다(`market`, `nasdaq_map`).
+`invest-reports` 미니 앱의 시장 페이지는 이 값으로 맨 위 `나스닥 한 눈에 보기` 절에 시가총액을 칸 넓이로, 전 거래일 대비 등락률을 칸 색으로 쓴 지도를 그리고,
+슬라이더로 지난 한 달의 리포트 날짜를 고르면 그 날짜 전날의 종가로 지도를 다시 그린다.
 
 `system/simulation.json`의 `quantiles`에 5% 값이 있는 리포트는 요약 절 세 그림을 그림 파일 대신 값으로 그린다.
 그런 리포트의 공개본에서는 12M + Predictions·Montecarlo·권장 추종 배율 그림을 빼고, `report.html` 끝에 카드 값을
@@ -151,14 +149,6 @@ PRICE_YEARS = 3  # 주가와 예측 카드가 그리는 종가 기간(년)
 # 주가와 예측 카드를 예측을 계산한 ETF 눈금 대신 지수 눈금으로 그리는 지수와 그 지수 종가의 `observation` 계열이다.
 # 여기 없는 지수는 ETF(`path_bands.SECTOR_DB_TICKERS`) 눈금 그대로 그린다.
 CARD_INDEX = {"nasdaq": "close:^NDX"}
-# 시장 페이지가 보여 주는 시세. (이름, 탭 이름, 지수 폴더 이름, 단위, `observation` 계열)이다. 지수 폴더 이름이 있는 시세는
-# 그 지수의 `market_price` 종가로 야후 지수 종가보다 앞 날짜를 잇는다. S&P 500, 다우존스, 원/달러는 FRED 계열로 앞 날짜를 잇고, 러셀 2000은 야후 지수 종가만 쓴다.
-MARKET = [("S&P 500", "S&P 500", None, "달러", ("fred:SP500", "close:^GSPC")),
-          ("나스닥 100", "나스닥", "nasdaq", "달러", ("close:^NDX",)),
-          ("바이오", "바이오", "biotech", "달러", ("close:^NBI",)),
-          ("다우존스", "다우존스", None, "달러", ("fred:DJIA", "close:^DJI")),
-          ("러셀 2000", "러셀 2000", None, "달러", ("close:^RUT",)),
-          ("원/달러", "원/달러", None, "원", ("fred:DEXKOUS", "close:USDKRW=X"))]
 # 시장 페이지의 나스닥 지도가 그리는 지수와, 되감기 날짜의 첫날보다 앞서 지도 종가를 받는 날 수다. 첫날의 앞 두 세션이 들도록 일주일을 더 받는다.
 MAP_INDEX = "nasdaq"
 MAP_LEAD_DAYS = 7
@@ -415,47 +405,20 @@ def nasdaq_map(con: sqlite3.Connection, cm, start: str) -> dict:
 
 
 def market(vault: Path, out: Path) -> Path:
-    """`r/market.json`에 `MARKET`의 시세마다 이름, 탭 이름, 지수 폴더 이름, 단위, 날짜와 종가를 쓰고, `map`에 나스닥 지도의 값(`nasdaq_map`)을 쓴다.
+    """`r/market.json`의 `map`에 나스닥 지도의 값(`nasdaq_map`)을 쓴다.
 
-    날짜는 공개본이 있는 가장 늦은 리포트 날짜에서 `REWIND_DAYS`일과 `PRICE_YEARS`년을 거슬러 간 날부터다. 지수 폴더가 있는 시세는
-    `market_price`의 ETF 환산 종가에 `index_scale`을 곱해 지수 눈금으로 늘리고,
-    `observation` 값이 있는 날은 그 값을 쓴다. 시세 하나가 `observation` 계열을 여럿 가지면 뒤 계열의 값이 앞 계열의 같은 날 값을 덮는다.
-    나스닥 지도의 날짜는 가장 늦은 리포트 날짜에서 `REWIND_DAYS`일과 `MAP_LEAD_DAYS`일을 거슬러 간 날부터다.
+    날짜는 공개본이 있는 가장 늦은 리포트 날짜에서 `REWIND_DAYS`일과 `MAP_LEAD_DAYS`일을 거슬러 간 날부터다.
     """
     published = sorted(p.name[:8] for p in (out / "r").glob("*-*") if p.name[:8].isdigit())
     latest = dt.date.fromisoformat(f"{published[-1][:4]}-{published[-1][4:6]}-{published[-1][6:]}")
-    start = (latest - dt.timedelta(days=REWIND_DAYS + round(365.25 * PRICE_YEARS))).isoformat()
-    chart = predictions_chart(vault)
-    con = sqlite3.connect(f"file:{chart.path_bands.REFERENCE_DB_PATH}?mode=ro", uri=True)
-    series = []
-
-    def observation(series_id: str) -> dict:
-        return dict(con.execute(
-            "SELECT period, value FROM observation o WHERE series_id = ? AND value IS NOT NULL AND period >= ? AND retrieved_at = "
-            "(SELECT MAX(retrieved_at) FROM observation WHERE series_id = o.series_id AND period = o.period)",
-            (series_id, start)).fetchall())
-
+    con = sqlite3.connect(f"file:{predictions_chart(vault).path_bands.REFERENCE_DB_PATH}?mode=ro", uri=True)
     try:
-        for name, tab, index, unit, ids in MARKET:
-            closes = {}
-            observed = [observation(series_id) for series_id in ids]
-            if index:
-                prices = dict(con.execute("SELECT price_date, close FROM market_price WHERE ticker = ? AND price_date >= ?",
-                                          (chart.path_bands.SECTOR_DB_TICKERS[index], start)).fetchall())
-                scale = index_scale(con, chart.path_bands.SECTOR_DB_TICKERS[index], ids[-1])
-                closes = {day: close * scale for day, close in prices.items()}
-            for values in observed:
-                closes.update(values)
-            days = sorted(closes)
-            series.append({"name": name, "tab": tab, "index": index, "unit": unit, "dates": days,
-                           "closes": [round(closes[day], 2) for day in days]})
         board = nasdaq_map(con, render_inputs(vault).cm, (latest - dt.timedelta(days=REWIND_DAYS + MAP_LEAD_DAYS)).isoformat())
     finally:
         con.close()
     target = out / "r" / "market.json"
-    target.write_text(json.dumps({"series": series, "map": board}, ensure_ascii=False) + "\n", encoding="utf-8")
+    target.write_text(json.dumps({"map": board}, ensure_ascii=False) + "\n", encoding="utf-8")
     return target
-
 
 def public_markdown(text: str, vault: Path, out_dir: Path, base: str) -> str:
     """공개본 마크다운. 그림은 `out_dir`로 복사하고 `app.html` 기준 상대 경로로 바꾼다.
