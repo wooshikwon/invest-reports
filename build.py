@@ -79,8 +79,8 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 등락률(`after`, %), 기준 가격 날짜의 환산 종가(`close`, 달러)와 기준 가격(`base`, 달러)을 적는다. 전날이 휴장일이면 `session`은 `null`이다.
 두 등락률과 두 가격은 `path-bands.json`의 ^NDX·^NBI 환산 가격과 `reference.db` 환산 종가로 재므로 12M + Predictions 그림의 종가 선, 기준 가격과 같은 눈금이다.
 
-`r/market.json`의 `map`에는 나스닥 100 비중 상위 20종목의 한글 이름, 주식 수, 날짜별 종가를 적는다(`market`, `nasdaq_map`).
-`invest-reports` 미니 앱의 시장 페이지는 이 값으로 맨 위 `나스닥 한 눈에 보기` 절에 시가총액을 칸 넓이로, 전 거래일 대비 등락률을 칸 색으로 쓴 지도를 그리고,
+`r/market.json`의 `map`에는 지수마다 비중 상위 20종목(나스닥 100, 나스닥 바이오테크놀로지)의 한글 이름, 주식 수, 날짜별 종가를 적는다(`market`, `index_map`).
+`invest-reports` 미니 앱의 시장 페이지는 리포트 지수의 값으로 맨 위 `나스닥 한 눈에 보기`·`바이오 한 눈에 보기` 절에 시가총액을 칸 넓이로, 전 거래일 대비 등락률을 칸 색으로 쓴 지도를 그리고,
 슬라이더로 지난 한 달의 리포트 날짜를 고르면 그 날짜 전날의 종가로 지도를 다시 그린다.
 
 `system/simulation.json`의 `quantiles`에 5% 값이 있는 리포트는 요약 절 세 그림을 그림 파일 대신 값으로 그린다.
@@ -149,8 +149,7 @@ PRICE_YEARS = 3  # 주가와 예측 카드가 그리는 종가 기간(년)
 # 주가와 예측 카드를 예측을 계산한 ETF 눈금 대신 지수 눈금으로 그리는 지수와 그 지수 종가의 `observation` 계열이다.
 # 여기 없는 지수는 ETF(`path_bands.SECTOR_DB_TICKERS`) 눈금 그대로 그린다.
 CARD_INDEX = {"nasdaq": "close:^NDX"}
-# 시장 페이지의 나스닥 지도가 그리는 지수와, 되감기 날짜의 첫날보다 앞서 지도 종가를 받는 날 수다. 첫날의 앞 두 세션이 들도록 일주일을 더 받는다.
-MAP_INDEX = "nasdaq"
+# 시장 페이지의 지수 지도가 되감기 날짜의 첫날보다 앞서 종가를 받는 날 수다. 첫날의 앞 두 세션이 들도록 일주일을 더 받는다.
 MAP_LEAD_DAYS = 7
 TICK_STEP = 5  # 일정과 예측 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
@@ -371,10 +370,10 @@ def rewind(index: str, vault: Path, out: Path) -> Path | None:
     return target
 
 
-def nasdaq_map(con: sqlite3.Connection, cm, start: str) -> dict:
-    """나스닥 지도의 날짜와 종목마다 심볼, 한글 이름, 주식 수, 날짜별 정규장 종가.
+def index_map(con: sqlite3.Connection, cm, index: str, start: str) -> dict:
+    """`index` 지수 지도의 날짜와 종목마다 심볼, 한글 이름, 주식 수, 날짜별 정규장 종가.
 
-    종목은 이익 추정 종목(`collect_market.eps_symbols`)이고, 같은 회사의 두 종류주는 GOOGL 하나로 센다. 이름은 토스 한글 종목명에서
+    종목은 그 지수의 이익 추정 종목(`collect_market.eps_symbols`)이고, 같은 회사의 두 종류주는 GOOGL 하나로 센다. 이름은 토스 한글 종목명에서
     종류주 글자와 `(ADR)`을 뗀다. 주식 수는 마지막 이익 추정 스냅샷의 시가총액 ÷ 주가이고, GOOGL의 시가총액은 두 종류주를 합친 회사 전체다.
     종가는 야후 원 종가이고, 야후에 없는 날은 토스 종가로 메운다. 날짜는 `start`부터 어느 종목이든 종가가 있는 날이고, 그 종목의 종가가 없는 날은 null이다.
     이름이나 주식 수가 없는 종목은 뺀다.
@@ -387,7 +386,7 @@ def nasdaq_map(con: sqlite3.Connection, cm, start: str) -> dict:
 
     roster = cm.anchor_store.connect()
     try:
-        symbols = cm.eps_symbols(roster, MAP_INDEX)
+        symbols = cm.eps_symbols(roster, index)
     finally:
         roster.close()
     names = {symbol: re.sub(r"\s*\(ADR\)$| [A-Z]$", "", name) for symbol, name in latest(cm.TOSS_NAMES, "value_text").items()}
@@ -405,7 +404,7 @@ def nasdaq_map(con: sqlite3.Connection, cm, start: str) -> dict:
 
 
 def market(vault: Path, out: Path) -> Path:
-    """`r/market.json`의 `map`에 나스닥 지도의 값(`nasdaq_map`)을 쓴다.
+    """`r/market.json`의 `map`에 지수마다 지도의 값(`index_map`)을 쓴다.
 
     날짜는 공개본이 있는 가장 늦은 리포트 날짜에서 `REWIND_DAYS`일과 `MAP_LEAD_DAYS`일을 거슬러 간 날부터다.
     """
@@ -413,7 +412,9 @@ def market(vault: Path, out: Path) -> Path:
     latest = dt.date.fromisoformat(f"{published[-1][:4]}-{published[-1][4:6]}-{published[-1][6:]}")
     con = sqlite3.connect(f"file:{predictions_chart(vault).path_bands.REFERENCE_DB_PATH}?mode=ro", uri=True)
     try:
-        board = nasdaq_map(con, render_inputs(vault).cm, (latest - dt.timedelta(days=REWIND_DAYS + MAP_LEAD_DAYS)).isoformat())
+        cm = render_inputs(vault).cm
+        start = (latest - dt.timedelta(days=REWIND_DAYS + MAP_LEAD_DAYS)).isoformat()
+        board = {index: index_map(con, cm, index, start) for index in cm.EPS_INDEX}
     finally:
         con.close()
     target = out / "r" / "market.json"

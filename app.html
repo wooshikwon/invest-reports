@@ -574,22 +574,22 @@
   .gauge td:first-child { color: var(--hint); font-weight: 600; }
   .gauge :is(th, td).focus { color: var(--accent); font-weight: 700; }
   .gauge tr:last-child td { border-bottom: 0; }
-  /* 나스닥 지도는 본문 폭을 다 쓰고, 위 줄에 종가 날짜와 종목 범위를 흐린 작은 글씨로 쓴다. 칸은 2px 틈을 두고 모서리를 둥글린 단추이고,
+  /* 지수 지도는 본문 폭을 다 쓰고, 위 줄에 종가 날짜와 종목 범위를 흐린 작은 글씨로 쓴다. 칸은 2px 틈을 두고 모서리를 둥글린 단추이고,
      종목 이름을 굵은 글씨로, 그 아래에 등락률을 옅은 글씨로 가운데에 쓴다. 글씨는 진한 칸에서 흰색, 연한 칸에서 검은색이다. 칸을 누르면 날짜 말풍선과 같은 상자에 종목 이름을 굵게,
      그 아래에 종가와 등락률을 쓴다. 등락률은 오르면 빨강, 내리면 파랑으로 칠한다. */
-  .nasmap .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 10px;
+  .indexmap .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 10px;
                  font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
-  .nasmap .board { position: relative; }
-  .nasmap .board > button { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  .indexmap .board { position: relative; }
+  .indexmap .board > button { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
                             overflow: hidden; padding: 2px; border: 0; border-radius: 5px; color: #fff; font: inherit; line-height: 1.2; text-align: center;
                             cursor: pointer; }
-  .nasmap .board > button :is(b, span) { overflow-wrap: normal; }
-  .nasmap .board > button b { font-weight: 700; }
-  .nasmap .board > button span { white-space: nowrap; font-size: .86em; font-weight: 600; color: rgba(255, 255, 255, .78); font-variant-numeric: tabular-nums; }
-  .nasmap .board > button.on { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .85); }
-  .nasmap .board > button.light { color: #15181d; }
-  .nasmap .board > button.light span { color: rgba(21, 24, 29, .72); }
-  .nasmap .board > button.light.on { box-shadow: inset 0 0 0 2px rgba(21, 24, 29, .8); }
+  .indexmap .board > button :is(b, span) { overflow-wrap: normal; }
+  .indexmap .board > button b { font-weight: 700; }
+  .indexmap .board > button span { white-space: nowrap; font-size: .86em; font-weight: 600; color: rgba(255, 255, 255, .78); font-variant-numeric: tabular-nums; }
+  .indexmap .board > button.on { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .85); }
+  .indexmap .board > button.light { color: #15181d; }
+  .indexmap .board > button.light span { color: rgba(21, 24, 29, .72); }
+  .indexmap .board > button.light.on { box-shadow: inset 0 0 0 2px rgba(21, 24, 29, .8); }
   .bubble.quote { padding: 10px 14px; pointer-events: none; }
   .bubble.quote b { position: relative; z-index: 1; display: block; color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap; }
   .bubble.quote p { display: flex; gap: 8px; padding: 0; margin-top: 2px; color: var(--accent); font-variant-numeric: tabular-nums; }
@@ -669,7 +669,7 @@
 </main>
 <script>
   const tg = window.Telegram && window.Telegram.WebApp;
-  // 텔레그램 앱 안에서만 기기를 진동시킨다. 이슈 상자·달력 단추·달력 날짜·지수 전환 단추·바로가기 단추·나스닥 지도 칸을 누르거나 접기 상자를 펼치면 가벼운 충격 진동을 낸다.
+  // 텔레그램 앱 안에서만 기기를 진동시킨다. 이슈 상자·달력 단추·달력 날짜·지수 전환 단추·바로가기 단추·지수 지도 칸을 누르거나 접기 상자를 펼치면 가벼운 충격 진동을 낸다.
   // 당겨 새로고침은 새로 받기를 시작할 때 가벼운 충격 진동을, 다시 연 리포트를 다 그렸을 때 성공 알림 진동을 낸다.
   // 접기, 목록으로 돌아가기는 진동하지 않는다. 1개월 예측 절에서 보는 카드와 날짜 레버로 고른 날짜, 이벤트 캘린더에서 보는 날짜,
   // 미국 거시 지표에서 보는 지표, 이슈 그림에서 보는 그림이 바뀔 때마다 선택 변경 진동을 낸다.
@@ -881,8 +881,10 @@
   const PRICE_NAME = { nasdaq: "나스닥", biotech: "IBB" };
   // 달력의 지수 단추에 쓰는 이름이다.
   const SHORT = { nasdaq: "나스닥 리포트", biotech: "바이오 리포트" };
-  // 1개월 예측 절의 첫 카드 탭에 쓰는 리포트 지수의 이름이다.
+  // 1개월 예측 절의 첫 카드 탭과 시장 페이지의 한 눈에 보기 절 제목에 쓰는 리포트 지수의 이름이다.
   const INDEX_NAME = { nasdaq: "나스닥", biotech: "바이오" };
+  // 한 눈에 보기 절의 지도 위 줄에 쓰는 종목 범위다.
+  const MAP_SCOPE = { nasdaq: "나스닥 100 상위 20종목", biotech: "나스닥 바이오테크놀로지 상위 20종목" };
   const paint = () => {
     const tint = INDEX[key.split("-")[1]];
     if (!tint) return;
@@ -1160,15 +1162,15 @@
   const NEW_YORK = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", timeZoneName: "short" });
   const usZone = (day) => NEW_YORK.formatToParts(new Date(`${day}T17:00:00Z`)).find((part) => part.type === "timeZoneName").value;
 
-  // 시장 페이지 첫 절인 나스닥 한 눈에 보기 절에 나스닥 100 상위 20종목의 지도를 둔다. `map`은 `r/market.json`의 `map`이다.
+  // 시장 페이지 첫 절인 한 눈에 보기 절에 리포트 지수 상위 20종목의 지도를 둔다. `map`은 `r/market.json`의 `map`에서 리포트 지수의 값이고, `scope`는 지도 위 줄에 쓰는 종목 범위다.
   // 칸 넓이는 종가에 주식 수를 곱한 시가총액에 비례하고, 큰 종목부터 가로세로 비가 1에 가까운 칸으로 나눠 담는다(squarified treemap).
   // 칸 색은 앞 세션 종가 대비 등락률로 정한다. 오르면 빨강, 내리면 파랑이고, 조금 움직이면 연하고 맑은 색으로, 많이 움직일수록 진하고 선명한 색으로 칠해 3%에서 가장 진하다. 움직이지 않으면 연한 회색이다. 칸이 작아 글씨가 넘치면 글씨를 줄이고,
   // 그래도 넘치면 이름 대신 티커를 쓰고, 다음에 등락률을, 끝으로 티커를 뺀다. 칸을 누르면 누른 자리 위(자리가 모자라면 아래)에 종목 이름, 종가, 등락률 말풍선을 띄운다.
   // 같은 칸을 다시 누르거나 칸 밖을 누르면 말풍선을 닫는다. 지도 아래 슬라이더는 리포트 지수의 지난 30일 리포트 날짜를 고르고,
   // 고른 날짜 전날까지의 마지막 종가로 지도를 다시 그린다.
-  function nasdaqMap(head, map, listing, date) {
-    const box = Object.assign(document.createElement("div"), { className: "carousel nasmap" });
-    box.innerHTML = '<div class="top"><span></span><span>나스닥 100 상위 20종목</span></div><div class="board"></div>';
+  function indexMap(head, map, scope, listing, date) {
+    const box = Object.assign(document.createElement("div"), { className: "carousel indexmap" });
+    box.innerHTML = `<div class="top"><span></span><span>${scope}</span></div><div class="board"></div>`;
     const label = box.querySelector(".top span"), board = box.querySelector(".board");
     head.after(box);
     // `i`번 날짜부터 거슬러 가며 처음 만나는 종가와 그 날짜 번호. 종가가 없으면 `[null, -1]`이다.
@@ -2904,7 +2906,7 @@
 
   // 리포트 키가 없거나 형식이 다르면 목록에서 가장 늦은 나스닥 리포트를 연다. 목록에 나스닥 리포트가 없으면 열 리포트를 찾지 못했다고 적는다.
   const listed = fetch("r/index.json", { cache }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
-  // `r/market.json`은 build.py가 적는 나스닥 100 상위 20종목의 이름, 주식 수, 일별 종가(`map`)다. 시장 페이지의 나스닥 지도가 쓴다.
+  // `r/market.json`은 build.py가 지수마다 적는 상위 20종목의 이름, 주식 수, 일별 종가(`map`)다. 시장 페이지의 지수 지도가 쓴다.
   const marketed = fetch("r/market.json", { cache }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   const signed = (v, digits = 2) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(digits)}`;
   const tone = (v) => v > 0 ? "up" : v < 0 ? "down" : "";
@@ -2943,8 +2945,9 @@
     if (outlook) outlook.textContent = "1개월 예측";
     calendar(listing, date);
     const focus = +query.get("issue") || 0;
-    // 시장 페이지 첫 절인 나스닥 한 눈에 보기 절의 제목을 미국 거시 지표 절 제목 앞에 둔다. 미국 거시 지표 절이 없으면 문서 끝에 둔다.
-    const glance = focus ? null : Object.assign(document.createElement("h2"), { textContent: "나스닥 한 눈에 보기" });
+    // 시장 페이지 첫 절인 한 눈에 보기 절의 제목을 미국 거시 지표 절 제목 앞에 둔다. 미국 거시 지표 절이 없으면 문서 끝에 둔다.
+    const index = key.split("-")[1];
+    const glance = focus ? null : Object.assign(document.createElement("h2"), { textContent: `${INDEX_NAME[index]} 한 눈에 보기` });
     if (glance) {
       const macro = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "미국 거시 지표");
       if (macro) macro.before(glance); else report.append(glance);
@@ -2955,7 +2958,7 @@
       heads("1개월 예측");
       fold("1개월 예측");
       indicators(date);
-      marketed.then(({ map }) => { if (map?.stocks.length) nasdaqMap(glance, map, listing, date); else glance.remove(); });
+      marketed.then(({ map }) => { if (map?.[index]?.stocks.length) indexMap(glance, map[index], MAP_SCOPE[index], listing, date); else glance.remove(); });
     }
     issueCharts();
     toneTags(report);
@@ -3067,7 +3070,7 @@
   }
   // 리포트 화면의 절을 `PAGES`의 페이지에 나눠 담는다. 페이지마다 단추 이름과 그 페이지에 넣을 절 제목을 두고, 목록에 없는 절은 앞 절의 페이지에 넣는다.
   // 넘기기 묶음은 노드를 옮기면 스크롤 위치가 처음으로 돌아가므로, 리포트를 받은 직후 묶음을 만들기 전에 나눈다.
-  const PAGES = [["예측", ["1개월 예측", "이벤트 캘린더"]], ["이슈", ["상세 이슈 해설"]], ["시장", ["나스닥 한 눈에 보기", "미국 거시 지표"]]];
+  const PAGES = [["예측", ["1개월 예측", "이벤트 캘린더"]], ["이슈", ["상세 이슈 해설"]], ["시장", ["나스닥 한 눈에 보기", "바이오 한 눈에 보기", "미국 거시 지표"]]];
   // 바로가기 단추의 선 아이콘이다. 예측은 마디 셋이 앞으로 굵어지는 접이식 망원경, 이슈는 불꽃, 시장은 고리를 두른 행성이다. 망원경은 마디마다 앞쪽 굵은 마디 자리를 마스크로 비워, 접히면 굵은 마디가 가는 마디를 가린다. 행성은 앞쪽 고리 둘레를 마스크로 비워 고리가 행성 앞을 지나게 그리고, 뒤쪽 고리는 행성 원판 자리를 비운 마스크로 가려 행성 뒤를 지나게 그린다.
   // 행성은 다른 아이콘보다 작아 보여 1.05배로 키우고, 선 굵기는 다른 아이콘과 같게 둔다.
   const PAGE_ICONS = {
@@ -3235,6 +3238,11 @@
     return open;
   }
 
+  // 두 한 눈에 보기 절이 함께 쓰는 설명 항목이다.
+  const MAP_HELP = [
+    ["칸 크기", "칸이 클수록 시가총액이 커요."],
+    ["칸 색", "그 앞 거래일 종가보다 오르면 빨간색, 내리면 파란색이에요. 조금 움직이면 색이 연하고, 많이 움직일수록 색이 진해요. 칸을 누르면 종가와 등락률이 나와요."],
+  ];
   // 절 제목마다 설명 상자에 쓸 항목을 둔다. 항목마다 이름을 굵게 쓰고 그 아래에 설명을 쓴다. 1개월 예측 절은 `OUTLOOK_HELP`와 `CARD_HELP`가 항목을 만든다.
   const HELP = {
     "상세 이슈 해설": [
@@ -3244,8 +3252,11 @@
     ],
     "나스닥 한 눈에 보기": [
       ["종목", "나스닥 100에서 비중이 큰 20종목이에요. 나스닥 100 시가총액의 약 3분의 2를 차지해요. 알파벳은 두 종류 주식을 합쳐 한 칸에 보여줘요."],
-      ["칸 크기", "칸이 클수록 시가총액이 커요."],
-      ["칸 색", "그 앞 거래일 종가보다 오르면 빨간색, 내리면 파란색이에요. 조금 움직이면 색이 연하고, 많이 움직일수록 색이 진해요. 칸을 누르면 종가와 등락률이 나와요."],
+      ...MAP_HELP,
+    ],
+    "바이오 한 눈에 보기": [
+      ["종목", "나스닥 바이오테크놀로지 지수에서 비중이 큰 20종목이에요. 이 지수 시가총액의 약 절반을 차지해요."],
+      ...MAP_HELP,
     ],
     "이벤트 캘린더": [
       ["이벤트 확률표", "앞으로 35일 안에 발표되는 이벤트마다 가능한 결과와 확률을 보여줘요. 이벤트는 주가에 반영되는 거래일에 모아요. 장 마감 뒤나 휴일에 나온 발표는 다음 거래일에 두고 발표일을 함께 적어요. 주가 경로 2만 개를 만들 때 이벤트 확률을 써요."],
