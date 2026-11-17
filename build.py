@@ -82,7 +82,8 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `r/market.json`에는 S&P 500, 나스닥 100, 바이오, 다우존스, 러셀 2000, 원/달러의 날짜별 종가를 적는다(`market`). 야후 지수 일봉은 1년뿐이므로 그보다 앞 날짜는
 S&P 500, 다우존스, 원/달러가 FRED 계열(`SP500`·`DJIA`·`DEXKOUS`)로 잇고, 두 나스닥 지수가 `market_price`의 ETF 환산 종가를 지수 눈금으로 늘려 잇는다. 러셀 2000은
 `observation`에 받아 둔 5년 야후 일봉을 그대로 쓴다. `invest-reports` 미니 앱의 시장 페이지는 이 값으로 `주요 시세` 절에 바이오와 리포트 지수를 뺀 시세의 종가 선 카드를 그리고, 카드마다 다섯 단계 기간을 바꾸며, 슬라이더로 지난 한 달의 리포트 날짜를 고르면
-그 날짜 전날까지의 종가로 카드를 다시 그린다.
+그 날짜 전날까지의 종가로 카드를 다시 그린다. `map`에는 나스닥 100 비중 상위 20종목의 한글 이름, 주식 수, 날짜별 종가를 적는다(`nasdaq_map`).
+시장 페이지는 이 값으로 맨 위 `나스닥 한 눈에 보기` 절에 시가총액을 칸 넓이로, 전 거래일 대비 등락률을 칸 색으로 쓴 지도를 그리고, 같은 슬라이더로 고른 날짜의 종가로 지도를 다시 그린다.
 
 `system/simulation.json`의 `quantiles`에 5% 값이 있는 리포트는 요약 절 세 그림을 그림 파일 대신 값으로 그린다.
 그런 리포트의 공개본에서는 12M + Predictions·Montecarlo·권장 추종 배율 그림을 빼고, `report.html` 끝에 카드 값을
@@ -158,6 +159,9 @@ MARKET = [("S&P 500", "S&P 500", None, "달러", ("fred:SP500", "close:^GSPC")),
           ("다우존스", "다우존스", None, "달러", ("fred:DJIA", "close:^DJI")),
           ("러셀 2000", "러셀 2000", None, "달러", ("close:^RUT",)),
           ("원/달러", "원/달러", None, "원", ("fred:DEXKOUS", "close:USDKRW=X"))]
+# 시장 페이지의 나스닥 지도가 그리는 지수와, 되감기 날짜의 첫날보다 앞서 지도 종가를 받는 날 수다. 첫날의 앞 두 세션이 들도록 일주일을 더 받는다.
+MAP_INDEX = "nasdaq"
+MAP_LEAD_DAYS = 7
 TICK_STEP = 5  # 일정과 예측 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
 ISSUES_TITLE = "상세 이슈 해설"
@@ -377,12 +381,46 @@ def rewind(index: str, vault: Path, out: Path) -> Path | None:
     return target
 
 
+def nasdaq_map(con: sqlite3.Connection, cm, start: str) -> dict:
+    """나스닥 지도의 날짜와 종목마다 심볼, 한글 이름, 주식 수, 날짜별 정규장 종가.
+
+    종목은 이익 추정 종목(`collect_market.eps_symbols`)이고, 같은 회사의 두 종류주는 GOOGL 하나로 센다. 이름은 토스 한글 종목명에서
+    종류주 글자와 `(ADR)`을 뗀다. 주식 수는 마지막 이익 추정 스냅샷의 시가총액 ÷ 주가이고, GOOGL의 시가총액은 두 종류주를 합친 회사 전체다.
+    종가는 야후 원 종가이고, 야후에 없는 날은 토스 종가로 메운다. 날짜는 `start`부터 어느 종목이든 종가가 있는 날이고, 그 종목의 종가가 없는 날은 null이다.
+    이름이나 주식 수가 없는 종목은 뺀다.
+    """
+    def latest(series_id: str, column: str, since: str = "") -> dict:
+        return dict(con.execute(
+            f"SELECT period, {column} FROM observation o WHERE series_id = ? AND {column} IS NOT NULL AND period >= ? AND retrieved_at = "
+            "(SELECT MAX(retrieved_at) FROM observation WHERE series_id = o.series_id AND period = o.period)",
+            (series_id, since)).fetchall())
+
+    roster = cm.anchor_store.connect()
+    try:
+        symbols = cm.eps_symbols(roster, MAP_INDEX)
+    finally:
+        roster.close()
+    names = {symbol: re.sub(r"\s*\(ADR\)$| [A-Z]$", "", name) for symbol, name in latest(cm.TOSS_NAMES, "value_text").items()}
+    stocks = []
+    for symbol in symbols:
+        snapshot = {key: value for key, value in latest(cm.eps_id(symbol), "value").items() if key in ("marketCap", "price")}
+        if symbol not in names or len(snapshot) < 2:
+            continue
+        closes = {**latest(cm.toss_id(symbol), "value", start), **latest(cm.breadth_id(symbol), "value", start)}
+        stocks.append({"symbol": symbol, "name": names[symbol], "shares": round(snapshot["marketCap"] / snapshot["price"]), "closes": closes})
+    dates = sorted({day for stock in stocks for day in stock["closes"]})
+    for stock in stocks:
+        stock["closes"] = [round(stock["closes"][day], 2) if day in stock["closes"] else None for day in dates]
+    return {"dates": dates, "stocks": stocks}
+
+
 def market(vault: Path, out: Path) -> Path:
-    """`r/market.json`에 `MARKET`의 시세마다 이름, 탭 이름, 지수 폴더 이름, 단위, 날짜와 종가를 쓴다.
+    """`r/market.json`에 `MARKET`의 시세마다 이름, 탭 이름, 지수 폴더 이름, 단위, 날짜와 종가를 쓰고, `map`에 나스닥 지도의 값(`nasdaq_map`)을 쓴다.
 
     날짜는 공개본이 있는 가장 늦은 리포트 날짜에서 `REWIND_DAYS`일과 `PRICE_YEARS`년을 거슬러 간 날부터다. 지수 폴더가 있는 시세는
     `market_price`의 ETF 환산 종가에 `index_scale`을 곱해 지수 눈금으로 늘리고,
     `observation` 값이 있는 날은 그 값을 쓴다. 시세 하나가 `observation` 계열을 여럿 가지면 뒤 계열의 값이 앞 계열의 같은 날 값을 덮는다.
+    나스닥 지도의 날짜는 가장 늦은 리포트 날짜에서 `REWIND_DAYS`일과 `MAP_LEAD_DAYS`일을 거슬러 간 날부터다.
     """
     published = sorted(p.name[:8] for p in (out / "r").glob("*-*") if p.name[:8].isdigit())
     latest = dt.date.fromisoformat(f"{published[-1][:4]}-{published[-1][4:6]}-{published[-1][6:]}")
@@ -411,10 +449,11 @@ def market(vault: Path, out: Path) -> Path:
             days = sorted(closes)
             series.append({"name": name, "tab": tab, "index": index, "unit": unit, "dates": days,
                            "closes": [round(closes[day], 2) for day in days]})
+        board = nasdaq_map(con, render_inputs(vault).cm, (latest - dt.timedelta(days=REWIND_DAYS + MAP_LEAD_DAYS)).isoformat())
     finally:
         con.close()
     target = out / "r" / "market.json"
-    target.write_text(json.dumps({"series": series}, ensure_ascii=False) + "\n", encoding="utf-8")
+    target.write_text(json.dumps({"series": series, "map": board}, ensure_ascii=False) + "\n", encoding="utf-8")
     return target
 
 
