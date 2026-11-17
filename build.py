@@ -345,7 +345,7 @@ def summary_cards(index: str, date: str, folder: Path, vault: Path) -> dict | No
         con.close()
     dates = [day for day, _ in history]
     past = past_cards(index, date, dates, len(dates) - 1 + len(frame["predict"]["q50"]) - 1, scale, vault, frame["base_date"])
-    return {"start_offset": chart.START_OFFSET, "dates": dates, "history": [round(c * scale, 2) for _, c in history], "past": past, **frame}
+    return {"dates": dates, "history": [round(c * scale, 2) for _, c in history], "past": past, **frame}
 
 
 def rewind(index: str, vault: Path, out: Path) -> Path | None:
@@ -1479,7 +1479,7 @@ def pre(date: str, index: str, vault: Path, out: Path) -> str:
     scale = card_scale(index, vault)
     closes = [round(close * scale, 2) for _, close in history]
     dates = [d for d, _ in history]
-    card = {"pre": True, "start_offset": chart.START_OFFSET, "dates": dates, "history": closes,
+    card = {"pre": True, "dates": dates, "history": closes,
             "past": past_cards(index, date, dates, len(dates) - 1 + chart.path_bands.PATH_BAND_HORIZON, scale, vault),
             "day": date, "base_date": history[-1][0], "base": closes[-1]}
     body += f'<script type="application/json" id="cards">{json.dumps(card, ensure_ascii=False)}</script>\n'
