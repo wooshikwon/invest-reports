@@ -2648,7 +2648,7 @@
 
   // 종목 상세(`stock`)를 이슈 화면과 같은 틀에 그린다. `data`는 `build.py` `stock_pages`가 적는 `r/stocks/{티커}.json`이다.
   // 절 제목은 "종목 상세"이고 오른쪽에 뒤로가기 단추를 단다. 위쪽 한 줄 띠와 창 제목에는 종목 이름을 쓴다.
-  // 첫 상자에는 종목 이름과 티커·업종 표식, 주가 카드, 기업 설명을 둔다. 주가 카드는 마지막 종가와 앞 세션 종가 대비 등락률을 쓰고,
+  // 첫 상자에는 주가 카드와 기업 설명을 둔다. 주가 카드는 이름 자리에 종목 이름과 티커를 쓰고, 마지막 종가와 앞 세션 종가 대비 등락률을 쓰며,
   // 그림 아래 −·+ 단추로 1년, 6개월, 3개월, 1개월 가운데 기간을 골라 일별 종가 선을 다시 그린다. 종가가 기간보다 짧으면 있는 종가를 모두 그리고, 같은 그림이 되는 기간은 하나만 둔다.
   // 처음에는 가장 긴 기간을 그린다.
   // 공시 상세 절은 탭 띠와 넘기기 묶음에 실적, 매출 구성, 최근 공시 카드를 담는다. 카드 이름 뒤 물음표 단추는 카드의 `help` 문단을 보여 주고, 그림 아래에 해설(`text`)을 둔다.
@@ -2662,17 +2662,13 @@
     const page = box.appendChild(Object.assign(document.createElement("div"), { className: "issue-page on" }));
     report.replaceChildren(head, box);
     backward(head, label, ["stock"], 2);
-    const title = page.appendChild(Object.assign(document.createElement("h3"), { textContent: data.name }));
-    const tags = Object.assign(document.createElement("span"), { className: "tags" });
-    tags.append(Object.assign(document.createElement("code"), { textContent: [data.symbol, data.sector].filter(Boolean).join(" · ") }));
-    title.append(Object.assign(document.createElement("span"), { className: "gap", textContent: " " }), tags);
     const closes = data.closes, last = closes.length - 1;
     if (last > 0) {
       const [day, now] = closes[last], change = (now / closes[last - 1][1] - 1) * 100;
       const points = closes.map(([d, v]) => [d, v, `$${Math.round(v).toLocaleString("en-US")}`]);
       const SPAN = [...new Set([252, 126, 63, 21].map((days) => Math.min(days, closes.length)))];
       let span = 0;
-      const [card] = gauge({ name: "주가", asof: `${day.slice(5, 7)}/${day.slice(8, 10)} ${usZone(day)} 종가`, value: price(now, "달러"),
+      const [card] = gauge({ name: `${data.name} ${data.symbol}`, asof: `${day.slice(5, 7)}/${day.slice(8, 10)} ${usZone(day)} 종가`, value: price(now, "달러"),
         state: [`${signed(change)}%`, change > 0 ? "#ff5c5c" : change < 0 ? "#5b9bff" : DIMS], figure: { type: "daily", points: points.slice(-SPAN[span]) } });
       const zoom = card.appendChild(Object.assign(document.createElement("div"), { className: "foot" }))
         .appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
