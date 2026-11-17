@@ -82,6 +82,9 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `r/market.json`의 `map`에는 지수마다 비중 상위 20종목(나스닥 100, 나스닥 바이오테크놀로지)의 한글 이름, 주식 수, 날짜별 종가를 적는다(`market`, `index_map`).
 `invest-reports` 미니 앱의 시장 페이지는 리포트 지수의 값으로 맨 위 `나스닥 한 눈에 보기`·`바이오 한 눈에 보기` 절에 시가총액을 칸 넓이로, 전 거래일 대비 등락률을 칸 색으로 쓴 지도를 그리고,
 슬라이더로 지난 한 달의 리포트 날짜를 고르면 그 날짜 전날의 종가로 지도를 다시 그린다.
+지도 칸을 누르면 칸 위 말풍선에 종목 이름, 종가와 등락률, 설명 첫 문장을 적고, 말풍선의 `자세히 보기` 단추는 `?stock=심볼` 종목 상세 페이지를 연다.
+`r/stocks/{심볼}.json`에는 종목 상세 페이지의 값으로 한글 이름, 업종, 설명, 1년 종가, 공시 카드 세 장(실적·매출 구성·최근 공시)을 적는다(`stock_pages`).
+종목 상세 페이지는 이슈 상세 페이지의 틀로 주가 카드와 기업 설명을 그리고, `공시 상세` 절에 공시 카드를 탭 세 개로 그린다.
 
 `system/simulation.json`의 `quantiles`에 5% 값이 있는 리포트는 요약 절 세 그림을 그림 파일 대신 값으로 그린다.
 그런 리포트의 공개본에서는 12M + Predictions·Montecarlo·권장 추종 배율 그림을 빼고, `report.html` 끝에 카드 값을
@@ -148,6 +151,7 @@ CARD_QUANTILES = (10, 25, 50, 75, 90)  # 일정과 예측 카드가 그리는 �
 PRICE_YEARS = 3  # 주가와 예측 카드가 그리는 종가 기간(년)
 # 시장 페이지의 지수 지도가 되감기 날짜의 첫날보다 앞서 종가를 받는 날 수다. 첫날의 앞 두 세션이 들도록 일주일을 더 받는다.
 MAP_LEAD_DAYS = 7
+STOCK_DAYS = 366  # 종목 상세 페이지의 주가 카드가 그리는 종가 기간(일)
 TICK_STEP = 5  # 일정과 예측 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
 ISSUES_TITLE = "상세 이슈 해설"
@@ -360,6 +364,14 @@ def rewind(index: str, vault: Path, out: Path) -> Path | None:
     return target
 
 
+def observed(con: sqlite3.Connection, series_id: str, column: str, since: str = "") -> dict:
+    """`reference.db` 계열의 기간 → 가장 늦게 받은 값. `since`보다 앞 기간은 뺀다."""
+    return dict(con.execute(
+        f"SELECT period, {column} FROM observation o WHERE series_id = ? AND {column} IS NOT NULL AND period >= ? AND retrieved_at = "
+        "(SELECT MAX(retrieved_at) FROM observation WHERE series_id = o.series_id AND period = o.period)",
+        (series_id, since)).fetchall())
+
+
 def index_map(con: sqlite3.Connection, cm, index: str, start: str) -> dict:
     """`index` 지수 지도의 날짜와 종목마다 심볼, 한글 이름, 업종, 설명, 주식 수, 날짜별 정규장 종가.
 
@@ -369,12 +381,6 @@ def index_map(con: sqlite3.Connection, cm, index: str, start: str) -> dict:
     업종과 설명은 invest-stock-profile 스킬이 쓴 `stock_profile` 표에서 읽고, 설명이 아직 없는 종목은 두 값을 빈 글자로 둔다.
     이름이나 주식 수가 없는 종목은 뺀다.
     """
-    def latest(series_id: str, column: str, since: str = "") -> dict:
-        return dict(con.execute(
-            f"SELECT period, {column} FROM observation o WHERE series_id = ? AND {column} IS NOT NULL AND period >= ? AND retrieved_at = "
-            "(SELECT MAX(retrieved_at) FROM observation WHERE series_id = o.series_id AND period = o.period)",
-            (series_id, since)).fetchall())
-
     roster = cm.anchor_store.connect()
     try:
         symbols = cm.eps_symbols(roster, index)
@@ -383,13 +389,13 @@ def index_map(con: sqlite3.Connection, cm, index: str, start: str) -> dict:
     profiles = {}
     if con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'stock_profile'").fetchone():
         profiles = {symbol: (sector, about) for symbol, sector, about in con.execute("SELECT symbol, sector, about FROM stock_profile")}
-    names = {symbol: re.sub(r"\s*\(ADR\)$| [A-Z]$", "", name) for symbol, name in latest(cm.TOSS_NAMES, "value_text").items()}
+    names = {symbol: re.sub(r"\s*\(ADR\)$| [A-Z]$", "", name) for symbol, name in observed(con, cm.TOSS_NAMES, "value_text").items()}
     stocks = []
     for symbol in symbols:
-        snapshot = {key: value for key, value in latest(cm.eps_id(symbol), "value").items() if key in ("marketCap", "price")}
+        snapshot = {key: value for key, value in observed(con, cm.eps_id(symbol), "value").items() if key in ("marketCap", "price")}
         if symbol not in names or len(snapshot) < 2:
             continue
-        closes = {**latest(cm.toss_id(symbol), "value", start), **latest(cm.breadth_id(symbol), "value", start)}
+        closes = {**observed(con, cm.toss_id(symbol), "value", start), **observed(con, cm.breadth_id(symbol), "value", start)}
         sector, about = profiles.get(symbol, ("", ""))
         stocks.append({"symbol": symbol, "name": names[symbol], "sector": sector, "about": about,
                        "shares": round(snapshot["marketCap"] / snapshot["price"]), "closes": closes})
@@ -399,10 +405,30 @@ def index_map(con: sqlite3.Connection, cm, index: str, start: str) -> dict:
     return {"dates": dates, "stocks": stocks}
 
 
-def market(vault: Path, out: Path) -> Path:
-    """`r/market.json`의 `map`에 지수마다 지도의 값(`index_map`)을 쓴다.
+def stock_pages(con: sqlite3.Connection, cm, board: dict, start: str) -> dict:
+    """지도 종목 → 종목 상세 페이지의 값. 심볼, 한글 이름, 업종, 설명, `start`부터의 [날짜, 정규장 종가], 공시 카드 세 장이다.
 
-    날짜는 공개본이 있는 가장 늦은 리포트 날짜에서 `REWIND_DAYS`일과 `MAP_LEAD_DAYS`일을 거슬러 간 날부터다.
+    종가는 지도와 같이 야후 원 종가에 토스 종가를 메운다. 공시 카드는 invest-stock-profile 스킬이 `stock_detail` 표에 쓴 값이고,
+    카드가 아직 없는 종목은 빈 목록으로 둔다.
+    """
+    cards = {}
+    if con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'stock_detail'").fetchone():
+        cards = {symbol: json.loads(text) for symbol, text in con.execute("SELECT symbol, cards FROM stock_detail")}
+    pages = {}
+    for stock in (stock for index in board.values() for stock in index["stocks"]):
+        if stock["symbol"] in pages:
+            continue
+        closes = {**observed(con, cm.toss_id(stock["symbol"]), "value", start), **observed(con, cm.breadth_id(stock["symbol"]), "value", start)}
+        pages[stock["symbol"]] = {key: stock[key] for key in ("symbol", "name", "sector", "about")} | {
+            "closes": [[day, round(closes[day], 2)] for day in sorted(closes)], "cards": cards.get(stock["symbol"], [])}
+    return pages
+
+
+def market(vault: Path, out: Path) -> Path:
+    """`r/market.json`의 `map`에 지수마다 지도의 값(`index_map`)을 쓰고, `r/stocks/{심볼}.json`에 지도 종목마다 종목 상세 페이지의 값(`stock_pages`)을 쓴다.
+
+    지도 날짜는 공개본이 있는 가장 늦은 리포트 날짜에서 `REWIND_DAYS`일과 `MAP_LEAD_DAYS`일을 거슬러 간 날부터다.
+    종목 상세 페이지의 종가는 그 날짜에서 `STOCK_DAYS`일을 거슬러 간 날부터다. 지도에서 내려간 종목의 파일은 지운다.
     """
     published = sorted(p.name[:8] for p in (out / "r").glob("*-*") if p.name[:8].isdigit())
     latest = dt.date.fromisoformat(f"{published[-1][:4]}-{published[-1][4:6]}-{published[-1][6:]}")
@@ -411,10 +437,18 @@ def market(vault: Path, out: Path) -> Path:
         cm = render_inputs(vault).cm
         start = (latest - dt.timedelta(days=REWIND_DAYS + MAP_LEAD_DAYS)).isoformat()
         board = {index: index_map(con, cm, index, start) for index in cm.ROSTER_INDEX}
+        pages = stock_pages(con, cm, board, (latest - dt.timedelta(days=STOCK_DAYS)).isoformat())
     finally:
         con.close()
     target = out / "r" / "market.json"
     target.write_text(json.dumps({"map": board}, ensure_ascii=False) + "\n", encoding="utf-8")
+    folder = out / "r" / "stocks"
+    folder.mkdir(exist_ok=True)
+    for page in folder.glob("*.json"):
+        if page.stem not in pages:
+            page.unlink()
+    for symbol, page in pages.items():
+        (folder / f"{symbol}.json").write_text(json.dumps(page, ensure_ascii=False) + "\n", encoding="utf-8")
     return target
 
 def public_markdown(text: str, vault: Path, out_dir: Path, base: str) -> str:

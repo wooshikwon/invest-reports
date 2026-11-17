@@ -575,7 +575,8 @@
   .gauge :is(th, td).focus { color: var(--accent); font-weight: 700; }
   .gauge tr:last-child td { border-bottom: 0; }
   /* 지수 지도는 본문 폭을 다 쓰고, 위 줄에 종가 날짜와 종목 범위를 흐린 작은 글씨로 쓴다. 칸은 2px 틈을 두고 모서리를 둥글린 단추이고,
-     종목 이름을 굵은 글씨로, 그 아래에 등락률을 옅은 글씨로 가운데에 쓴다. 글씨는 흰색이다. 지도 아래 종목 설명 칸은 미국 거시 지표 카드의 글씨를 쓰고,
+     종목 이름을 굵은 글씨로, 그 아래에 등락률을 옅은 글씨로 가운데에 쓴다. 글씨는 흰색이다. 칸을 누르면 뜨는 말풍선은 날짜 말풍선과 같은 상자에
+     종목 이름을 굵게, 그 아래에 종가와 등락률을, 다음 줄에 종목 설명 첫 문장을 흐린 글자로 쓰고, 끝에 종목 상세로 가는 단추를 오른쪽에 붙인다.
      등락률은 오르면 빨강, 내리면 파랑으로 칠한다. */
   .indexmap > .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 10px;
                  font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
@@ -587,10 +588,15 @@
   .indexmap .board > button b { font-weight: 700; }
   .indexmap .board > button span { white-space: nowrap; font-size: .86em; font-weight: 600; color: rgba(255, 255, 255, .78); font-variant-numeric: tabular-nums; }
   .indexmap .board > button.on { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .85); }
-  .indexmap .gauge { padding-bottom: 4px; }
-  .indexmap .gauge p { margin-top: 12px; }
-  .indexmap .gauge .state.up { color: #ff5c5c; }
-  .indexmap .gauge .state.down { color: #5b9bff; }
+  .bubble.quote { padding: 12px 14px 6px; width: min(280px, calc(100vw - 48px)); box-sizing: border-box; }
+  .bubble.quote b { position: relative; z-index: 1; display: block; color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap;
+                    overflow: hidden; text-overflow: ellipsis; }
+  .bubble.quote p.price { display: flex; gap: 8px; padding: 2px 0 0; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .bubble.quote p.price .up { color: #ff5c5c; }
+  .bubble.quote p.price .down { color: #5b9bff; }
+  .bubble.quote p.lead { padding: 8px 0 4px; font-size: 13.5px; line-height: 1.5; white-space: normal; }
+  .bubble.quote button { margin: 2px -14px 0 auto; padding: 8px 14px; gap: 4px; color: var(--accent); font-size: 13.5px; }
+  .bubble.quote button svg { color: var(--accent); }
   /* 리포트 화면은 절을 예측 페이지와 이슈 페이지에 나눠 담고 한 페이지만 보여 준다. 가린 페이지는 높이를 0으로 줄여 숨기되 안의 요소는 자리를 그대로 잡아 두어,
      넘기기 묶음이 보고 있던 장과 높이를 지킨다. 보이는 페이지 끝에는 바로가기 알약만큼 여백을 더해 마지막 줄이 알약에 가리지 않게 한다.
      페이지를 바꾸는 동안(`flow`)에는 떠나는 페이지부터 여는 페이지까지를 한 자리에 겹쳐 쌓고 화면 폭씩 옆으로 늘어놓아 함께 옆으로 민다. 페이지마다 바탕색을 칠해 아래 글자가 비치지 않게 하고,
@@ -816,7 +822,8 @@
   // 달력과 지수 전환 단추로 고른 리포트는 주소의 `r`로 다시 연다. 텔레그램은 다시 연 뒤에도 처음 받은 `start_param`을 그대로 주므로 `r`을 먼저 읽는다.
   // 홈 화면 바로가기는 `start_param` 없이 미니 앱을 열므로, 키가 없으면 리포트를 받기 전에 `r/index.json`에서 키를 정한다.
   // 주소에 `issue`가 있으면 리포트 대신 그 번호의 이슈 하나를 보이는 이슈 화면을 그리고, `at`이 있으면 히스토리에서 그 날짜 항목을 고른다.
-  if (query.get("issue")) document.documentElement.classList.add("issue");
+  // 주소에 `stock`이 있으면 이슈 화면과 같은 틀에 그 티커의 종목 상세를 그린다.
+  if (query.get("issue") || query.get("stock")) document.documentElement.classList.add("issue");
   let key = query.get("r") || (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || "";
   const report = document.getElementById("report");
   // 머리 상자가 화면 위에 붙어 있으면 `stuck`을 단다. 문서 맨 위에서는 달지 않는다.
@@ -891,7 +898,7 @@
   // 미니 앱 안에서 다른 리포트로 옮기면 주소의 `r`을 바꿔 페이지를 다시 열므로 브라우저 기록이 하나씩 쌓인다. 기록마다 처음 연 리포트에서
   // 몇 번 옮겨 왔는지(`depth`)를 `history.state`에 적는다. 옮기기 직전에 다음 깊이를 `sessionStorage`에 두고, 새 페이지가 그 값을 읽어 자기 기록에 적는다.
   // 뒤로 가기로 돌아온 페이지는 자기 기록에 적힌 깊이를 그대로 쓴다.
-  // 리포트 화면에서 옮겨 온 페이지는 앞 화면의 리포트 키(`from`)도 같은 방법으로 자기 기록에 적는다. 이슈 화면에서 옮겨 왔으면 빈 글자를 적는다.
+  // 리포트 화면에서 옮겨 온 페이지는 앞 화면의 리포트 키(`from`)도 같은 방법으로 자기 기록에 적는다. 이슈 화면과 종목 상세에서 옮겨 왔으면 빈 글자를 적는다.
   const depth = history.state?.depth ?? (+sessionStorage.getItem("depth") || 0);
   const from = history.state?.from ?? (sessionStorage.getItem("from") || "");
   sessionStorage.removeItem("depth");
@@ -899,14 +906,15 @@
   history.replaceState({ ...history.state, depth, from }, "");
   // 옮기기 직전의 화면 위치(`y`)도 자기 기록에 적는다. 브라우저는 리포트를 받아 그리기 전에 화면 위치를 되돌리려다 실패하므로, 되돌리기는 페이지가 맡는다.
   history.scrollRestoration = "manual";
-  // 이슈 화면(`issue`, `at`)은 `more`로 줄 때만 주소에 적고, 다른 리포트로 옮길 때는 지운다.
+  // 이슈 화면(`issue`, `at`)과 종목 상세(`stock`)는 `more`로 줄 때만 주소에 적고, 다른 리포트로 옮길 때는 지운다.
   const visit = (target, more = {}) => {
     history.replaceState({ ...history.state, y: scrollY }, "");
     sessionStorage.setItem("depth", depth + 1);
-    sessionStorage.setItem("from", query.get("issue") ? "" : key);
+    sessionStorage.setItem("from", query.get("issue") || query.get("stock") ? "" : key);
     const params = new URLSearchParams(location.search);
     params.delete("issue");
     params.delete("at");
+    params.delete("stock");
     params.set("r", target);
     Object.entries(more).forEach(([name, value]) => params.set(name, value));
     location.search = params.toString();
@@ -1156,17 +1164,16 @@
   const NEW_YORK = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", timeZoneName: "short" });
   const usZone = (day) => NEW_YORK.formatToParts(new Date(`${day}T17:00:00Z`)).find((part) => part.type === "timeZoneName").value;
 
-  // 시장 페이지 첫 절인 한 눈에 보기 절에 리포트 지수 상위 20종목의 지도와 종목 설명 칸을 둔다. `map`은 `r/market.json`의 `map`에서 리포트 지수의 값이고, `scope`는 지도 위 줄에 쓰는 종목 범위다.
+  // 시장 페이지 첫 절인 한 눈에 보기 절에 리포트 지수 상위 20종목의 지도를 둔다. `map`은 `r/market.json`의 `map`에서 리포트 지수의 값이고, `scope`는 지도 위 줄에 쓰는 종목 범위다.
   // 지도는 리포트 날짜 전날까지의 마지막 종가로 그린다. 칸 넓이는 종가에 주식 수를 곱한 시가총액에 비례하고, 큰 종목부터 가로세로 비가 1에 가까운 칸으로 나눠 담는다(squarified treemap).
   // 칸 색은 앞 세션 종가 대비 등락률로 정한다. 오르면 빨강, 내리면 파랑이고, 보합의 회색에서 등락률이 클수록 채도를 올려 2.5%에서 가장 선명하다. 칸이 작아 글씨가 넘치면 글씨를 줄이고,
-  // 그래도 넘치면 이름 대신 티커를 쓰고, 다음에 등락률을, 끝으로 티커를 뺀다. 지도 아래 설명 칸은 미국 거시 지표 카드와 같은 형식으로 종목 이름, 티커와 업종, 종가와 등락률, 종목 설명을 쓴다.
-  // 처음에는 시가총액 1위 종목을 보여 주고, 칸을 누르면 그 종목으로 바꾼다. 보여 주는 종목의 칸은 흰 테두리로 표시한다.
+  // 그래도 넘치면 이름 대신 티커를 쓰고, 다음에 등락률을, 끝으로 티커를 뺀다.
+  // 칸을 누르면 누른 자리 위(위에 자리가 없으면 아래)에 말풍선을 띄워 종목 이름, 종가와 등락률, 종목 설명 첫 문장을 쓰고, 말풍선의 단추로 그 종목의 상세 화면(`stock`)을 연다.
+  // 말풍선을 띄운 종목의 칸은 흰 테두리로 표시한다. 같은 칸을 다시 누르거나 지도 밖을 누르면 말풍선을 닫는다.
   function indexMap(head, map, scope, date) {
     const box = Object.assign(document.createElement("div"), { className: "carousel indexmap" });
-    box.innerHTML = `<div class="top"><span></span><span>${scope}</span></div><div class="board"></div>`
-      + '<div class="gauge stock"><div class="top"><span class="name"></span><span class="asof"></span></div>'
-      + '<div class="val"><b></b><span class="state"><i></i><span></span></span></div><p></p></div>';
-    const label = box.querySelector(".top span"), board = box.querySelector(".board"), panel = box.querySelector(".gauge");
+    box.innerHTML = `<div class="top"><span></span><span>${scope}</span></div><div class="board"></div>`;
+    const label = box.querySelector(".top span"), board = box.querySelector(".board");
     // `i`번 날짜부터 거슬러 가며 처음 만나는 종가와 그 날짜 번호. 종가가 없으면 `[null, -1]`이다.
     const close = (stock, i) => {
       for (let k = i; k >= 0; k--) if (stock.closes[k] != null) return [stock.closes[k], k];
@@ -1182,20 +1189,10 @@
     label.textContent = `${map.dates[n].slice(5, 7)}/${map.dates[n].slice(8, 10)} ${usZone(map.dates[n])} 종가`;
     // 칸 색은 보합의 무채색 회색에서 출발해 등락률의 크기만큼 빨강이나 파랑의 채도를 올리고, 2.5%부터는 가장 선명한 색으로 칠한다.
     const shade = (change) => `color-mix(in oklab, ${change > 0 ? "#ec3b47" : "#1f78ee"} ${Math.round(100 * Math.min(1, Math.abs(change) / 2.5))}%, #3a3d44)`;
-    let shown = stocks[0], width = 0;
-    const show = (stock) => {
-      shown = stock;
-      board.querySelectorAll("button").forEach((tile) => tile.classList.toggle("on", tile.stock === stock));
-      panel.querySelector(".name").textContent = stock.name;
-      panel.querySelector(".asof").textContent = [stock.symbol, stock.sector].filter(Boolean).join(" · ");
-      panel.querySelector(".val b").textContent = price(stock.now, "달러");
-      panel.querySelector(".state").className = `state ${tone(stock.change)}`;
-      panel.querySelector(".state span").textContent = `${signed(stock.change)}%`;
-      const about = panel.querySelector("p");
-      about.textContent = stock.about;
-      about.hidden = !stock.about;
-    };
+    let tip = null, width = 0;
+    const untip = () => { tip?.tile.classList.remove("on"); tip?.remove(); tip = null; };
     const draw = () => {
+      untip();
       board.replaceChildren();
       const W = board.clientWidth, H = Math.round(W * .95), total = stocks.reduce((sum, stock) => sum + stock.cap, 0);
       board.style.height = `${H}px`;
@@ -1244,14 +1241,41 @@
         });
         name.hidden = !placed;
       });
-      show(shown);
     };
     board.addEventListener("click", (event) => {
-      const tile = event.target.closest("button");
-      if (!tile || tile.stock === shown) return;
+      const tile = event.target.closest(".board > button");
+      if (!tile) return;
+      const again = tip?.tile === tile;
+      untip();
+      if (again) return;
       feelPress();
-      show(tile.stock);
+      const stock = tile.stock;
+      tip = Object.assign(document.createElement("div"), { className: "bubble quote" });
+      tip.tile = tile;
+      tip.innerHTML = `<b></b><p class="price"><span></span><span class="${tone(stock.change)}"></span></p><p class="lead"></p>`
+        + '<button type="button">자세히 보기<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>';
+      tip.querySelector("b").textContent = stock.name;
+      const [value, change] = tip.querySelectorAll("p.price span");
+      value.textContent = price(stock.now, "달러");
+      change.textContent = `${signed(stock.change)}%`;
+      const lead = tip.querySelector("p.lead");
+      lead.textContent = (stock.about || "").split(/(?<=다\.)\s+/)[0];
+      lead.hidden = !stock.about;
+      tip.querySelector("button").addEventListener("click", () => { feelPress(); visit(key, { stock: stock.symbol }); });
+      board.append(tip);
+      tile.classList.add("on");
+      // 키보드로 누르면 누른 자리가 없으므로 칸 가운데에 띄운다.
+      const at = board.getBoundingClientRect(), r = tile.getBoundingClientRect();
+      const [cx, cy] = event.detail ? [event.clientX, event.clientY] : [r.left + r.width / 2, r.top + r.height / 2];
+      const px = cx - at.left, py = cy - at.top, size = { width: tip.offsetWidth, height: tip.offsetHeight };
+      const left = Math.min(at.width - size.width, Math.max(0, px - size.width / 2));
+      const below = cy - size.height - 14 < masthead.getBoundingClientRect().bottom;
+      tip.classList.toggle("below", below);
+      tip.style.left = `${left}px`;
+      tip.style.top = `${below ? py + 14 : py - size.height - 14}px`;
+      tip.style.setProperty("--tail", `${Math.min(size.width - 18, Math.max(18, px - left))}px`);
     });
+    addEventListener("pointerdown", (event) => { if (tip && !board.contains(event.target)) untip(); }, { capture: true, passive: true });
     new ResizeObserver(() => {
       if (!board.clientWidth || board.clientWidth === width) return;
       width = board.clientWidth;
@@ -1610,6 +1634,57 @@
     h3.childNodes.forEach((node) => { if (node.nodeType === 3) node.textContent = node.textContent.replace(/\s+$/, ""); });
   }
 
+  // 이슈 화면과 종목 상세의 절 제목(`head`) 오른쪽에 뒤로가기 단추를 달고, 단추 가운데를 절 제목 글자(`label`)에 맞추는 함수를 돌려준다.
+  // 주소로 바로 연 화면의 단추는 주소에서 `names`를 지우고 리포트 화면의 `page`번 페이지를 맨 위부터 연다.
+  function backward(head, label, names, page) {
+    const back = head.appendChild(document.createElement("button"));
+    back.className = "back";
+    back.innerHTML = '<svg width="8" height="12" viewBox="0 0 8 12" aria-hidden="true"><path d="M6.5 1 1.5 6l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    // 절 제목 글자로 절을 찾는 곳이 있으므로 단추 이름은 글자 대신 CSS로 쓴다.
+    // 단추 이름은 어디서 열었든 "뒤로가기"이고, 돌아가는 곳은 이 화면을 연 곳이다. 이슈 화면 안에서 다른 이슈로 넘겨도 돌아가는 곳은 바뀌지 않는다.
+    back.setAttribute("aria-label", "뒤로가기");
+    // 리포트 화면(이슈 목록이나 이벤트 캘린더, 지수 지도 말풍선의 "자세히 보기")에서 연 화면의 단추는 뒤로 가서, 떠날 때의 리포트 화면(페이지와 캘린더 날짜, 화면 위치)으로 돌아간다.
+    // 주소로 바로 연 이슈 화면의 단추는 이슈 화면 기록을 이 이슈를 담은 리포트 화면으로 바꾸며 이슈 페이지를 맨 위부터 연다(`land`). 종목 상세는 시장 페이지를 연다. 깊이는 그대로 넘긴다.
+    back.addEventListener("click", () => {
+      feelPress();
+      if (depth > 0 && from) return history.back();
+      sessionStorage.setItem("land", `${key} ${page}`);
+      if (depth > 0) sessionStorage.setItem("depth", depth);
+      const params = new URLSearchParams(location.search);
+      names.forEach((name) => params.delete(name));
+      location.replace(`?${params}`);
+    });
+    // 화면 어디서든 오른쪽으로 60px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 절 제목 오른쪽 단추를 누른 것과 같다.
+    // 그림을 크게 본 화면과 설명 상자, 넘기기 묶음 안에서 민 것은 세지 않는다.
+    let swipe = null;
+    document.addEventListener("touchstart", (event) => {
+      const { target, touches } = event;
+      swipe = touches.length === 1 && !target.closest(".viewer, .help-card, .carousel") ? { x: touches[0].clientX, y: touches[0].clientY } : null;
+    }, { passive: true });
+    document.addEventListener("touchend", (event) => {
+      if (!swipe) return;
+      const touch = event.changedTouches[0], dx = touch.clientX - swipe.x, dy = touch.clientY - swipe.y;
+      swipe = null;
+      if (dx > 60 && dx > 1.5 * Math.abs(dy)) back.click();
+    }, { passive: true });
+    // 단추 가운데를 절 제목 글자 획의 위아래 가운데에 맞춘다. 글꼴마다 글자 줄 안에서 획이 놓이는 높이가 달라서, 기준선 위치와 그 글꼴로 잰 획의 높이로 정한다.
+    // 단추 위치는 옮기기 전 자리(`offsetTop`)에서 재므로, 옮기는 중에 다시 맞춰도 어긋나지 않는다.
+    const ink = document.createElement("canvas").getContext("2d");
+    const align = () => {
+      const probe = label.appendChild(Object.assign(document.createElement("i"), { style: "display: inline-block; width: 0; height: 0" }));
+      const base = probe.getBoundingClientRect().bottom;
+      probe.remove();
+      const style = getComputedStyle(label);
+      ink.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const { actualBoundingBoxAscent: up, actualBoundingBoxDescent: down } = ink.measureText(label.textContent);
+      const center = head.getBoundingClientRect().top + back.offsetTop + back.offsetHeight / 2;
+      back.style.setProperty("--shift", `${base - (up - down) / 2 - center}px`);
+    };
+    new ResizeObserver(align).observe(head);
+    document.fonts?.ready.then(align);
+    return align;
+  }
+
   // 상세 이슈 해설을 이슈 목록으로 바꾼다. 이슈는 `###` 제목부터 다음 `###`·`##` 앞까지다.
   // 템플릿이 검토했지만 비중을 낮춘 이슈를 번호 이슈 뒤에 두므로, 그 항목은 목록 끝의 "비중이 낮은 이슈 N건" 상자가 된다.
   // 상자를 누르면 주소의 `issue`에 그 이슈 번호를 적어 이슈 화면을 새 페이지로 연다. 이슈 번호는 소제목 앞 번호이고, 번호가 없는 상자는 목록 순서다.
@@ -1879,51 +1954,7 @@
       return;
     }
     [...report.children].forEach((node) => node === head || node === box || node.remove());
-    const back = head.appendChild(document.createElement("button"));
-    back.className = "back";
-    back.innerHTML = '<svg width="8" height="12" viewBox="0 0 8 12" aria-hidden="true"><path d="M6.5 1 1.5 6l5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    // 절 제목 글자로 절을 찾는 곳이 있으므로 단추 이름은 글자 대신 CSS로 쓴다.
-    // 단추 이름은 어디서 열었든 "뒤로가기"이고, 돌아가는 곳은 이슈 화면을 연 곳이다. 이슈 화면 안에서 다른 이슈로 넘겨도 돌아가는 곳은 바뀌지 않는다.
-    back.setAttribute("aria-label", "뒤로가기");
-    // 리포트 화면(이슈 목록이나 이벤트 캘린더의 "자세히 보기")에서 연 이슈 화면의 단추는 뒤로 가서, 떠날 때의 리포트 화면(페이지와 캘린더 날짜, 화면 위치)으로 돌아간다.
-    // 주소로 바로 연 이슈 화면의 단추는 이슈 화면 기록을 이 이슈를 담은 리포트 화면으로 바꾸며 이슈 페이지를 맨 위부터 연다(`land`). 깊이는 그대로 넘긴다.
-    back.addEventListener("click", () => {
-      feelPress();
-      if (depth > 0 && from) return history.back();
-      sessionStorage.setItem("land", key);
-      if (depth > 0) sessionStorage.setItem("depth", depth);
-      const params = new URLSearchParams(location.search);
-      params.delete("issue");
-      params.delete("at");
-      location.replace(`?${params}`);
-    });
-    // 이슈 화면 어디서든 오른쪽으로 60px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 절 제목 오른쪽 단추를 누른 것과 같다.
-    // 그림을 크게 본 화면과 설명 상자, 이슈 그림 묶음 안에서 민 것은 세지 않는다.
-    let swipe = null;
-    document.addEventListener("touchstart", (event) => {
-      const { target, touches } = event;
-      swipe = touches.length === 1 && !target.closest(".viewer, .help-card, .carousel") ? { x: touches[0].clientX, y: touches[0].clientY } : null;
-    }, { passive: true });
-    document.addEventListener("touchend", (event) => {
-      if (!swipe) return;
-      const touch = event.changedTouches[0], dx = touch.clientX - swipe.x, dy = touch.clientY - swipe.y;
-      swipe = null;
-      if (dx > 60 && dx > 1.5 * Math.abs(dy)) back.click();
-    }, { passive: true });
-    // 단추 가운데를 절 제목 글자 획의 위아래 가운데에 맞춘다. 글꼴마다 글자 줄 안에서 획이 놓이는 높이가 달라서, 기준선 위치와 그 글꼴로 잰 획의 높이로 정한다.
-    const ink = document.createElement("canvas").getContext("2d");
-    const align = () => {
-      const probe = label.appendChild(Object.assign(document.createElement("i"), { style: "display: inline-block; width: 0; height: 0" }));
-      const base = probe.getBoundingClientRect().bottom;
-      probe.remove();
-      const style = getComputedStyle(label);
-      ink.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-      const { actualBoundingBoxAscent: up, actualBoundingBoxDescent: down } = ink.measureText(label.textContent);
-      const rect = back.getBoundingClientRect(), now = parseFloat(back.style.getPropertyValue("--shift")) || 0;
-      back.style.setProperty("--shift", `${now + base - (up - down) / 2 - (rect.top + rect.height / 2)}px`);
-    };
-    new ResizeObserver(align).observe(head);
-    document.fonts?.ready.then(align);
+    const align = backward(head, label, ["issue", "at"], 1);
     const bar = document.getElementById("issue-bar");
     const rename = (next) => {
       if (label.textContent === next) return;
@@ -2609,8 +2640,85 @@
       }
       if (c.note) val.append(Object.assign(document.createElement("span"), { className: "note", textContent: c.note }));
     }
-    box.append(GAUGES[c.figure.type](c.figure));
+    if (c.figure) box.append(GAUGES[c.figure.type](c.figure));
     return [box, name];
+  }
+
+  // 종목 상세(`stock`)를 이슈 화면과 같은 틀에 그린다. `data`는 `build.py` `stock_pages`가 적는 `r/stocks/{티커}.json`이다.
+  // 절 제목은 "종목 상세"이고 오른쪽에 뒤로가기 단추를 단다. 위쪽 한 줄 띠와 창 제목에는 종목 이름을 쓴다.
+  // 첫 상자에는 종목 이름과 티커·업종 표식, 주가 카드, 기업 설명을 둔다. 주가 카드는 마지막 종가와 앞 세션 종가 대비 등락률을 쓰고,
+  // 그림 아래 −·+ 단추로 1년, 6개월, 3개월, 1개월 가운데 기간을 골라 일별 종가 선을 다시 그린다. 종가가 기간보다 짧으면 있는 종가를 모두 그리고, 같은 그림이 되는 기간은 하나만 둔다.
+  // 처음에는 가장 긴 기간을 그린다.
+  // 공시 상세 절은 탭 띠와 넘기기 묶음에 실적, 매출 구성, 최근 공시 카드를 담는다. 카드 이름 뒤 물음표 단추는 카드의 `help` 문단을 보여 주고, 그림 아래에 해설(`text`)을 둔다.
+  // 재무 값이 없는 카드는 그림과 해설 대신 안내 문장(`empty`)을 쓴다. 카드가 없으면 공시 상세 절을 두지 않는다.
+  function stockDetail(data) {
+    document.title = data.name;
+    document.getElementById("issue-bar").textContent = data.name;
+    const head = Object.assign(document.createElement("h2"), { className: "issues inside" });
+    const label = head.appendChild(Object.assign(document.createElement("span"), { textContent: "종목 상세" }));
+    const box = Object.assign(document.createElement("div"), { className: "issue-box inside" });
+    const page = box.appendChild(Object.assign(document.createElement("div"), { className: "issue-page on" }));
+    report.replaceChildren(head, box);
+    backward(head, label, ["stock"], 2);
+    const title = page.appendChild(Object.assign(document.createElement("h3"), { textContent: data.name }));
+    const tags = Object.assign(document.createElement("span"), { className: "tags" });
+    tags.append(Object.assign(document.createElement("code"), { textContent: [data.symbol, data.sector].filter(Boolean).join(" · ") }));
+    title.append(Object.assign(document.createElement("span"), { className: "gap", textContent: " " }), tags);
+    const closes = data.closes, last = closes.length - 1;
+    if (last > 0) {
+      const [day, now] = closes[last], change = (now / closes[last - 1][1] - 1) * 100;
+      const points = closes.map(([d, v]) => [d, v, `$${Math.round(v).toLocaleString("en-US")}`]);
+      const SPAN = [...new Set([252, 126, 63, 21].map((days) => Math.min(days, closes.length)))];
+      let span = 0;
+      const [card] = gauge({ name: "주가", asof: `${day.slice(5, 7)}/${day.slice(8, 10)} ${usZone(day)} 종가`, value: price(now, "달러"),
+        state: [`${signed(change)}%`, change > 0 ? "#ff5c5c" : change < 0 ? "#5b9bff" : DIMS], figure: { type: "daily", points: points.slice(-SPAN[span]) } });
+      const zoom = card.appendChild(Object.assign(document.createElement("div"), { className: "foot" }))
+        .appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
+      zoom.innerHTML = `<button type="button" aria-label="기간 늘리기">−</button><span class="steps">${"<i></i>".repeat(SPAN.length)}</span><button type="button" aria-label="기간 줄이기">+</button>`;
+      const [wider, narrower] = zoom.querySelectorAll("button");
+      const level = () => {
+        wider.disabled = span === 0;
+        narrower.disabled = span === SPAN.length - 1;
+        zoom.querySelectorAll(".steps i").forEach((dot, i) => dot.classList.toggle("on", i === span));
+      };
+      const move = (by) => {
+        const next = Math.max(0, Math.min(SPAN.length - 1, span + by));
+        if (next === span) return;
+        feelPress();
+        span = next;
+        card.querySelector(":scope > svg").replaceWith(GAUGES.daily({ points: points.slice(-SPAN[span]) }));
+        level();
+      };
+      wider.addEventListener("click", () => move(-1));
+      narrower.addEventListener("click", () => move(1));
+      level();
+      page.append(card);
+    }
+    if (data.about) page.append(Object.assign(document.createElement("h4"), { innerHTML: "<mark>기업 설명</mark>" }),
+                               Object.assign(document.createElement("p"), { textContent: data.about }));
+    if (!data.cards.length) return;
+    const filings = Object.assign(document.createElement("h2"), { className: "issues inside", textContent: "공시 상세" });
+    box.after(filings);
+    const slides = data.cards.map((c) => {
+      const [card, name] = gauge(c);
+      name.append(question(c.name, () => c.help.map((text) => Object.assign(document.createElement("p"), { textContent: text }))));
+      const text = c.empty || c.text;
+      if (text) card.append(Object.assign(document.createElement("p"), { className: c.empty ? "empty" : "", textContent: text }));
+      return [card];
+    });
+    const bar = Object.assign(document.createElement("div"), { className: "tabs glide" });
+    bar.innerHTML = '<div class="strip"></div>';
+    const strip = bar.firstChild;
+    data.cards.forEach((c, i) => {
+      const button = Object.assign(document.createElement("button"), { textContent: c.tab });
+      button.addEventListener("click", () => carousel.go(i));
+      strip.appendChild(button);
+    });
+    const change = (i) => [...strip.children].forEach((button, j) => button.classList.toggle("on", i === j));
+    filings.after(bar);
+    const carousel = slider(slides, bar, { fit: true, change, name: "filings", feel: true });
+    carousel.prepend(bar);
+    change(0);
   }
 
   // 이슈 그래프 자리에 카드를 그리고, 카드 값에 그래프 설명(`caption`)이 있으면 카드 아래에 사진 설명과 같은 글씨로 단다.
@@ -2885,15 +2993,23 @@
   const figure = (v) => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   // 달러 값은 주가와 예측 카드처럼 앞에 $를 붙이고, 다른 단위는 값 뒤에 붙인다.
   const price = (v, unit) => unit === "달러" ? `$${figure(v)}` : `${figure(v)}${unit}`;
+  // 종목 상세는 리포트 대신 `r/stocks/{티커}.json`을 받아 그린다(`stockDetail`).
+  const symbol = query.get("stock");
   (/^\d{8}-[a-z]+$/.test(key) ? Promise.resolve(key) : listed.then((listing) => latest(listing, "nasdaq"))).then((found) => {
     if (!found) throw new Error("no report");
     key = found;
     paint();
+    if (symbol) {
+      if (!/^[A-Z][A-Z.-]{0,9}$/.test(symbol)) throw new Error("bad symbol");
+      return fetch(`r/stocks/${symbol}.json`, { cache }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(stockDetail);
+    }
     return Promise.all([
       fetch(`r/${key}/report.html`, { cache }).then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); }),
       listed,
-    ]);
-  }).then(([body, listing]) => {
+    ]).then(([body, listing]) => reportPage(body, listing));
+  }).catch(() => fail(symbol ? "종목을 찾지 못했다." : "리포트를 찾지 못했다.")).finally(() => landed());
+  // 리포트 화면과 이슈 화면을 그린다. `body`는 `r/{키}/report.html`이고, `listing`은 `r/index.json`이다.
+  function reportPage(body, listing) {
     const entry = listing[key];
     if (entry) {
       document.title = `${entry.title} ${entry.day}`;
@@ -2938,8 +3054,10 @@
     section("상세 이슈 해설", focus, query.get("at"));
     // 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
     report.querySelectorAll("h3").forEach(trail);
-    // 주소로 바로 연 이슈 화면의 뒤로가기 단추로 연 리포트 화면(`land`)은 이슈 페이지(1번)를 맨 위부터 보여 준다. 그 밖에는 `history.state`에 적힌 페이지를 연다.
-    const land = !focus && sessionStorage.getItem("land") === key;
+    // 주소로 바로 연 이슈 화면과 종목 상세의 뒤로가기 단추로 연 리포트 화면(`land`)은 단추가 적은 페이지(이슈 화면은 이슈 페이지, 종목 상세는 시장 페이지)를
+    // 맨 위부터 보여 준다. 그 밖에는 `history.state`에 적힌 페이지를 연다.
+    const [landKey, landPage] = (sessionStorage.getItem("land") || "").split(" ");
+    const land = !focus && landKey === key;
     if (land) sessionStorage.removeItem("land");
     if (!focus) {
       // 노드를 옮기면 넘기기 묶음의 스크롤 위치가 처음으로 돌아가므로, 막을 씌울 상자는 묶음을 만들기 전에 만든다.
@@ -2949,7 +3067,7 @@
       turn = jump(pages);
       const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "이벤트 캘린더");
       if (head?.pick) toCalendar = (day) => { turn(pages.findIndex((page) => page.contains(head)), head); head.pick(day); };
-      turn(land ? 1 : history.state?.page || 0);
+      turn(land ? +landPage : history.state?.page || 0);
     }
     // 일정과 예측처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
     // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
@@ -2976,14 +3094,14 @@
           setTimeout(() => watch.disconnect(), 2000);
         });
     }
-  }).catch(() => fail("리포트를 찾지 못했다.")).finally(() => landed());
+  }
   // 미니 앱 안에서 다른 리포트로 옮겨 온 리포트 화면(`depth`가 0보다 크면)은 화면 왼쪽 끝 18px 띠에서 오른쪽으로 밀어 앞 화면으로 돌아간다.
-  // 이슈 화면은 이 띠를 두지 않고, 화면 어디서든 오른쪽으로 밀면 뒤로가기 단추를 누른 것과 같다.
+  // 이슈 화면과 종목 상세는 이 띠를 두지 않고, 화면 어디서든 오른쪽으로 밀면 뒤로가기 단추를 누른 것과 같다.
   // 띠는 손가락이 처음 6px 움직인 방향으로 할 일을 정한다. 가로로 움직인 거리가 세로의 0.6배 이상이면 뒤로 가기로 받고 페이지 스크롤을 막는다.
   // 막지 않으면 스크롤할 여지가 있는 본문 가운데에서 손가락이 조금만 비스듬히 움직여도 브라우저가 스크롤을 시작해 밀기를 끊는다.
   // 그보다 세로로 움직이면 스크롤을 브라우저에 맡기고 그 손짓은 더 보지 않는다. 띠를 누르고 있는 동안은 뿌리에 `edging`을 달아 띠 아래 스크롤 상자의 스크롤을 멈춘다. 미는 동안 손가락 높이에 뒤로 가기 원이 따라 나오고, 80px을 넘기면 원이 밝아지며
   // 선택 변경 진동을 낸다. 80px을 넘긴 채 손을 떼면 앞 페이지로 돌아가고, 못 넘기면 원을 거둔다. 움직이지 않고 누른 곳은 띠 아래 요소를 누른 것으로 넘긴다.
-  if (depth > 0 && !query.get("issue")) {
+  if (depth > 0 && !query.get("issue") && !symbol) {
     const edge = Object.assign(document.createElement("div"), { className: "back-edge" });
     const ring = Object.assign(document.createElement("div"), { className: "back-ring" });
     ring.innerHTML = '<svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true"><path d="M8 2L2 8l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
