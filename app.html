@@ -46,6 +46,7 @@
   /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
   main { position: relative; max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-edge)) 16px calc(40px + var(--offscreen, 0px)); }
   /* 문서 맨 위에는 리포트 날짜와 요일을 절 제목과 같은 회색의 작은 글씨로 쓰고(`#day`), 그 아래에 머리 상자(`#masthead`)를 둔다. 날짜 줄은 본문과 함께 화면 위로 지나간다.
+     날짜 오른쪽에는 그날 판단 배치의 단계를 작은 알약(`.stage`)으로 쓴다. 사전 리포트는 회색 "예측 전", 판단 배치가 도는 동안은 노란 "예측 중"과 깜박이는 점, 본 리포트는 흐린 "예측 완료"다.
      머리 상자는 32px 높이의 위 줄과 18px 높이의 아래 줄(`header`)이고, 왼쪽에 시세(`#ticker`)를, 위 줄 오른쪽 끝에 달력 단추를 쓴다. 날짜 줄이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
      시세 위 줄은 "나스닥 $27,940 −1.22%"처럼 흰 지수 이름, 리포트 판단의 기준 가격 날짜의 정규장 종가, 그 종가의 앞 거래일 종가 대비 등락률을 쓴다.
      아래 줄은 지수 이름과 같은 왼쪽 끝에서 "애프터마켓 $27,712 −0.83%"처럼 리포트 판단의 기준 가격과 기준 가격의 정규장 종가 대비 등락률을 쓴다. 기준 가격은 정규장 뒤 애프터마켓 거래까지 반영한 마지막 가격이다.
@@ -55,6 +56,21 @@
      흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
   #day { margin: 0; font-size: 12.5px; font-weight: 600; line-height: 20px; color: var(--dim); }
   #day:empty { display: none; }
+  #day .stage { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 0 6px; border-radius: 6px; vertical-align: 1px;
+                background: rgba(255, 255, 255, .08); color: var(--hint); font-size: 10.5px; font-weight: 700; line-height: 16px; }
+  #day .stage.done { background: none; padding: 0; color: var(--dim); }
+  #day .stage.running { background: rgba(255, 200, 87, .14); color: #ffc857; }
+  #day .stage.running::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: stage-blink 1.2s ease-in-out infinite; }
+  @keyframes stage-blink { 50% { opacity: .25; } }
+  @media (prefers-reduced-motion: reduce) { #day .stage.running::before { animation: none; } }
+  /* 문서 맨 위에서 화면을 아래로 끌면 위쪽 높이 바로 아래에 둥근 새로고침 표시(`#pull`)가 손가락을 따라 내려온다. 표시가 끝까지 내려오면 흰색으로 바뀌고,
+     그때 손을 떼면 돌면서 미니 앱을 다시 연다. 덜 끌고 떼거나 옆으로 밀면 표시가 다시 올라간다. */
+  #pull { position: fixed; top: calc(var(--top-edge) - 34px); left: 50%; z-index: 8; width: 30px; height: 30px; margin-left: -15px; border-radius: 50%;
+          background: #2a2d33; color: var(--dim); display: grid; place-items: center; opacity: 0; pointer-events: none; }
+  #pull.ready { color: #fff; }
+  #pull.back { transition: transform .2s, opacity .2s; }
+  #pull.spin svg { animation: pull-spin .8s linear infinite; }
+  @keyframes pull-spin { to { transform: rotate(360deg); } }
   #berth { height: 4px; }
   #masthead { position: sticky; top: calc(5px + var(--top-edge)); z-index: 4; height: 50px; }
   #ticker { position: absolute; top: 0; left: 0; right: 44px; overflow: hidden; margin: 0; font-size: 13px; line-height: 32px; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -592,6 +608,7 @@
 </head>
 <body>
 <div id="top-glass"></div>
+<div id="pull"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M13.5 8A5.5 5.5 0 1 1 11.9 4.1"/><path d="M12.2 1.5v2.9H9.3"/></svg></div>
 <div id="past"></div>
 <div id="issue-bar"></div>
 <main>
@@ -638,6 +655,46 @@
     offscreen();
     tg.onEvent("viewportChanged", offscreen);
     window.addEventListener("resize", offscreen);
+  }
+  // 문서 맨 위에서 시작해 아래로 끈 거리의 절반만큼 새로고침 표시를 내리고, 64px까지 내려오면 손을 뗄 때 미니 앱을 다시 연다.
+  // 판단 배치의 단계가 바뀌면 `r/index.json`과 리포트가 바뀌므로, 다시 열면 그날 리포트의 새 단계를 받는다. 이슈 화면에서는 끌지 않는다.
+  {
+    const pull = document.getElementById("pull"), FULL = 64;
+    let from = null, shown = 0;
+    const place = (y) => {
+      shown = y;
+      pull.style.transform = `translateY(${y}px) rotate(${y / FULL * 270}deg)`;
+      pull.style.opacity = Math.min(1, y / 24);
+      pull.classList.toggle("ready", y >= FULL);
+    };
+    addEventListener("touchstart", (event) => {
+      from = scrollY <= 0 && event.touches.length === 1 && !document.documentElement.classList.contains("issue")
+        ? { x: event.touches[0].clientX, y: event.touches[0].clientY, down: false } : null;
+      pull.classList.remove("back");
+    }, { passive: true });
+    addEventListener("touchmove", (event) => {
+      if (!from) return;
+      const dx = event.touches[0].clientX - from.x, dy = event.touches[0].clientY - from.y;
+      if (!from.down) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (dy <= 0 || Math.abs(dx) > dy || scrollY > 0) { from = null; return; }
+        from.down = true;
+      }
+      place(Math.min(FULL, Math.max(0, dy / 2)));
+    }, { passive: true });
+    addEventListener("touchend", () => {
+      if (!from) return;
+      from = null;
+      if (shown >= FULL) {
+        feelPress();
+        pull.classList.add("spin");
+        location.reload();
+        return;
+      }
+      pull.classList.add("back");
+      place(0);
+    }, { passive: true });
+    addEventListener("touchcancel", () => { from = null; pull.classList.add("back"); place(0); }, { passive: true });
   }
   const query = new URLSearchParams(location.search);
   // 달력과 지수 전환 단추로 고른 리포트는 주소의 `r`로 다시 연다. 텔레그램은 다시 연 뒤에도 처음 받은 `start_param`을 그대로 주므로 `r`을 먼저 읽는다.
@@ -877,11 +934,12 @@
   // Montecarlo 그림은 원래 이벤트 캘린더 절에 있으므로 그 자리에서는 뺀다. 12M + Predictions가 없는 리포트는 두 장을 넘긴다.
   // 묶음 위에는 그림 이름 탭을 둔다. 탭을 누르면 그 그림으로 넘기고, 넘기면 보고 있는 그림의 탭을 밝힌다.
   // 그림 카드 값(`build.py`가 리포트 끝에 둔 `#cards`)이 있는 리포트는 그림 대신 같은 이름의 카드 세 장을 넘긴다.
+  // 사전 리포트의 카드 값(`pre`)은 주가 카드 한 장만 두고 되감기 슬라이더를 두지 않는다.
   function figures(date) {
     const data = report.querySelector("#cards");
     if (data) {
       data.remove();
-      const set = summaryCards(JSON.parse(data.textContent), date);
+      const cards = JSON.parse(data.textContent), set = summaryCards(cards, date);
       ticker.innerHTML = set.quote;
       const bar = document.createElement("div");
       bar.className = "tabs";
@@ -893,7 +951,7 @@
       const change = (i) => [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j));
       const box = slider(set.slides, report.querySelector("h2"), { change, name: "cards", feel: true });
       box.prepend(bar);
-      cardRewind(box, date, set);
+      if (!cards.pre) cardRewind(box, date, set);
       return;
     }
     const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
@@ -1155,9 +1213,10 @@
     // 기간은 3년, 2년, 1년, 6개월, 3개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
     // 고른 날짜가 리포트 날짜보다 앞이면 종가 선은 그날 판단의 출발점에서 다시 이어 리포트 날짜 판단의 기준 가격 날짜 종가까지 그리고,
     // 그 오른쪽 `start_offset` 거래일에 리포트 날짜 판단의 기준 가격을 점으로 찍어 점선으로 잇는다.
+    // 사전 리포트(`data.pre`)는 예측 없이 종가 선만 그리고, 위 줄에 마지막 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 적는다.
     const predict = (() => {
-      const c = card("25거래일 뒤 예측 중앙값"), s = c.svg;
-      const L = 4, R = W - 4, T = 22, xmax = last + so + 25;
+      const c = card(data.pre ? `${md(dates[last])} 종가` : "25거래일 뒤 예측 중앙값"), s = c.svg;
+      const L = 4, R = W - 4, T = 22, xmax = data.pre ? last : last + so + 25;
       const SPAN = [756, 504, 252, 126, 63].map((days) => Math.max(0, last - days));
       let span = 2, frame = null, raf = 0;
       const zoom = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
@@ -1174,9 +1233,9 @@
       const end = (f, q) => f.predict[q][f.predict[q].length - 1];
       // 기간마다 세로 범위: 보이는 종가·예측 면·지난 예측을 담고, 최저 점 아래에 글씨가 들어갈 20px을 비운다.
       const range = (x0) => {
-        const shown = hist.slice(x0, last + 1);
-        let lo = Math.min(...shown, ...frame.predict.q25, ...past.map((p) => p.lo));
-        const hi = Math.max(...shown, ...frame.predict.q75, ...past.map((p) => p.hi));
+        const shown = hist.slice(x0, last + 1), band = frame.predict || { q25: [], q75: [] };
+        let lo = Math.min(...shown, ...band.q25, ...past.map((p) => p.lo));
+        const hi = Math.max(...shown, ...band.q75, ...past.map((p) => p.hi));
         const low = Math.min(...shown);
         lo = Math.min(lo, low - (hi - low) * 20 / (B - T - 20));
         return [lo, hi];
@@ -1204,10 +1263,25 @@
           g.append(shape("path", { d: `${path(past.map((q) => [X(q.x), Y(q.lo)]))}L${past.slice().reverse().map((q) => `${X(q.x)} ${Y(q.hi)}`).join("L")}Z`, fill: "rgba(167, 171, 176, .16)" }));
           g.append(shape("path", { d: path(past.map((q) => [X(q.x), Y(q.mid)])), fill: "none", stroke: "#A7ABB0", "stroke-width": 1.2, "stroke-dasharray": "2 3", opacity: .8 }));
         }
-        const xs = p.q50.map((_, k) => X(fx + (k ? k + so : so))), origin = [xs[0], Y(f.base)];
-        g.append(shape("path", { d: `${path(xs.map((x, k) => [x, Y(p.q25[k])]))}L${xs.slice().reverse().map((x, k) => `${x} ${Y(p.q75[xs.length - 1 - k])}`).join("L")}Z`, fill: color, opacity: .22 }));
         const i0 = Math.max(0, Math.floor(x0)), width = 1.4 - .4 * Math.max(0, Math.min(1, (last - x0 - 63) / 693));
         const stroke = { fill: "none", stroke: PRICE, "stroke-width": width, "stroke-linejoin": "round" };
+        // 최고·최저 글씨는 기간이 정해진 뒤에만 그리고, 가운데를 그림 양 끝에서 30px 안쪽에 둔다.
+        const extremes = () => {
+          const group = s.appendChild(shape("g", { class: "marks" }));
+          const shown = hist.slice(i0, last + 1);
+          [[i0 + shown.indexOf(Math.max(...shown)), -7, "최고"], [i0 + shown.indexOf(Math.min(...shown)), 15, "최저"]].forEach(([i, dy, text]) => {
+            group.append(shape("circle", { cx: X(i), cy: Y(hist[i]), r: 2.5, fill: PRICE }));
+            group.append(shape("text", { x: Math.min(Math.max(X(i), L + 30), R - 30), y: Y(hist[i]) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${fmt(hist[i])}`));
+          });
+        };
+        if (!p) {
+          g.append(shape("path", { d: path(hist.slice(i0, last + 1).map((v, k) => [X(i0 + k), Y(v)])), ...stroke }));
+          if (marks) extremes();
+          s.append(shape("circle", { cx: X(last), cy: Y(hist[last]), r: 2.5, fill: PRICE }));
+          return;
+        }
+        const xs = p.q50.map((_, k) => X(fx + (k ? k + so : so))), origin = [xs[0], Y(f.base)];
+        g.append(shape("path", { d: `${path(xs.map((x, k) => [x, Y(p.q25[k])]))}L${xs.slice().reverse().map((x, k) => `${x} ${Y(p.q75[xs.length - 1 - k])}`).join("L")}Z`, fill: color, opacity: .22 }));
         g.append(shape("path", { d: path(hist.slice(i0, fx + 1).map((v, k) => [X(i0 + k), Y(v)])), ...stroke }));
         g.append(shape("path", { d: path([[X(fx), Y(hist[fx])], origin]), ...stroke, "stroke-dasharray": "2 2" }));
         const today = [X(last + so), Y(data.base)];
@@ -1216,15 +1290,7 @@
           g.append(shape("path", { d: path([[X(last), Y(hist[last])], today]), ...stroke, "stroke-dasharray": "2 2" }));
         }
         s.append(shape("path", { d: path(xs.map((x, k) => [x, Y(p.q50[k])])), fill: "none", stroke: color, "stroke-width": 1.4, "stroke-linejoin": "round" }));
-        // 최고·최저 글씨는 기간이 정해진 뒤에만 그리고, 가운데를 그림 양 끝에서 30px 안쪽에 둔다.
-        if (marks) {
-          const group = s.appendChild(shape("g", { class: "marks" }));
-          const shown = hist.slice(i0, last + 1);
-          [[i0 + shown.indexOf(Math.max(...shown)), -7, "최고"], [i0 + shown.indexOf(Math.min(...shown)), 15, "최저"]].forEach(([i, dy, text]) => {
-            group.append(shape("circle", { cx: X(i), cy: Y(hist[i]), r: 2.5, fill: PRICE }));
-            group.append(shape("text", { x: Math.min(Math.max(X(i), L + 30), R - 30), y: Y(hist[i]) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${fmt(hist[i])}`));
-          });
-        }
+        if (marks) extremes();
         if (last > fx) s.append(shape("circle", { cx: today[0], cy: today[1], r: 2.5, fill: PRICE }));
         s.append(shape("circle", { cx: origin[0], cy: origin[1], r: 2.5, fill: "#EAEAEA", stroke: "#171719", "stroke-width": 1 }));
       };
@@ -1253,7 +1319,8 @@
         show(f) {
           frame = f;
           cancelAnimationFrame(raf);
-          c.head(f, `${signed((end(f, "q50") / f.base - 1) * 100)}%`, fmt(end(f, "q50")));
+          if (f.predict) c.head(f, `${signed((end(f, "q50") / f.base - 1) * 100)}%`, fmt(end(f, "q50")));
+          else c.head(f, `${signed((hist[last] / hist[last - 1] - 1) * 100, 2)}%`, fmt(hist[last]));
           tween(span, span, 1);
         },
       };
@@ -1264,7 +1331,7 @@
     // 세로선과 범위 끝이 만나는 곳에 그날의 등락률을 적는다. 그림 아래 줄 가운데에는 고른 일정의 날짜와 이름을 적고, 이름이 줄을 넘으면 말줄임표로 줄인다.
     // 그 줄 양옆의 꺽쇠를 누르면 앞뒤 일정을 고르고, 일정 이름을 누르면 같은 페이지 아래의 이벤트 캘린더에서 같은 거래일을 연다(`toCalendar`).
     // 지난 날짜를 고르면 그날 기준 가격 뒤의 실제 종가 등락률을 흰 선으로 그린다.
-    const tree = (() => {
+    const tree = data.pre ? null : (() => {
       const c = card("25거래일 뒤 범위"), s = c.svg;
       const L = 4, R = W - 4, T = 38;
       const box = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "evbox" }));
@@ -1370,7 +1437,7 @@
     })();
 
     // 권장 배율: 경로마다의 평균 배율 분포를 오늘 판단(판단 색)과 이슈가 없을 때의 기준(회색)으로 그리고, 평균 배율에 세로선을 긋는다.
-    const chart = (() => {
+    const chart = data.pre ? null : (() => {
       const c = card("지수 추종 = 1.0"), s = c.svg;
       const L = 6, R = W - 6, T = 22;
       return {
@@ -1396,15 +1463,17 @@
       };
     })();
 
-    const parts = [predict, tree, chart];
+    const parts = data.pre ? [predict] : [predict, tree, chart];
     const show = (frame) => parts.forEach((part) => part.show(frame));
     show(data);
-    // 머리 상자 시세는 위 줄에 기준 가격 날짜의 정규장 종가를, 아래 줄에 리포트 날짜 판단의 기준 가격을 쓴다. 등락률은 반올림한 값으로 색을 정해 0.00%를 칠하지 않는다.
+    // 머리 상자 시세는 위 줄에 기준 가격 날짜의 정규장 종가를, 아래 줄에 리포트 날짜 판단의 기준 가격을 쓴다. 사전 리포트는 아래 줄을 두지 않는다.
+    // 등락률은 반올림한 값으로 색을 정해 0.00%를 칠하지 않는다.
     const at = dates.indexOf(data.base_date), rate = (ratio) => Math.round(ratio * 1e4) / 100;
     const day = rate(hist[at] / hist[at - 1] - 1), after = rate(data.base / hist[at] - 1);
     const quote = `<span class="row"><span>${PRICE_NAME[key.split("-")[1]]}</span><b class="price ${tone(day)}">${fmt(hist[at])}</b>`
-      + `<b class="${tone(day)}">${signed(day, 2)}%</b><small>애프터마켓 ${fmt(data.base)} ${signed(after, 2)}%</small></span>`;
-    return { names: [INDEX_NAME[key.split("-")[1]], "일정", "권장 배율"], slides: parts.map((part) => [part.box]), show, quote };
+      + `<b class="${tone(day)}">${signed(day, 2)}%</b>${data.pre ? "" : `<small>애프터마켓 ${fmt(data.base)} ${signed(after, 2)}%</small>`}</span>`;
+    const names = [INDEX_NAME[key.split("-")[1]], "일정", "권장 배율"].slice(0, parts.length);
+    return { names, slides: parts.map((part) => [part.box]), show, quote };
   }
 
   // 그림 카드 묶음 아래에 지난 판단 날짜로 되감는 슬라이더를 둔다(build.py `r/rewind-{지수}/cards.json`). 리포트 날짜와 그 앞 날짜만
@@ -2736,10 +2805,13 @@
     const entry = listing[key];
     if (entry) {
       document.title = `${entry.title} ${entry.day}`;
-      // 머리 상자 위 날짜 줄은 "2026년 11월 13일 (금)"처럼 쓴다.
+      // 머리 상자 위 날짜 줄은 "2026년 11월 13일 (금)"처럼 쓰고, 오른쪽에 목록 항목의 `stage`로 판단 배치의 단계를 쓴다. `stage`가 없는 항목은 본 리포트다.
       const [year, month, mday] = entry.date.split("-");
       const day = document.getElementById("day");
       day.textContent = `${+year}년 ${+month}월 ${+mday}일 (${"일월화수목금토"[new Date(entry.date).getUTCDay()]})`;
+      const stage = entry.stage || "done";
+      day.append(Object.assign(document.createElement("span"), { className: `stage ${stage}`,
+        textContent: { pre: "예측 전", running: "예측 중", done: "예측 완료" }[stage] }));
     }
     const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
     if (key !== latest(listing, key.split("-")[1])) {
