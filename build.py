@@ -95,14 +95,15 @@ ETF 눈금이고, `CARD_INDEX`에 있는 나스닥은 지수 눈금으로 늘려
 
 `--stage pre`는 판단 배치가 돌기 전에 그날 리포트 키로 사전 리포트를 만든다. 사전 리포트는 그 지수의 가장 늦은 본 리포트 공개본에서
 `1개월 지수 방향 예측` 절의 본문과 카드 값을 빼고, 이슈 소제목의 `data-new`를 지우고 `data-age`를 그날 기준으로 다시 단다.
-`미국 거시 지표` 카드 값은 그 시각까지 `reference.db`에 적재한 값으로 판단 배치와 같은 `render_inputs.py` 함수가 만든 입력에서 다시 뽑는다.
+`미국 거시 지표` 카드 값은 그 시각까지 `reference.db`에 적재한 값으로 판단 배치와 같은 `render_inputs.py` 함수가 만든 입력에서 다시 뽑고,
+지표 소제목 뒤의 해설은 지운다.
 카드 값은 `pre`를 참으로 두고 전날까지 `PRICE_YEARS`년 종가와 앞 리포트들이 예측한 25거래일 뒤 가격(`past_cards`)을 담는다.
 `invest-reports` 미니 앱은 주가 카드 한 장만 종가 선과 지난 예측 범위로 그리고, 그날 종가의 등락률을 등락 색으로 적는다.
 되감기 슬라이더는 앞 날짜의 판단과 사전 리포트의 종가를 고르게 하고, 일정·권장 배율 카드와 머리 상자의 애프터마켓 줄은 두지 않는다. 이벤트 캘린더와 이슈 그림은 앞 리포트의 것을 그대로 쓴다.
 `r/index.json` 항목에는 `stage: "pre"`와 전날 정규장 `session`·`close`만 적은 `moves`를 쓰고, 앞 날짜의 사전 리포트 항목과 폴더는 지운다.
 전날이 뉴욕 정규장 세션이 아니면 종료 코드 3, 그날 본 리포트가 이미 있으면 종료 코드 4로 끝내고 아무것도 쓰지 않는다. 전날 세션의 종가가 `reference.db`에 아직 없으면 실패로 끝낸다.
 `--stage running`은 그날 사전 리포트 항목의 `stage`를 `running`으로 바꾼다. 본 리포트를 만들면 같은 키의 항목을 새로 쓰므로 `stage`가 없어지고,
-`invest-reports` 미니 앱은 `stage`가 없는 항목을 예측 완료로 그리고, 그 옆에 `written`의 시각을 적는다.
+`invest-reports` 미니 앱은 `stage`가 없는 항목을 분석 완료로 그리고, 그 옆에 `written`의 시각을 적는다.
 """
 import argparse
 import datetime as dt
@@ -1235,6 +1236,21 @@ def pre_issues(body: str, day: dt.date) -> str:
     return body[:head.end()] + section + body[end:]
 
 
+def pre_indicators(body: str) -> str:
+    """`미국 거시 지표` 절에서 소제목만 남기고 소제목 뒤의 해설을 지운다. 첫 소제목 앞의 노드는 그대로 둔다."""
+    head = re.search(rf'<h2 id="[^"]*">{INDICATORS_TITLE}</h2>', body)
+    if not head:
+        return body
+    end = body.find("<h2", head.end())
+    end = len(body) if end < 0 else end
+    section = body[head.end():end]
+    first = section.find("<h3")
+    if first < 0:
+        return body
+    headings = "".join(f"{h3}\n" for h3 in re.findall(r"<h3[^>]*>.*?</h3>", section[first:], flags=re.DOTALL))
+    return body[:head.end()] + section[:first] + headings + body[end:]
+
+
 def pre(date: str, index: str, vault: Path, out: Path) -> str:
     """리포트 날짜 `date`의 사전 리포트를 그 지수의 가장 늦은 본 리포트 공개본으로 만든다. 목록 항목의 `stage`는 `pre`이고,
     이미 `running`으로 바꾼 사전 리포트를 다시 만들면 `running`을 그대로 둔다.
@@ -1279,7 +1295,7 @@ def pre(date: str, index: str, vault: Path, out: Path) -> str:
         end = body.find("<h2", outlook.end())
         body = body[:outlook.end()] + "\n" + body[end if end >= 0 else len(body):]
     body = pre_issues(body, day)
-    body = mark_indicators(body, indicator_cards(vault, index, day, stored_data(vault, index)))
+    body = mark_indicators(pre_indicators(body), indicator_cards(vault, index, day, stored_data(vault, index)))
     scale = card_scale(index, vault)
     closes = [round(close * scale, 2) for _, close in history]
     dates = [d for d, _ in history]
@@ -1319,7 +1335,7 @@ def main() -> int:
     parser.add_argument("--index", required=True, help="지수 폴더 이름 (nasdaq, biotech)")
     parser.add_argument("--vault", default=str(Path.home() / "obsidian-vault"))
     parser.add_argument("--out", default=str(ROOT))
-    parser.add_argument("--stage", choices=("pre", "running"), help="본 리포트 대신 사전 리포트를 만들거나(pre) 사전 리포트를 예측 중으로 바꾼다(running)")
+    parser.add_argument("--stage", choices=("pre", "running"), help="본 리포트 대신 사전 리포트를 만들거나(pre) 사전 리포트를 분석 중으로 바꾼다(running)")
     args = parser.parse_args()
     vault, out = Path(args.vault).expanduser(), Path(args.out)
     if args.stage == "pre":
