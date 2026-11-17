@@ -83,7 +83,7 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `invest-reports` 미니 앱의 시장 페이지는 리포트 지수의 값으로 맨 위 `나스닥 한 눈에 보기`·`바이오 한 눈에 보기` 절에 시가총액을 칸 넓이로, 전 거래일 대비 등락률을 칸 색으로 쓴 지도를 그리고,
 슬라이더로 지난 한 달의 리포트 날짜를 고르면 그 날짜 전날의 종가로 지도를 다시 그린다.
 지도 칸을 누르면 칸 위 말풍선에 종목 이름, 종가와 등락률, 설명 첫 문장을 적고, 말풍선의 `자세히 보기` 단추는 `?stock=심볼` 종목 상세 페이지를 연다.
-`r/stocks/{심볼}.json`에는 종목 상세 페이지의 값으로 한글 이름, 업종, 설명, 1년 종가, 공시 카드 세 장(실적·매출 구성·최근 공시)을 적는다(`stock_pages`).
+`r/stocks/{심볼}.json`에는 종목 상세 페이지의 값으로 한글 이름, 업종, 설명, 지도 지수와 그 지수 안 시가총액 순위, 1년 종가, 공시 카드 세 장(실적·매출 구성·최근 공시)을 적는다(`stock_pages`).
 종목 상세 페이지는 이슈 상세 페이지의 틀로 주가 카드와 기업 설명을 그리고, `공시 상세` 절에 공시 카드를 탭 세 개로 그린다.
 
 `system/simulation.json`의 `quantiles`에 5% 값이 있는 리포트는 요약 절 세 그림을 그림 파일 대신 값으로 그린다.
@@ -406,21 +406,24 @@ def index_map(con: sqlite3.Connection, cm, index: str, start: str) -> dict:
 
 
 def stock_pages(con: sqlite3.Connection, cm, board: dict, start: str) -> dict:
-    """지도 종목 → 종목 상세 페이지의 값. 심볼, 한글 이름, 업종, 설명, `start`부터의 [날짜, 정규장 종가], 공시 카드 세 장이다.
+    """지도 종목 → 종목 상세 페이지의 값. 심볼, 한글 이름, 업종, 설명, 지도 지수와 그 지수 안 시가총액 순위, `start`부터의 [날짜, 정규장 종가],
+    공시 카드 세 장이다.
 
-    종가는 지도와 같이 야후 원 종가에 토스 종가를 메운다. 공시 카드는 invest-stock-profile 스킬이 `stock_detail` 표에 쓴 값이고,
-    카드가 아직 없는 종목은 빈 목록으로 둔다.
+    시가총액은 지도의 주식 수 × 마지막 종가다. 종가는 지도와 같이 야후 원 종가에 토스 종가를 메운다. 공시 카드는 invest-stock-profile 스킬이
+    `stock_detail` 표에 쓴 값이고, 카드가 아직 없는 종목은 빈 목록으로 둔다.
     """
     cards = {}
     if con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'stock_detail'").fetchone():
         cards = {symbol: json.loads(text) for symbol, text in con.execute("SELECT symbol, cards FROM stock_detail")}
     pages = {}
-    for stock in (stock for index in board.values() for stock in index["stocks"]):
-        if stock["symbol"] in pages:
-            continue
-        closes = {**observed(con, cm.toss_id(stock["symbol"]), "value", start), **observed(con, cm.breadth_id(stock["symbol"]), "value", start)}
-        pages[stock["symbol"]] = {key: stock[key] for key in ("symbol", "name", "sector", "about")} | {
-            "closes": [[day, round(closes[day], 2)] for day in sorted(closes)], "cards": cards.get(stock["symbol"], [])}
+    for index, found in board.items():
+        cap = lambda stock: stock["shares"] * next((close for close in reversed(stock["closes"]) if close is not None), 0)
+        for rank, stock in enumerate(sorted(found["stocks"], key=cap, reverse=True), 1):
+            if stock["symbol"] in pages:
+                continue
+            closes = {**observed(con, cm.toss_id(stock["symbol"]), "value", start), **observed(con, cm.breadth_id(stock["symbol"]), "value", start)}
+            pages[stock["symbol"]] = {key: stock[key] for key in ("symbol", "name", "sector", "about")} | {
+                "index": index, "rank": rank, "closes": [[day, round(closes[day], 2)] for day in sorted(closes)], "cards": cards.get(stock["symbol"], [])}
     return pages
 
 

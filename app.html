@@ -2537,6 +2537,7 @@
     // 묶음마다 막대가 하나면 마지막 묶음의 막대만 흰색이다. 값 글자는 막대 끝 바깥에 적는다.
     // 값 글자가 들어갈 폭(묶음 안 막대가 여럿이면 막대 하나의 폭과 간격, 하나면 묶음 하나의 폭)보다 길면 값 뒤 단위를 떼고 숫자만 적는다.
     // 단위는 카드 머리의 값 뒤에 있다. 막대가 하나인 묶음에서 숫자만 적어도 폭을 넘으면 흰 막대에만 값을 적는다.
+    // 묶음 안 막대가 여럿이면 흰 막대, 회색 막대 순서로, 같은 색 안에서는 마지막 묶음부터 값을 적되 이미 적은 값 글자와 겹치는 값은 적지 않는다.
     // 묶음 이름은 그림 아래에 적고, 묶음 하나의 폭보다 길면 마지막 띄어쓰기에서 두 줄로 나눈다.
     bars({ items = [], groups, min, max }) {
       const x0 = 6, x1 = 314, top = items.length > 1 ? 44 : 30, s = canvas(FIGURE), n = groups[0][1].length;
@@ -2545,17 +2546,30 @@
       const Y = (v) => top + (bottom - top) * (max - Math.min(max, Math.max(min, v))) / (max - min), zero = Y(0);
       const room = n > 1 ? w + gap : slot - 4, texts = groups.flatMap(([, bars]) => bars.map(([, text]) => text));
       const short = texts.some((text) => textWidth(text, 12.5) > room), bare = (text) => (short ? text.replace(/[^\d.%]+$/, "") : text);
-      const lit = (g, k) => (n > 1 ? k === n - 1 : g === groups.length - 1), every = n > 1 || texts.every((text) => textWidth(bare(text), 12.5) <= room);
+      const lit = (g, k) => (n > 1 ? k === n - 1 : g === groups.length - 1), left = (g) => x0 + slot * g + (slot - (w * n + gap * (n - 1))) / 2;
+      const end = (v) => (Math.abs(Y(v) - zero) < 2 ? zero + (v >= 0 ? -2 : 2) : Y(v));
+      const every = texts.every((text) => textWidth(bare(text), 12.5) <= room), placed = [], shown = new Set();
+      if (n > 1) {
+        const order = groups.flatMap(([, bars], g) => bars.map(([v, text], k) => ({ g, k, v, text })))
+          .sort((a, b) => lit(b.g, b.k) - lit(a.g, a.k) || b.g - a.g);
+        order.forEach(({ g, k, v, text }) => {
+          const x = left(g) + k * (w + gap) + w / 2, half = textWidth(bare(text), 12.5) / 2, y = v >= 0 ? end(v) - 8 : end(v) + 17;
+          const box = [x - half - 2, x + half + 2, y - 13, y + 3];
+          if (placed.some((b) => !(box[1] <= b[0] || b[1] <= box[0] || box[3] <= b[2] || b[3] <= box[2]))) return;
+          placed.push(box);
+          shown.add(`${g}-${k}`);
+        });
+      }
+      const labeled = (g, k) => (n > 1 ? shown.has(`${g}-${k}`) : every || lit(g, k));
       groups.forEach(([name, bars], g) => {
-        const left = x0 + slot * g + (slot - (w * n + gap * (n - 1))) / 2;
         bars.forEach(([v, text], k) => {
-          const x = left + k * (w + gap), up = v >= 0, end = Math.abs(Y(v) - zero) < 2 ? zero + (up ? -2 : 2) : Y(v), on = lit(g, k);
-          const r = Math.min(4, Math.abs(end - zero) / 2, w / 2), tip = up ? r : -r;
-          const bar = shape("path", { d: `M${x} ${zero}V${end + tip}Q${x} ${end} ${x + r} ${end}H${x + w - r}Q${x + w} ${end} ${x + w} ${end + tip}V${zero}Z`,
+          const x = left(g) + k * (w + gap), up = v >= 0, on = lit(g, k), edge = end(v);
+          const r = Math.min(4, Math.abs(edge - zero) / 2, w / 2), tip = up ? r : -r;
+          const bar = shape("path", { d: `M${x} ${zero}V${edge + tip}Q${x} ${edge} ${x + r} ${edge}H${x + w - r}Q${x + w} ${edge} ${x + w} ${edge + tip}V${zero}Z`,
                                       fill: on ? "#EAEAEA" : "#7A828C", opacity: on ? 1 : 0.55 });
           bar.append(shape("title", {}, `${name} ${items[k] ?? ""} ${text}`.replace(/\s+/g, " ")));
           s.append(bar);
-          if (every || on) s.append(shape("text", { x: x + w / 2, y: up ? end - 8 : end + 17, "text-anchor": "middle", "font-size": 12.5,
+          if (labeled(g, k)) s.append(shape("text", { x: x + w / 2, y: up ? edge - 8 : edge + 17, "text-anchor": "middle", "font-size": 12.5,
                                                     "font-weight": 700, fill: on ? "#EAEAEA" : "#7A828C" }, bare(text)));
         });
         const cut = wrap ? name.lastIndexOf(" ") : -1, lines = cut > 0 ? [name.slice(0, cut), name.slice(cut + 1)] : [name];
@@ -2647,7 +2661,7 @@
   }
 
   // 종목 상세(`stock`)를 이슈 화면과 같은 틀에 그린다. `data`는 `build.py` `stock_pages`가 적는 `r/stocks/{티커}.json`이다.
-  // 절 제목은 "종목 상세"이고 오른쪽에 뒤로가기 단추를 단다. 위쪽 한 줄 띠와 창 제목에는 종목 이름을 쓴다.
+  // 절 제목은 "나스닥 시총 3위"처럼 지도 지수의 이름과 그 지수 안 시가총액 순위이고 오른쪽에 뒤로가기 단추를 단다. 위쪽 한 줄 띠와 창 제목에는 종목 이름을 쓴다.
   // 첫 상자에는 주가 카드와 기업 설명을 둔다. 주가 카드는 이름 자리에 종목 이름과 티커를 쓰고, 마지막 종가와 앞 세션 종가 대비 등락률을 쓰며,
   // 그림 아래 −·+ 단추로 1년, 6개월, 3개월 가운데 기간을 골라 일별 종가 선을 다시 그린다. 종가가 기간보다 짧으면 있는 종가를 모두 그리고, 같은 그림이 되는 기간은 하나만 둔다.
   // 처음에는 가장 긴 기간을 그린다.
@@ -2657,7 +2671,7 @@
     document.title = data.name;
     document.getElementById("issue-bar").textContent = data.name;
     const head = Object.assign(document.createElement("h2"), { className: "issues inside" });
-    const label = head.appendChild(Object.assign(document.createElement("span"), { textContent: "종목 상세" }));
+    const label = head.appendChild(Object.assign(document.createElement("span"), { textContent: `${INDEX_NAME[data.index]} 시총 ${data.rank}위` }));
     const box = Object.assign(document.createElement("div"), { className: "issue-box inside" });
     const page = box.appendChild(Object.assign(document.createElement("div"), { className: "issue-page on" }));
     report.replaceChildren(head, box);
