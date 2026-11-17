@@ -636,13 +636,16 @@
   .help { display: inline-grid; place-items: center; vertical-align: top; width: 26px; height: 1lh; margin-left: 2px; padding: 0; border: 0; font: inherit;
              background: none; color: var(--dim); cursor: pointer; }
   /* 이슈 화면과 종목 상세는 화면 왼쪽 아래에 바로가기 알약과 같은 높이, 같은 아래 여백의 동그란 유리 단추를 띄우고 가운데에 왼쪽 꺽쇠를 그린다.
-     바탕색·흐림·그림자·가장자리 빛줄기는 알약과 같다. 본문 끝에는 단추만큼 여백을 더해 마지막 줄이 단추에 가리지 않게 한다. */
+     바탕색·흐림·그림자·가장자리 빛줄기는 알약과 같다. 본문 끝에는 단추만큼 여백을 더해 마지막 줄이 단추에 가리지 않게 한다.
+     화면을 내용의 아래쪽으로 내리면 단추를 바로 감추고(`hide`), 내용의 위쪽으로 올리면 0.4초에 걸쳐 다시 띄운다. 감춘 단추는 누를 수 없다. */
   :root.issue #report { padding-bottom: 36px; }
   button.back { position: fixed; z-index: 5; left: 16px; bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
                 display: grid; place-items: center; width: 65px; height: 65px; padding: 0; border: 0; border-radius: 50%; color: var(--text); cursor: pointer;
                 background: color-mix(in srgb, var(--bg) 40%, transparent);
                 box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
-                -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: blur(3px) saturate(150%); transition: transform .1s ease-out; }
+                -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: blur(3px) saturate(150%);
+                transition: transform .1s ease-out, opacity .4s ease, visibility 0s; }
+  button.back.hide { opacity: 0; visibility: hidden; transition: none; }
   button.back::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
                         background: linear-gradient(150deg, rgba(255, 255, 255, .42), rgba(255, 255, 255, .08) 28%, rgba(255, 255, 255, 0) 55%,
                                     rgba(255, 255, 255, .06) 80%, rgba(255, 255, 255, .22));
@@ -1678,6 +1681,22 @@
       const touch = event.changedTouches[0], dx = touch.clientX - swipe.x, dy = touch.clientY - swipe.y;
       swipe = null;
       if (dx > 60 && dx > 1.5 * Math.abs(dy)) back.click();
+    }, { passive: true });
+    // 화면이 내용의 아래쪽으로 8px 넘게 내려가면 단추를 감추고, 위쪽으로 8px 넘게 올라가면 다시 띄운다.
+    // 올라간 거리는 마지막으로 올라간 뒤 가장 깊이 내려간 위치부터, 내려간 거리는 마지막으로 내려간 뒤 가장 얕게 올라간 위치부터 잰다. 문서 양 끝을 넘어 튕긴 위치는 문서 끝으로 센다.
+    let deepest = scrollY, shallowest = scrollY;
+    addEventListener("scroll", () => {
+      const y = Math.max(0, Math.min(scrollY, document.documentElement.scrollHeight - innerHeight));
+      deepest = Math.max(deepest, y);
+      shallowest = Math.min(shallowest, y);
+      if (y < deepest - 8) {
+        deepest = y;
+        back.classList.remove("hide");
+      }
+      if (y > shallowest + 8) {
+        shallowest = y;
+        back.classList.add("hide");
+      }
     }, { passive: true });
   }
 
