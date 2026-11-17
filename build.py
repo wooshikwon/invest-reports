@@ -361,11 +361,12 @@ def rewind(index: str, vault: Path, out: Path) -> Path | None:
 
 
 def index_map(con: sqlite3.Connection, cm, index: str, start: str) -> dict:
-    """`index` 지수 지도의 날짜와 종목마다 심볼, 한글 이름, 주식 수, 날짜별 정규장 종가.
+    """`index` 지수 지도의 날짜와 종목마다 심볼, 한글 이름, 업종, 설명, 주식 수, 날짜별 정규장 종가.
 
     종목은 그 지수의 이익 추정 종목(`collect_market.eps_symbols`)이고, 같은 회사의 두 종류주는 GOOGL 하나로 센다. 이름은 토스 한글 종목명에서
     종류주 글자와 `(ADR)`을 뗀다. 주식 수는 마지막 이익 추정 스냅샷의 시가총액 ÷ 주가이고, GOOGL의 시가총액은 두 종류주를 합친 회사 전체다.
     종가는 야후 원 종가이고, 야후에 없는 날은 토스 종가로 메운다. 날짜는 `start`부터 어느 종목이든 종가가 있는 날이고, 그 종목의 종가가 없는 날은 null이다.
+    업종과 설명은 invest-stock-profile 스킬이 쓴 `stock_profile` 표에서 읽고, 설명이 아직 없는 종목은 두 값을 빈 글자로 둔다.
     이름이나 주식 수가 없는 종목은 뺀다.
     """
     def latest(series_id: str, column: str, since: str = "") -> dict:
@@ -379,6 +380,9 @@ def index_map(con: sqlite3.Connection, cm, index: str, start: str) -> dict:
         symbols = cm.eps_symbols(roster, index)
     finally:
         roster.close()
+    profiles = {}
+    if con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'stock_profile'").fetchone():
+        profiles = {symbol: (sector, about) for symbol, sector, about in con.execute("SELECT symbol, sector, about FROM stock_profile")}
     names = {symbol: re.sub(r"\s*\(ADR\)$| [A-Z]$", "", name) for symbol, name in latest(cm.TOSS_NAMES, "value_text").items()}
     stocks = []
     for symbol in symbols:
@@ -386,7 +390,9 @@ def index_map(con: sqlite3.Connection, cm, index: str, start: str) -> dict:
         if symbol not in names or len(snapshot) < 2:
             continue
         closes = {**latest(cm.toss_id(symbol), "value", start), **latest(cm.breadth_id(symbol), "value", start)}
-        stocks.append({"symbol": symbol, "name": names[symbol], "shares": round(snapshot["marketCap"] / snapshot["price"]), "closes": closes})
+        sector, about = profiles.get(symbol, ("", ""))
+        stocks.append({"symbol": symbol, "name": names[symbol], "sector": sector, "about": about,
+                       "shares": round(snapshot["marketCap"] / snapshot["price"]), "closes": closes})
     dates = sorted({day for stock in stocks for day in stock["closes"]})
     for stock in stocks:
         stock["closes"] = [round(stock["closes"][day], 2) if day in stock["closes"] else None for day in dates]

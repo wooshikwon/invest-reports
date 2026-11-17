@@ -575,9 +575,9 @@
   .gauge :is(th, td).focus { color: var(--accent); font-weight: 700; }
   .gauge tr:last-child td { border-bottom: 0; }
   /* 지수 지도는 본문 폭을 다 쓰고, 위 줄에 종가 날짜와 종목 범위를 흐린 작은 글씨로 쓴다. 칸은 2px 틈을 두고 모서리를 둥글린 단추이고,
-     종목 이름을 굵은 글씨로, 그 아래에 등락률을 옅은 글씨로 가운데에 쓴다. 글씨는 흰색이다. 칸을 누르면 날짜 말풍선과 같은 상자에 종목 이름을 굵게,
-     그 아래에 종가와 등락률을 쓴다. 등락률은 오르면 빨강, 내리면 파랑으로 칠한다. */
-  .indexmap .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 10px;
+     종목 이름을 굵은 글씨로, 그 아래에 등락률을 옅은 글씨로 가운데에 쓴다. 글씨는 흰색이다. 지도 아래 종목 설명 칸은 미국 거시 지표 카드의 글씨를 쓰고,
+     등락률은 오르면 빨강, 내리면 파랑으로 칠한다. */
+  .indexmap > .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 10px;
                  font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
   .indexmap .board { position: relative; }
   .indexmap .board > button { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
@@ -587,11 +587,10 @@
   .indexmap .board > button b { font-weight: 700; }
   .indexmap .board > button span { white-space: nowrap; font-size: .86em; font-weight: 600; color: rgba(255, 255, 255, .78); font-variant-numeric: tabular-nums; }
   .indexmap .board > button.on { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .85); }
-  .bubble.quote { padding: 10px 14px; pointer-events: none; }
-  .bubble.quote b { position: relative; z-index: 1; display: block; color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap; }
-  .bubble.quote p { display: flex; gap: 8px; padding: 0; margin-top: 2px; color: var(--accent); font-variant-numeric: tabular-nums; }
-  .bubble.quote p .up { color: #ff5c5c; }
-  .bubble.quote p .down { color: #5b9bff; }
+  .indexmap .gauge { padding-bottom: 4px; }
+  .indexmap .gauge p { margin-top: 12px; }
+  .indexmap .gauge .state.up { color: #ff5c5c; }
+  .indexmap .gauge .state.down { color: #5b9bff; }
   /* 리포트 화면은 절을 예측 페이지와 이슈 페이지에 나눠 담고 한 페이지만 보여 준다. 가린 페이지는 높이를 0으로 줄여 숨기되 안의 요소는 자리를 그대로 잡아 두어,
      넘기기 묶음이 보고 있던 장과 높이를 지킨다. 보이는 페이지 끝에는 바로가기 알약만큼 여백을 더해 마지막 줄이 알약에 가리지 않게 한다.
      페이지를 바꾸는 동안(`flow`)에는 떠나는 페이지부터 여는 페이지까지를 한 자리에 겹쳐 쌓고 화면 폭씩 옆으로 늘어놓아 함께 옆으로 민다. 페이지마다 바탕색을 칠해 아래 글자가 비치지 않게 하고,
@@ -1157,37 +1156,49 @@
   const NEW_YORK = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", timeZoneName: "short" });
   const usZone = (day) => NEW_YORK.formatToParts(new Date(`${day}T17:00:00Z`)).find((part) => part.type === "timeZoneName").value;
 
-  // 시장 페이지 첫 절인 한 눈에 보기 절에 리포트 지수 상위 20종목의 지도를 둔다. `map`은 `r/market.json`의 `map`에서 리포트 지수의 값이고, `scope`는 지도 위 줄에 쓰는 종목 범위다.
-  // 칸 넓이는 종가에 주식 수를 곱한 시가총액에 비례하고, 큰 종목부터 가로세로 비가 1에 가까운 칸으로 나눠 담는다(squarified treemap).
-  // 칸 색은 앞 세션 종가 대비 등락률로 정한다. 오르면 빨강, 내리면 파랑이고, 조금 움직이면 연하고 맑은 색으로, 많이 움직일수록 진하고 선명한 색으로 칠해 3%에서 가장 진하다. 움직이지 않으면 연한 회색이다. 칸이 작아 글씨가 넘치면 글씨를 줄이고,
-  // 그래도 넘치면 이름 대신 티커를 쓰고, 다음에 등락률을, 끝으로 티커를 뺀다. 칸을 누르면 누른 자리 위(자리가 모자라면 아래)에 종목 이름, 종가, 등락률 말풍선을 띄운다.
-  // 같은 칸을 다시 누르거나 칸 밖을 누르면 말풍선을 닫는다. 지도 아래 슬라이더는 리포트 지수의 지난 30일 리포트 날짜를 고르고,
-  // 고른 날짜 전날까지의 마지막 종가로 지도를 다시 그린다.
-  function indexMap(head, map, scope, listing, date) {
+  // 시장 페이지 첫 절인 한 눈에 보기 절에 리포트 지수 상위 20종목의 지도와 종목 설명 칸을 둔다. `map`은 `r/market.json`의 `map`에서 리포트 지수의 값이고, `scope`는 지도 위 줄에 쓰는 종목 범위다.
+  // 지도는 리포트 날짜 전날까지의 마지막 종가로 그린다. 칸 넓이는 종가에 주식 수를 곱한 시가총액에 비례하고, 큰 종목부터 가로세로 비가 1에 가까운 칸으로 나눠 담는다(squarified treemap).
+  // 칸 색은 앞 세션 종가 대비 등락률로 정한다. 오르면 빨강, 내리면 파랑이고, 보합의 회색에서 등락률이 클수록 채도를 올려 2.5%에서 가장 선명하다. 칸이 작아 글씨가 넘치면 글씨를 줄이고,
+  // 그래도 넘치면 이름 대신 티커를 쓰고, 다음에 등락률을, 끝으로 티커를 뺀다. 지도 아래 설명 칸은 미국 거시 지표 카드와 같은 형식으로 종목 이름, 티커와 업종, 종가와 등락률, 종목 설명을 쓴다.
+  // 처음에는 시가총액 1위 종목을 보여 주고, 칸을 누르면 그 종목으로 바꾼다. 보여 주는 종목의 칸은 흰 테두리로 표시한다.
+  function indexMap(head, map, scope, date) {
     const box = Object.assign(document.createElement("div"), { className: "carousel indexmap" });
-    box.innerHTML = `<div class="top"><span></span><span>${scope}</span></div><div class="board"></div>`;
-    const label = box.querySelector(".top span"), board = box.querySelector(".board");
-    head.after(box);
+    box.innerHTML = `<div class="top"><span></span><span>${scope}</span></div><div class="board"></div>`
+      + '<div class="gauge stock"><div class="top"><span class="name"></span><span class="asof"></span></div>'
+      + '<div class="val"><b></b><span class="state"><i></i><span></span></span></div><p></p></div>';
+    const label = box.querySelector(".top span"), board = box.querySelector(".board"), panel = box.querySelector(".gauge");
     // `i`번 날짜부터 거슬러 가며 처음 만나는 종가와 그 날짜 번호. 종가가 없으면 `[null, -1]`이다.
     const close = (stock, i) => {
       for (let k = i; k >= 0; k--) if (stock.closes[k] != null) return [stock.closes[k], k];
       return [null, -1];
     };
+    const n = map.dates.findLastIndex((d) => d < date);
+    const stocks = map.stocks.map((stock) => {
+      const [now, k] = close(stock, n), [before] = close(stock, k - 1);
+      return now && before ? { ...stock, now, change: (now / before - 1) * 100, cap: stock.shares * now } : null;
+    }).filter(Boolean).sort((a, b) => b.cap - a.cap);
+    if (!stocks.length) return head.remove();
+    head.after(box);
+    label.textContent = `${map.dates[n].slice(5, 7)}/${map.dates[n].slice(8, 10)} ${usZone(map.dates[n])} 종가`;
     // 칸 색은 보합의 무채색 회색에서 출발해 등락률의 크기만큼 빨강이나 파랑의 채도를 올리고, 2.5%부터는 가장 선명한 색으로 칠한다.
     const shade = (change) => `color-mix(in oklab, ${change > 0 ? "#ec3b47" : "#1f78ee"} ${Math.round(100 * Math.min(1, Math.abs(change) / 2.5))}%, #3a3d44)`;
-    let day = date, width = 0, tip = null;
-    const untip = () => { tip?.tile.classList.remove("on"); tip?.remove(); tip = null; };
+    let shown = stocks[0], width = 0;
+    const show = (stock) => {
+      shown = stock;
+      board.querySelectorAll("button").forEach((tile) => tile.classList.toggle("on", tile.stock === stock));
+      panel.querySelector(".name").textContent = stock.name;
+      panel.querySelector(".asof").textContent = [stock.symbol, stock.sector].filter(Boolean).join(" · ");
+      panel.querySelector(".val b").textContent = price(stock.now, "달러");
+      panel.querySelector(".state").className = `state ${tone(stock.change)}`;
+      panel.querySelector(".state span").textContent = `${signed(stock.change)}%`;
+      const about = panel.querySelector("p");
+      about.textContent = stock.about;
+      about.hidden = !stock.about;
+    };
     const draw = () => {
-      untip();
       board.replaceChildren();
-      const n = map.dates.findLastIndex((d) => d < day);
-      const stocks = map.stocks.map((stock) => {
-        const [now, k] = close(stock, n), [before] = close(stock, k - 1);
-        return now && before ? { name: stock.name, symbol: stock.symbol, now, change: (now / before - 1) * 100, cap: stock.shares * now } : null;
-      }).filter(Boolean).sort((a, b) => b.cap - a.cap);
-      label.textContent = stocks.length ? `${map.dates[n].slice(5, 7)}/${map.dates[n].slice(8, 10)} ${usZone(map.dates[n])} 종가` : "";
       const W = board.clientWidth, H = Math.round(W * .95), total = stocks.reduce((sum, stock) => sum + stock.cap, 0);
-      board.style.height = `${stocks.length ? H : 0}px`;
+      board.style.height = `${H}px`;
       // 남은 칸(`x`, `y`, `w`, `h`)의 짧은 변을 따라 한 줄(`row`)씩 쌓는다. 종목을 줄에 더해 줄에서 가장 길쭉한 칸의 비가 나빠지면 줄을 닫는다.
       let x = 0, y = 0, w = W, h = H, row = [];
       const sum = (cells) => cells.reduce((s, cell) => s + cell.area, 0);
@@ -1233,50 +1244,19 @@
         });
         name.hidden = !placed;
       });
+      show(shown);
     };
     board.addEventListener("click", (event) => {
       const tile = event.target.closest("button");
-      if (!tile) return;
-      const again = tip?.tile === tile;
-      untip();
-      if (again) return;
+      if (!tile || tile.stock === shown) return;
       feelPress();
-      tip = Object.assign(document.createElement("div"), { className: "bubble quote" });
-      tip.tile = tile;
-      tip.innerHTML = `<b></b><p><span></span><span class="${tone(tile.stock.change)}"></span></p>`;
-      tip.querySelector("b").textContent = tile.stock.name;
-      const [value, change] = tip.querySelectorAll("p span");
-      value.textContent = price(tile.stock.now, "달러");
-      change.textContent = `${signed(tile.stock.change)}%`;
-      board.append(tip);
-      tile.classList.add("on");
-      // 말풍선은 지도 폭 안에 두고, 꼬리는 누른 자리를 가리킨다. 누른 자리 위에 머리 상자까지 자리가 모자라면 아래에 띄운다.
-      const at = board.getBoundingClientRect(), px = event.clientX - at.left, py = event.clientY - at.top;
-      const size = { width: tip.offsetWidth, height: tip.offsetHeight };
-      const left = Math.min(at.width - size.width, Math.max(0, px - size.width / 2));
-      const below = event.clientY - size.height - 14 < masthead.getBoundingClientRect().bottom;
-      tip.classList.toggle("below", below);
-      tip.style.left = `${left}px`;
-      tip.style.top = `${below ? py + 14 : py - size.height - 14}px`;
-      tip.style.setProperty("--tail", `${Math.min(size.width - 18, Math.max(18, px - left))}px`);
+      show(tile.stock);
     });
-    addEventListener("pointerdown", (event) => { if (tip && !board.contains(event.target)) untip(); }, { capture: true, passive: true });
     new ResizeObserver(() => {
       if (!board.clientWidth || board.clientWidth === width) return;
       width = board.clientWidth;
       draw();
     }).observe(board);
-    const index = key.split("-")[1];
-    const days = Object.values(listing).filter((entry) => entry.index === index && entry.date <= date && rewindOffset(entry.date, date) >= 0)
-      .map((entry) => entry.date).sort();
-    const start = days.indexOf(date);
-    if (start < 0) return;
-    let frame = 0;
-    dial(box, date, days, start, (i) => {
-      if (days[i] === day) return;
-      day = days[i];
-      if (!frame) frame = requestAnimationFrame(() => { frame = 0; draw(); });
-    });
   }
 
   // 요약 절의 그림 카드 세 장(주가와 예측, 일정과 예측, 권장 배율)을 만든다. 카드 이름 탭에는 리포트 지수의 이름(`INDEX_NAME`), "일정", "권장 배율"로 쓴다. `data`는 `build.py` `summary_cards`의 값이다.
@@ -2950,7 +2930,7 @@
       heads("1개월 예측");
       fold("1개월 예측");
       indicators(date);
-      marketed.then(({ map }) => { if (map?.[index]?.stocks.length) indexMap(glance, map[index], MAP_SCOPE[index], listing, date); else glance.remove(); });
+      marketed.then(({ map }) => { if (map?.[index]?.stocks.length) indexMap(glance, map[index], MAP_SCOPE[index], date); else glance.remove(); });
     }
     issueCharts();
     toneTags(report);
@@ -3233,7 +3213,8 @@
   // 두 한 눈에 보기 절이 함께 쓰는 설명 항목이다.
   const MAP_HELP = [
     ["칸 크기", "칸이 클수록 시가총액이 커요."],
-    ["칸 색", "그 앞 거래일 종가보다 오르면 빨간색, 내리면 파란색이에요. 조금 움직이면 회색에 가깝고, 많이 움직일수록 색이 선명해요. 칸을 누르면 종가와 등락률이 나와요."],
+    ["칸 색", "그 앞 거래일 종가보다 오르면 빨간색, 내리면 파란색이에요. 조금 움직이면 회색에 가깝고, 많이 움직일수록 색이 선명해요."],
+    ["종목 설명", "지도 아래에 종목의 종가와 등락률, 업종, 하는 일을 보여줘요. 처음에는 시가총액 1위 종목이 나오고, 칸을 누르면 그 종목으로 바뀌어요."],
   ];
   // 절 제목마다 설명 상자에 쓸 항목을 둔다. 항목마다 이름을 굵게 쓰고 그 아래에 설명을 쓴다. 1개월 예측 절은 `OUTLOOK_HELP`와 `CARD_HELP`가 항목을 만든다.
   const HELP = {
