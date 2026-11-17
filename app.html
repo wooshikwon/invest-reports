@@ -1252,8 +1252,10 @@
       const stock = tile.stock;
       tip = Object.assign(document.createElement("div"), { className: "bubble quote" });
       tip.tile = tile;
+      // 종목 상세는 늘 최신 값을 보이므로, 지난 리포트의 말풍선에는 상세로 가는 단추를 두지 않는다.
+      const past = document.documentElement.classList.contains("past");
       tip.innerHTML = `<b></b><p class="price"><span></span><span class="${tone(stock.change)}"></span></p><p class="lead"></p>`
-        + '<button type="button">자세히 보기<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>';
+        + (past ? "" : '<button type="button">자세히 보기<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>');
       tip.querySelector("b").textContent = stock.name;
       const [value, change] = tip.querySelectorAll("p.price span");
       value.textContent = price(stock.now, "달러");
@@ -1261,7 +1263,7 @@
       const lead = tip.querySelector("p.lead");
       lead.textContent = (stock.about || "").split(/(?<=다\.)\s+/)[0];
       lead.hidden = !stock.about;
-      tip.querySelector("button").addEventListener("click", () => { feelPress(); visit(key, { stock: stock.symbol }); });
+      tip.querySelector("button")?.addEventListener("click", () => { feelPress(); visit(key, { stock: stock.symbol }); });
       board.append(tip);
       tile.classList.add("on");
       // 키보드로 누르면 누른 자리가 없으므로 칸 가운데에 띄운다.
