@@ -1224,7 +1224,8 @@ def pre_issues(body: str, day: dt.date) -> str:
 
 
 def pre(date: str, index: str, vault: Path, out: Path) -> str:
-    """리포트 날짜 `date`의 사전 리포트를 그 지수의 가장 늦은 본 리포트 공개본으로 만든다. 목록 항목의 `stage`는 `pre`다.
+    """리포트 날짜 `date`의 사전 리포트를 그 지수의 가장 늦은 본 리포트 공개본으로 만든다. 목록 항목의 `stage`는 `pre`이고,
+    이미 `running`으로 바꾼 사전 리포트를 다시 만들면 `running`을 그대로 둔다.
 
     전날이 뉴욕 정규장 세션이 아니면 만들지 않고 종료 코드 3으로 끝낸다. 그날 본 리포트가 이미 있으면 종료 코드 4로 끝낸다.
     전날 세션의 종가가 `reference.db`에 아직 없으면 실패로 끝낸다.
@@ -1280,7 +1281,7 @@ def pre(date: str, index: str, vault: Path, out: Path) -> str:
 
     close, before = history[-1][1], history[-2][1]
     entries[key] = {"title": entries[previous]["title"], "day": f"{date} ({'월화수목금토일'[day.weekday()]})", "date": date,
-                    "index": index, "stage": "pre",
+                    "index": index, "stage": entries.get(key, {}).get("stage", "pre"),
                     "moves": {"session": round((close / before - 1) * 100, 2) + 0.0, "after": None, "close": round(close, 2), "base": None}}
     write_entries(out, entries)
     market(vault, out)
