@@ -49,15 +49,15 @@
      날짜 줄은 본문과 함께 화면 위로 지나간다.
      날짜 오른쪽에는 그날 판단 배치의 단계를 작은 알약(`.stage`)으로 쓴다. 알약 왼쪽에는 점을 찍는다. 사전 리포트는 회색 "분석 전", 판단 배치가 도는 동안은 노란 "분석 중 NN%"와 깜박이는 점이다. 진척률 숫자는 자리 폭이 같은 숫자로 쓴다.
      본 리포트는 지수색 그라데이션 점과 글자, 옅은 지수색 바탕으로 "분석 완료"를 쓴다.
-     머리 상자는 32px 높이의 위 줄과 18px 높이의 아래 줄(`header`)이고, 왼쪽에 시세(`#ticker`)를, 위 줄 오른쪽 끝에 달력 단추를 쓴다. 날짜 줄이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
-     시세에 아래 줄이 없으면(애프터장 값이 아직 없는 사전 리포트) 머리 상자를 위 줄 높이로 줄인다.
+     머리 상자는 32px 높이의 위 줄과 22px 높이의 아래 줄(`header`)이고, 왼쪽에 시세(`#ticker`)를, 위 줄 오른쪽 끝에 달력 단추를 쓴다. 날짜 줄이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
+     시세에 아래 줄이 없으면(애프터장 값이 아직 없는 사전 리포트, 정규장이 열린 뒤) 머리 상자를 위 줄 높이로 줄인다.
      시세 위 줄은 "나스닥 $27,940 −1.22%"처럼 흰 지수 이름, 리포트 판단의 기준 가격 날짜의 정규장 종가, 그 종가의 앞 거래일 종가 대비 등락률을 쓴다.
      아래 줄은 지수 이름과 같은 왼쪽 끝에서 "애프터마켓 $27,712 −0.83%"처럼 리포트 판단의 기준 가격과 기준 가격의 정규장 종가 대비 등락률을 쓴다. 기준 가격은 정규장 뒤 애프터마켓 거래까지 반영한 마지막 가격이다.
      사전 리포트는 애프터장 값이 오면 아래 줄에 정규장 종가를 지수 ETF의 애프터장 체결가로 옮긴 가격과 그 등락률을 쓰고, 값은 애프터장이 끝날 때까지 10분마다 바뀐다.
      리포트 날짜에 뉴욕 프리장이 열려 프리장 값이 오면 아래 줄을 "프리마켓 $27,850 +0.50%"처럼 정규장 종가를 지수 ETF의 프리장 체결가로 옮긴 가격과 그 등락률로 바꾼다.
-     정규장이 열려 정규장 값이 오면 아래 줄을 "정규장 $27,850 +0.50%"처럼 같은 방법으로 옮긴 정규장 가격과 그 등락률로 바꾸고, 장이 끝나면 마감 값에서 멈춘다.
-     지수 이름과 정규장 종가는 절 제목과 같은 크기로, 정규장 등락률은 그보다 작은 13px로 쓴다. 아래 줄은 모두 13px의 굵은 글씨로 쓰고, 세션 이름은 흰색으로 쓴다.
-     정규장 종가와 정규장 등락률은 정규장 등락률이 오르면 빨강, 내리면 파랑으로 칠한다. 아래 줄의 가격과 등락률은 다음 정규장 전의 임시 값이므로 회색으로 쓴다.
+     정규장이 열려 정규장 값이 오면 아래 줄을 지우고, 위 줄을 "나스닥 $27,850 +0.50%"처럼 같은 방법으로 옮긴 정규장 가격과 그 등락률로 바꾸며, 장이 끝나면 마감 값에서 멈춘다.
+     두 줄은 같은 칸에 같은 크기로 쓴다. 이름과 가격은 절 제목과 같은 크기로, 등락률은 그보다 작은 13px로 쓰고, 이름 칸은 두 이름 가운데 긴 쪽의 폭이라 두 가격의 왼쪽 끝이 맞는다.
+     지수 이름과 세션 이름은 흰색으로 쓴다. 가격과 등락률은 그 줄의 등락률이 오르면 빨강, 내리면 파랑으로 칠한다.
      상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 페이지 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
      흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
   #day { display: flex; align-items: center; margin: 0; font-size: 12.5px; font-weight: 600; line-height: 20px; color: var(--dim); }
@@ -103,14 +103,13 @@
   main.unveil { animation: unveil .2s ease-out; }
   @keyframes unveil { from { opacity: 0; } }
   #berth { height: 4px; }
-  #masthead { position: sticky; top: calc(5px + var(--top-edge)); z-index: 4; height: 50px; }
-  #masthead:has(#ticker .row):not(:has(#ticker small)) { height: 32px; }
+  #masthead { position: sticky; top: calc(5px + var(--top-edge)); z-index: 4; height: 54px; }
+  #masthead:has(#ticker .row):not(:has(#ticker .ext)) { height: 32px; }
   #ticker { position: absolute; top: 0; left: 0; right: 44px; overflow: hidden; margin: 0; font-size: 13px; line-height: 32px; white-space: nowrap; font-variant-numeric: tabular-nums; }
   #ticker:empty { display: none; }
   #ticker .row { display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; column-gap: 6px; }
   #ticker .row > span { font-size: 15.5px; font-weight: 700; color: #fff; }
-  #ticker .row small { grid-column: 1 / -1; font-size: inherit; font-weight: 700; line-height: 18px; color: #fff; }
-  #ticker .row small span { color: var(--hint); }
+  #ticker .row .ext { line-height: 22px; }
   #ticker b { font-weight: 700; color: var(--accent); }
   #ticker b.price { font-size: 15.5px; }
   #ticker b.up { color: #ff5c5c; }
@@ -531,14 +530,14 @@
   .gauge p { margin: 20px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--hint); }
   /* 요약 절 그림 카드는 위 줄에 회색 맥락 글씨, 가운데 줄에 값과 상태를 두고, 그림은 카드 폭에 맞춘 SVG로 그린다. 카드의 그림은 모두 높이와
      가로축 높이가 같아, 카드를 넘겨도 가로축이 같은 높이에 있다. 카드의 상태 글씨와 점(`--card-color`)은 카드마다 정한 색으로 칠하고,
-     예측 카드(`ink`)는 절 제목 글씨와 같은 지수색 그라데이션(`--index-ink`)으로 칠하고, 사전 리포트의 종가 카드는 정규장 등락률 색(`up`·`down`)으로 칠한다.
+     예측 카드(`ink`)는 상태 글씨와 점, 큰 값을 절 제목 글씨와 같은 지수색 그라데이션(`--index-ink`)으로 칠하고, 사전 리포트의 종가 카드는 정규장 등락률 색(`up`·`down`)으로 칠한다.
      범위 값의 물결표는 흐린 글씨로 띄어 쓴다. */
   .gauge .ctx { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
   .gauge.summary .state { color: var(--card-color); }
   .gauge.summary .state[hidden] { display: none; }
-  .gauge.summary .state.up { color: #ff5c5c; }
-  .gauge.summary .state.down { color: #5b9bff; }
-  .gauge.ink .state span { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .gauge.summary :is(.state, .val b).up { color: #ff5c5c; }
+  .gauge.summary :is(.state, .val b).down { color: #5b9bff; }
+  :is(.gauge.ink .state span, .gauge.summary .val b.ink) { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .gauge.ink .state i { background: var(--index-ink); }
   .gauge.summary .val b .sep { margin: 0 .28em; font-weight: 400; color: var(--dim); }
   .gauge .fig { margin: 10px 0 6px; }
@@ -592,7 +591,8 @@
      고른 단추는 밝은 바탕에 세션 색으로 칠한다. 정규장은 노랑, 애프터장은 보라, 프리장은 주황이고, 등락률의 빨강·파랑과 겹치지 않는 색이다. 고르지 않은 단추는 회색이다.
      지도와 카드의 기준 시각 글씨(`kind`)도 그 값의 세션 색으로 쓴다. 종가 글씨 "11/17 정규장 06:00 KST"는 정규장 색이다.
      지도에서는 위 줄 오른쪽 끝에, 주가 카드와 지수 카드에서는 이름 줄 오른쪽 끝에 두되 그 줄 높이를 늘리지 않는다.
-     애프터마켓·프리마켓 값을 고른 카드(`ext`)는 다음 정규장 전의 임시 값이므로 값과 등락률을 회색으로 쓴다. 리포트 날짜의 정규장 값을 그리는 카드는 정규장 단추 하나만 두고 회색으로 쓰지 않는다. */
+     애프터마켓·프리마켓 값을 고른 종목 상세 주가 카드(`ext`)는 다음 정규장 전의 임시 값이므로 값과 등락률을 회색으로 쓴다. 리포트 날짜의 정규장 값을 그리는 카드는 정규장 단추 하나만 두고 회색으로 쓰지 않는다.
+     지수 카드는 고른 세션과 관계없이 값과 등락률을 그 등락률 색으로 쓴다. */
   .session { display: flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, .06); }
   .session button { display: grid; place-items: center; width: 34px; height: 22px; padding: 0; border: 0; border-radius: 7px; background: none;
                     color: var(--hint); cursor: pointer; }
@@ -1476,11 +1476,11 @@
     // 지수 카드와 예측 카드(`priceCard`): 두 카드는 같은 틀로 만들고, 위 줄 아래 이름 줄에 "나스닥 100"처럼 지수 이름(`INDEX_TITLE`)을 쓴다.
     // 그림 아래 −·+ 단추로 종가를 그릴 기간을 고른다. 기간은 3년, 2년, 1년, 6개월, 3개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
     // 지수 카드(`aim`이 거짓)는 예측을 그리지 않는다. 종가 선은 고른 날짜 판단의 기준 가격 날짜 종가에서 끝나고, 가로축은 그다음 거래일에서 끝난다.
-    // 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 정규장 등락률 색(`tone`)의 점과 글씨로 적는다. 사전 리포트는 지수 카드만 둔다.
+    // 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 등락률 색(`tone`)의 글씨와 점으로 적는다. 사전 리포트는 지수 카드만 둔다.
     // 지수 카드는 기준 가격 날짜 다음 세션 값이 있으면 이름 줄 오른쪽에 정규장·애프터장이나 정규장·프리장 단추를 둔다. 지난 날짜의 다음 세션 값은 그날 프리장 값이 있으면 그 값이고, 없으면 그날 판단의 기준 가격이다.
     // 애프터장 값은 본 리포트의 기준 가격이고, 사전 리포트는 정규장 종가에 지수 ETF의 애프터장 등락 비율(`r/afterhours.json`)을 곱한 값이다.
     // 프리장 값(`early`)은 정규장 종가에 지수 ETF의 프리장 등락 비율을 곱한 값이며, 프리장 값이 있으면 프리장 값을 쓴다.
-    // 정규장 다음 단추를 고르면 위 줄에 그 세션 이름과 시각을, 가운데 줄에 그 값과 정규장 종가 대비 등락률을 회색으로 적는다.
+    // 정규장 다음 단추를 고르면 위 줄에 그 세션 이름과 시각을, 가운데 줄에 그 값과 정규장 종가 대비 등락률을 그 등락률 색으로 적는다.
     // 리포트 날짜의 프리장 값이 정규장 값(`phase`가 `regular`)이면 단추를 정규장 단추 하나로 줄이고, 위 줄에 정규장과 시각을, 가운데 줄에 그 값과 앞 종가 대비 등락률을 등락률 색으로 적는다.
     // 지난 날짜의 프리장 값이 정규장 값이면 그날 판단의 기준 가격을 쓴다.
     // 본 리포트의 애프터장 값은 종가 네 시간 뒤에, 사전 리포트의 애프터장 값과 프리장 값, 정규장 값은 그 체결 시각 자리(`afterClose`)에 흰 점으로 찍어 마지막 종가 점에서 점선으로 잇는다.
@@ -1488,7 +1488,7 @@
     // 단추를 누르면 되감기 슬라이더가 다른 날짜를 고를 때까지 누른 세션을 유지한다.
     // 예측 카드(`aim`이 참)는 리포트 날짜 판단에 예측이 있을 때만 두고, 가로축을 마지막 종가 뒤 25거래일까지 늘린다. 종가 선 오른쪽에 고른 날짜 판단의
     // 25~75% 범위와 50% 선을 그리고, 회색 점선과 면으로 지난 리포트의 예측을 그린다. 위 줄은 "25거래일 뒤 예측 중앙값"이고,
-    // 가운데 줄은 25거래일 뒤 50% 값과 판단 색 점 뒤에 "−1.8%"처럼 기준 가격 대비 등락률을 적는다.
+    // 가운데 줄은 25거래일 뒤 50% 값을 지수색 그라데이션으로 쓰고, 판단 색 점 뒤에 "−1.8%"처럼 기준 가격 대비 등락률을 적는다.
     // 고른 날짜가 리포트 날짜보다 앞이면 종가 선은 그날 판단의 출발점에서 다시 이어 리포트 날짜 판단의 기준 가격 날짜 종가까지 그리고,
     // 종가 네 시간 뒤(`BASE_AFTER`)에 리포트 날짜 판단의 기준 가격을 점으로 찍어 점선으로 잇는다. 판단의 25거래일 예측은 기준 가격 점에서 출발해 날마다 그 거래일 종가 자리에 놓는다.
     // 리포트 날짜의 정규장 값이 있으면 리포트 날짜 판단의 기준 가격 점에서 정규장 값의 흰 점까지 점선으로 잇고, 위 줄과 가운데 줄은 예측 값을 그대로 쓴다.
@@ -1649,8 +1649,9 @@
         if (shown && !p) title.append(seg.box); else seg.box.remove();
         const move = ext && Math.round((ext[0] / hist[stop] - 1) * 1e4) / 100;
         c.box.classList.toggle("ink", !!p);
-        c.box.classList.toggle("ext", !!ext && !p && !regular);
-        c.box.querySelector(".state").className = `state ${p ? "" : ext ? (regular ? tone(move) : "") : tone(session)}`;
+        const color = p ? "" : tone(ext ? move : session);
+        c.box.querySelector(".state").className = `state ${color}`;
+        c.box.querySelector(".val b").className = p ? "ink" : color;
         if (ext && !p) c.head(f, `${signed(move, 2)}%`, fmt(ext[0]), sessionTag(ext[3], ext[2]));
         else if (p) c.head(f, `${signed((end(f, "q50") / f.base - 1) * 100)}%`, fmt(end(f, "q50")));
         else c.head(f, `${signed(session, 2)}%`, fmt(hist[stop]), sessionTag("regular", sessionAt("정규장", closeAt(dates[stop]))));
@@ -1815,18 +1816,22 @@
     show(data);
     // 머리 상자 시세는 위 줄에 기준 가격 날짜의 정규장 종가를, 아래 줄에 리포트 날짜 판단의 기준 가격을 쓴다. 사전 리포트는 아래 줄을 두지 않는다.
     // `quote(early, afters)`는 리포트 날짜의 프리장 값(`r/premarket.json`)의 앞 세션이 기준 가격 날짜이고 지수 ETF 체결가가 있으면, 아래 줄에 기준 가격 대신
-    // 정규장 종가에 지수 ETF의 프리장 등락 비율을 곱한 프리마켓 가격과 그 등락률을 쓴다. 그 값이 정규장 값이면 세션 이름을 정규장으로 쓴다. 사전 리포트는 프리장 값이 없을 때 지수의 애프터장 값(`r/afterhours.json`)에서
-    // 기준 가격 날짜의 지수 ETF 등락 비율을 정규장 종가에 곱한 애프터마켓 가격과 그 등락률을 쓴다. 등락률은 반올림한 값으로 색을 정해 0.00%를 칠하지 않는다.
+    // 정규장 종가에 지수 ETF의 프리장 등락 비율을 곱한 프리마켓 가격과 그 등락률을 쓴다. 그 값이 정규장 값이면 아래 줄을 두지 않고, 위 줄에 같은 방법으로 옮긴 정규장 가격과 그 등락률을 쓴다. 사전 리포트는 프리장 값이 없을 때 지수의 애프터장 값(`r/afterhours.json`)에서
+    // 기준 가격 날짜의 지수 ETF 등락 비율을 정규장 종가에 곱한 애프터마켓 가격과 그 등락률을 쓴다. 두 줄 모두 등락률은 반올림한 값으로 색을 정해 0.00%를 칠하지 않는다.
     const at = dates.indexOf(data.base_date), rate = (ratio) => Math.round(ratio * 1e4) / 100;
     const day = rate(hist[at] / hist[at - 1] - 1);
     const quote = (early, afters) => {
       const ahead = early?.session === data.base_date && early.ratio != null ? early : null;
       const behind = afters?.[data.base_date]?.ratio != null ? afters[data.base_date] : null;
-      const line = (name, value) => `<small>${name} <span>${fmt(value)} ${signed(rate(value / hist[at] - 1), 2)}%</span></small>`;
-      const tail = ahead ? line(ahead.phase === "regular" ? "정규장" : "프리마켓", hist[at] * ahead.ratio) : !data.pre ? line("애프터마켓", data.base)
+      const line = (name, value) => {
+        const move = rate(value / hist[at] - 1);
+        return `<span class="ext">${name}</span><b class="price ext ${tone(move)}">${fmt(value)}</b><b class="ext ${tone(move)}">${signed(move, 2)}%</b>`;
+      };
+      const open = ahead?.phase === "regular", value = open ? hist[at] * ahead.ratio : hist[at], move = open ? rate(ahead.ratio - 1) : day;
+      const tail = open ? "" : ahead ? line("프리마켓", hist[at] * ahead.ratio) : !data.pre ? line("애프터마켓", data.base)
         : behind ? line("애프터마켓", hist[at] * behind.ratio) : "";
-      return `<span class="row"><span>${INDEX_NAME[key.split("-")[1]]}</span><b class="price ${tone(day)}">${fmt(hist[at])}</b>`
-        + `<b class="${tone(day)}">${signed(day, 2)}%</b>${tail}</span>`;
+      return `<span class="row"><span>${INDEX_NAME[key.split("-")[1]]}</span><b class="price ${tone(move)}">${fmt(value)}</b>`
+        + `<b class="${tone(move)}">${signed(move, 2)}%</b>${tail}</span>`;
     };
     const live = (earlies, afters) => [index, predict].forEach((part) => part?.live(earlies, afters));
     return { names: parts.map(([, name]) => name), slides: parts.map(([part]) => [part.box]), show, quote, live };
