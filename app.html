@@ -54,8 +54,8 @@
      아래 줄은 지수 이름과 같은 왼쪽 끝에서 "애프터마켓 $27,712 −0.83%"처럼 리포트 판단의 기준 가격과 기준 가격의 정규장 종가 대비 등락률을 쓴다. 기준 가격은 정규장 뒤 애프터마켓 거래까지 반영한 마지막 가격이다.
      사전 리포트는 애프터장 값이 오면 아래 줄에 정규장 종가를 지수 ETF의 애프터장 체결가로 옮긴 가격과 그 등락률을 쓰고, 값은 애프터장이 끝날 때까지 10분마다 바뀐다.
      리포트 날짜에 뉴욕 프리장이 열려 프리장 값이 오면 아래 줄을 "프리마켓 $27,850 +0.50%"처럼 정규장 종가를 지수 ETF의 프리장 체결가로 옮긴 가격과 그 등락률로 바꾼다.
-     지수 이름과 정규장 종가는 절 제목과 같은 크기로, 정규장 등락률은 그보다 작은 13px로 쓴다. 아래 줄은 모두 13px의 굵지 않은 회색 글씨로 쓴다.
-     정규장 종가와 정규장 등락률은 정규장 등락률이 오르면 빨강, 내리면 파랑으로 칠한다.
+     지수 이름과 정규장 종가는 절 제목과 같은 크기로, 정규장 등락률은 그보다 작은 13px로 쓴다. 아래 줄은 모두 13px의 굵은 글씨로 쓰고, 세션 이름은 흰색으로 쓴다.
+     정규장 종가와 정규장 등락률은 정규장 등락률이 오르면 빨강, 내리면 파랑으로 칠한다. 아래 줄의 가격과 등락률도 그 줄의 등락률로 같게 칠한다.
      상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 페이지 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
      흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
   #day { display: flex; align-items: center; margin: 0; font-size: 12.5px; font-weight: 600; line-height: 20px; color: var(--dim); }
@@ -107,7 +107,7 @@
   #ticker:empty { display: none; }
   #ticker .row { display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; column-gap: 6px; }
   #ticker .row > span { font-size: 15.5px; font-weight: 700; color: #fff; }
-  #ticker .row small { grid-column: 1 / -1; font-size: inherit; font-weight: 400; line-height: 18px; color: var(--dim); }
+  #ticker .row small { grid-column: 1 / -1; font-size: inherit; font-weight: 700; line-height: 18px; color: #fff; }
   #ticker b { font-weight: 700; color: var(--accent); }
   #ticker b.price { font-size: 15.5px; }
   #ticker b.up { color: #ff5c5c; }
@@ -146,6 +146,8 @@
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { :root.issue #issue-bar { background: var(--bg); } }
   :root.issue main { padding-top: calc(16px + var(--issue-bar) + var(--top-edge)); }
   :root.issue #report > h2:first-child { margin-top: 0; }
+  /* 이슈 화면의 새로고침 표시는 맨 위 유리 띠 아래에 벌어지는 틈에 나타난다. */
+  :root.issue #pull { top: calc(var(--top-edge) + var(--issue-bar) - 7px); }
   /* 달력 단추는 날짜 상자·그림 이름 탭과 같은 색과 모서리의 상자로 그리고, 달력이 떠 있는 동안 고른 날짜 상자와 같은 색으로 칠한다. 누르면 단추 바로 아래에 리포트 날짜를 고르는 달력을 띄우고, 화면을 넘기면 달력은 단추와 함께 움직인다.
      달력 상자는 설명 상자와 같은 색으로 그린다. 맨 위에는 나스닥과 바이오를 고르는 두 칸 단추를 두고, 고른 지수의 리포트가 있는 날짜를 흰 글자로 쓰고 그 아래에 그 리포트의 정규장 등락률을 머리말과 같은 색으로 적는다.
      리포트가 없는 날짜는 회색으로 쓰고 누를 수 없다. 보고 있는 리포트의 날짜는 날짜 띠의 고른 상자와 같은 색으로 칠하고, 다른 리포트를 볼 때 오늘 날짜에는 테두리를 두른다.
@@ -750,13 +752,14 @@
   }
   // 문서 맨 위에서 시작해 아래로 끌면 본문이 손가락을 따라 내려온다. 본문은 처음에 끈 거리의 70%만큼 내려오고, 더 끌수록 따라오는 비율이 조금씩 줄어 손가락보다 덜 내려온다.
   // 끈 거리 `d`에 본문은 560 × (√(1 + d/400) − 1)px 내려오므로 비율은 줄어도 끄는 거리에 한계는 없다.
-  // 새로고침 표시는 벌어진 틈의 가운데에 두고, 본문이 128px에 닿을 때까지 호를 그만큼 늘린다. 128px에 닿으면 호가 돌기 시작하고, 손을 떼기 전에 미니 앱 문서와 `r/index.json`, `r/market.json`, 리포트를 서버에서 새로 받는다.
+  // 새로고침 표시는 벌어진 틈의 가운데에 두고, 본문이 128px에 닿을 때까지 호를 그만큼 늘린다. 128px에 닿으면 호가 돌기 시작하고, 손을 떼기 전에 미니 앱 문서와 `r/index.json`, `r/market.json`, 리포트나 종목 값을 서버에서 새로 받는다.
   // 새로 받기가 손을 떼기 전에 끝나도 호는 계속 돈다. 손을 떼면 본문과 표시가 96px 아래 자리로 올라가 멈춘다. 그 자리에 닿고 새로 받기도 끝나면 미니 앱을 다시 연다.
   // 다시 연 문서는 `sessionStorage`의 `pulled`를 읽어 표시를 96px 아래에 두고, 앞 문서에서 돌던 각도부터 호를 이어 돌린다. 과거 리포트 띠도 앞 문서처럼 먼저 세운다.
   // 리포트는 앞 문서가 막 새로 받은 사본을 서버에 다시 묻지 않고 쓰고, 다 그릴 때까지 본문을 감춘다. 리포트를 다 그리면(`landed`) 본문이 96px 아래 자리에서 나타나고
   // 새로고침 완료 동작을 보인 뒤 본문과 표시를 0.45초에 걸쳐 고른 속도로 제자리로 올린다(`slow`).
   // 128px에 닿기 전에 떼거나 옆으로 밀면 새로 받지 않고 제자리로 돌아간다. 새로 받기에 실패하면 다시 열지 않고 제자리로 돌아간다.
-  // 판단 배치의 단계가 바뀌면 `r/index.json`과 리포트가 바뀌므로, 다시 열면 그날 리포트의 새 단계를 받는다. 이슈 화면에서는 끌지 않는다.
+  // 판단 배치의 단계가 바뀌면 `r/index.json`과 리포트가 바뀌므로, 다시 열면 그날 리포트의 새 단계를 받는다.
+  // 이슈 화면과 종목 상세도 같은 몸짓으로 새로 받는다. 종목 상세는 리포트 대신 `r/stocks/{티커}.json`을 새로 받는다.
   let landed = () => {};
   const pulled = JSON.parse(sessionStorage.getItem("pulled") || "null");
   sessionStorage.removeItem("pulled");
@@ -783,7 +786,9 @@
       feelPress();
       pull.classList.add("spin");
       spun = Date.now();
-      const urls = [location.href.split("#")[0], "r/index.json", "r/market.json", ...(/^\d{8}-[a-z]+$/.test(key) ? [`r/${key}/report.html`] : [])];
+      const stock = query.get("stock");
+      const urls = [location.href.split("#")[0], "r/index.json", "r/market.json",
+        ...(stock ? [`r/stocks/${stock}.json`] : /^\d{8}-[a-z]+$/.test(key) ? [`r/${key}/report.html`] : [])];
       fetching = Promise.all(urls.map((url) => fetch(url, { cache: "reload" }).then((r) => { if (!r.ok) throw new Error(r.status); })))
         .then(() => true, () => false);
     };
@@ -803,8 +808,7 @@
     };
     addEventListener("touchstart", (event) => {
       if (pull.matches(".spin, .done")) return;
-      from = scrollY <= 0 && event.touches.length === 1 && !document.documentElement.classList.contains("issue")
-        ? { x: event.touches[0].clientX, y: event.touches[0].clientY, down: false } : null;
+      from = scrollY <= 0 && event.touches.length === 1 ? { x: event.touches[0].clientX, y: event.touches[0].clientY, down: false } : null;
       main.classList.remove("pulling");
       pull.classList.remove("back");
     }, { passive: true });
@@ -1757,7 +1761,8 @@
     const quote = (early, afters) => {
       const ahead = early?.session === data.base_date && early.ratio != null ? early : null;
       const behind = afters?.[data.base_date]?.ratio != null ? afters[data.base_date] : null;
-      const line = (name, value) => `<small>${name} ${fmt(value)} ${signed(rate(value / hist[at] - 1), 2)}%</small>`;
+      const line = (name, value, move = rate(value / hist[at] - 1)) =>
+        `<small>${name} <b class="${tone(move)}">${fmt(value)}</b> <b class="${tone(move)}">${signed(move, 2)}%</b></small>`;
       const tail = ahead ? line("프리마켓", hist[at] * ahead.ratio) : !data.pre ? line("애프터마켓", data.base)
         : behind ? line("애프터마켓", hist[at] * behind.ratio) : "";
       return `<span class="row"><span>${INDEX_NAME[key.split("-")[1]]}</span><b class="price ${tone(day)}">${fmt(hist[at])}</b>`
