@@ -117,12 +117,12 @@ ETF 눈금을 지수 눈금으로 늘려 적는다(`card_scale`). 공개본이 �
 `--stage pre`는 판단 배치가 돌기 전에 그날 리포트 키로 사전 리포트를 만든다. cron은 전날 뉴욕 정규장이 열릴 때 한 번, 닫힌 뒤에 한 번 부른다.
 정규장 중에는 그 앞 세션까지의 종가로 만들고 목록 항목의 `live`에 전날 날짜를 적으며, 닫힌 뒤에는 전날까지의 종가로 다시 만들고 `live`를 지운다.
 사전 리포트는 그 지수의 가장 늦은 본 리포트 공개본에서
-`1개월 지수 방향 예측` 절의 본문과 카드 값을 빼고, `상세 이슈 해설` 절을 제목째 뺀다.
+`1개월 지수 방향 예측` 절의 본문과 카드 값을 빼고, 이슈 소제목의 `data-new`를 지우고 `data-age`를 그날 기준으로 다시 단다.
 `미국 거시 지표` 카드 값은 그 시각까지 `reference.db`에 적재한 값으로 판단 배치와 같은 `render_inputs.py` 함수가 만든 입력에서 다시 뽑고,
 지표 소제목 뒤의 해설은 지운다.
 카드 값은 `pre`를 참으로 두고 전날까지 `PRICE_YEARS`년 종가를 담는다.
 `invest-reports` 미니 앱은 지수 카드 한 장만 종가 선으로 그리고, 그날 종가의 등락률을 등락 색으로 적는다.
-되감기 슬라이더는 앞 날짜의 판단과 사전 리포트의 종가를 고르게 하고, 예측·일정·권장 배율 카드는 두지 않는다. 이벤트 캘린더는 앞 리포트의 것을 그대로 쓰고, 이슈 페이지는 두지 않는다.
+되감기 슬라이더는 앞 날짜의 판단과 사전 리포트의 종가를 고르게 하고, 예측·일정·권장 배율 카드는 두지 않는다. 이벤트 캘린더와 이슈 그림은 앞 리포트의 것을 그대로 쓴다.
 `r/index.json` 항목에는 `stage: "pre"`와 전날 정규장 `session`·`close`만 적은 `moves`를 쓰고(정규장 중에는 둘 다 `null`), 앞 날짜의 사전 리포트 항목과 폴더는 지운다.
 전날이 뉴욕 정규장 세션이 아니거나 전날 정규장이 아직 열리지 않았으면 종료 코드 3, 그날 본 리포트가 이미 있거나, 정규장 중 사전 리포트가 있는데 정규장이 닫히기 전에 다시 부르면 종료 코드 4로 끝내고 아무것도 쓰지 않는다.
 끝낼 세션의 종가가 `reference.db`에 아직 없으면 실패로 끝낸다.
@@ -1502,6 +1502,28 @@ def write_entries(out: Path, entries: dict) -> None:
                                          encoding="utf-8")
 
 
+def pre_issues(body: str, day: dt.date) -> str:
+    """`상세 이슈 해설` 절의 이슈 소제목에서 `data-new`를 지우고, 이슈 해설을 쓴 날짜(`data-written`)부터 `day`까지의 날 수를 `data-age`로 다시 단다.
+    `issue-history` 템플릿 안의 앞 날짜 이슈는 그대로 둔다."""
+    head = re.search(rf'<h2 id="[^"]*">{ISSUES_TITLE}</h2>', body)
+    if not head:
+        return body
+    end = body.find("<h2", head.end())
+    end = len(body) if end < 0 else end
+
+    def heading(match: re.Match) -> str:
+        if match.group(1):
+            return match.group(1)
+        attrs = re.sub(r'\s+data-(?:new|age="[^"]*")(?=\s|$)', "", match.group(2))
+        written = re.search(r'data-written="([^"]*)"', attrs)
+        if written:
+            attrs += f' data-age="{(day - dt.date.fromisoformat(written.group(1))).days}"'
+        return f"<h3{attrs}>"
+
+    section = re.sub(r'(<template class="issue-history">.*?</template>)|<h3([^>]*)>', heading, body[head.end():end], flags=re.DOTALL)
+    return body[:head.end()] + section + body[end:]
+
+
 def pre_indicators(body: str) -> str:
     """`미국 거시 지표` 절에서 소제목만 남기고 소제목 뒤의 해설을 지운다. 첫 소제목 앞의 노드는 그대로 둔다."""
     head = re.search(rf'<h2 id="[^"]*">{INDICATORS_TITLE}</h2>', body)
@@ -1572,10 +1594,7 @@ def pre(date: str, index: str, vault: Path, out: Path) -> str:
     if outlook:
         end = body.find("<h2", outlook.end())
         body = body[:outlook.end()] + "\n" + body[end if end >= 0 else len(body):]
-    issues = re.search(rf'<h2 id="[^"]*">{ISSUES_TITLE}</h2>', body)
-    if issues:
-        end = body.find("<h2", issues.end())
-        body = body[:issues.start()] + body[end if end >= 0 else len(body):]
+    body = pre_issues(body, day)
     body = mark_indicators(pre_indicators(body), indicator_cards(vault, index, day, stored_data(vault, index)))
     scale = card_scale(index, vault)
     closes = [round(close * scale, 2) for _, close in history]
