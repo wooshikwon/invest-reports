@@ -1481,7 +1481,7 @@
     // 그림 아래 −·+ 단추로 종가를 그릴 기간을 고른다. 기간은 3년, 2년, 1년, 6개월, 3개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
     // 기간은 가로축 전체의 길이여서, 예측 카드는 지수 카드와 같은 기간에서 예측 25거래일만큼 종가를 짧게 그린다. 단추 사이의 점 묶음은 누른 채 끌어 기간을 바로 고른다(`zoomDrag`).
     // 처음에는 가장 짧은 3개월을 그린다. 봉 비율(`r/candles.json`)이 있으면 그 줄 오른쪽 끝에 선·봉 단추(`kindButton`)를 두고,
-    // 봉 그림이면 종가 선 대신 3년·2년은 월봉, 1년은 주봉, 6개월·3개월은 일봉을 그린다. 예측 카드는 봉을 마지막 종가까지 그리고, 예측 범위와 기준 가격 점선은 선 그림과 같게 그리되 예측이 시작하는 흰 점은 찍지 않는다.
+    // 봉 그림이면 종가 선 대신 3년·2년은 월봉, 1년은 주봉, 6개월·3개월은 일봉을 그린다. 예측 카드는 봉을 마지막 종가까지 그리고, 예측 범위는 선 그림과 같게 그리되 마지막 종가에서 기준 가격으로 잇는 점선과 예측이 시작하는 흰 점은 그리지 않는다.
     // 봉 그림이면 지수 카드의 정규장 다음 세션 값과 되감은 예측 카드의 기준 가격을 그 세션이 든 기간의 잠정 봉(`candleLate`)으로 흐리게 그린다.
     // 지수 카드(`aim`이 거짓)는 예측을 그리지 않는다. 종가 선은 고른 날짜 판단의 기준 가격 날짜 종가에서 끝나고, 가로축은 그다음 거래일에서 끝난다.
     // 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 정규장 등락률 색(`tone`)의 점과 글씨로 적는다. 사전 리포트는 지수 카드만 둔다.
@@ -1627,7 +1627,7 @@
         g.append(shape("path", { d: `${path(xs.map((x, k) => [x, Y(p.q25[k])]))}L${xs.slice().reverse().map((x, k) => `${x} ${Y(p.q75[xs.length - 1 - k])}`).join("L")}Z`, fill: color, opacity: .22 }));
         if (groups) drawCandles(g, last > fx ? candleLate(groups, dates, unit, data.base, "after") : groups, X, Y, step, R + 3);
         else g.append(shape("path", { d: path(hist.slice(i0, fx + 1).map((v, k) => [X(i0 + k), Y(v)])), ...stroke }));
-        g.append(shape("path", { d: path([[X(fx), Y(hist[fx])], origin]), ...stroke, "stroke-dasharray": "2 2" }));
+        if (!groups) g.append(shape("path", { d: path([[X(fx), Y(hist[fx])], origin]), ...stroke, "stroke-dasharray": "2 2" }));
         const today = [X(last + BASE_AFTER), Y(data.base)];
         if (last > fx) {
           if (!groups) g.append(shape("path", { d: path([origin, ...hist.slice(fx + 1).map((v, k) => [X(fx + 1 + k), Y(v)])]), ...stroke }));
