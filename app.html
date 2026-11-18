@@ -55,6 +55,7 @@
      아래 줄은 지수 이름과 같은 왼쪽 끝에서 "애프터마켓 $27,712 −0.83%"처럼 리포트 판단의 기준 가격과 기준 가격의 정규장 종가 대비 등락률을 쓴다. 기준 가격은 정규장 뒤 애프터마켓 거래까지 반영한 마지막 가격이다.
      사전 리포트는 애프터장 값이 오면 아래 줄에 정규장 종가를 지수 ETF의 애프터장 체결가로 옮긴 가격과 그 등락률을 쓰고, 값은 애프터장이 끝날 때까지 10분마다 바뀐다.
      리포트 날짜에 뉴욕 프리장이 열려 프리장 값이 오면 아래 줄을 "프리마켓 $27,850 +0.50%"처럼 정규장 종가를 지수 ETF의 프리장 체결가로 옮긴 가격과 그 등락률로 바꾼다.
+     정규장이 열려 정규장 값이 오면 아래 줄을 "정규장 $27,850 +0.50%"처럼 같은 방법으로 옮긴 정규장 가격과 그 등락률로 바꾸고, 장이 끝나면 마감 값에서 멈춘다.
      지수 이름과 정규장 종가는 절 제목과 같은 크기로, 정규장 등락률은 그보다 작은 13px로 쓴다. 아래 줄은 모두 13px의 굵은 글씨로 쓰고, 세션 이름은 흰색으로 쓴다.
      정규장 종가와 정규장 등락률은 정규장 등락률이 오르면 빨강, 내리면 파랑으로 칠한다. 아래 줄의 가격과 등락률은 다음 정규장 전의 임시 값이므로 회색으로 쓴다.
      상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 페이지 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
@@ -589,12 +590,13 @@
   .indexmap .board { position: relative; }
   /* 세션 단추(`session`)는 정규장을 해, 애프터장을 초승달, 프리장을 언덕 위로 해가 오르는 새벽 그림으로 그리고, 고른 단추를 밝은 바탕에 흰 선으로 칠한다.
      지도에서는 위 줄 오른쪽 끝에, 주가 카드와 지수 카드에서는 이름 줄 오른쪽 끝에 두되 그 줄 높이를 늘리지 않는다.
-     애프터마켓·프리마켓 값을 고른 카드(`ext`)는 다음 정규장 전의 임시 값이므로 값과 등락률을 회색으로 쓴다. */
+     애프터마켓·프리마켓 값을 고른 카드(`ext`)는 다음 정규장 전의 임시 값이므로 값과 등락률을 회색으로 쓴다. 리포트 날짜의 정규장 값을 그리는 카드는 정규장 단추 하나만 두고 회색으로 쓰지 않는다. */
   .session { display: flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, .06); }
   .session button { display: grid; place-items: center; width: 34px; height: 22px; padding: 0; border: 0; border-radius: 7px; background: none;
                     color: var(--hint); cursor: pointer; }
   .session button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .session button.on { background: rgba(255, 255, 255, .16); color: #fff; }
+  .session button[hidden] { display: none; }
   :is(.indexmap > .top, .gauge .top) .session { flex: none; margin: -6px 0 -6px auto; align-self: center; }
   /* 지수 카드와 예측 카드, 종목 상세 주가 카드는 맨 위 줄에 기준 시각을 흐린 작은 글씨로 쓰고, 그 아래 이름 줄에 지수나 종목 이름과 세션 단추를 둔다. */
   .gauge .top.title { margin-top: 3px; }
@@ -1206,11 +1208,11 @@
   const NEW_YORK = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", timeZoneName: "short" });
   const usZone = (day) => NEW_YORK.formatToParts(new Date(`${day}T17:00:00Z`)).find((part) => part.type === "timeZoneName").value;
   // 그림의 가로축은 거래일 번호이고, 정규장 종가(16:00 ET)를 그날 번호에 놓는다. 종가 뒤 세션의 값은 실제 지난 시간만큼 오른쪽에 찍는다.
-  // 한 거래일은 다음 종가까지의 24시간이다. `afterClose(time)`은 뉴욕 시각 글씨 `time`("2026-11-17T18:30:00-05:00")이 종가에서 몇 거래일 뒤인지 돌려주고,
-  // 16:00 ET 전 시각은 다음 거래일의 프리장 시각으로 본다. 판단의 기준 가격은 애프터장이 닫히는 20:00 ET의 체결가이므로 `BASE_AFTER` 거래일 뒤다.
-  const afterClose = (time) => {
+  // 한 거래일은 다음 종가까지의 24시간이다. `afterClose(time, day)`는 뉴욕 시각 글씨 `time`("2026-11-17T18:30:00-05:00")이 `day` 세션의 종가에서 몇 거래일 뒤인지 돌려주고,
+  // `day`보다 늦은 날짜의 시각은 다음 거래일의 프리장이나 정규장 시각으로 본다. 판단의 기준 가격은 애프터장이 닫히는 20:00 ET의 체결가이므로 `BASE_AFTER` 거래일 뒤다.
+  const afterClose = (time, day) => {
     const hour = +time.slice(11, 13) + time.slice(14, 16) / 60;
-    return (hour - 16) / 24 + (hour < 16 ? 1 : 0);
+    return (hour - 16) / 24 + (time.slice(0, 10) > day ? 1 : 0);
   };
   const BASE_AFTER = 4 / 24;
   // 종가 뒤 세션의 기준 시각은 "애프터마켓 08:15 KST"처럼 세션 이름과 체결 시각을 서울 시각으로 쓴다(`sessionAt(name, time)`).
@@ -1218,16 +1220,18 @@
   const sessionAt = (name, time) => `${name} ${new Date(Date.parse(time) + 9 * 3600e3).toISOString().slice(11, 16)} KST`;
   const afterEnd = (day) => `${day}T20:00:00${usZone(day) === "EDT" ? "-04:00" : "-05:00"}`;
 
-  // 세션 단추의 그림이다. 정규장은 해, 애프터장은 초승달, 프리장은 언덕 위로 반쯤 오른 해와 빛살이다.
+  // 세션 단추의 그림과 이름이다. 정규장은 해, 애프터장은 초승달, 프리장은 언덕 위로 반쯤 오른 해와 빛살이다.
   const SESSION_ICON = {
     regular: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>',
     after: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.6A8.2 8.2 0 1 1 9.4 4a6.6 6.6 0 0 0 10.6 10.6Z"/></svg>',
     pre: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 20.5C6 17 9 16 12 16s6 1 10 4.5"/><path d="M7.5 16.6a4.5 4.5 0 0 1 9 0"/><path d="M12 6.2v2.6M5.4 9.6l1.7 1.7M18.6 9.6l-1.7 1.7"/></svg>',
   };
+  const SESSION_NAME = { regular: "정규장", after: "애프터마켓", pre: "프리마켓" };
   // 정규장 값과 정규장 다음 세션(애프터장이나 프리장)의 값을 고르는 단추 한 쌍(`box`)이다. 지도와 종목 상세의 주가 카드, 지수 카드가 같이 쓴다.
   // 단추는 글씨 대신 세션 그림을 그리고, 세션 이름을 단추의 이름(`aria-label`)과 풍선 글씨(`title`)로 단다.
   // `pick(late)`는 사용자가 다른 단추를 누를 때 부르고, `late`는 정규장 다음 단추를 고르면 참이다. `mark(late)`는 고른 단추를 칠하고,
-  // `rename(pre, name)`은 정규장 다음 단추를 프리장(`pre`가 참)이나 애프터장 그림으로 바꾸고 이름을 `name`으로 단다.
+  // `rename(kind, name)`은 정규장 다음 단추를 `kind` 세션(`pre`, `after`, `regular`)의 그림으로 바꾸고 이름을 `name`으로 단다.
+  // 리포트 날짜의 정규장 값(`regular`)이면 앞 단추를 숨겨 정규장 단추 하나만 남긴다.
   function sessionSeg(pick) {
     const box = Object.assign(document.createElement("div"), { className: "session" });
     box.innerHTML = `<button type="button" aria-label="정규장" title="정규장">${SESSION_ICON.regular}</button><button type="button"></button>`;
@@ -1239,10 +1243,11 @@
       mark(button === box.lastElementChild);
       pick(button === box.lastElementChild);
     });
-    const rename = (pre, name = pre ? "프리마켓" : "애프터마켓") => {
+    const rename = (kind, name = SESSION_NAME[kind]) => {
       const button = box.lastElementChild;
+      box.firstElementChild.hidden = kind === "regular";
       if (button.title === name) return;
-      Object.assign(button, { innerHTML: SESSION_ICON[pre ? "pre" : "after"], title: name });
+      Object.assign(button, { innerHTML: SESSION_ICON[kind], title: name });
       button.setAttribute("aria-label", name);
     };
     return { box, mark, rename };
@@ -1255,7 +1260,8 @@
   // 애프터장 체결가는 지도 값의 `after`이고, 그 값이 없는 종목은 애프터장 값(`r/afterhours.json`)의 지도 날짜 체결가다.
   // `watch`는 리포트 날짜의 프리장 값(`r/premarket.json`)과 지수의 애프터장 값을 받을 때마다 부를 함수를 건다. 애프터장 값을 받으면 위 줄에 체결가를 받은 뉴욕 시각을 쓴다.
   // 프리장 값의 앞 세션이 지도 날짜이고 체결가가 있는 종목이 있으면 애프터장 단추를 다음날 프리장(새벽) 단추로 바꾸고, 애프터장 체결가 대신 프리장 체결가로 같은 자리를 그린다.
-  // 위 줄에는 프리장 날짜와 체결가를 받은 뉴욕 시각을 쓴다.
+  // 위 줄에는 프리장 날짜와 체결가를 받은 뉴욕 시각을 쓴다. 그 값이 리포트 날짜의 정규장 값(`phase`가 `regular`)이면 단추를 정규장 단추 하나로 줄이고,
+  // 정규장 체결가로 같은 자리를 그리며, 위 줄에 정규장과 체결가를 받은 뉴욕 시각을 쓴다.
   // 사용자가 단추를 누르기 전에는 가장 늦은 세션(프리장, 애프터장, 정규장 순서)을 고른다.
   // 칸 색은 앞 세션 종가 대비 등락률로 정한다. 오르면 빨강, 내리면 파랑이고, 보합의 회색에서 등락률이 클수록 채도를 올려 2.5%에서 가장 선명하다. 칸이 작아 글씨가 넘치면 글씨를 줄이고,
   // 그래도 넘치면 이름 대신 티커를 쓰고, 다음에 등락률을, 끝으로 티커를 뺀다.
@@ -1278,9 +1284,9 @@
     }).filter(Boolean).sort((a, b) => b.cap - a.cap);
     if (!stocks.length) return head.remove();
     head.after(box);
-    // 정규장 다음 단추(애프터마켓이나 다음날 프리마켓)를 고르면 참이다. `early`는 지도 날짜 다음 프리장의 값이고, `after`는 지도 날짜의 애프터장 값이며, 없으면 null이다.
-    // `chosen`은 사용자가 단추를 누른 뒤 참이다.
-    let late = false, early = null, after = null, chosen = false;
+    // 정규장 다음 단추(애프터마켓이나 다음날 프리마켓)를 고르거나 리포트 날짜의 정규장 값을 그리면 참이다. `early`는 지도 날짜 다음 프리장이나 정규장의 값이고,
+    // `after`는 지도 날짜의 애프터장 값이며, 없으면 null이다. `kind`는 정규장 다음 단추의 세션이고, `chosen`은 사용자가 단추를 누른 뒤 참이다.
+    let late = false, early = null, after = null, chosen = false, kind = "after";
     // 정규장 다음 단추의 체결가. 지도 날짜에 종가가 없는 종목은 null이다.
     const extra = (stock) => !stock.fresh ? null : early ? early.stocks[stock.symbol] ?? null : stock.after?.[n] ?? after?.stocks[stock.symbol] ?? null;
     // 칸과 말풍선에 쓰는 [가격, 등락률]. 체결가가 없는 종목의 애프터장·프리장 값은 [null, null]이다.
@@ -1288,9 +1294,10 @@
     const seg = sessionSeg((on) => { late = on; chosen = true; draw(); });
     // 체결가가 있는 종목이 있으면 단추를 두고 두 번째 단추 이름을 정하고, 없으면 단추를 빼고 정규장 값으로 돌린다.
     const segment = () => {
-      seg.rename(!!early, early ? "다음날 프리마켓" : "애프터마켓");
+      kind = early ? (early.phase === "regular" ? "regular" : "pre") : "after";
+      seg.rename(kind, kind === "pre" ? "다음날 프리마켓" : undefined);
       if (stocks.some((stock) => extra(stock) != null)) {
-        if (!chosen) late = true;
+        if (!chosen || kind === "regular") late = true;
         seg.mark(late);
         return top.append(seg.box);
       }
@@ -1307,7 +1314,7 @@
       untip();
       const day = late && early ? date : map.dates[n];
       label.textContent = !late ? `${day.slice(5, 7)}/${day.slice(8, 10)} ${usZone(day)} 종가`
-        : early ? sessionAt("프리마켓", early.time) : sessionAt("애프터마켓", after?.time ?? afterEnd(day));
+        : early ? sessionAt(SESSION_NAME[kind], early.time) : sessionAt("애프터마켓", after?.time ?? afterEnd(day));
       board.replaceChildren();
       const W = board.clientWidth, H = Math.round(W * .95), total = stocks.reduce((sum, stock) => sum + stock.cap, 0);
       board.style.height = `${H}px`;
@@ -1374,12 +1381,12 @@
         + (past ? "" : '<button type="button">자세히 보기<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>');
       tip.querySelector("b").textContent = stock.name;
       const [value, change] = tip.querySelectorAll("p.price span");
-      value.textContent = now != null ? price(now, "달러") : early ? "프리마켓 체결 없음" : "애프터마켓 체결 없음";
+      value.textContent = now != null ? price(now, "달러") : `${SESSION_NAME[kind]} 체결 없음`;
       change.textContent = move == null ? "" : `${signed(move)}%`;
       const lead = tip.querySelector("p.lead");
       lead.textContent = (stock.about || "").split(/(?<=다\.)\s+/)[0];
       lead.hidden = !stock.about;
-      const session = !seg.box.isConnected ? {} : { session: !late ? "regular" : early ? "pre" : "after" };
+      const session = !seg.box.isConnected || kind === "regular" ? {} : { session: !late ? "regular" : kind };
       tip.querySelector("button")?.addEventListener("click", () => { feelPress(); visit(key, { stock: stock.symbol, ...session }); });
       board.append(tip);
       tile.classList.add("on");
@@ -1458,7 +1465,9 @@
     // 애프터장 값은 본 리포트의 기준 가격이고, 사전 리포트는 정규장 종가에 지수 ETF의 애프터장 등락 비율(`r/afterhours.json`)을 곱한 값이다.
     // 프리장 값(`early`)은 정규장 종가에 지수 ETF의 프리장 등락 비율을 곱한 값이며, 프리장 값이 있으면 프리장 값을 쓴다.
     // 정규장 다음 단추를 고르면 위 줄에 그 세션 이름과 시각을, 가운데 줄에 그 값과 정규장 종가 대비 등락률을 회색으로 적는다.
-    // 본 리포트의 애프터장 값은 종가 네 시간 뒤에, 사전 리포트의 애프터장 값과 프리장 값은 그 체결 시각 자리(`afterClose`)에 흰 점으로 찍어 마지막 종가 점에서 점선으로 잇는다.
+    // 리포트 날짜의 프리장 값이 정규장 값(`phase`가 `regular`)이면 단추를 정규장 단추 하나로 줄이고, 위 줄에 정규장과 시각을, 가운데 줄에 그 값과 앞 종가 대비 등락률을 등락률 색으로 적는다.
+    // 지난 날짜의 프리장 값이 정규장 값이면 그날 판단의 기준 가격을 쓴다.
+    // 본 리포트의 애프터장 값은 종가 네 시간 뒤에, 사전 리포트의 애프터장 값과 프리장 값, 정규장 값은 그 체결 시각 자리(`afterClose`)에 흰 점으로 찍어 마지막 종가 점에서 점선으로 잇는다.
     // 가로축 범위는 단추와 관계없이 같아서, 단추를 바꿔도 종가의 자리가 움직이지 않는다. 리포트 날짜는 가장 늦은 세션을, 지난 날짜는 정규장을 고른다.
     // 단추를 누르면 되감기 슬라이더가 다른 날짜를 고를 때까지 누른 세션을 유지한다.
     // 예측 카드(`aim`이 참)는 리포트 날짜 판단에 예측이 있을 때만 두고, 가로축을 마지막 종가 뒤 25거래일까지 늘린다. 종가 선 오른쪽에 고른 날짜 판단의
@@ -1466,6 +1475,7 @@
     // 가운데 줄은 25거래일 뒤 50% 값과 판단 색 점 뒤에 "−1.8%"처럼 기준 가격 대비 등락률을 적는다.
     // 고른 날짜가 리포트 날짜보다 앞이면 종가 선은 그날 판단의 출발점에서 다시 이어 리포트 날짜 판단의 기준 가격 날짜 종가까지 그리고,
     // 종가 네 시간 뒤(`BASE_AFTER`)에 리포트 날짜 판단의 기준 가격을 점으로 찍어 점선으로 잇는다. 판단의 25거래일 예측은 기준 가격 점에서 출발해 날마다 그 거래일 종가 자리에 놓는다.
+    // 리포트 날짜의 정규장 값이 있으면 리포트 날짜 판단의 기준 가격 점에서 정규장 값의 흰 점까지 점선으로 잇고, 위 줄과 가운데 줄은 예측 값을 그대로 쓴다.
     let clips = 0;
     const priceCard = (aim) => {
       const c = card("25거래일 뒤 예측 중앙값"), s = c.svg, clipId = `predict-clip-${clips++}`;
@@ -1475,19 +1485,22 @@
       let late = false, chosen = false, early = null, after = null, ext = null, earlies = {};
       // 그림과 글씨가 쓰는 판단의 예측이다. 지수 카드는 예측을 쓰지 않는다.
       const plan = (f) => (aim ? f.predict : null);
-      // 고른 날짜 값의 정규장 다음 세션 [값, 거래일 번호, 위 줄 글씨, 프리장 여부]. 없으면 null이다.
+      // 고른 날짜 값의 정규장 다음 세션 [값, 거래일 번호, 위 줄 글씨, 세션(`pre`, `after`, `regular`)]. 없으면 null이다.
       // 지난 날짜의 정규장 다음 세션은 그날 프리장 값의 앞 세션이 그날 판단의 기준 가격 날짜이면 그 프리장 값이고, 아니면 그날 판단의 기준 가격인 애프터장 값이다.
       const extra = (f) => {
         if (f.day !== date) {
           const dawn = earlies[f.day];
-          if (dawn?.session === f.base_date && dawn.ratio != null) return [hist[at(f)] * dawn.ratio, at(f) + afterClose(dawn.time), sessionAt("프리마켓", dawn.time), true];
-          return [f.base, at(f) + BASE_AFTER, sessionAt("애프터마켓", afterEnd(f.base_date)), false];
+          if (dawn?.session === f.base_date && dawn.ratio != null && dawn.phase !== "regular") {
+            return [hist[at(f)] * dawn.ratio, at(f) + afterClose(dawn.time, f.base_date), sessionAt("프리마켓", dawn.time), "pre"];
+          }
+          return [f.base, at(f) + BASE_AFTER, sessionAt("애프터마켓", afterEnd(f.base_date)), "after"];
         }
-        if (early?.session === data.base_date) {
-          return [hist[close] * early.ratio, close + afterClose(early.time), sessionAt("프리마켓", early.time), true];
+        if (early?.session === data.base_date && early.ratio != null) {
+          const kind = early.phase === "regular" ? "regular" : "pre";
+          return [hist[close] * early.ratio, close + afterClose(early.time, data.base_date), sessionAt(SESSION_NAME[kind], early.time), kind];
         }
-        if (!data.pre) return [data.base, close + BASE_AFTER, sessionAt("애프터마켓", afterEnd(data.base_date)), false];
-        return after ? [hist[close] * after.ratio, close + afterClose(after.time), sessionAt("애프터마켓", after.time), false] : null;
+        if (!data.pre) return [data.base, close + BASE_AFTER, sessionAt("애프터마켓", afterEnd(data.base_date)), "after"];
+        return after ? [hist[close] * after.ratio, close + afterClose(after.time, data.base_date), sessionAt("애프터마켓", after.time), "after"] : null;
       };
       const seg = sessionSeg((on) => { late = on; chosen = true; show(frame); });
       // `stop`는 종가 선이 끝나는 거래일 번호이고, `xmax`는 가로축 오른쪽 끝이다. 지수 카드는 고른 날짜마다 둘을 옮긴다.
@@ -1553,7 +1566,7 @@
         };
         // 기준 가격 점이 아닌 정규장 다음 세션 값은 앞 점(기준 가격 점, 없으면 마지막 종가 점)에서 점선으로 잇는다.
         const dawn = (from) => {
-          if (!ext || (p && !ext[3])) return;
+          if (!ext) return;
           const to = [X(ext[1]), Y(ext[0])];
           g.append(shape("path", { d: path([from, to]), ...stroke, "stroke-dasharray": "2 2" }));
           s.append(shape("circle", { cx: to[0], cy: to[1], r: 2.5, fill: "#EAEAEA", stroke: "#171719", "stroke-width": 1 }));
@@ -1578,7 +1591,7 @@
         if (marks) extremes();
         if (last > fx) s.append(shape("circle", { cx: today[0], cy: today[1], r: 2.5, fill: PRICE }));
         s.append(shape("circle", { cx: origin[0], cy: origin[1], r: 2.5, fill: "#EAEAEA", stroke: "#171719", "stroke-width": 1 }));
-        dawn(origin);
+        dawn(last > fx ? today : origin);
       };
       // `from` 기간에서 `to` 기간으로 가는 도중 `t`(0~1) 지점의 그림. 왼쪽 끝과 세로 범위를 같은 곡선으로 옮기고, 넓히는 동안 새로 들어온
       // 과거 종가가 범위 밖이면 범위를 그만큼 먼저 넓혀 선이 가로축 아래로 내려가지 않게 한다.
@@ -1601,6 +1614,7 @@
       wider.addEventListener("click", () => move(-1));
       narrower.addEventListener("click", () => move(1));
       // 되감기 슬라이더가 다른 날짜를 고르면 사용자가 고른 단추를 지우고, 리포트 날짜는 가장 늦은 세션을, 지난 날짜는 정규장을 고른다.
+      // 리포트 날짜의 정규장 값은 늘 고른 채로 둔다. 예측 카드는 리포트 날짜의 정규장 값만 점선으로 그린다.
       const show = (f) => {
         if (f !== frame) chosen = false;
         frame = f;
@@ -1610,16 +1624,18 @@
           stop = now ? last : at(f);
           xmax = stop + 1;
         }
-        const session = Math.round((hist[stop] / hist[stop - 1] - 1) * 1e4) / 100, shown = p ? null : extra(f);
-        if (!chosen) late = !!shown && now;
+        const session = Math.round((hist[stop] / hist[stop - 1] - 1) * 1e4) / 100, found = extra(f);
+        const shown = !p || (now && found?.[3] === "regular") ? found : null, regular = shown?.[3] === "regular";
+        if (!chosen || regular) late = !!shown && now;
         ext = shown && late ? shown : null;
-        seg.rename(!!shown?.[3]);
+        seg.rename(shown?.[3] ?? "after");
         seg.mark(late);
-        if (shown) title.append(seg.box); else seg.box.remove();
-        c.box.classList.toggle("ink", !!p && !ext);
-        c.box.classList.toggle("ext", !!ext);
-        c.box.querySelector(".state").className = `state ${p || ext ? "" : tone(session)}`;
-        if (ext) c.head(f, `${signed((ext[0] / hist[stop] - 1) * 100, 2)}%`, fmt(ext[0]), ext[2]);
+        if (shown && !p) title.append(seg.box); else seg.box.remove();
+        const move = ext && Math.round((ext[0] / hist[stop] - 1) * 1e4) / 100;
+        c.box.classList.toggle("ink", !!p);
+        c.box.classList.toggle("ext", !!ext && !p && !regular);
+        c.box.querySelector(".state").className = `state ${p ? "" : ext ? (regular ? tone(move) : "") : tone(session)}`;
+        if (ext && !p) c.head(f, `${signed(move, 2)}%`, fmt(ext[0]), ext[2]);
         else if (p) c.head(f, `${signed((end(f, "q50") / f.base - 1) * 100)}%`, fmt(end(f, "q50")));
         else c.head(f, `${signed(session, 2)}%`, fmt(hist[stop]), `${md(dates[stop])} ${usZone(dates[stop])} 종가`);
         tween(span, span, 1);
@@ -1627,7 +1643,7 @@
       return {
         box: c.box,
         show,
-        // 지수의 날짜별 프리장 값(`r/premarket.json`)과 애프터장 값(`r/afterhours.json`)을 받아, 리포트 날짜 값을 받은 시각이 바뀌었으면 카드를 다시 그린다.
+        // 지수의 날짜별 프리장·정규장 값(`r/premarket.json`)과 애프터장 값(`r/afterhours.json`)을 받아, 리포트 날짜 값을 받은 시각이 바뀌었으면 카드를 다시 그린다.
         // 지난 날짜를 고르면 그날의 프리장 값을 쓴다.
         live(days, afters) {
           const found = days?.[date], tail = afters?.[data.base_date]?.ratio != null ? afters[data.base_date] : null;
@@ -1783,7 +1799,7 @@
     show(data);
     // 머리 상자 시세는 위 줄에 기준 가격 날짜의 정규장 종가를, 아래 줄에 리포트 날짜 판단의 기준 가격을 쓴다. 사전 리포트는 아래 줄을 두지 않는다.
     // `quote(early, afters)`는 리포트 날짜의 프리장 값(`r/premarket.json`)의 앞 세션이 기준 가격 날짜이고 지수 ETF 체결가가 있으면, 아래 줄에 기준 가격 대신
-    // 정규장 종가에 지수 ETF의 프리장 등락 비율을 곱한 프리마켓 가격과 그 등락률을 쓴다. 사전 리포트는 프리장 값이 없을 때 지수의 애프터장 값(`r/afterhours.json`)에서
+    // 정규장 종가에 지수 ETF의 프리장 등락 비율을 곱한 프리마켓 가격과 그 등락률을 쓴다. 그 값이 정규장 값이면 세션 이름을 정규장으로 쓴다. 사전 리포트는 프리장 값이 없을 때 지수의 애프터장 값(`r/afterhours.json`)에서
     // 기준 가격 날짜의 지수 ETF 등락 비율을 정규장 종가에 곱한 애프터마켓 가격과 그 등락률을 쓴다. 등락률은 반올림한 값으로 색을 정해 0.00%를 칠하지 않는다.
     const at = dates.indexOf(data.base_date), rate = (ratio) => Math.round(ratio * 1e4) / 100;
     const day = rate(hist[at] / hist[at - 1] - 1);
@@ -1791,7 +1807,7 @@
       const ahead = early?.session === data.base_date && early.ratio != null ? early : null;
       const behind = afters?.[data.base_date]?.ratio != null ? afters[data.base_date] : null;
       const line = (name, value) => `<small>${name} <span>${fmt(value)} ${signed(rate(value / hist[at] - 1), 2)}%</span></small>`;
-      const tail = ahead ? line("프리마켓", hist[at] * ahead.ratio) : !data.pre ? line("애프터마켓", data.base)
+      const tail = ahead ? line(ahead.phase === "regular" ? "정규장" : "프리마켓", hist[at] * ahead.ratio) : !data.pre ? line("애프터마켓", data.base)
         : behind ? line("애프터마켓", hist[at] * behind.ratio) : "";
       return `<span class="row"><span>${INDEX_NAME[key.split("-")[1]]}</span><b class="price ${tone(day)}">${fmt(hist[at])}</b>`
         + `<b class="${tone(day)}">${signed(day, 2)}%</b>${tail}</span>`;
@@ -2887,6 +2903,7 @@
   // 정규장·애프터장이나 정규장·프리장 단추를 둔다. 두 값이 다 있으면 프리장 값을 쓴다.
   // 정규장 다음 단추를 고르면 값과 등락률을 그 체결가와 마지막 종가 대비 등락률로 바꿔 회색으로 쓰고, 그림에 그 체결가를 점선으로 잇는다.
   // 처음 고르는 세션은 주소의 `session`이고, 주소에 없으면 가장 늦은 세션이다.
+  // 프리장 값이 리포트 날짜의 정규장 값이면 단추를 정규장 단추 하나로 줄이고, 그 체결가와 등락률을 등락률 색으로 쓰며 그림에 점선으로 잇는다.
   // 공시 상세 절은 탭 띠와 넘기기 묶음에 실적, 매출 구성, 최근 공시 카드를 담는다. 카드 이름 뒤 물음표 단추는 카드의 `help` 문단을 보여 주고, 그림 아래에 해설(`text`)을 둔다.
   // 재무 값이 없는 카드는 그림과 해설 대신 안내 문장(`empty`)을 쓴다. 카드가 없으면 공시 상세 절을 두지 않는다.
   function stockDetail(data) {
@@ -2925,13 +2942,13 @@
       card.prepend(Object.assign(document.createElement("div"), { className: "top" }));
       card.firstChild.append(asof);
       // `after`는 마지막 종가 날짜의 애프터장 마지막 체결가(`r/market.json` 지도 값)이고, `tail`은 그 체결가가 아직 없을 때 쓰는 애프터장 값이며,
-      // `early`는 그 다음 프리장 값이다. 없으면 null이다.
+      // `early`는 그 다음 프리장이나 정규장 값이다. 없으면 null이다.
       const asked = query.get("session"), date = `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
       let late = asked !== "regular", after = null, tail = null, early = null;
       // 정규장 다음 세션의 [체결가, 기준 시각 글씨, 마지막 종가에서 거래일 거리]. 애프터장 마지막 체결가는 애프터장이 닫히는 20:00 ET 자리다. 없으면 null이다.
-      const extra = () => early ? [early.price, sessionAt("프리마켓", early.time), afterClose(early.time)]
+      const extra = () => early ? [early.price, sessionAt(early.regular ? "정규장" : "프리마켓", early.time), afterClose(early.time, day)]
         : after != null ? [after, sessionAt("애프터마켓", afterEnd(day)), BASE_AFTER]
-        : tail ? [tail.price, sessionAt("애프터마켓", tail.time), afterClose(tail.time)] : null;
+        : tail ? [tail.price, sessionAt("애프터마켓", tail.time), afterClose(tail.time, day)] : null;
       // 가로축은 단추와 관계없이 다음 세션 값의 자리까지 담아, 단추를 바꿔도 종가 선이 움직이지 않는다.
       const plot = () => {
         const shown = extra();
@@ -2939,15 +2956,16 @@
       };
       const seg = sessionSeg((on) => { late = on; repaint(); });
       const repaint = () => {
-        const shown = extra(), on = late && shown;
-        seg.rename(!!early);
+        if (early?.regular) late = true;
+        const shown = extra(), on = late && shown, move = on ? (shown[0] / now - 1) * 100 : change;
+        seg.rename(early ? (early.regular ? "regular" : "pre") : "after");
         seg.mark(late);
         if (shown) top.append(seg.box); else seg.box.remove();
         asof.textContent = on ? shown[1] : `${md(day)} ${usZone(day)} 종가`;
         value.textContent = price(on ? shown[0] : now, "달러");
-        card.classList.toggle("ext", !!on);
-        state.lastChild.textContent = `${signed(on ? (shown[0] / now - 1) * 100 : change)}%`;
-        state.style.color = on ? "" : color;
+        card.classList.toggle("ext", !!on && !early?.regular);
+        state.lastChild.textContent = `${signed(move)}%`;
+        state.style.color = on && !early?.regular ? "" : move > 0 ? "#ff5c5c" : move < 0 ? "#5b9bff" : DIMS;
         card.querySelector(":scope > svg").replaceWith(plot());
       };
       const zoom = card.appendChild(Object.assign(document.createElement("div"), { className: "foot" }))
@@ -2980,7 +2998,7 @@
         const own = found.early[data.index]?.[date], value = own?.session === day ? own.stocks[data.symbol] ?? null : null;
         const behind = found.after[data.index]?.[day], price = behind?.stocks[data.symbol] ?? null;
         if (value === early?.price && own?.time === early?.time && price === tail?.price && behind?.time === tail?.time) return;
-        early = value == null ? null : { price: value, time: own.time };
+        early = value == null ? null : { price: value, time: own.time, regular: own.phase === "regular" };
         tail = price == null ? null : { price, time: behind.time };
         repaint();
       });
@@ -3279,7 +3297,7 @@
   const listed = fetch("r/index.json", { cache }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   // `r/market.json`은 build.py가 지수마다 적는 상위 20종목의 이름, 주식 수, 일별 종가(`map`)다. 시장 페이지의 지수 지도가 쓴다.
   const marketed = fetch("r/market.json", { cache }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
-  // `r/premarket.json`은 build.py `premarket`이 뉴욕 프리장 동안 10분마다 지수마다 적는 그날 프리장의 마지막 체결가이고, `r/afterhours.json`은
+  // `r/premarket.json`은 build.py `premarket`이 뉴욕 프리장부터 정규장 마감까지 10분마다 지수마다 적는 그날 프리장이나 정규장의 마지막 체결가이고, `r/afterhours.json`은
   // build.py `afterhours`가 사전 리포트를 올린 뒤 애프터장이 끝날 때까지 10분마다 지수마다 적는 그날 애프터장의 마지막 체결가다. 머리 상자, 지도, 지수 카드,
   // 종목 상세의 주가 카드가 쓴다. `onLive(hook)`은 두 값을 `{ early, after }`로 묶어 `hook`을 부르고, 가장 늦은 리포트를 보는 동안 화면이 보이면 5분마다,
   // 화면이 다시 보일 때마다 새로 받아 다시 부른다.
@@ -3320,14 +3338,19 @@
     if (entry) {
       document.title = `${entry.title} ${entry.day}`;
       // 머리 상자 위 날짜 줄은 "2026년 11월 13일 (금) 09:10"처럼 쓰고, 오른쪽에 목록 항목의 `stage`로 판단 배치의 단계를 쓴다. `stage`가 없는 항목은 본 리포트다.
-      // 시각은 목록 항목을 쓴 시각(`updated`)과, 리포트 날짜의 프리장 값과 리포트 날짜 앞 세션의 애프터장 값의 체결 시각 가운데 가장 늦은 서울 시각이다.
+      // 시각은 목록 항목을 쓴 시각(`updated`)과, 리포트 날짜의 프리장·정규장 값과 리포트 날짜 앞 세션의 애프터장 값의 체결 시각 가운데 가장 늦은 서울 시각이다.
+      // 시각은 리포트 날짜 0시(서울 시각)부터 센 시와 분으로 쓴다. 자정을 넘긴 정규장 값의 시각은 "25:30"처럼 24시를 넘겨 쓰고, 날짜는 리포트 날짜 그대로 둔다.
       // 실시간 값을 새로 받을 때마다 다시 쓴다.
       const [year, month, mday] = entry.date.split("-");
       const day = document.getElementById("day");
       day.textContent = `${+year}년 ${+month}월 ${+mday}일 (${"일월화수목금토"[new Date(entry.date).getUTCDay()]})`;
       const clock = day.appendChild(document.createTextNode(""));
       const updated = Date.parse(`${entry.updated.replace(" ", "T")}:00+09:00`);
-      const stamp = (moment) => { clock.data = ` ${new Date(moment + 9 * 3600e3).toISOString().slice(11, 16)}`; };
+      const midnight = Date.parse(`${entry.date}T00:00:00+09:00`);
+      const stamp = (moment) => {
+        const minutes = Math.floor((moment - midnight) / 60e3);
+        clock.data = ` ${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+      };
       stamp(updated);
       onLive((found) => {
         const values = [found.early[entry.index]?.[entry.date],
