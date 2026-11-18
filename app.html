@@ -1452,10 +1452,9 @@
     }
     const fmt = (v) => `$${Math.round(v).toLocaleString("en-US")}`;
     const signed = (v, digits = 1) => `${v > 0 ? "+" : v < 0 ? "\u2212" : ""}${Math.abs(v).toFixed(digits)}`;
-    const md = (day) => `${day.slice(5, 7)}/${day.slice(8, 10)}`;
     const path = (points) => `M${points.map(([x, y]) => `${x} ${y}`).join("L")}`;
     const last = dates.length - 1;
-    // 카드 틀. 위 줄 맥락 글씨, 가운데 줄 값과 상태, 그림 칸, 그림 아래 줄을 둔다. 맥락 글씨는 지난 날짜를 고르면 그 리포트 날짜를 앞에 붙인다.
+    // 카드 틀. 위 줄 맥락 글씨, 가운데 줄 값과 상태, 그림 칸, 그림 아래 줄을 둔다.
     // 맥락 글씨와 값은 글씨나 노드 목록으로 받고, 상태 글씨가 없으면 상태 칸을 숨긴다.
     // 맥락 글씨를 따로 받으면 카드를 만들 때의 맥락 글씨 대신 쓴다.
     const card = (ctx) => {
@@ -1463,8 +1462,8 @@
       box.innerHTML = '<div class="top"><span class="ctx"></span></div><div class="val"><b class="ink"></b><span class="state"><i></i><span></span></span></div><div class="fig"></div><div class="foot"></div>';
       const [label, value, state] = [box.querySelector(".ctx"), box.querySelector(".val b"), box.querySelector(".state")];
       const svg = box.querySelector(".fig").appendChild(shape("svg", { viewBox: `0 0 ${W} ${H}` }));
-      const head = (frame, text, big, context = ctx) => {
-        label.replaceChildren(...(frame.day === date ? [] : [`${md(frame.day)} 리포트, `]), ...[context].flat());
+      const head = (text, big, context = ctx) => {
+        label.replaceChildren(...[context].flat());
         value.replaceChildren(...[big].flat());
         state.querySelector("span").textContent = text;
         state.hidden = !text;
@@ -1678,9 +1677,9 @@
         c.box.classList.toggle("ext", !!ext && !p && !regular);
         c.box.querySelector(".state").className = `state ${p ? "" : ext ? (regular ? tone(move) : "") : tone(session)}`;
         c.box.querySelector(".val b").className = p ? "ink" : "";
-        if (ext && !p) c.head(f, `${signed(move, 2)}%`, fmt(ext[0]), sessionTag(ext[2], ext[1]));
-        else if (p) c.head(f, `${signed((end(f, "q50") / f.base - 1) * 100)}%`, fmt(end(f, "q50")));
-        else c.head(f, `${signed(session, 2)}%`, fmt(hist[stop]), sessionTag("regular", sessionAt("정규장", closeAt(dates[stop]))));
+        if (ext && !p) c.head(`${signed(move, 2)}%`, fmt(ext[0]), sessionTag(ext[2], ext[1]));
+        else if (p) c.head(`${signed((end(f, "q50") / f.base - 1) * 100)}%`, fmt(end(f, "q50")));
+        else c.head(`${signed(session, 2)}%`, fmt(hist[stop]), sessionTag("regular", sessionAt("정규장", closeAt(dates[stop]))));
         tween(span, span, 1);
       };
       return {
@@ -1744,7 +1743,7 @@
         values.replaceChildren(...["90", "75", "25", "10"].map((q) => shape("circle", { cx: X(d), cy: Y(pct[q][d]), r: 1.6, fill: ink(q) })),
           ...["90", "75", "25", "10"].map((q, k) => shape("text", { x: X(d) + (right ? 5 : -5), y: at[k] + shift, "font-size": 11, fill: ink(q),
           "text-anchor": right ? "start" : "end", stroke: "#171719", "stroke-width": 3, "stroke-linejoin": "round", "paint-order": "stroke" }, `${signed(pct[q][d])}%`)));
-        c.head(frame, "", [...percent(pct["25"][d]), Object.assign(document.createElement("span"), { className: "sep", textContent: "~" }), ...percent(pct["75"][d])],
+        c.head("", [...percent(pct["25"][d]), Object.assign(document.createElement("span"), { className: "sep", textContent: "~" }), ...percent(pct["75"][d])],
           `${d}거래일 뒤 범위`);
         line.replaceChildren(Object.assign(document.createElement("span"), { className: "d", textContent: day }),
           Object.assign(document.createElement("span"), { className: "n", textContent: names.length ? names.join(", ") : "예측 마지막 날" }));
@@ -1818,7 +1817,7 @@
         box: c.box,
         show(f) {
           const den = f.chart, n = den.points, m = 1 + den.mean;
-          c.head(f, "", m.toFixed(3));
+          c.head("", m.toFixed(3));
           const xs = Array.from({ length: n }, (_, i) => 1 + den.low + (den.high - den.low) * i / (n - 1));
           const X = (v) => L + (v - xs[0]) / (xs[n - 1] - xs[0]) * (R - L), peak = Math.max(...den.today, ...den.quiet);
           const Y = (v) => B - v / peak * (B - T);
