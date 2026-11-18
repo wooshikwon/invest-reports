@@ -87,13 +87,14 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `r/premarket.json`에는 지수마다 리포트 날짜와 같은 뉴욕 날짜를 키로 그날 프리장과 정규장의 마지막 체결가를 적는다(`premarket`). 값은 지수 ETF의
 앞 세션 정규장 종가 대비 비율(`ratio`), 지도 종목마다의 체결가(`stocks`), 값을 받은 시각(`time`), 앞 세션 날짜(`session`)와 그 시각의 세션(`phase`)이다.
 cron이 프리장이 열릴 때부터 정규장이 닫힐 때까지 부른다. 프리장 값은 10분마다 받고, 정규장이 열리면 첫 회차가 프리장 값을 정규장 값으로 덮은 뒤
-정시와 30분에만 정규장 값을 다시 받으며, 정규장이 닫힌 뒤에는 마감 값을 한 번 받아 그대로 둔다.
+정시와 30분에만 정규장 값을 다시 받으며, 정규장이 닫힌 뒤에는 마감 값을 한 번 받아 그대로 둔다. 덮기 전 프리장 마지막 값은 정규장 값의 `pre`에 옮긴다.
 미니 앱은 프리장 값이면 그 날짜 리포트의 머리 상자 아래 줄을 프리마켓 값으로 바꾸고,
 지도의 단추를 `정규장 | 다음날 프리마켓`으로 바꿔 애프터장 값 자리에 프리장 체결가와 정규장 종가 대비 등락률을 쓴다.
 요약 절의 지수 카드와 종목 상세 페이지의 주가 카드도 같은 값으로 위 줄 오른쪽에 `정규장 | 애프터마켓`이나 `정규장 | 프리마켓` 단추를 두고,
 정규장 다음 단추를 고르면 값과 등락률을 회색으로 쓰고 그림에 그 체결가를 점선으로 잇는다. 지도와 두 카드는 처음에 가장 늦은 세션을 고른다.
-정규장 값이면 지도와 두 카드, 종목 상세 주가 카드의 단추를 정규장 단추 하나로 바꿔 그 체결가와 앞 세션 종가 대비 등락률을 쓰고, 예측 카드도 그 체결가를 점선으로 잇는다.
-머리 상자 아래 줄은 정규장 값으로, 날짜 줄의 시각은 값을 받은 시각을 리포트 날짜 0시부터 센 서울 시각(`25:30`)으로 바꾼다.
+정규장 값은 그 정규장이 열릴 때 만든 다음날 사전 리포트(목록 항목의 `live`)만 그리고, 앞 리포트는 정규장 값 대신 `pre`의 프리장 마지막 값을 쓴다.
+다음날 사전 리포트는 지도와 두 카드, 종목 상세 주가 카드의 단추를 정규장 단추 하나로 바꿔 그 체결가와 앞 세션 종가 대비 등락률을 쓰고,
+머리 상자 위 줄과 달력의 그 날짜 칸도 정규장 값으로 바꾼다. 날짜 줄의 시각은 값을 받은 시각을 리포트 날짜 0시부터 센 서울 시각으로 쓰므로 `-00:30`처럼 시작한다.
 `r/afterhours.json`에는 지수마다 뉴욕 세션 날짜를 키로 그날 애프터장의 마지막 체결가를 같은 모양(`ratio`, `stocks`, `time`)으로 적는다(`afterhours`).
 cron이 사전 리포트를 올린 16:30 ET부터 애프터장이 닫히는 20:00 ET까지 10분마다 부르고, 지도 날짜보다 앞 날짜의 값은 지운다.
 미니 앱은 사전 리포트의 머리 상자 아래 줄에 정규장 종가를 지수 ETF 비율로 옮긴 애프터마켓 값을, 오른쪽 아래에 값을 받은 서울 시각을 쓴다.
@@ -113,15 +114,18 @@ ETF 눈금을 지수 눈금으로 늘려 적는다(`card_scale`). 공개본이 �
 같은 판단 값과 그날 기준 가격 뒤의 실제 종가 수익률(%)을 쓴다. `invest-reports` 미니 앱은 카드 값으로 그림 카드를
 그리고, 슬라이더를 옮기면 그날 판단 값으로 세 카드를 다시 그린다.
 
-`--stage pre`는 판단 배치가 돌기 전에 그날 리포트 키로 사전 리포트를 만든다. 사전 리포트는 그 지수의 가장 늦은 본 리포트 공개본에서
+`--stage pre`는 판단 배치가 돌기 전에 그날 리포트 키로 사전 리포트를 만든다. cron은 전날 뉴욕 정규장이 열릴 때 한 번, 닫힌 뒤에 한 번 부른다.
+정규장 중에는 그 앞 세션까지의 종가로 만들고 목록 항목의 `live`에 전날 날짜를 적으며, 닫힌 뒤에는 전날까지의 종가로 다시 만들고 `live`를 지운다.
+사전 리포트는 그 지수의 가장 늦은 본 리포트 공개본에서
 `1개월 지수 방향 예측` 절의 본문과 카드 값을 빼고, 이슈 소제목의 `data-new`를 지우고 `data-age`를 그날 기준으로 다시 단다.
 `미국 거시 지표` 카드 값은 그 시각까지 `reference.db`에 적재한 값으로 판단 배치와 같은 `render_inputs.py` 함수가 만든 입력에서 다시 뽑고,
 지표 소제목 뒤의 해설은 지운다.
 카드 값은 `pre`를 참으로 두고 전날까지 `PRICE_YEARS`년 종가를 담는다.
 `invest-reports` 미니 앱은 지수 카드 한 장만 종가 선으로 그리고, 그날 종가의 등락률을 등락 색으로 적는다.
 되감기 슬라이더는 앞 날짜의 판단과 사전 리포트의 종가를 고르게 하고, 예측·일정·권장 배율 카드는 두지 않는다. 이벤트 캘린더와 이슈 그림은 앞 리포트의 것을 그대로 쓴다.
-`r/index.json` 항목에는 `stage: "pre"`와 전날 정규장 `session`·`close`만 적은 `moves`를 쓰고, 앞 날짜의 사전 리포트 항목과 폴더는 지운다.
-전날이 뉴욕 정규장 세션이 아니면 종료 코드 3, 그날 본 리포트가 이미 있으면 종료 코드 4로 끝내고 아무것도 쓰지 않는다. 전날 세션의 종가가 `reference.db`에 아직 없으면 실패로 끝낸다.
+`r/index.json` 항목에는 `stage: "pre"`와 전날 정규장 `session`·`close`만 적은 `moves`를 쓰고(정규장 중에는 둘 다 `null`), 앞 날짜의 사전 리포트 항목과 폴더는 지운다.
+전날이 뉴욕 정규장 세션이 아니거나 전날 정규장이 아직 열리지 않았으면 종료 코드 3, 그날 본 리포트가 이미 있거나, 정규장 중 사전 리포트가 있는데 정규장이 닫히기 전에 다시 부르면 종료 코드 4로 끝내고 아무것도 쓰지 않는다.
+끝낼 세션의 종가가 `reference.db`에 아직 없으면 실패로 끝낸다.
 `--stage running`은 그날 사전 리포트 항목의 `stage`를 `running`으로 바꾸고, 판단 배치가 애프터장이 끝난 뒤 시작하므로 `r/market.json`을 다시 써서 전날 애프터장 값을 단다. 본 리포트를 만들면 같은 키의 항목을 새로 쓰므로 `stage`가 없어지고,
 `invest-reports` 미니 앱은 `stage`가 없는 항목을 분석 완료로 그린다. 날짜 줄 끝에는 `updated`와 리포트 날짜의 프리장 값, 리포트 날짜 앞 세션의
 애프터장 값의 체결 시각 가운데 가장 늦은 시각을 적는다. 미니 앱은 `상세 이슈 해설` 절의 이슈 목록 위에 분석 완료 시각을 "11/17 11:43 KST"처럼 적는다.
@@ -538,7 +542,8 @@ def premarket(vault: Path, out: Path) -> Path | None:
     뒤이면 `regular`, 아니면 `pre`다. 체결가는 그 시각까지의 마지막 체결가를 토스 1분봉에서, 답하지 않으면 야후 1분봉에서 받는다
     (`price_source.batch_time_price`). 마지막 체결이 오늘 `PREMARKET_OPEN` 전이면 오늘 체결이 없으므로 null이다.
     끝 시각은 지금과 오늘 정규장이 닫히는 시각(`exchange_calendars`의 마감 시각, 조기 폐장일은 그날의 마감 시각) 가운데 이른 쪽이라,
-    정규장이 열리면 프리장 값을 정규장 값으로 덮고, 정규장이 닫힌 뒤에는 정규장 마지막 체결가가 남는다.
+    정규장이 열리면 프리장 값을 정규장 값으로 덮고, 정규장이 닫힌 뒤에는 정규장 마지막 체결가가 남는다. 정규장 값에는 덮기 전 프리장 마지막 값의
+    `time`, `ratio`, `stocks`를 `pre`로 옮겨 둔다.
     정규장 값은 정규장이 열린 뒤 첫 회차와 끝 시각의 분이 `REGULAR_EVERY`로 나누어떨어지는 회차, 마감 값을 받는 회차에만 쓴다.
     마감 체결이 1분봉에 실리도록 마감 뒤 5분 동안은 쓰지 않는다.
     오늘이 뉴욕 정규장 세션이 아니거나, 지금이 `PREMARKET_OPEN` 전이거나, 마감 뒤 5분 안이거나, 정규장 값을 다시 받을 회차가 아니거나, 오늘 값을 정규장 마감까지 이미 받았으면 쓰지 않고 `None`이다.
@@ -577,8 +582,12 @@ def premarket(vault: Path, out: Path) -> Path | None:
     for index, found in board.items():
         etf = trade(etfs[index])
         own = kept.setdefault(index, {})
+        before = own.get(today.isoformat())
+        dawn = before and (before.get("pre") if before["phase"] == "regular" else {name: before[name] for name in ("time", "ratio", "stocks")})
         own[today.isoformat()] = {"session": session, "time": end.isoformat(), "phase": phase, "ratio": etf and round(etf["ratio"], 6),
                                   "stocks": {stock["symbol"]: (got := trade(stock["symbol"])) and round(got["price"], 2) for stock in found["stocks"]}}
+        if phase == "regular" and dawn:
+            own[today.isoformat()]["pre"] = dawn
         for day in [day for day in own if day < found["dates"][0]]:
             del own[day]
     target.write_text(json.dumps(kept, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -1534,8 +1543,10 @@ def pre(date: str, index: str, vault: Path, out: Path) -> str:
     """리포트 날짜 `date`의 사전 리포트를 그 지수의 가장 늦은 본 리포트 공개본으로 만든다. 목록 항목의 `stage`는 `pre`이고,
     이미 `running`으로 바꾼 사전 리포트를 다시 만들면 `running`을 그대로 둔다.
 
-    전날이 뉴욕 정규장 세션이 아니면 만들지 않고 종료 코드 3으로 끝낸다. 그날 본 리포트가 이미 있으면 종료 코드 4로 끝낸다.
-    전날 세션의 종가가 `reference.db`에 아직 없으면 실패로 끝낸다.
+    전날 뉴욕 정규장이 열린 뒤 닫히기 전에 부르면 그 앞 세션까지의 종가로 만들고, 목록 항목의 `live`에 전날 날짜를 적는다.
+    미니 앱은 `live`가 있는 리포트에 전날 정규장의 실시간 값을 그린다. 전날 정규장이 닫힌 뒤에 부르면 전날까지의 종가로 다시 만들고 `live`를 지운다.
+    전날이 뉴욕 정규장 세션이 아니거나 전날 정규장이 아직 열리지 않았으면 만들지 않고 종료 코드 3으로 끝낸다.
+    그날 본 리포트가 이미 있거나, `live`가 있는 사전 리포트가 있는데 정규장이 닫히기 전에 다시 부르면 종료 코드 4로 끝낸다. 끝낼 세션의 종가가 `reference.db`에 아직 없으면 실패로 끝낸다.
     """
     day = dt.date.fromisoformat(date)
     key = f"{date.replace('-', '')}-{index}"
@@ -1544,20 +1555,30 @@ def pre(date: str, index: str, vault: Path, out: Path) -> str:
         print(f"본 리포트가 이미 있다: {key}", file=sys.stderr)
         sys.exit(4)
     session = day - dt.timedelta(days=1)
-    if not exchange_calendars.get_calendar("XNYS").is_session(session.isoformat()):
+    xnys = exchange_calendars.get_calendar("XNYS")
+    if not xnys.is_session(session.isoformat()):
         print(f"전날 뉴욕 정규장이 열리지 않았다: {session}", file=sys.stderr)
         sys.exit(3)
+    now = dt.datetime.now(NEW_YORK)
+    if now < xnys.session_open(session.isoformat()).to_pydatetime():
+        print(f"전날 뉴욕 정규장이 아직 열리지 않았다: {session}", file=sys.stderr)
+        sys.exit(3)
+    live = now < xnys.session_close(session.isoformat()).to_pydatetime()
+    if live and entries.get(key, {}).get("live"):
+        print(f"정규장 중 사전 리포트가 이미 있다: {key}", file=sys.stderr)
+        sys.exit(4)
+    last = xnys.previous_session(session.isoformat()).date() if live else session
     chart = predictions_chart(vault)
     con = sqlite3.connect(f"file:{chart.path_bands.REFERENCE_DB_PATH}?mode=ro", uri=True)
     try:
         history = con.execute(
             "SELECT price_date, close FROM market_price WHERE ticker=? AND price_date BETWEEN ? AND ? ORDER BY price_date",
             (chart.path_bands.SECTOR_DB_TICKERS[index], (day - dt.timedelta(days=round(365.25 * PRICE_YEARS) + 1)).isoformat(),
-             session.isoformat())).fetchall()
+             last.isoformat())).fetchall()
     finally:
         con.close()
-    if not history or history[-1][0] != session.isoformat():
-        raise SystemExit(f"전날 정규장 종가가 reference.db에 없다: {index} 마지막 종가 {history[-1][0] if history else '없음'}")
+    if not history or history[-1][0] != last.isoformat():
+        raise SystemExit(f"{last} 정규장 종가가 reference.db에 없다: {index} 마지막 종가 {history[-1][0] if history else '없음'}")
     for name in [name for name, entry in entries.items()
                  if entry["index"] == index and entry.get("stage") and entry["date"] < date]:
         del entries[name]
@@ -1589,7 +1610,10 @@ def pre(date: str, index: str, vault: Path, out: Path) -> str:
     close, before = history[-1][1], history[-2][1]
     entries[key] = {"title": entries[previous]["title"], "day": f"{date} ({'월화수목금토일'[day.weekday()]})", "date": date,
                     "index": index, "stage": entries.get(key, {}).get("stage", "pre"), "updated": dt.datetime.now(SEOUL).strftime("%Y-%m-%d %H:%M"),
-                    "moves": {"session": round((close / before - 1) * 100, 2) + 0.0, "after": None, "close": round(close, 2), "base": None}}
+                    "moves": {"session": None if live else round((close / before - 1) * 100, 2) + 0.0, "after": None,
+                              "close": None if live else round(close, 2), "base": None}}
+    if live:
+        entries[key]["live"] = session.isoformat()
     write_entries(out, entries)
     market(vault, out)
     return key

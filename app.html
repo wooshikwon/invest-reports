@@ -55,7 +55,8 @@
      아래 줄은 지수 이름과 같은 왼쪽 끝에서 "애프터마켓 $27,712 −0.83%"처럼 리포트 판단의 기준 가격과 기준 가격의 정규장 종가 대비 등락률을 쓴다. 기준 가격은 정규장 뒤 애프터마켓 거래까지 반영한 마지막 가격이다.
      사전 리포트는 애프터장 값이 오면 아래 줄에 정규장 종가를 지수 ETF의 애프터장 체결가로 옮긴 가격과 그 등락률을 쓰고, 값은 애프터장이 끝날 때까지 10분마다 바뀐다.
      리포트 날짜에 뉴욕 프리장이 열려 프리장 값이 오면 아래 줄을 "프리마켓 $27,850 +0.50%"처럼 정규장 종가를 지수 ETF의 프리장 체결가로 옮긴 가격과 그 등락률로 바꾼다.
-     정규장이 열려 정규장 값이 오면 아래 줄을 지우고, 위 줄을 "나스닥 $27,850 +0.50%"처럼 같은 방법으로 옮긴 정규장 가격과 그 등락률로 바꾸며, 장이 끝나면 마감 값에서 멈춘다.
+     정규장이 열리면 그 정규장의 값은 그때 만든 다음날 사전 리포트가 그리고, 앞 리포트의 아래 줄은 프리장 마지막 값에서 멈춘다. 다음날 사전 리포트는 정규장 값이 오면 아래 줄을 지우고,
+     위 줄을 "나스닥 $27,850 +0.50%"처럼 같은 방법으로 옮긴 정규장 가격과 그 등락률로 바꾸며, 장이 끝나면 마감 값에서 멈춘다.
      지수 이름과 정규장 가격은 절 제목과 같은 크기로, 정규장 등락률은 그보다 작은 13px로 쓴다. 아래 줄은 모두 13px의 굵은 글씨로 쓴다.
      정규장 가격과 정규장 등락률은 정규장 등락률이 오르면 빨강, 내리면 파랑으로 칠한다. 아래 줄의 세션 이름과 가격, 등락률은 다음 정규장 전의 임시 값이므로 모두 회색으로 쓴다.
      상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 페이지 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
@@ -1481,7 +1482,7 @@
     // 프리장 값(`early`)은 정규장 종가에 지수 ETF의 프리장 등락 비율을 곱한 값이며, 프리장 값이 있으면 프리장 값을 쓴다.
     // 정규장 다음 단추를 고르면 위 줄에 그 세션 이름과 시각을, 가운데 줄에 그 값과 정규장 종가 대비 등락률을 회색으로 적는다.
     // 리포트 날짜의 프리장 값이 정규장 값(`phase`가 `regular`)이면 단추를 정규장 단추 하나로 줄이고, 위 줄에 정규장과 시각을, 가운데 줄에 그 값과 앞 종가 대비 등락률을 등락률 색으로 적는다.
-    // 지난 날짜의 프리장 값이 정규장 값이면 그날 판단의 기준 가격을 쓴다.
+    // 정규장 값은 전날 정규장이 열릴 때 만든 사전 리포트만 받는다(`onLive`).
     // 본 리포트의 애프터장 값은 종가 네 시간 뒤에, 사전 리포트의 애프터장 값과 프리장 값, 정규장 값은 그 체결 시각 자리(`afterClose`)에 흰 점으로 찍어 마지막 종가 점에서 점선으로 잇는다.
     // 가로축 범위는 단추와 관계없이 같아서, 단추를 바꿔도 종가의 자리가 움직이지 않는다. 리포트 날짜는 가장 늦은 세션을, 지난 날짜는 정규장을 고른다.
     // 단추를 누르면 되감기 슬라이더가 다른 날짜를 고를 때까지 누른 세션을 유지한다.
@@ -1490,7 +1491,6 @@
     // 가운데 줄은 25거래일 뒤 50% 값을 지수색 그라데이션으로 쓰고, 판단 색 점 뒤에 "−1.8%"처럼 기준 가격 대비 등락률을 적는다.
     // 고른 날짜가 리포트 날짜보다 앞이면 종가 선은 그날 판단의 출발점에서 다시 이어 리포트 날짜 판단의 기준 가격 날짜 종가까지 그리고,
     // 종가 네 시간 뒤(`BASE_AFTER`)에 리포트 날짜 판단의 기준 가격을 점으로 찍어 점선으로 잇는다. 판단의 25거래일 예측은 기준 가격 점에서 출발해 날마다 그 거래일 종가 자리에 놓는다.
-    // 리포트 날짜의 정규장 값이 있으면 리포트 날짜 판단의 기준 가격 점에서 정규장 값의 흰 점까지 점선으로 잇고, 위 줄과 가운데 줄은 예측 값을 그대로 쓴다.
     let clips = 0;
     const priceCard = (aim) => {
       const c = card("25거래일 뒤 예측 중앙값"), s = c.svg, clipId = `predict-clip-${clips++}`;
@@ -1505,7 +1505,7 @@
       const extra = (f) => {
         if (f.day !== date) {
           const dawn = earlies[f.day];
-          if (dawn?.session === f.base_date && dawn.ratio != null && dawn.phase !== "regular") {
+          if (dawn?.session === f.base_date && dawn.ratio != null) {
             return [hist[at(f)] * dawn.ratio, at(f) + afterClose(dawn.time, f.base_date), sessionAt("프리마켓", dawn.time), "pre"];
           }
           return [f.base, at(f) + BASE_AFTER, sessionAt("애프터마켓", afterEnd(f.base_date)), "after"];
@@ -1579,7 +1579,7 @@
             group.append(shape("text", { x: Math.min(Math.max(X(i), L + 30), R - 30), y: Y(hist[i]) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${fmt(hist[i])}`));
           });
         };
-        // 기준 가격 점이 아닌 정규장 다음 세션 값은 앞 점(기준 가격 점, 없으면 마지막 종가 점)에서 점선으로 잇는다.
+        // 정규장 다음 세션 값은 마지막 종가 점에서 점선으로 잇는다.
         const dawn = (from) => {
           if (!ext) return;
           const to = [X(ext[1]), Y(ext[0])];
@@ -1606,7 +1606,6 @@
         if (marks) extremes();
         if (last > fx) s.append(shape("circle", { cx: today[0], cy: today[1], r: 2.5, fill: PRICE }));
         s.append(shape("circle", { cx: origin[0], cy: origin[1], r: 2.5, fill: "#EAEAEA", stroke: "#171719", "stroke-width": 1 }));
-        dawn(last > fx ? today : origin);
       };
       // `from` 기간에서 `to` 기간으로 가는 도중 `t`(0~1) 지점의 그림. 왼쪽 끝과 세로 범위를 같은 곡선으로 옮기고, 넓히는 동안 새로 들어온
       // 과거 종가가 범위 밖이면 범위를 그만큼 먼저 넓혀 선이 가로축 아래로 내려가지 않게 한다.
@@ -1629,7 +1628,7 @@
       wider.addEventListener("click", () => move(-1));
       narrower.addEventListener("click", () => move(1));
       // 되감기 슬라이더가 다른 날짜를 고르면 사용자가 고른 단추를 지우고, 리포트 날짜는 가장 늦은 세션을, 지난 날짜는 정규장을 고른다.
-      // 리포트 날짜의 정규장 값은 늘 고른 채로 둔다. 예측 카드는 리포트 날짜의 정규장 값만 점선으로 그린다.
+      // 리포트 날짜의 정규장 값은 늘 고른 채로 둔다. 예측 카드는 정규장 다음 세션 값을 그리지 않는다.
       const show = (f) => {
         if (f !== frame) chosen = false;
         frame = f;
@@ -1640,7 +1639,7 @@
           xmax = stop + 1;
         }
         const session = Math.round((hist[stop] / hist[stop - 1] - 1) * 1e4) / 100, found = extra(f);
-        const shown = !p || (now && found?.[3] === "regular") ? found : null, regular = shown?.[3] === "regular";
+        const shown = p ? null : found, regular = shown?.[3] === "regular";
         if (!chosen || regular) late = !!shown && now;
         ext = shown && late ? shown : null;
         seg.rename(shown?.[3] ?? "after");
@@ -3159,6 +3158,7 @@
   // 머리 상자 오른쪽 끝에 달력 단추를 단다. `listing`은 `r/index.json`이다. 달력은 보고 있는 리포트의 지수와 달부터 보여 주고, 단추를 누르거나 달력을 옆으로 밀어 그림 넘기기와 같은 속도와 곡선으로 달을 넘기고,
   // 고른 지수의 리포트가 있는 첫 달과 마지막 달 밖으로는 넘기지 않는다. 리포트가 있는 지수가 둘 이상이면 달 이름 위의 두 칸 단추로 지수를 바꾸고, 보던 달이 그 지수의 달 범위 밖이면 범위 안의 가장 가까운 달을 보여 준다.
   // 리포트가 있는 날짜를 누르면 고른 지수의 그날 리포트를 연다. 달력이 떠 있는 동안 달력 단추를 다시 누르면 달력을 닫는다. 정규장 등락률이 `null`이면 `—`로 적는다.
+  // 전날 정규장이 열릴 때 만든 사전 리포트(목록 항목의 `live`)의 날짜에는 그 정규장 값(`r/premarket.json`)의 앞 종가 대비 등락률을 적고, 정규장 값이 없으면 `—`로 적는다.
   const CALENDAR = '<svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">'
     + '<rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M3 8.5h14M7 2.8v3M13 2.8v3"/></svg>';
   const CHEVRON = (d) => `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
@@ -3167,9 +3167,15 @@
     const order = Object.keys(INDEX).filter((name) => latest(listing, name));
     if (!order.includes(index)) return;
     // `pick` 지수의 리포트 날짜마다 정규장 등락률을 담은 표와 리포트가 있는 달 목록을 만든다.
+    let regular = {};
+    onLive((found) => { regular = found.regular; });
+    const session = (entry) => {
+      if (!entry.live) return entry.moves ? entry.moves.session : null;
+      const ratio = regular[entry.index]?.[entry.live]?.ratio;
+      return ratio == null ? null : Math.round((ratio - 1) * 1e4) / 100;
+    };
     const browse = (pick) => {
-      const moves = new Map(Object.values(listing).filter((entry) => entry.index === pick)
-        .map((entry) => [entry.date, entry.moves ? entry.moves.session : null]));
+      const moves = new Map(Object.values(listing).filter((entry) => entry.index === pick).map((entry) => [entry.date, session(entry)]));
       return { moves, months: [...moves.keys()].map((day) => day.slice(0, 7)).sort() };
     };
     const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
@@ -3320,12 +3326,27 @@
   const marketed = fetch("r/market.json", { cache }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   // `r/premarket.json`은 build.py `premarket`이 뉴욕 프리장부터 정규장 마감까지 10분마다 지수마다 적는 그날 프리장이나 정규장의 마지막 체결가이고, `r/afterhours.json`은
   // build.py `afterhours`가 사전 리포트를 올린 뒤 애프터장이 끝날 때까지 10분마다 지수마다 적는 그날 애프터장의 마지막 체결가다. 머리 상자, 지도, 지수 카드,
-  // 종목 상세의 주가 카드가 쓴다. `onLive(hook)`은 두 값을 `{ early, after }`로 묶어 `hook`을 부르고, 가장 늦은 리포트를 보는 동안 화면이 보이면 5분마다,
+  // 종목 상세의 주가 카드가 쓴다. `onLive(hook)`은 두 값을 `{ early, after, regular }`로 묶어 `hook`을 부르고, 가장 늦은 리포트를 보는 동안 화면이 보이면 5분마다,
   // 화면이 다시 보일 때마다 새로 받아 다시 부른다.
+  // 정규장 값은 그 세션이 열릴 때 만든 다음날 사전 리포트(목록 항목의 `live`가 그 세션 날짜인 리포트)만 그린다. 그 리포트는 `early`에서 그 값을
+  // 리포트 날짜 키로 받고, 다른 리포트는 정규장 값 대신 그날 프리장의 마지막 값(`pre`)을 받는다. `regular`는 지수마다 뉴욕 날짜별 정규장 값이다.
   const hooks = [];
   let lived = null;
-  const live = () => (lived = Promise.all(["premarket", "afterhours"].map((name) =>
-    fetch(`r/${name}.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})))).then(([early, after]) => ({ early, after })));
+  const live = () => (lived = Promise.all([...["premarket", "afterhours"].map((name) =>
+    fetch(`r/${name}.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}))), listed]).then(([found, after, listing]) => {
+    const own = listing[key], early = {}, regular = {};
+    Object.entries(found).forEach(([index, days]) => {
+      early[index] = {};
+      regular[index] = {};
+      Object.entries(days).forEach(([day, value]) => {
+        if (value.phase !== "regular") return (early[index][day] = value);
+        regular[index][day] = value;
+        early[index][day] = value.pre ? { ...value.pre, session: value.session, phase: "pre" } : null;
+      });
+      if (own?.live && own.index === index) early[index][own.date] = days[own.live] ?? null;
+    });
+    return { early, after, regular };
+  }));
   const onLive = (hook) => { hooks.push(hook); (lived || live()).then(hook); };
   const refresh = () => {
     if (!hooks.length || document.visibilityState !== "visible" || document.documentElement.classList.contains("past")) return;
@@ -3360,7 +3381,7 @@
       document.title = `${entry.title} ${entry.day}`;
       // 머리 상자 위 날짜 줄은 "2026년 11월 13일 (금) 09:10 KST"처럼 쓰고, 오른쪽에 목록 항목의 `stage`로 판단 배치의 단계를 쓴다. `stage`가 없는 항목은 본 리포트다.
       // 시각은 목록 항목을 쓴 시각(`updated`)과, 리포트 날짜의 프리장·정규장 값과 리포트 날짜 앞 세션의 애프터장 값의 체결 시각 가운데 가장 늦은 서울 시각이다.
-      // 시각은 리포트 날짜 0시(서울 시각)부터 센 시와 분으로 쓴다. 자정을 넘긴 정규장 값의 시각은 "25:30 KST"처럼 24시를 넘겨 쓰고, 날짜는 리포트 날짜 그대로 둔다.
+      // 시각은 리포트 날짜 0시(서울 시각)부터 센 시와 분으로 쓴다. 전날 정규장이 열릴 때 만든 사전 리포트처럼 0시 앞의 시각은 "-00:30 KST"처럼 앞에 -를 붙여 쓰고, 날짜는 리포트 날짜 그대로 둔다.
       // 실시간 값을 새로 받을 때마다 다시 쓴다.
       const [year, month, mday] = entry.date.split("-");
       const day = document.getElementById("day");
@@ -3369,8 +3390,8 @@
       const updated = Date.parse(`${entry.updated.replace(" ", "T")}:00+09:00`);
       const midnight = Date.parse(`${entry.date}T00:00:00+09:00`);
       const stamp = (moment) => {
-        const minutes = Math.floor((moment - midnight) / 60e3);
-        clock.data = ` ${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")} KST`;
+        const minutes = Math.floor((moment - midnight) / 60e3), size = Math.abs(minutes);
+        clock.data = ` ${minutes < 0 ? "-" : ""}${String(Math.floor(size / 60)).padStart(2, "0")}:${String(size % 60).padStart(2, "0")} KST`;
       };
       stamp(updated);
       onLive((found) => {
