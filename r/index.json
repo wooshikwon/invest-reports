@@ -4,28 +4,28 @@
   "day": "2026-11-18 (수)",
   "date": "2026-11-18",
   "index": "nasdaq",
-  "stage": "pre",
+  "stage": "running",
   "moves": {
    "session": -0.72,
    "after": null,
    "close": 656.83,
    "base": null
   },
-  "updated": "2026-11-18 06:30"
+  "updated": "2026-11-18 10:00"
  },
  "20261118-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-18 (수)",
   "date": "2026-11-18",
   "index": "biotech",
-  "stage": "pre",
+  "stage": "running",
   "moves": {
    "session": -0.71,
    "after": null,
    "close": 203.31,
    "base": null
   },
-  "updated": "2026-11-18 06:30"
+  "updated": "2026-11-18 10:01"
  },
  "20261117-nasdaq": {
   "title": "나스닥 리포트",
