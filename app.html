@@ -17,8 +17,6 @@
     --accent: #EAEAEA;
     /* 절 제목, 선택되지 않은 날짜는 본문보다 연한 회색 하나로 쓴다. */
     --dim: #7A828C;
-    /* 돋보기 그림은 줌 단계와 예측 필터가 같이 쓰는 가림막(mask)이다. */
-    --magnifier: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='6' cy='6' r='4.3'/%3E%3Cpath d='M9.2 9.2L12.6 12.6'/%3E%3C/svg%3E");
     --index: var(--hint);
     --index-to: var(--hint);
     /* 지수색 글자와 별은 왼쪽의 짙은 옆 색상에서 오른쪽의 지수색으로 천천히 옮겨 가는 그라데이션으로 칠한다.
@@ -560,7 +558,8 @@
   .gauge .zoom .steps i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, .22); }
   /* 고른 기간의 돋보기는 + 쪽 기간일수록 크게 그린다. 차지하는 너비는 11px로 두어 크기가 바뀌어도 −, + 단추가 움직이지 않는다. */
   .gauge .zoom .steps i.on { --size: 12.1px; width: var(--size); height: var(--size); margin: 0 calc((11px - var(--size)) / 2); border-radius: 0; background: #fff;
-    -webkit-mask: var(--magnifier) center / contain no-repeat; mask: var(--magnifier) center / contain no-repeat; }
+    -webkit-mask: var(--magnifier) center / contain no-repeat; mask: var(--magnifier) center / contain no-repeat;
+    --magnifier: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='6' cy='6' r='4.3'/%3E%3Cpath d='M9.2 9.2L12.6 12.6'/%3E%3C/svg%3E"); }
   .gauge .zoom .steps i.on:nth-child(1) { --size: 7.7px; }
   .gauge .zoom .steps i.on:nth-child(2) { --size: 9.9px; }
   .gauge .zoom .steps i.on:nth-child(4) { --size: 14.3px; }
@@ -599,15 +598,15 @@
   :is(.indexmap > .top, .gauge .top) .session { flex: none; margin: -6px 0 -6px auto; align-self: center; }
   /* 주가와 예측 카드와 종목 상세 주가 카드는 맨 위 줄에 기준 시각을 흐린 작은 글씨로 쓰고, 그 아래 이름 줄에 지수나 종목 이름과 세션 단추를 둔다. */
   .gauge .top.title { margin-top: 3px; }
-  /* 1개월 예측 절 제목은 오른쪽 끝에 예측 필터 단추(`aim`)를 둔다. 단추는 세션 단추와 같은 바탕에 이름을 쓰고, 켜면 고른 세션 단추처럼 밝게 칠한다.
-     필터를 켠 주가와 예측 카드는 이름 줄 오른쪽 끝에 세션 단추 대신 돋보기(`lens`)를 그린다. */
+  /* 1개월 예측 절 제목은 오른쪽 끝에 예측 필터 단추(`aim`)를 "예측 ON | OFF" 글씨로 둔다. 켠 쪽은 ON을 빨간색으로, 끈 쪽은 OFF를 파란색으로 쓰고,
+     고르지 않은 쪽은 회색으로 쓴다. 글씨는 `data-label`로 그려 절 제목 글자에 넣지 않는다. */
   h2:has(> .aim) { display: flex; align-items: center; }
-  h2 > .aim { order: 1; flex: none; margin: -4px 0 -4px auto; padding: 4px 10px; border: 0; border-radius: 9px; background: rgba(255, 255, 255, .06);
-              color: var(--hint); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
-  h2 > .aim::before { content: attr(data-label); }
-  h2 > .aim.on { background: rgba(255, 255, 255, .16); color: #fff; }
-  .gauge .top .lens { flex: none; width: 16px; height: 16px; margin: -6px 11px -6px auto; align-self: center; background: #fff;
-                      -webkit-mask: var(--magnifier) center / contain no-repeat; mask: var(--magnifier) center / contain no-repeat; }
+  h2 > .aim { order: 1; flex: none; display: flex; gap: 5px; margin: -4px 0 -4px auto; padding: 4px 0 4px 8px; border: 0; background: none;
+              color: var(--dim); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+  h2 > .aim span::before { content: attr(data-label); }
+  h2 > .aim .name { color: var(--hint); }
+  h2 > .aim.on .yes { color: #ff5c5c; }
+  h2 > .aim:not(.on) .no { color: #5b9bff; }
   .gauge.ext .val b, .gauge.ext .state { color: var(--hint); }
   .indexmap .board > button { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
                             overflow: hidden; padding: 2px; border: 0; border-radius: 5px; color: #fff; font: inherit; line-height: 1.2; text-align: center;
@@ -1128,15 +1127,22 @@
       const head = report.querySelector("h2"), box = slider(set.slides, head, { change, name: "cards", feel: true });
       box.prepend(bar);
       cardRewind(box, date, set, cards.pre ? cards : null);
-      // 리포트 날짜 판단에 예측이 있으면 절 제목 오른쪽 끝에 예측 필터 단추를 켠 채로 둔다. 단추 이름은 `data-label`로 그려 절 제목 글자에 넣지 않는다.
+      // 리포트 날짜 판단에 예측이 있으면 절 제목 오른쪽 끝에 예측 필터 단추를 켠 채로 둔다. ON이나 OFF를 누르면 그쪽으로 맞추고, "예측"이나 사이 막대를 누르면 뒤집는다.
       if (set.filter) {
         const aim = Object.assign(document.createElement("button"), { type: "button", className: "aim on" });
-        Object.assign(aim.dataset, { label: "예측 필터" });
+        [["name", "예측"], ["yes", "ON"], ["bar", "|"], ["no", "OFF"]].forEach(([className, label]) => {
+          const part = Object.assign(document.createElement("span"), { className });
+          part.dataset.label = label;
+          aim.append(part);
+        });
         aim.setAttribute("aria-label", "예측 필터");
         aim.setAttribute("aria-pressed", "true");
-        aim.addEventListener("click", () => {
+        aim.addEventListener("click", (event) => {
+          const part = event.target.closest("span")?.className, was = aim.classList.contains("on");
+          const on = part === "yes" ? true : part === "no" ? false : !was;
+          if (on === was) return;
           feelPress();
-          const on = aim.classList.toggle("on");
+          aim.classList.toggle("on", on);
           aim.setAttribute("aria-pressed", on);
           set.filter(on);
         });
@@ -1481,7 +1487,7 @@
     // 사전 리포트(`data.pre`)의 리포트 날짜 값은 예측 없이 종가 선과 지난 예측만 그리고, 위 줄에 마지막 종가 날짜를,
     // 가운데 줄에 그 종가와 전날 대비 등락률을 정규장 등락률 색(`tone`)의 점과 글씨로 적는다.
     // 위 줄 아래 이름 줄에는 "나스닥 100"처럼 지수 이름(`INDEX_TITLE`)을 쓴다.
-    // 리포트 날짜 판단에 예측이 있으면 절 제목의 예측 필터(`filter`)를 켠 채로 연다. 필터를 켜면 리포트 날짜 값에 그 판단의 예측을 그리고 이름 줄 오른쪽에 돋보기를 그린다.
+    // 리포트 날짜 판단에 예측이 있으면 절 제목의 예측 필터(`filter`)를 켠 채로 연다. 필터를 켜면 리포트 날짜 값에 그 판단의 예측을 그리고 세션 단추를 두지 않는다.
     // 필터를 끄면 리포트 날짜 값을 사전 리포트처럼 예측 없이 그리고, 위 줄에 마지막 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 적는다. 지난 날짜 판단의 예측은 필터와 관계없이 그린다.
     // 리포트 날짜 값을 예측 없이 보는 동안 기준 가격 날짜 다음 세션 값이 있으면 이름 줄 오른쪽에 정규장·애프터장이나 정규장·프리장 단추를 둔다.
     // 애프터장 값은 본 리포트의 기준 가격이고, 사전 리포트는 정규장 종가에 지수 ETF의 애프터장 등락 비율(`r/afterhours.json`)을 곱한 값이다.
@@ -1498,8 +1504,6 @@
       let late = false, chosen = false, early = null, after = null, ext = null, aim = !!data.predict;
       // 그림과 글씨가 쓰는 판단의 예측이다. 예측 필터를 끄면 리포트 날짜 판단의 예측을 쓰지 않는다.
       const plan = (f) => (f.day === date && !aim ? null : f.predict);
-      const lens = Object.assign(document.createElement("span"), { className: "lens", role: "img", title: "예측 필터" });
-      lens.setAttribute("aria-label", "예측 필터");
       // 리포트 날짜 값의 정규장 다음 세션 [값, 거래일 번호, 위 줄 글씨, 프리장 여부]. 없으면 null이다.
       const extra = () => {
         if (early?.session === data.base_date) {
@@ -1625,7 +1629,6 @@
         seg.rename(!!shown?.[3]);
         seg.mark(late);
         if (shown) title.append(seg.box); else seg.box.remove();
-        if (f.day === date && p) title.append(lens); else lens.remove();
         c.box.classList.toggle("ink", !!p && !ext);
         c.box.classList.toggle("ext", !!ext);
         c.box.querySelector(".state").className = `state ${p || ext ? "" : tone(session)}`;
