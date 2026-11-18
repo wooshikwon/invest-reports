@@ -88,12 +88,12 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 정규장 종가 대비 비율(`ratio`), 지도 종목마다의 체결가(`stocks`), 값을 받은 시각(`time`)과 앞 세션 날짜(`session`)다. cron이 프리장 동안 10분마다
 부르고, 프리장이 닫힌 뒤에는 마지막 값을 그대로 둔다. 미니 앱은 그 날짜 리포트의 머리 상자 아래 줄을 프리마켓 값으로 바꾸고,
 지도의 단추를 `정규장 | 다음날 프리마켓`으로 바꿔 애프터장 값 자리에 프리장 체결가와 정규장 종가 대비 등락률을 쓴다.
-요약 절의 주가와 예측 카드와 종목 상세 페이지의 주가 카드도 같은 값으로 위 줄 오른쪽에 `정규장 | 애프터마켓`이나 `정규장 | 프리마켓` 단추를 두고,
+요약 절의 지수 카드와 종목 상세 페이지의 주가 카드도 같은 값으로 위 줄 오른쪽에 `정규장 | 애프터마켓`이나 `정규장 | 프리마켓` 단추를 두고,
 정규장 다음 단추를 고르면 값과 등락률을 회색으로 쓰고 그림에 그 체결가를 점선으로 잇는다. 지도와 두 카드는 처음에 가장 늦은 세션을 고른다.
 `r/afterhours.json`에는 지수마다 뉴욕 세션 날짜를 키로 그날 애프터장의 마지막 체결가를 같은 모양(`ratio`, `stocks`, `time`)으로 적는다(`afterhours`).
 cron이 사전 리포트를 올린 16:30 ET부터 애프터장이 닫히는 20:00 ET까지 10분마다 부르고, 지도 날짜보다 앞 날짜의 값은 지운다.
 미니 앱은 사전 리포트의 머리 상자 아래 줄에 정규장 종가를 지수 ETF 비율로 옮긴 애프터마켓 값을, 오른쪽 아래에 값을 받은 서울 시각을 쓴다.
-지도와 종목 상세 페이지는 `r/market.json`의 애프터장 체결가가 아직 없는 종목에 이 체결가를 쓰고, 주가와 예측 카드는 사전 리포트의 애프터장 값으로 쓴다.
+지도와 종목 상세 페이지는 `r/market.json`의 애프터장 체결가가 아직 없는 종목에 이 체결가를 쓰고, 지수 카드는 사전 리포트의 애프터장 값으로 쓴다.
 지도 칸을 누르면 칸 위 말풍선에 종목 이름, 종가와 등락률, 설명 첫 문장을 적고, 말풍선의 `자세히 보기` 단추는 `?stock=심볼` 종목 상세 페이지를 연다.
 종목 상세 페이지는 지도에서 고른 세션(`session`)을 받아 같은 세션으로 연다.
 `r/stocks/{심볼}.json`에는 종목 상세 페이지의 값으로 한글 이름, 업종, 설명, 지도 지수와 그 지수 안 시가총액 순위, 1년 종가, 공시 카드 세 장(실적·매출 구성·최근 공시),
@@ -113,9 +113,9 @@ ETF 눈금을 지수 눈금으로 늘려 적는다(`card_scale`). 공개본이 �
 `1개월 지수 방향 예측` 절의 본문과 카드 값을 빼고, 이슈 소제목의 `data-new`를 지우고 `data-age`를 그날 기준으로 다시 단다.
 `미국 거시 지표` 카드 값은 그 시각까지 `reference.db`에 적재한 값으로 판단 배치와 같은 `render_inputs.py` 함수가 만든 입력에서 다시 뽑고,
 지표 소제목 뒤의 해설은 지운다.
-카드 값은 `pre`를 참으로 두고 전날까지 `PRICE_YEARS`년 종가와 앞 리포트들이 예측한 25거래일 뒤 가격(`past_cards`)을 담는다.
-`invest-reports` 미니 앱은 주가 카드 한 장만 종가 선과 지난 예측 범위로 그리고, 그날 종가의 등락률을 등락 색으로 적는다.
-되감기 슬라이더는 앞 날짜의 판단과 사전 리포트의 종가를 고르게 하고, 일정·권장 배율 카드와 머리 상자의 애프터마켓 줄은 두지 않는다. 이벤트 캘린더와 이슈 그림은 앞 리포트의 것을 그대로 쓴다.
+카드 값은 `pre`를 참으로 두고 전날까지 `PRICE_YEARS`년 종가를 담는다.
+`invest-reports` 미니 앱은 지수 카드 한 장만 종가 선으로 그리고, 그날 종가의 등락률을 등락 색으로 적는다.
+되감기 슬라이더는 앞 날짜의 판단과 사전 리포트의 종가를 고르게 하고, 예측·일정·권장 배율 카드는 두지 않는다. 이벤트 캘린더와 이슈 그림은 앞 리포트의 것을 그대로 쓴다.
 `r/index.json` 항목에는 `stage: "pre"`와 전날 정규장 `session`·`close`만 적은 `moves`를 쓰고, 앞 날짜의 사전 리포트 항목과 폴더는 지운다.
 전날이 뉴욕 정규장 세션이 아니면 종료 코드 3, 그날 본 리포트가 이미 있으면 종료 코드 4로 끝내고 아무것도 쓰지 않는다. 전날 세션의 종가가 `reference.db`에 아직 없으면 실패로 끝낸다.
 `--stage running`은 그날 사전 리포트 항목의 `stage`를 `running`으로 바꾸고, 판단 배치가 애프터장이 끝난 뒤 시작하므로 `r/market.json`을 다시 써서 전날 애프터장 값을 단다. 본 리포트를 만들면 같은 키의 항목을 새로 쓰므로 `stage`가 없어지고,
@@ -164,7 +164,7 @@ NEW_YORK, SEOUL = ZoneInfo("America/New_York"), ZoneInfo("Asia/Seoul")
 TITLE_RE = re.compile(r"^(.*\S)\s+(\d{4}-\d{2}-\d{2} \([^)]*\))$")
 REWIND_DAYS = 30  # 되감기 슬라이더가 거슬러 가는 날짜 범위
 CARD_QUANTILES = (10, 25, 50, 75, 90)  # 일정과 예측 카드가 그리는 수익률 분위수
-PRICE_YEARS = 3  # 주가와 예측 카드가 그리는 종가 기간(년)
+PRICE_YEARS = 3  # 지수 카드와 예측 카드가 그리는 종가 기간(년)
 # 시장 페이지의 지수 지도가 되감기 날짜의 첫날보다 앞서 종가를 받는 날 수다. 첫날의 앞 두 세션이 들도록 일주일을 더 받는다.
 MAP_LEAD_DAYS = 7
 STOCK_DAYS = 366  # 종목 상세 페이지의 주가 카드가 그리는 종가 기간(일)
@@ -242,7 +242,7 @@ def actual_returns(db: Path, ticker: str, days: list[str], base: float, scale: f
 
 
 def card_scale(index: str, vault: Path) -> float:
-    """주가와 예측 카드가 ETF 환산 종가에 곱해 지수 눈금으로 늘리는 배율. 마지막으로 겹치는 날의 `observation` 지수 종가 ÷ `market_price` 환산 종가다.
+    """지수 카드와 예측 카드가 ETF 환산 종가에 곱해 지수 눈금으로 늘리는 배율. 마지막으로 겹치는 날의 `observation` 지수 종가 ÷ `market_price` 환산 종가다.
 
     `market_price`의 QQQ·IBB 행은 지수 수익률을 ETF 눈금으로 환산한 값이라, 이 배율은 날짜와 관계없이 일정하다.
     """
@@ -1482,9 +1482,7 @@ def pre(date: str, index: str, vault: Path, out: Path) -> str:
     scale = card_scale(index, vault)
     closes = [round(close * scale, 2) for _, close in history]
     dates = [d for d, _ in history]
-    card = {"pre": True, "dates": dates, "history": closes,
-            "past": past_cards(index, date, dates, len(dates) - 1 + chart.path_bands.PATH_BAND_HORIZON, scale, vault),
-            "day": date, "base_date": history[-1][0], "base": closes[-1]}
+    card = {"pre": True, "dates": dates, "history": closes, "day": date, "base_date": history[-1][0], "base": closes[-1]}
     body += f'<script type="application/json" id="cards">{json.dumps(card, ensure_ascii=False)}</script>\n'
     target = out / "r" / key
     if target.exists():

@@ -528,7 +528,7 @@
   /* 그림은 모두 같은 높이의 칸에 가운데로 그려, 장마다 그림과 해설의 위치가 같다. */
   .gauge > svg { display: block; width: 100%; height: auto; margin: 10px 0 6px; overflow: visible; }
   .gauge p { margin: 20px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--hint); }
-  /* 요약 절 그림 카드는 위 줄에 회색 맥락 글씨, 가운데 줄에 값과 상태를 두고, 그림은 카드 폭에 맞춘 SVG로 그린다. 세 카드의 그림은 높이와
+  /* 요약 절 그림 카드는 위 줄에 회색 맥락 글씨, 가운데 줄에 값과 상태를 두고, 그림은 카드 폭에 맞춘 SVG로 그린다. 카드의 그림은 모두 높이와
      가로축 높이가 같아, 카드를 넘겨도 가로축이 같은 높이에 있다. 카드의 상태 글씨와 점(`--card-color`)은 카드마다 정한 색으로 칠하고,
      예측 카드(`ink`)는 절 제목 글씨와 같은 지수색 그라데이션(`--index-ink`)으로 칠하고, 사전 리포트의 종가 카드는 정규장 등락률 색(`up`·`down`)으로 칠한다.
      범위 값의 물결표는 흐린 글씨로 띄어 쓴다. */
@@ -545,7 +545,7 @@
   /* 기간을 바꾸면 최고·최저 글씨는 그림이 멈춘 뒤 0.25초에 걸쳐 나타난다. */
   .gauge .marks { animation: marks-in .25s ease-out; }
   @keyframes marks-in { from { opacity: 0; } }
-  /* 그림 아래 줄은 세 카드가 같은 높이로 둔다. 주가와 예측 카드는 기간을 한 단계씩 줄이고 늘리는 단추와 다섯 단계 가운데 고른 단계의 점을,
+  /* 그림 아래 줄은 모든 카드가 같은 높이로 둔다. 지수 카드와 예측 카드는 기간을 한 단계씩 줄이고 늘리는 단추와 다섯 단계 가운데 고른 단계의 점을,
      일정과 예측 카드는 고른 번호의 일정을 둔다. 일정은 번호, 날짜, 이름을 한 줄에 왼쪽부터 적어 −와 + 단추와 같은 높이에 두고, 같은 날 일정은 쉼표로 잇는다.
      한 줄을 넘는 이름은 말줄임표로 줄인다. 고른 단계는 점 대신 작은 돋보기로 그린다. */
   .gauge .foot { min-height: 28px; margin-top: 12px; }
@@ -588,7 +588,7 @@
                  font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
   .indexmap .board { position: relative; }
   /* 세션 단추(`session`)는 정규장을 해, 애프터장을 초승달, 프리장을 언덕 위로 해가 오르는 새벽 그림으로 그리고, 고른 단추를 밝은 바탕에 흰 선으로 칠한다.
-     지도에서는 위 줄 오른쪽 끝에, 주가 카드와 주가와 예측 카드에서는 이름 줄 오른쪽 끝에 두되 그 줄 높이를 늘리지 않는다.
+     지도에서는 위 줄 오른쪽 끝에, 주가 카드와 지수 카드에서는 이름 줄 오른쪽 끝에 두되 그 줄 높이를 늘리지 않는다.
      애프터마켓·프리마켓 값을 고른 카드(`ext`)는 다음 정규장 전의 임시 값이므로 값과 등락률을 회색으로 쓴다. */
   .session { display: flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, .06); }
   .session button { display: grid; place-items: center; width: 34px; height: 22px; padding: 0; border: 0; border-radius: 7px; background: none;
@@ -596,17 +596,8 @@
   .session button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .session button.on { background: rgba(255, 255, 255, .16); color: #fff; }
   :is(.indexmap > .top, .gauge .top) .session { flex: none; margin: -6px 0 -6px auto; align-self: center; }
-  /* 주가와 예측 카드와 종목 상세 주가 카드는 맨 위 줄에 기준 시각을 흐린 작은 글씨로 쓰고, 그 아래 이름 줄에 지수나 종목 이름과 세션 단추를 둔다. */
+  /* 지수 카드와 예측 카드, 종목 상세 주가 카드는 맨 위 줄에 기준 시각을 흐린 작은 글씨로 쓰고, 그 아래 이름 줄에 지수나 종목 이름과 세션 단추를 둔다. */
   .gauge .top.title { margin-top: 3px; }
-  /* 1개월 예측 절 제목은 오른쪽 끝에 예측 필터 단추(`aim`)를 "예측 ON | OFF" 글씨로 둔다. 켠 쪽은 ON을 빨간색으로, 끈 쪽은 OFF를 파란색으로 쓰고,
-     고르지 않은 쪽은 회색으로 쓴다. 글씨는 `data-label`로 그려 절 제목 글자에 넣지 않는다. */
-  h2:has(> .aim) { display: flex; align-items: center; }
-  h2 > .aim { order: 1; flex: none; display: flex; gap: 5px; margin: -4px 0 -4px auto; padding: 4px 0 4px 8px; border: 0; background: none;
-              color: var(--dim); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
-  h2 > .aim span::before { content: attr(data-label); }
-  h2 > .aim .name { color: var(--hint); }
-  h2 > .aim.on .yes { color: #ff5c5c; }
-  h2 > .aim:not(.on) .no { color: #5b9bff; }
   .gauge.ext .val b, .gauge.ext .state { color: var(--hint); }
   .indexmap .board > button { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
                             overflow: hidden; padding: 2px; border: 0; border-radius: 5px; color: #fff; font: inherit; line-height: 1.2; text-align: center;
@@ -929,7 +920,7 @@
   // 1개월 예측 절의 첫 카드 탭, 머리 상자 기준 가격, 시장 페이지의 한 눈에 보기 절 제목에 쓰는 리포트 지수의 이름이다.
   // build.py card_scale이 카드 가격을 지수 눈금으로 늘려 적으므로 머리 상자 가격은 시장 탭의 같은 이름 지수 값과 같다.
   const INDEX_NAME = { nasdaq: "나스닥", biotech: "바이오" };
-  // 주가와 예측 카드의 이름 줄에 쓰는 지수 이름이다.
+  // 지수 카드와 예측 카드의 이름 줄에 쓰는 지수 이름이다.
   const INDEX_TITLE = { nasdaq: "나스닥 100", biotech: "나스닥 바이오테크놀로지" };
   const paint = () => {
     const tint = INDEX[key.split("-")[1]];
@@ -1100,11 +1091,11 @@
     return box;
   }
 
-  // 요약의 Outlook 그림 자리에 12M + Predictions(주가와 예측), Montecarlo(일정과 예측), Outlook(권장 배율) 순서로 넘기는 묶음을 둔다.
+  // 요약의 Outlook 그림 자리에 12M + Predictions(지수와 예측), Montecarlo(일정과 예측), Outlook(권장 배율) 순서로 넘기는 묶음을 둔다.
   // Montecarlo 그림은 원래 이벤트 캘린더 절에 있으므로 그 자리에서는 뺀다. 12M + Predictions가 없는 리포트는 두 장을 넘긴다.
   // 묶음 위에는 그림 이름 탭을 둔다. 탭을 누르면 그 그림으로 넘기고, 넘기면 보고 있는 그림의 탭을 밝힌다.
-  // 그림 카드 값(`build.py`가 리포트 끝에 둔 `#cards`)이 있는 리포트는 그림 대신 같은 이름의 카드 세 장을 넘긴다.
-  // 사전 리포트의 카드 값(`pre`)은 주가 카드 한 장만 두고, 되감기 슬라이더는 앞 날짜의 판단과 사전 리포트의 종가를 고르게 한다.
+  // 그림 카드 값(`build.py`가 리포트 끝에 둔 `#cards`)이 있는 리포트는 그림 대신 지수, 예측, 일정, 권장 배율 카드 네 장을 넘긴다.
+  // 사전 리포트의 카드 값(`pre`)은 지수 카드 한 장만 두고, 되감기 슬라이더는 앞 날짜의 판단과 사전 리포트의 종가를 고르게 한다.
   function figures(date) {
     const data = report.querySelector("#cards");
     if (data) {
@@ -1127,27 +1118,6 @@
       const head = report.querySelector("h2"), box = slider(set.slides, head, { change, name: "cards", feel: true });
       box.prepend(bar);
       cardRewind(box, date, set, cards.pre ? cards : null);
-      // 리포트 날짜 판단에 예측이 있으면 절 제목 오른쪽 끝에 예측 필터 단추를 켠 채로 둔다. ON이나 OFF를 누르면 그쪽으로 맞추고, "예측"이나 사이 막대를 누르면 뒤집는다.
-      if (set.filter) {
-        const aim = Object.assign(document.createElement("button"), { type: "button", className: "aim on" });
-        [["name", "예측"], ["yes", "ON"], ["bar", "|"], ["no", "OFF"]].forEach(([className, label]) => {
-          const part = Object.assign(document.createElement("span"), { className });
-          part.dataset.label = label;
-          aim.append(part);
-        });
-        aim.setAttribute("aria-label", "예측 필터");
-        aim.setAttribute("aria-pressed", "true");
-        aim.addEventListener("click", (event) => {
-          const part = event.target.closest("span")?.className, was = aim.classList.contains("on");
-          const on = part === "yes" ? true : part === "no" ? false : !was;
-          if (on === was) return;
-          feelPress();
-          aim.classList.toggle("on", on);
-          aim.setAttribute("aria-pressed", on);
-          set.filter(on);
-        });
-        head.append(aim);
-      }
       return;
     }
     const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
@@ -1254,7 +1224,7 @@
     after: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.6A8.2 8.2 0 1 1 9.4 4a6.6 6.6 0 0 0 10.6 10.6Z"/></svg>',
     pre: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 20.5C6 17 9 16 12 16s6 1 10 4.5"/><path d="M7.5 16.6a4.5 4.5 0 0 1 9 0"/><path d="M12 6.2v2.6M5.4 9.6l1.7 1.7M18.6 9.6l-1.7 1.7"/></svg>',
   };
-  // 정규장 값과 정규장 다음 세션(애프터장이나 프리장)의 값을 고르는 단추 한 쌍(`box`)이다. 지도와 종목 상세의 주가 카드, 주가와 예측 카드가 같이 쓴다.
+  // 정규장 값과 정규장 다음 세션(애프터장이나 프리장)의 값을 고르는 단추 한 쌍(`box`)이다. 지도와 종목 상세의 주가 카드, 지수 카드가 같이 쓴다.
   // 단추는 글씨 대신 세션 그림을 그리고, 세션 이름을 단추의 이름(`aria-label`)과 풍선 글씨(`title`)로 단다.
   // `pick(late)`는 사용자가 다른 단추를 누를 때 부르고, `late`는 정규장 다음 단추를 고르면 참이다. `mark(late)`는 고른 단추를 칠하고,
   // `rename(pre, name)`은 정규장 다음 단추를 프리장(`pre`가 참)이나 애프터장 그림으로 바꾸고 이름을 `name`으로 단다.
@@ -1442,11 +1412,12 @@
     });
   }
 
-  // 요약 절의 그림 카드 세 장(주가와 예측, 일정과 예측, 권장 배율)을 만든다. 카드 이름 탭에는 "지수와 예측", "일정", "권장 배율"로 쓴다. `data`는 `build.py` `summary_cards`의 값이다.
-  // 돌려준 `show(frame)`은 되감기 슬라이더가 고른 날짜의 판단(`cards.json`의 프레임)으로 세 장을 다시 그린다.
-  // 주가와 예측의 종가 바탕(날짜·종가·지난 예측)은 늘 리포트 날짜의 값이고, 고른 날짜의 판단만 그 위에 바꿔 그린다.
+  // 요약 절의 그림 카드 네 장(지수, 예측, 일정과 예측, 권장 배율)을 만든다. 카드 이름 탭에는 "지수", "예측", "일정", "권장 배율"로 쓴다. `data`는 `build.py` `summary_cards`의 값이다.
+  // 사전 리포트는 지수 카드만 두고, 리포트 날짜 판단에 예측이 없으면 예측 카드를 두지 않는다.
+  // 돌려준 `show(frame)`은 되감기 슬라이더가 고른 날짜의 판단(`cards.json`의 프레임)으로 카드를 다시 그린다.
+  // 지수 카드와 예측 카드의 종가 바탕(날짜·종가·지난 예측)은 늘 리포트 날짜의 값이고, 고른 날짜의 판단만 그 위에 바꿔 그린다.
   function summaryCards(data, date) {
-    // 세 카드는 같은 높이(`H`)의 그림에 같은 높이(`B`)의 가로축을 긋는다.
+    // 카드는 모두 같은 높이(`H`)의 그림에 같은 높이(`B`)의 가로축을 긋는다.
     const dates = data.dates, hist = data.history, W = 320, H = 236, B = 212;
     // 예측 선과 면, 범위 값 글씨는 지수색 그라데이션(`color`)으로 칠한다. 그라데이션은 `--index-ink`와 같이 지수 옆 색상에서 지수색으로
     // 100도 방향으로 넘어가고, 카드 폭의 −25%와 85%에 두 색을 둔다. 카드마다 다시 그릴 때 그림을 비우므로 그라데이션은 문서에 한 번 둔다.
@@ -1479,33 +1450,35 @@
       return { box, svg, head, foot: box.querySelector(".foot") };
     };
 
-    // 주가와 예측: 그림 아래 −·+ 단추로 고른 기간의 종가와 고른 날짜 판단의 25~75% 범위, 50% 선을 그린다. 회색 점선과 면은 지난 리포트의 예측이다.
-    // 위 줄은 "25거래일 뒤 예측 중앙값"이고, 가운데 줄은 25거래일 뒤 50% 값과 판단 색 점 뒤에 "−1.8%"처럼 기준 가격 대비 등락률을 적는다.
-    // 기간은 3년, 2년, 1년, 6개월, 3개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
-    // 고른 날짜가 리포트 날짜보다 앞이면 종가 선은 그날 판단의 출발점에서 다시 이어 리포트 날짜 판단의 기준 가격 날짜 종가까지 그리고,
-    // 종가 네 시간 뒤(`BASE_AFTER`)에 리포트 날짜 판단의 기준 가격을 점으로 찍어 점선으로 잇는다. 판단의 25거래일 예측은 기준 가격 점에서 출발해 날마다 그 거래일 종가 자리에 놓는다.
-    // 사전 리포트(`data.pre`)의 리포트 날짜 값은 예측 없이 종가 선과 지난 예측만 그리고, 위 줄에 마지막 종가 날짜를,
-    // 가운데 줄에 그 종가와 전날 대비 등락률을 정규장 등락률 색(`tone`)의 점과 글씨로 적는다.
-    // 위 줄 아래 이름 줄에는 "나스닥 100"처럼 지수 이름(`INDEX_TITLE`)을 쓴다.
-    // 리포트 날짜 판단에 예측이 있으면 절 제목의 예측 필터(`filter`)를 켠 채로 연다. 필터를 켜면 리포트 날짜 값에 그 판단의 예측을 그리고 세션 단추를 두지 않는다.
-    // 필터를 끄면 리포트 날짜 값을 사전 리포트처럼 예측 없이 그리고, 위 줄에 마지막 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 적는다. 지난 날짜 판단의 예측은 필터와 관계없이 그린다.
-    // 리포트 날짜 값을 예측 없이 보는 동안 기준 가격 날짜 다음 세션 값이 있으면 이름 줄 오른쪽에 정규장·애프터장이나 정규장·프리장 단추를 둔다.
+    // 지수 카드와 예측 카드(`priceCard`): 두 카드는 같은 틀로 만들고, 위 줄 아래 이름 줄에 "나스닥 100"처럼 지수 이름(`INDEX_TITLE`)을 쓴다.
+    // 그림 아래 −·+ 단추로 종가를 그릴 기간을 고른다. 기간은 3년, 2년, 1년, 6개월, 3개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
+    // 지수 카드(`aim`이 거짓)는 예측을 그리지 않는다. 종가 선은 고른 날짜 판단의 기준 가격 날짜 종가에서 끝나고, 가로축은 그다음 거래일에서 끝난다.
+    // 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 정규장 등락률 색(`tone`)의 점과 글씨로 적는다. 사전 리포트는 지수 카드만 둔다.
+    // 지수 카드는 기준 가격 날짜 다음 세션 값이 있으면 이름 줄 오른쪽에 정규장·애프터장이나 정규장·프리장 단추를 둔다. 지난 날짜의 다음 세션 값은 그날 판단의 기준 가격이다.
     // 애프터장 값은 본 리포트의 기준 가격이고, 사전 리포트는 정규장 종가에 지수 ETF의 애프터장 등락 비율(`r/afterhours.json`)을 곱한 값이다.
     // 프리장 값(`early`)은 정규장 종가에 지수 ETF의 프리장 등락 비율을 곱한 값이며, 프리장 값이 있으면 프리장 값을 쓴다.
     // 정규장 다음 단추를 고르면 위 줄에 그 세션 이름과 시각을, 가운데 줄에 그 값과 정규장 종가 대비 등락률을 회색으로 적는다.
     // 본 리포트의 애프터장 값은 종가 네 시간 뒤에, 사전 리포트의 애프터장 값과 프리장 값은 그 체결 시각 자리(`afterClose`)에 흰 점으로 찍어 마지막 종가 점에서 점선으로 잇는다.
-    // 가로축 범위는 단추와 관계없이 같아서, 단추를 바꿔도 종가와 예측의 자리가 움직이지 않는다.
-    // 처음에는 가장 늦은 세션을 고르고, 단추를 누른 뒤에는 누른 세션을 유지한다.
-    const predict = (() => {
-      const c = card("25거래일 뒤 예측 중앙값"), s = c.svg;
+    // 가로축 범위는 단추와 관계없이 같아서, 단추를 바꿔도 종가의 자리가 움직이지 않는다. 리포트 날짜는 가장 늦은 세션을, 지난 날짜는 정규장을 고른다.
+    // 단추를 누르면 되감기 슬라이더가 다른 날짜를 고를 때까지 누른 세션을 유지한다.
+    // 예측 카드(`aim`이 참)는 리포트 날짜 판단에 예측이 있을 때만 두고, 가로축을 마지막 종가 뒤 25거래일까지 늘린다. 종가 선 오른쪽에 고른 날짜 판단의
+    // 25~75% 범위와 50% 선을 그리고, 회색 점선과 면으로 지난 리포트의 예측을 그린다. 위 줄은 "25거래일 뒤 예측 중앙값"이고,
+    // 가운데 줄은 25거래일 뒤 50% 값과 판단 색 점 뒤에 "−1.8%"처럼 기준 가격 대비 등락률을 적는다.
+    // 고른 날짜가 리포트 날짜보다 앞이면 종가 선은 그날 판단의 출발점에서 다시 이어 리포트 날짜 판단의 기준 가격 날짜 종가까지 그리고,
+    // 종가 네 시간 뒤(`BASE_AFTER`)에 리포트 날짜 판단의 기준 가격을 점으로 찍어 점선으로 잇는다. 판단의 25거래일 예측은 기준 가격 점에서 출발해 날마다 그 거래일 종가 자리에 놓는다.
+    let clips = 0;
+    const priceCard = (aim) => {
+      const c = card("25거래일 뒤 예측 중앙값"), s = c.svg, clipId = `predict-clip-${clips++}`;
       const title = c.box.insertBefore(Object.assign(document.createElement("div"), { className: "top title" }), c.box.querySelector(".val"));
       title.append(Object.assign(document.createElement("span"), { className: "name", textContent: INDEX_TITLE[key.split("-")[1]] || INDEX_NAME[key.split("-")[1]] }));
       const close = dates.indexOf(data.base_date);
-      let late = false, chosen = false, early = null, after = null, ext = null, aim = !!data.predict;
-      // 그림과 글씨가 쓰는 판단의 예측이다. 예측 필터를 끄면 리포트 날짜 판단의 예측을 쓰지 않는다.
-      const plan = (f) => (f.day === date && !aim ? null : f.predict);
+      let late = false, chosen = false, early = null, after = null, ext = null;
+      // 그림과 글씨가 쓰는 판단의 예측이다. 지수 카드는 예측을 쓰지 않는다.
+      const plan = (f) => (aim ? f.predict : null);
       // 리포트 날짜 값의 정규장 다음 세션 [값, 거래일 번호, 위 줄 글씨, 프리장 여부]. 없으면 null이다.
-      const extra = () => {
+      // 지난 날짜의 정규장 다음 세션은 그날 판단의 기준 가격인 애프터장 값이다.
+      const extra = (f) => {
+        if (f.day !== date) return [f.base, at(f) + BASE_AFTER, sessionAt("애프터마켓", afterEnd(f.base_date)), false];
         if (early?.session === data.base_date) {
           return [hist[close] * early.ratio, close + afterClose(early.time), sessionAt("프리마켓", early.time), true];
         }
@@ -1513,24 +1486,27 @@
         return after ? [hist[close] * after.ratio, close + afterClose(after.time), sessionAt("애프터마켓", after.time), false] : null;
       };
       const seg = sessionSeg((on) => { late = on; chosen = true; show(frame); });
-      const L = 4, R = W - 4, T = 22, xmax = last + 25;
-      const SPAN = [756, 504, 252, 126, 63].map((days) => Math.max(0, last - days));
+      // `stop`는 종가 선이 끝나는 거래일 번호이고, `xmax`는 가로축 오른쪽 끝이다. 지수 카드는 고른 날짜마다 둘을 옮긴다.
+      // 기간(`DAYS`)마다 그림 왼쪽 끝(`start`)은 `stop`에서 그 거래일 수만큼 앞이다.
+      const L = 4, R = W - 4, T = 22, DAYS = [756, 504, 252, 126, 63];
+      let stop = last, xmax = last + (aim ? 25 : 1);
+      const start = (k) => Math.max(0, stop - DAYS[k]);
       let span = 2, frame = null, raf = 0;
       const zoom = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
-      zoom.innerHTML = `<button type="button" aria-label="기간 늘리기">\u2212</button><span class="steps">${"<i></i>".repeat(SPAN.length)}</span><button type="button" aria-label="기간 줄이기">+</button>`;
+      zoom.innerHTML = `<button type="button" aria-label="기간 늘리기">\u2212</button><span class="steps">${"<i></i>".repeat(DAYS.length)}</span><button type="button" aria-label="기간 줄이기">+</button>`;
       const [wider, narrower] = zoom.querySelectorAll("button");
       const level = () => {
         wider.disabled = span === 0;
-        narrower.disabled = span === SPAN.length - 1;
+        narrower.disabled = span === DAYS.length - 1;
         zoom.querySelectorAll(".steps i").forEach((dot, i) => dot.classList.toggle("on", i === span));
       };
       level();
-      const past = data.past.map(([x, lo, mid, hi]) => ({ x, lo, mid, hi }));
+      const past = aim ? data.past.map(([x, lo, mid, hi]) => ({ x, lo, mid, hi })) : [];
       const at = (f) => dates.indexOf(f.base_date);
       const end = (f, q) => f.predict[q][f.predict[q].length - 1];
       // 기간마다 세로 범위: 보이는 종가·예측 면·지난 예측을 담고, 최저 점 아래에 글씨가 들어갈 20px을 비운다.
       const range = (x0) => {
-        const shown = hist.slice(x0, last + 1), band = plan(frame) || { q25: [], q75: [] }, more = ext ? [ext[0]] : [];
+        const shown = hist.slice(x0, stop + 1), band = plan(frame) || { q25: [], q75: [] }, more = ext ? [ext[0]] : [];
         let lo = Math.min(...shown, ...band.q25, ...past.map((p) => p.lo), ...more);
         const hi = Math.max(...shown, ...band.q75, ...past.map((p) => p.hi), ...more);
         const low = Math.min(...shown);
@@ -1542,10 +1518,10 @@
         s.replaceChildren();
         const f = frame, fx = at(f), p = plan(f);
         const X = (i) => L + (i - x0) / (xmax - x0) * (R - L), Y = (v) => B - (v - lo) / (hi - lo) * (B - T);
-        const clip = shape("clipPath", { id: "predict-clip" });
+        const clip = shape("clipPath", { id: clipId });
         clip.append(shape("rect", { x: L, y: 0, width: R - L, height: B }));
         s.append(clip);
-        const g = s.appendChild(shape("g", { "clip-path": "url(#predict-clip)" }));
+        const g = s.appendChild(shape("g", { "clip-path": `url(#${clipId})` }));
         // 달 이름은 6월·12월, 분기 달, 나머지 달 순서로 남긴다. 이름 사이 간격이 42px보다 좁아지면 아래 단계의 달 이름부터 흐리게 지운다.
         const perMonth = 21 * (R - L) / (xmax - x0), fade = (months) => Math.max(0, Math.min(1, (months * perMonth - 30) / 12));
         let month = "";
@@ -1553,19 +1529,19 @@
           if (d.slice(0, 7) === month) return;
           month = d.slice(0, 7);
           const x = X(i), m = +d.slice(5, 7), opacity = fade(m % 6 === 0 ? 6 : m % 3 === 0 ? 3 : 1);
-          if (x >= L + 12 && opacity > 0) s.append(shape("text", { x, y: B + 17, "font-size": 11, fill: DIMS, "text-anchor": "middle", opacity }, `${m}월`));
+          if (i <= xmax && x >= L + 12 && opacity > 0) s.append(shape("text", { x, y: B + 17, "font-size": 11, fill: DIMS, "text-anchor": "middle", opacity }, `${m}월`));
         });
         s.append(shape("line", { x1: L, x2: R, y1: B, y2: B, stroke: DIMS, "stroke-width": 1 }));
         if (past.length) {
           g.append(shape("path", { d: `${path(past.map((q) => [X(q.x), Y(q.lo)]))}L${past.slice().reverse().map((q) => `${X(q.x)} ${Y(q.hi)}`).join("L")}Z`, fill: "rgba(167, 171, 176, .16)" }));
           g.append(shape("path", { d: path(past.map((q) => [X(q.x), Y(q.mid)])), fill: "none", stroke: "#A7ABB0", "stroke-width": 1.2, "stroke-dasharray": "2 3", opacity: .8 }));
         }
-        const i0 = Math.max(0, Math.floor(x0)), width = 1.4 - .4 * Math.max(0, Math.min(1, (last - x0 - 63) / 693));
+        const i0 = Math.max(0, Math.floor(x0)), width = 1.4 - .4 * Math.max(0, Math.min(1, (stop - x0 - 63) / 693));
         const stroke = { fill: "none", stroke: PRICE, "stroke-width": width, "stroke-linejoin": "round" };
         // 최고·최저 글씨는 기간이 정해진 뒤에만 그리고, 가운데를 그림 양 끝에서 30px 안쪽에 둔다.
         const extremes = () => {
           const group = s.appendChild(shape("g", { class: "marks" }));
-          const shown = hist.slice(i0, last + 1);
+          const shown = hist.slice(i0, stop + 1);
           [[i0 + shown.indexOf(Math.max(...shown)), -7, "최고"], [i0 + shown.indexOf(Math.min(...shown)), 15, "최저"]].forEach(([i, dy, text]) => {
             group.append(shape("circle", { cx: X(i), cy: Y(hist[i]), r: 2.5, fill: PRICE }));
             group.append(shape("text", { x: Math.min(Math.max(X(i), L + 30), R - 30), y: Y(hist[i]) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${fmt(hist[i])}`));
@@ -1579,10 +1555,10 @@
           s.append(shape("circle", { cx: to[0], cy: to[1], r: 2.5, fill: "#EAEAEA", stroke: "#171719", "stroke-width": 1 }));
         };
         if (!p) {
-          g.append(shape("path", { d: path(hist.slice(i0, last + 1).map((v, k) => [X(i0 + k), Y(v)])), ...stroke }));
+          g.append(shape("path", { d: path(hist.slice(i0, stop + 1).map((v, k) => [X(i0 + k), Y(v)])), ...stroke }));
           if (marks) extremes();
-          s.append(shape("circle", { cx: X(last), cy: Y(hist[last]), r: 2.5, fill: PRICE }));
-          dawn([X(last), Y(hist[last])]);
+          s.append(shape("circle", { cx: X(stop), cy: Y(hist[stop]), r: 2.5, fill: PRICE }));
+          dawn([X(stop), Y(hist[stop])]);
           return;
         }
         const xs = p.q50.map((_, k) => X(fx + (k || BASE_AFTER))), origin = [xs[0], Y(f.base)];
@@ -1604,13 +1580,13 @@
       // 과거 종가가 범위 밖이면 범위를 그만큼 먼저 넓혀 선이 가로축 아래로 내려가지 않게 한다.
       const ease = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
       const tween = (from, to, t) => {
-        const e = ease(t), [a0, a1] = range(SPAN[from]), [b0, b1] = range(SPAN[to]);
-        const x0 = SPAN[from] + (SPAN[to] - SPAN[from]) * e, [c0, c1] = range(Math.max(0, Math.floor(x0)));
+        const e = ease(t), [a0, a1] = range(start(from)), [b0, b1] = range(start(to));
+        const x0 = start(from) + (start(to) - start(from)) * e, [c0, c1] = range(Math.max(0, Math.floor(x0)));
         draw(x0, Math.min(a0 + (b0 - a0) * e, c0), Math.max(a1 + (b1 - a1) * e, c1), t >= 1);
       };
       const move = (by) => {
         const from = span;
-        span = Math.max(0, Math.min(SPAN.length - 1, span + by));
+        span = Math.max(0, Math.min(DAYS.length - 1, span + by));
         if (span === from) return;
         level();
         cancelAnimationFrame(raf);
@@ -1620,11 +1596,18 @@
       };
       wider.addEventListener("click", () => move(-1));
       narrower.addEventListener("click", () => move(1));
+      // 되감기 슬라이더가 다른 날짜를 고르면 사용자가 고른 단추를 지우고, 리포트 날짜는 가장 늦은 세션을, 지난 날짜는 정규장을 고른다.
       const show = (f) => {
+        if (f !== frame) chosen = false;
         frame = f;
         cancelAnimationFrame(raf);
-        const p = plan(f), session = Math.round((hist[last] / hist[last - 1] - 1) * 1e4) / 100, shown = f.day === date && !p ? extra() : null;
-        if (shown && !chosen) late = true;
+        const p = plan(f), now = f.day === date;
+        if (!aim) {
+          stop = now ? last : at(f);
+          xmax = stop + 1;
+        }
+        const session = Math.round((hist[stop] / hist[stop - 1] - 1) * 1e4) / 100, shown = p ? null : extra(f);
+        if (!chosen) late = !!shown && now;
         ext = shown && late ? shown : null;
         seg.rename(!!shown?.[3]);
         seg.mark(late);
@@ -1632,16 +1615,14 @@
         c.box.classList.toggle("ink", !!p && !ext);
         c.box.classList.toggle("ext", !!ext);
         c.box.querySelector(".state").className = `state ${p || ext ? "" : tone(session)}`;
-        if (ext) c.head(f, `${signed((ext[0] / hist[close] - 1) * 100, 2)}%`, fmt(ext[0]), ext[2]);
+        if (ext) c.head(f, `${signed((ext[0] / hist[stop] - 1) * 100, 2)}%`, fmt(ext[0]), ext[2]);
         else if (p) c.head(f, `${signed((end(f, "q50") / f.base - 1) * 100)}%`, fmt(end(f, "q50")));
-        else c.head(f, `${signed(session, 2)}%`, fmt(hist[last]), `${md(dates[last])} ${usZone(dates[last])} 종가`);
+        else c.head(f, `${signed(session, 2)}%`, fmt(hist[stop]), `${md(dates[stop])} ${usZone(dates[stop])} 종가`);
         tween(span, span, 1);
       };
       return {
         box: c.box,
         show,
-        // 예측 필터를 켜거나(`on`이 참) 끄고 카드를 다시 그린다. 리포트 날짜 판단에 예측이 없으면 null이다.
-        filter: data.predict ? (on) => { aim = on; show(frame); } : null,
         // 리포트 날짜의 프리장 값(`r/premarket.json`)과 지수의 애프터장 값(`r/afterhours.json`)을 받아, 받은 시각이 바뀌었으면 카드를 다시 그린다.
         live(found, afters) {
           const tail = afters?.[data.base_date]?.ratio != null ? afters[data.base_date] : null;
@@ -1651,9 +1632,10 @@
           show(frame);
         },
       };
-    })();
+    };
+    const index = priceCard(false), predict = data.predict ? priceCard(true) : null;
 
-    // 일정과 예측: 등락률 분위수의 10~90% 옅은 면과 25~75% 면, 50% 실선을 주가와 예측 카드와 같은 판단 색으로 그린다. 위쪽 번호는 이슈 일정이 있는 날이고,
+    // 일정과 예측: 등락률 분위수의 10~90% 옅은 면과 25~75% 면, 50% 실선을 예측 카드와 같은 판단 색으로 그린다. 위쪽 번호는 이슈 일정이 있는 날이고,
     // 마지막 거래일에는 일정이 없어도 번호를 달고, 처음에는 첫 번호를 고른다. 번호를 누르면 위 값을 그날의 25~75% 등락률로 바꾸고
     // 세로선과 범위 끝이 만나는 곳에 그날의 등락률을 적는다. 그림 아래 줄 가운데에는 고른 일정의 날짜와 이름을 적고, 이름이 줄을 넘으면 말줄임표로 줄인다.
     // 그 줄 양옆의 꺽쇠를 누르면 앞뒤 일정을 고르고, 일정 이름을 누르면 같은 페이지 아래의 이벤트 캘린더에서 같은 거래일을 연다(`toCalendar`).
@@ -1790,8 +1772,8 @@
       };
     })();
 
-    const parts = data.pre ? [predict] : [predict, tree, chart];
-    const show = (frame) => parts.forEach((part) => part.show(frame));
+    const parts = [[index, "지수"], [predict, "예측"], ...(data.pre ? [] : [[tree, "일정"], [chart, "권장 배율"]])].filter(([part]) => part);
+    const show = (frame) => parts.forEach(([part]) => part.show(frame));
     show(data);
     // 머리 상자 시세는 위 줄에 기준 가격 날짜의 정규장 종가를, 아래 줄에 리포트 날짜 판단의 기준 가격을 쓴다. 사전 리포트는 아래 줄을 두지 않는다.
     // `quote(early, afters)`는 리포트 날짜의 프리장 값(`r/premarket.json`)의 앞 세션이 기준 가격 날짜이고 지수 ETF 체결가가 있으면, 아래 줄에 기준 가격 대신
@@ -1808,13 +1790,13 @@
       return `<span class="row"><span>${INDEX_NAME[key.split("-")[1]]}</span><b class="price ${tone(day)}">${fmt(hist[at])}</b>`
         + `<b class="${tone(day)}">${signed(day, 2)}%</b>${tail}</span>`;
     };
-    const names = ["지수와 예측", "일정", "권장 배율"].slice(0, parts.length);
-    return { names, slides: parts.map((part) => [part.box]), show, quote, live: predict.live, filter: predict.filter };
+    const live = (early, afters) => [index, predict].forEach((part) => part?.live(early, afters));
+    return { names: parts.map(([, name]) => name), slides: parts.map(([part]) => [part.box]), show, quote, live };
   }
 
   // 그림 카드 묶음 아래에 지난 판단 날짜로 되감는 슬라이더를 둔다(build.py `r/rewind-{지수}/cards.json`). 리포트 날짜와 그 앞 날짜만
-  // 고를 수 있고, 리포트 날짜가 되감기 범위에 없으면 슬라이더를 두지 않는다. 날짜를 고르면 그날 판단으로 카드 세 장을 다시 그린다.
-  // 사전 리포트는 되감기 값에 리포트 날짜의 판단이 없으므로 사전 리포트의 카드 값(`own`)을 리포트 날짜의 값으로 끝에 붙인다.
+  // 고를 수 있고, 리포트 날짜가 되감기 범위에 없으면 슬라이더를 두지 않는다. 날짜를 고르면 그날 판단으로 카드를 다시 그린다.
+  // 사전 리포트는 그 카드 값(`own`)을 리포트 날짜 자리에 두고, 앞 날짜의 판단과 함께 고르게 한다.
   function cardRewind(box, date, set, own) {
     fetch(`r/rewind-${key.split("-")[1]}/cards.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((data) => {
       if (!data) return;
@@ -2565,7 +2547,7 @@
   const canvas = (height) => shape("svg", { viewBox: `0 ${(height - FIGURE) / 2} 320 ${FIGURE}` });
   const zoneOf = (zones, value) => zones.find(([to]) => value <= to) || zones[zones.length - 1];
   const KNOB = { fill: "#EAEAEA", stroke: "#1d1e21", "stroke-width": 3 }, DIM = 0.35;
-  // 글씨·축 색과 종가 선 색. 주가와 예측 카드와 일별 선 그림이 같이 쓴다.
+  // 글씨·축 색과 종가 선 색. 지수 카드, 예측 카드와 일별 선 그림이 같이 쓴다.
   const DIMS = "#7A828C", PRICE = "#C9CDD3";
   // 글자 폭의 어림값. 그림을 화면에 붙이기 전에 그리므로 글자를 재지 않고, 영숫자는 글자 크기의 0.6배, 한글은 1배로 센다.
   const textWidth = (text, size) => [...text].reduce((sum, c) => sum + (/[\x00-\x7f]/.test(c) ? 0.6 : 1) * size, 0);
@@ -2727,8 +2709,8 @@
         x, y: base + 20, "font-size": 12, fill: "#7A828C", "text-anchor": anchor }, text)));
       return s;
     },
-    // 일별 선: 점마다 [날짜, 값, 글자]이고, 주가와 예측 카드의 종가 선과 같은 모양으로 그린다. 가는 회색 선으로 점을 잇고, 가로축 아래에
-    // 달이 바뀌는 점마다 달 이름을 적는다. 달 이름과 선 굵기는 주가와 예측 카드가 같은 기간을 그릴 때와 같게 정한다.
+    // 일별 선: 점마다 [날짜, 값, 글자]이고, 지수 카드의 종가 선과 같은 모양으로 그린다. 가는 회색 선으로 점을 잇고, 가로축 아래에
+    // 달이 바뀌는 점마다 달 이름을 적는다. 달 이름과 선 굵기는 지수 카드가 같은 기간을 그릴 때와 같게 정한다.
     // 기간 안 최고·최저 점에 점을 찍어 글자를 적고, 오늘 점은 흰 점으로 찍는다. 세로축은 값의 최저에서 최고까지이고,
     // 최저 글자가 들어가게 최저 점 아래에 20px을 비운다.
     // 가로축은 마지막 점 오른쪽 `reach` 거래일까지 담는다. 정규장 다음 세션의 [값, 마지막 점에서 거래일 거리](`extra`)를 받으면 그 자리에 값을 흰 점으로 찍고
@@ -3292,7 +3274,7 @@
   // `r/market.json`은 build.py가 지수마다 적는 상위 20종목의 이름, 주식 수, 일별 종가(`map`)다. 시장 페이지의 지수 지도가 쓴다.
   const marketed = fetch("r/market.json", { cache }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   // `r/premarket.json`은 build.py `premarket`이 뉴욕 프리장 동안 10분마다 지수마다 적는 그날 프리장의 마지막 체결가이고, `r/afterhours.json`은
-  // build.py `afterhours`가 사전 리포트를 올린 뒤 애프터장이 끝날 때까지 10분마다 지수마다 적는 그날 애프터장의 마지막 체결가다. 머리 상자, 지도, 주가와 예측 카드,
+  // build.py `afterhours`가 사전 리포트를 올린 뒤 애프터장이 끝날 때까지 10분마다 지수마다 적는 그날 애프터장의 마지막 체결가다. 머리 상자, 지도, 지수 카드,
   // 종목 상세의 주가 카드가 쓴다. `onLive(hook)`은 두 값을 `{ early, after }`로 묶어 `hook`을 부르고, 가장 늦은 리포트를 보는 동안 화면이 보이면 5분마다,
   // 화면이 다시 보일 때마다 새로 받아 다시 부른다.
   const hooks = [];
@@ -3309,7 +3291,7 @@
   const signed = (v, digits = 2) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(digits)}`;
   const tone = (v) => v > 0 ? "up" : v < 0 ? "down" : "";
   const figure = (v) => v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  // 달러 값은 주가와 예측 카드처럼 앞에 $를 붙이고, 다른 단위는 값 뒤에 붙인다.
+  // 달러 값은 지수 카드처럼 앞에 $를 붙이고, 다른 단위는 값 뒤에 붙인다.
   const price = (v, unit) => unit === "달러" ? `$${figure(v)}` : `${figure(v)}${unit}`;
   // 종목 상세는 리포트 대신 `r/stocks/{티커}.json`을 받아 그린다(`stockDetail`).
   const symbol = query.get("stock");
