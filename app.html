@@ -548,13 +548,14 @@
   @keyframes marks-in { from { opacity: 0; } }
   /* 그림 아래 줄은 모든 카드가 같은 높이로 둔다. 지수 카드와 예측 카드는 기간을 한 단계씩 줄이고 늘리는 단추와 다섯 단계 가운데 고른 단계의 점을,
      일정과 예측 카드는 고른 번호의 일정을 둔다. 일정은 번호, 날짜, 이름을 한 줄에 왼쪽부터 적어 −와 + 단추와 같은 높이에 두고, 같은 날 일정은 쉼표로 잇는다.
-     한 줄을 넘는 이름은 말줄임표로 줄인다. 고른 단계는 점 대신 작은 돋보기로 그린다. */
+     한 줄을 넘는 이름은 말줄임표로 줄인다. 고른 단계는 점 대신 작은 돋보기로 그린다. 지수 카드와 종목 주가 카드는 그 줄 오른쪽 끝에 선·봉 단추를 둔다. */
   .gauge .foot { min-height: 28px; margin-top: 12px; }
   .gauge.summary { padding-bottom: 4px; }
-  .gauge .zoom { display: flex; justify-content: center; align-items: center; gap: 10px; }
+  .gauge .zoom { position: relative; display: flex; justify-content: center; align-items: center; gap: 10px; }
   .gauge .zoom button { appearance: none; border: 0; padding: 0; width: 28px; height: 28px; background: transparent; color: var(--text);
                         font: inherit; font-size: 22px; font-weight: 400; line-height: 28px; cursor: pointer; }
   .gauge .zoom button:disabled { color: var(--dim); opacity: .45; cursor: default; }
+  .gauge .zoom .chart-kind { position: absolute; right: 0; top: 0; display: grid; place-items: center; }
   .gauge .zoom .steps { display: flex; align-items: center; gap: 5px; }
   .gauge .zoom .steps i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, .22); }
   /* 고른 기간의 돋보기는 + 쪽 기간일수록 크게 그린다. 차지하는 너비는 11px로 두어 크기가 바뀌어도 −, + 단추가 움직이지 않는다. */
@@ -1475,6 +1476,7 @@
 
     // 지수 카드와 예측 카드(`priceCard`): 두 카드는 같은 틀로 만들고, 위 줄 아래 이름 줄에 "나스닥 100"처럼 지수 이름(`INDEX_TITLE`)을 쓴다.
     // 그림 아래 −·+ 단추로 종가를 그릴 기간을 고른다. 기간은 3년, 2년, 1년, 6개월, 3개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
+    // 지수 카드는 봉 비율(`r/candles.json`)이 있으면 그 줄 오른쪽 끝에 선·봉 단추(`kindButton`)를 두고, 봉 그림이면 종가 선 대신 3년·2년은 월봉, 1년은 주봉, 6개월·3개월은 일봉을 그린다.
     // 지수 카드(`aim`이 거짓)는 예측을 그리지 않는다. 종가 선은 고른 날짜 판단의 기준 가격 날짜 종가에서 끝나고, 가로축은 그다음 거래일에서 끝난다.
     // 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 정규장 등락률 색(`tone`)의 점과 글씨로 적는다. 사전 리포트는 지수 카드만 둔다.
     // 지수 카드는 기준 가격 날짜 다음 세션 값이 있으면 이름 줄 오른쪽에 정규장·애프터장이나 정규장·프리장 단추를 둔다. 지난 날짜의 다음 세션 값은 그날 프리장 값이 있으면 그 값이고, 없으면 그날 판단의 기준 가격이다.
@@ -1523,7 +1525,7 @@
       const L = 4, R = W - 4, T = 22, DAYS = [756, 504, 252, 126, 63];
       let stop = last, xmax = last + (aim ? 25 : 1);
       const start = (k) => Math.max(0, stop - DAYS[k]);
-      let span = 2, frame = null, raf = 0;
+      let span = 2, frame = null, raf = 0, ratios = null;
       const zoom = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
       zoom.innerHTML = `<button type="button" aria-label="기간 늘리기">\u2212</button><span class="steps">${"<i></i>".repeat(DAYS.length)}</span><button type="button" aria-label="기간 줄이기">+</button>`;
       const [wider, narrower] = zoom.querySelectorAll("button");
@@ -1533,12 +1535,21 @@
         zoom.querySelectorAll(".steps i").forEach((dot, i) => dot.classList.toggle("on", i === span));
       };
       level();
+      // 봉 그림이면 참이다. 봉 비율은 지수 카드만 받는다.
+      const candle = () => candleOn && !!ratios;
+      if (!aim) candled.then((found) => {
+        const days = found[key.split("-")[1]];
+        if (!days) return;
+        ratios = dates.map((day) => days[day] ?? null);
+        zoom.append(kindButton(() => { cancelAnimationFrame(raf); tween(span, span, 1); }));
+        if (candleOn && frame) tween(span, span, 1);
+      });
       const past = aim ? data.past.map(([x, lo, mid, hi]) => ({ x, lo, mid, hi })) : [];
       const at = (f) => dates.indexOf(f.base_date);
       const end = (f, q) => f.predict[q][f.predict[q].length - 1];
-      // 기간마다 세로 범위: 보이는 종가·예측 면·지난 예측을 담고, 최저 점 아래에 글씨가 들어갈 20px을 비운다.
+      // 기간마다 세로 범위: 보이는 종가(봉 그림이면 보이는 봉의 고가와 저가)·예측 면·지난 예측을 담고, 최저 점 아래에 글씨가 들어갈 20px을 비운다.
       const range = (x0) => {
-        const shown = hist.slice(x0, stop + 1), band = plan(frame) || { q25: [], q75: [] }, more = ext ? [ext[0]] : [];
+        const shown = candle() ? candleGroups(dates, hist, ratios, candleUnit(DAYS[span]), stop).filter((group) => group[1] >= x0).flatMap((group) => [group[3], group[4]]) : hist.slice(x0, stop + 1), band = plan(frame) || { q25: [], q75: [] }, more = ext ? [ext[0]] : [];
         let lo = Math.min(...shown, ...band.q25, ...past.map((p) => p.lo), ...more);
         const hi = Math.max(...shown, ...band.q75, ...past.map((p) => p.hi), ...more);
         const low = Math.min(...shown);
@@ -1586,6 +1597,19 @@
           g.append(shape("path", { d: path([from, to]), ...stroke, "stroke-dasharray": "2 2" }));
           s.append(shape("circle", { cx: to[0], cy: to[1], r: 2.5, fill: "#EAEAEA", stroke: "#171719", "stroke-width": 1 }));
         };
+        if (!p && candle()) {
+          const groups = candleGroups(dates, hist, ratios, candleUnit(DAYS[span]), stop).filter((group) => group[1] >= i0);
+          drawCandles(g, groups, X, Y, (R - L) / (xmax - x0));
+          if (marks) {
+            const group = s.appendChild(shape("g", { class: "marks" }));
+            const high = groups.reduce((a, b) => (b[3] > a[3] ? b : a)), low = groups.reduce((a, b) => (b[4] < a[4] ? b : a));
+            [[high, high[3], -5, "최고"], [low, low[4], 13, "최저"]].forEach(([[a, b], v, dy, text]) => {
+              group.append(shape("text", { x: Math.min(Math.max(X((a + b) / 2), L + 30), R - 30), y: Y(v) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${fmt(v)}`));
+            });
+          }
+          dawn([X(stop), Y(hist[stop])]);
+          return;
+        }
         if (!p) {
           g.append(shape("path", { d: path(hist.slice(i0, stop + 1).map((v, k) => [X(i0 + k), Y(v)])), ...stroke }));
           if (marks) extremes();
@@ -2589,6 +2613,58 @@
   const DIMS = "#7A828C", PRICE = "#C9CDD3";
   // 글자 폭의 어림값. 그림을 화면에 붙이기 전에 그리므로 글자를 재지 않고, 영숫자는 글자 크기의 0.6배, 한글은 1배로 센다.
   const textWidth = (text, size) => [...text].reduce((sum, c) => sum + (/[\x00-\x7f]/.test(c) ? 0.6 : 1) * size, 0);
+  // 지수 카드와 종목 주가 카드의 그림 종류. 봉 그림이면 참이고, 기기에 남겨 다른 리포트와 종목에도 쓴다.
+  const CANDLE_KEY = "chart-kind", kindCards = new Set();
+  let candleOn = (() => { try { return localStorage.getItem(CANDLE_KEY) === "candle"; } catch { return false; } })();
+  const CANDLE_ICON = '<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M6.5 2.5V17" stroke="#ff5c5c" stroke-width="1.4"/><rect x="4" y="5.5" width="5" height="8.5" rx=".8" fill="#ff5c5c"/>'
+    + '<path d="M13.5 4.5V16" stroke="#5b9bff" stroke-width="1.4"/><rect x="11" y="7.5" width="5" height="5.5" rx=".8" fill="#5b9bff"/></svg>';
+  const LINE_ICON = '<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M2.5 14.5L7 8.5l3.8 3.8L17.5 5" fill="none" stroke="#ff5c5c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  // 그림 아래 −·+ 단추 줄 오른쪽 끝의 선·봉 단추. 선 그림이면 봉 아이콘을, 봉 그림이면 선 아이콘을 그리고, 누르면 그림 종류를 바꿔 단추를 단 카드마다 `redraw`를 부른다.
+  const kindButton = (redraw) => {
+    const button = Object.assign(document.createElement("button"), { type: "button", className: "chart-kind" });
+    const paint = () => {
+      button.innerHTML = candleOn ? LINE_ICON : CANDLE_ICON;
+      button.setAttribute("aria-label", candleOn ? "선 그래프로 보기" : "봉 그래프로 보기");
+    };
+    paint();
+    kindCards.add({ button, paint, redraw });
+    button.addEventListener("click", () => {
+      feelPress();
+      candleOn = !candleOn;
+      try { localStorage.setItem(CANDLE_KEY, candleOn ? "candle" : "line"); } catch {}
+      kindCards.forEach((card) => {
+        if (!card.button.isConnected) return kindCards.delete(card);
+        card.paint();
+        card.redraw();
+      });
+    });
+    return button;
+  };
+  // 봉 하나가 묶는 기간. 그림에 담는 거래일이 1년보다 길면 월봉, 6개월보다 길면 주봉, 그 밖에는 일봉이다.
+  const candleUnit = (days) => (days > 252 ? "month" : days > 126 ? "week" : "day");
+  // 거래일 번호 0부터 `to`까지를 `unit`마다 묶은 봉 [첫 번호, 끝 번호, 시가, 고가, 저가, 종가] 목록. 묶음은 맨 앞 거래일부터 나누므로 그림 왼쪽 끝이 옮겨 가도 봉이 바뀌지 않는다.
+  // 시가·고가·저가는 그날 종가(`closes`)에 봉 비율(`ratios`, [시가, 고가, 저가] ÷ 종가)을 곱한 값이고, 비율이 없는 날은 종가로 둔다.
+  const candleGroups = (days, closes, ratios, unit, to) => {
+    const key = unit === "month" ? (day) => day.slice(0, 7) : unit === "week" ? (day) => Math.floor((Date.parse(day) / 864e5 + 3) / 7) : (day) => day;
+    const groups = [];
+    for (let i = 0; i <= to; i++) {
+      const [o, h, l] = ratios[i] || [1, 1, 1], c = closes[i], group = groups[groups.length - 1];
+      if (group && key(days[group[0]]) === key(days[i])) {
+        group[1] = i;
+        group[3] = Math.max(group[3], c * h);
+        group[4] = Math.min(group[4], c * l);
+        group[5] = c;
+      } else groups.push([i, i, c * o, c * h, c * l, c]);
+    }
+    return groups;
+  };
+  // 봉을 `parent`에 그린다. `X`는 거래일 번호의 가로 자리, `Y`는 값의 세로 자리, `step`은 거래일 하나의 폭이다. 종가가 시가 이상인 봉은 오름 색, 아래인 봉은 내림 색이다.
+  const drawCandles = (parent, groups, X, Y, step) => groups.forEach(([a, b, o, h, l, c]) => {
+    const x = X((a + b) / 2), w = Math.max(1, step * (b - a + 1) * .62), color = c >= o ? "#ff5c5c" : "#5b9bff";
+    const top = Y(Math.max(o, c)), bottom = Y(Math.min(o, c));
+    parent.append(shape("path", { d: `M${x} ${Y(h)}V${Y(l)}`, stroke: color, "stroke-width": Math.min(1, w) }));
+    parent.append(shape("rect", { x: x - w / 2, y: top, width: w, height: Math.max(.8, bottom - top), fill: color }));
+  });
   // 지도 카드의 경계 파일(`maps/{view}.json`)은 지도 카드가 처음 그려질 때 한 번 받는다.
   const MAPS = {};
   const mapOf = (view) => (MAPS[view] ||= fetch(`maps/${view}.json`).then((r) => r.json()));
@@ -2753,9 +2829,13 @@
     // 최저 글자가 들어가게 최저 점 아래에 20px을 비운다.
     // 가로축은 마지막 점 오른쪽 `reach` 거래일까지 담는다. 정규장 다음 세션의 [값, 마지막 점에서 거래일 거리](`extra`)를 받으면 그 자리에 값을 흰 점으로 찍고
     // 마지막 점에서 점선으로 잇는다. 세로축은 그 값까지 담는다.
-    daily({ points, extra = null, reach = 0 }) {
+    // 봉 비율과 봉 하나가 묶는 기간과 값 글자(`candle`, `{ ratios, unit, label }`)를 받으면 선 대신 봉을 그리고, 세로축을 봉의 고가와 저가까지 담는다.
+    // 최고·최저 글자는 가장 높은 고가와 가장 낮은 저가를 봉 위아래에 적고, 오늘 흰 점은 정규장 다음 세션 값이 있을 때만 찍는다.
+    daily({ points, extra = null, reach = 0, candle = null }) {
       const L = 4, R = 312, T = 22, B = 154, s = canvas(FIGURE), values = points.map(([, v]) => v), last = points.length - 1;
-      const ends = extra == null ? values : [...values, extra[0]], span = Math.max(1, last + reach);
+      const groups = candle && candleGroups(points.map(([day]) => day), values, candle.ratios, candle.unit, last);
+      const shown = groups ? groups.flatMap((group) => [group[3], group[4]]) : values;
+      const ends = extra == null ? shown : [...shown, extra[0]], span = Math.max(1, last + reach);
       const hi = Math.max(...values), low = Math.min(...values), top = Math.max(...ends), bottom = Math.min(...ends);
       const lo = bottom - (top - bottom) * 20 / (B - T - 20);
       const X = (i) => L + (R - L) * i / span, Y = (v) => B - (v - lo) / (top - lo || 1) * (B - T);
@@ -2766,16 +2846,25 @@
         if (X(i) >= L + 12 && opacity > 0) s.append(shape("text", { x: X(i), y: B + 17, "font-size": 11, fill: DIMS, "text-anchor": "middle", opacity }, `${m}월`));
       });
       s.append(shape("line", { x1: L, x2: R, y1: B, y2: B, stroke: DIMS, "stroke-width": 1 }));
-      s.append(shape("path", { d: `M${points.map(([, v], i) => `${X(i)} ${Y(v)}`).join("L")}`, fill: "none", stroke: PRICE,
-                               "stroke-width": 1.4 - .4 * Math.max(0, Math.min(1, (last - 63) / 693)), "stroke-linejoin": "round" }));
-      [[values.indexOf(hi), -7, "최고"], [values.indexOf(low), 15, "최저"]].forEach(([i, dy, text]) => {
-        s.append(shape("circle", { cx: X(i), cy: Y(values[i]), r: 2.5, fill: PRICE }));
-        s.append(shape("text", { x: Math.min(Math.max(X(i), L + 36), R - 36), y: Y(values[i]) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${points[i][2]}`));
-      });
+      if (groups) {
+        drawCandles(s, groups, X, Y, (R - L) / span);
+        const high = groups.reduce((a, b) => (b[3] > a[3] ? b : a)), lowest = groups.reduce((a, b) => (b[4] < a[4] ? b : a));
+        [[high, high[3], -5, "최고"], [lowest, lowest[4], 13, "최저"]].forEach(([[a, b], v, dy, text]) => {
+          s.append(shape("text", { x: Math.min(Math.max(X((a + b) / 2), L + 36), R - 36), y: Y(v) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${candle.label(v)}`));
+        });
+        if (extra == null) return s;
+      } else {
+        s.append(shape("path", { d: `M${points.map(([, v], i) => `${X(i)} ${Y(v)}`).join("L")}`, fill: "none", stroke: PRICE,
+                                 "stroke-width": 1.4 - .4 * Math.max(0, Math.min(1, (last - 63) / 693)), "stroke-linejoin": "round" }));
+        [[values.indexOf(hi), -7, "최고"], [values.indexOf(low), 15, "최저"]].forEach(([i, dy, text]) => {
+          s.append(shape("circle", { cx: X(i), cy: Y(values[i]), r: 2.5, fill: PRICE }));
+          s.append(shape("text", { x: Math.min(Math.max(X(i), L + 36), R - 36), y: Y(values[i]) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${points[i][2]}`));
+        });
+      }
       const [end, ahead] = extra ?? [values[last], 0];
       if (extra != null) {
         s.append(shape("path", { d: `M${X(last)} ${Y(values[last])}L${X(last + ahead)} ${Y(end)}`, fill: "none", stroke: PRICE, "stroke-width": 1.4, "stroke-dasharray": "2 2" }));
-        s.append(shape("circle", { cx: X(last), cy: Y(values[last]), r: 2, fill: PRICE }));
+        if (!groups) s.append(shape("circle", { cx: X(last), cy: Y(values[last]), r: 2, fill: PRICE }));
       }
       s.append(shape("circle", { cx: X(last + ahead), cy: Y(end), r: 2.5, fill: "#EAEAEA", stroke: "#171719", "stroke-width": 1 }));
       return s;
@@ -2913,6 +3002,7 @@
   // 절 제목은 "나스닥 시총 3위"처럼 지도 지수의 이름과 그 지수 안 시가총액 순위다. 위쪽 한 줄 띠와 창 제목에는 종목 이름을 쓴다.
   // 첫 상자에는 주가 카드와 기업 설명을 둔다. 주가 카드는 이름 자리에 종목 이름과 티커를 쓰고, 마지막 종가와 앞 세션 종가 대비 등락률을 쓰며,
   // 그림 아래 −·+ 단추로 1년, 6개월, 3개월 가운데 기간을 골라 일별 종가 선을 다시 그린다. 종가가 기간보다 짧으면 있는 종가를 모두 그리고, 같은 그림이 되는 기간은 하나만 둔다.
+  // 봉 비율(`candles`)이 있으면 그 줄 오른쪽 끝에 선·봉 단추(`kindButton`)를 두고, 봉 그림이면 종가 선 대신 1년은 주봉, 6개월·3개월은 일봉을 그린다.
   // 처음에는 가장 긴 기간을 그린다.
   // 카드 맨 위 줄에는 기준일 글씨를 쓰고, 그 아래 이름 줄에 종목 이름과 티커를 쓴다.
   // 마지막 종가 날짜의 애프터장 체결가(`r/market.json` 지도 값, 없으면 `r/afterhours.json`의 체결가)나 그 다음 프리장 체결가(`r/premarket.json`)가 있으면 이름 줄 오른쪽에
@@ -2947,12 +3037,15 @@
     const closes = data.closes, last = closes.length - 1;
     if (last > 0) {
       const [day, now] = closes[last], change = (now / closes[last - 1][1] - 1) * 100;
-      const points = closes.map(([d, v]) => [d, v, `$${Math.round(v).toLocaleString("en-US")}`]);
+      const label = (v) => `$${Math.round(v).toLocaleString("en-US")}`, points = closes.map(([d, v]) => [d, v, label(v)]);
+      const candles = data.candles?.some(Boolean) ? data.candles : null;
       const SPAN = [...new Set([252, 126, 63].map((days) => Math.min(days, closes.length)))];
       let span = 0;
+      // 고른 기간의 봉 그림 설정. 선 그림이면 null이다.
+      const candle = () => (candleOn && candles ? { ratios: candles.slice(-SPAN[span]), unit: candleUnit(SPAN[span]), label } : null);
       const color = change > 0 ? "#ff5c5c" : change < 0 ? "#5b9bff" : DIMS;
       const [card] = gauge({ name: `${data.name} ${data.symbol}`, asof: sessionAt("정규장", closeAt(day)), value: price(now, "달러"),
-        state: [`${signed(change)}%`, color], figure: { type: "daily", points: points.slice(-SPAN[span]) } });
+        state: [`${signed(change)}%`, color], figure: { type: "daily", points: points.slice(-SPAN[span]), candle: candle() } });
       const top = card.querySelector(".top"), asof = card.querySelector(".asof"), value = card.querySelector(".val b"), state = card.querySelector(".state");
       top.classList.add("title");
       card.prepend(Object.assign(document.createElement("div"), { className: "top" }));
@@ -2970,7 +3063,7 @@
       // 가로축은 단추와 관계없이 다음 세션 값의 자리까지 담아, 단추를 바꿔도 종가 선이 움직이지 않는다.
       const plot = () => {
         const shown = extra();
-        return GAUGES.daily({ points: points.slice(-SPAN[span]), extra: late && shown ? [shown[0], shown[2]] : null, reach: shown?.[2] ?? 0 });
+        return GAUGES.daily({ points: points.slice(-SPAN[span]), extra: late && shown ? [shown[0], shown[2]] : null, reach: shown?.[2] ?? 0, candle: candle() });
       };
       const seg = sessionSeg((on) => { late = on; repaint(); });
       const repaint = () => {
@@ -3008,6 +3101,7 @@
       wider.addEventListener("click", () => move(-1));
       narrower.addEventListener("click", () => move(1));
       level();
+      if (candles) zoom.append(kindButton(() => card.querySelector(":scope > svg").replaceWith(plot())));
       page.append(card);
       marketed.then(({ map }) => {
         const own = map?.[data.index]?.stocks.find((stock) => stock.symbol === data.symbol);
@@ -3324,6 +3418,8 @@
   const listed = fetch("r/index.json", { cache }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   // `r/market.json`은 build.py가 지수마다 적는 상위 20종목의 이름, 주식 수, 일별 종가(`map`)다. 시장 페이지의 지수 지도가 쓴다.
   const marketed = fetch("r/market.json", { cache }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  // `r/candles.json`은 build.py가 지수마다 날짜별로 적는 [시가, 고가, 저가] ÷ 종가 비율이다. 지수 카드가 봉 그림을 그릴 때 그날 종가에 곱한다.
+  const candled = fetch("r/candles.json", { cache }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   // `r/premarket.json`은 build.py `premarket`이 뉴욕 프리장부터 정규장 마감까지 10분마다 지수마다 적는 그날 프리장이나 정규장의 마지막 체결가이고, `r/afterhours.json`은
   // build.py `afterhours`가 사전 리포트를 올린 뒤 애프터장이 끝날 때까지 10분마다 지수마다 적는 그날 애프터장의 마지막 체결가다. 머리 상자, 지도, 지수 카드,
   // 종목 상세의 주가 카드가 쓴다. `onLive(hook)`은 두 값을 `{ early, after, regular }`로 묶어 `hook`을 부르고, 가장 늦은 리포트를 보는 동안 화면이 보이면 5분마다,
