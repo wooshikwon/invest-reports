@@ -590,6 +590,7 @@
   .indexmap .board { position: relative; }
   /* 세션 단추(`session`)는 정규장을 해, 애프터장을 초승달, 프리장을 언덕 위로 해가 오르는 새벽 그림으로 그리고, 그림의 닫힌 면(`f`)을 선과 같은 색으로 채운다.
      고른 단추는 밝은 바탕에 세션 색으로 칠한다. 정규장은 노랑, 애프터장은 보라, 프리장은 주황이고, 등락률의 빨강·파랑과 겹치지 않는 색이다. 고르지 않은 단추는 회색이다.
+     지도와 카드의 기준 시각 글씨(`kind`)도 그 값의 세션 색으로 쓴다. "11/17 EST 종가"는 정규장 색이다.
      지도에서는 위 줄 오른쪽 끝에, 주가 카드와 지수 카드에서는 이름 줄 오른쪽 끝에 두되 그 줄 높이를 늘리지 않는다.
      애프터마켓·프리마켓 값을 고른 카드(`ext`)는 다음 정규장 전의 임시 값이므로 값과 등락률을 회색으로 쓴다. 리포트 날짜의 정규장 값을 그리는 카드는 정규장 단추 하나만 두고 회색으로 쓰지 않는다. */
   .session { display: flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, .06); }
@@ -597,10 +598,11 @@
                     color: var(--hint); cursor: pointer; }
   .session button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .session button svg .f { fill: currentColor; }
-  .session button.on { background: rgba(255, 255, 255, .16); }
-  .session button.on[data-kind="regular"] { color: #ffc53d; }
-  .session button.on[data-kind="after"] { color: #a78bfa; }
-  .session button.on[data-kind="pre"] { color: #ff9f43; }
+  [data-kind="regular"] { --kind: #ffc53d; }
+  [data-kind="after"] { --kind: #a78bfa; }
+  [data-kind="pre"] { --kind: #ff9f43; }
+  .session button.on { background: rgba(255, 255, 255, .16); color: var(--kind); }
+  :is(.indexmap > .top, .gauge) .kind { color: var(--kind); }
   .session button[hidden] { display: none; }
   :is(.indexmap > .top, .gauge .top) .session { flex: none; margin: -6px 0 -6px auto; align-self: center; }
   /* 지수 카드와 예측 카드, 종목 상세 주가 카드는 맨 위 줄에 기준 시각을 흐린 작은 글씨로 쓰고, 그 아래 이름 줄에 지수나 종목 이름과 세션 단추를 둔다. */
@@ -1224,6 +1226,12 @@
   // `afterEnd(day)`는 그날 애프터장이 닫히는 20:00 ET의 뉴욕 시각 글씨다.
   const sessionAt = (name, time) => `${name} ${new Date(Date.parse(time) + 9 * 3600e3).toISOString().slice(11, 16)} KST`;
   const afterEnd = (day) => `${day}T20:00:00${usZone(day) === "EDT" ? "-04:00" : "-05:00"}`;
+  // 기준 시각 글씨를 `kind` 세션(`regular`, `after`, `pre`)의 색으로 쓰는 글씨 조각이다.
+  const sessionTag = (kind, text) => {
+    const tag = Object.assign(document.createElement("span"), { className: "kind", textContent: text });
+    tag.dataset.kind = kind;
+    return tag;
+  };
 
   // 세션 단추의 그림과 이름이다. 정규장은 해, 애프터장은 초승달, 프리장은 언덕 위로 반쯤 오른 해와 빛살이다. 해의 원판, 초승달, 반쯤 오른 해는 채우는 면(`f`)이다.
   const SESSION_ICON = {
@@ -1319,8 +1327,8 @@
     const draw = () => {
       untip();
       const day = late && early ? date : map.dates[n];
-      label.textContent = !late ? `${day.slice(5, 7)}/${day.slice(8, 10)} ${usZone(day)} 종가`
-        : early ? sessionAt(SESSION_NAME[kind], early.time) : sessionAt("애프터마켓", after?.time ?? afterEnd(day));
+      label.replaceChildren(!late ? sessionTag("regular", `${day.slice(5, 7)}/${day.slice(8, 10)} ${usZone(day)} 종가`)
+        : sessionTag(kind, early ? sessionAt(SESSION_NAME[kind], early.time) : sessionAt("애프터마켓", after?.time ?? afterEnd(day))));
       board.replaceChildren();
       const W = board.clientWidth, H = Math.round(W * .95), total = stocks.reduce((sum, stock) => sum + stock.cap, 0);
       board.style.height = `${H}px`;
@@ -1641,9 +1649,9 @@
         c.box.classList.toggle("ink", !!p);
         c.box.classList.toggle("ext", !!ext && !p && !regular);
         c.box.querySelector(".state").className = `state ${p ? "" : ext ? (regular ? tone(move) : "") : tone(session)}`;
-        if (ext && !p) c.head(f, `${signed(move, 2)}%`, fmt(ext[0]), ext[2]);
+        if (ext && !p) c.head(f, `${signed(move, 2)}%`, fmt(ext[0]), sessionTag(ext[3], ext[2]));
         else if (p) c.head(f, `${signed((end(f, "q50") / f.base - 1) * 100)}%`, fmt(end(f, "q50")));
-        else c.head(f, `${signed(session, 2)}%`, fmt(hist[stop]), `${md(dates[stop])} ${usZone(dates[stop])} 종가`);
+        else c.head(f, `${signed(session, 2)}%`, fmt(hist[stop]), sessionTag("regular", `${md(dates[stop])} ${usZone(dates[stop])} 종가`));
         tween(span, span, 1);
       };
       return {
@@ -2947,6 +2955,8 @@
       top.classList.add("title");
       card.prepend(Object.assign(document.createElement("div"), { className: "top" }));
       card.firstChild.append(asof);
+      asof.classList.add("kind");
+      asof.dataset.kind = "regular";
       // `after`는 마지막 종가 날짜의 애프터장 마지막 체결가(`r/market.json` 지도 값)이고, `tail`은 그 체결가가 아직 없을 때 쓰는 애프터장 값이며,
       // `early`는 그 다음 프리장이나 정규장 값이다. 없으면 null이다.
       const asked = query.get("session"), date = `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
@@ -2964,10 +2974,12 @@
       const repaint = () => {
         if (early?.regular) late = true;
         const shown = extra(), on = late && shown, move = on ? (shown[0] / now - 1) * 100 : change;
-        seg.rename(early ? (early.regular ? "regular" : "pre") : "after");
+        const kind = early ? (early.regular ? "regular" : "pre") : "after";
+        seg.rename(kind);
         seg.mark(late);
         if (shown) top.append(seg.box); else seg.box.remove();
         asof.textContent = on ? shown[1] : `${md(day)} ${usZone(day)} 종가`;
+        asof.dataset.kind = on ? kind : "regular";
         value.textContent = price(on ? shown[0] : now, "달러");
         card.classList.toggle("ext", !!on && !early?.regular);
         state.lastChild.textContent = `${signed(move)}%`;
