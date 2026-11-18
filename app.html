@@ -1103,9 +1103,9 @@
       const cards = JSON.parse(data.textContent), set = summaryCards(cards, date);
       ticker.innerHTML = set.quote();
       onLive((found) => {
-        const index = key.split("-")[1], early = found.early[index]?.[date], after = found.after[index];
-        ticker.innerHTML = set.quote(early, after);
-        set.live(early, after);
+        const index = key.split("-")[1], earlies = found.early[index] ?? {}, after = found.after[index];
+        ticker.innerHTML = set.quote(earlies[date], after);
+        set.live(earlies, after);
       });
       const bar = document.createElement("div");
       bar.className = "tabs";
@@ -1454,7 +1454,7 @@
     // 그림 아래 −·+ 단추로 종가를 그릴 기간을 고른다. 기간은 3년, 2년, 1년, 6개월, 3개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
     // 지수 카드(`aim`이 거짓)는 예측을 그리지 않는다. 종가 선은 고른 날짜 판단의 기준 가격 날짜 종가에서 끝나고, 가로축은 그다음 거래일에서 끝난다.
     // 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 정규장 등락률 색(`tone`)의 점과 글씨로 적는다. 사전 리포트는 지수 카드만 둔다.
-    // 지수 카드는 기준 가격 날짜 다음 세션 값이 있으면 이름 줄 오른쪽에 정규장·애프터장이나 정규장·프리장 단추를 둔다. 지난 날짜의 다음 세션 값은 그날 판단의 기준 가격이다.
+    // 지수 카드는 기준 가격 날짜 다음 세션 값이 있으면 이름 줄 오른쪽에 정규장·애프터장이나 정규장·프리장 단추를 둔다. 지난 날짜의 다음 세션 값은 그날 프리장 값이 있으면 그 값이고, 없으면 그날 판단의 기준 가격이다.
     // 애프터장 값은 본 리포트의 기준 가격이고, 사전 리포트는 정규장 종가에 지수 ETF의 애프터장 등락 비율(`r/afterhours.json`)을 곱한 값이다.
     // 프리장 값(`early`)은 정규장 종가에 지수 ETF의 프리장 등락 비율을 곱한 값이며, 프리장 값이 있으면 프리장 값을 쓴다.
     // 정규장 다음 단추를 고르면 위 줄에 그 세션 이름과 시각을, 가운데 줄에 그 값과 정규장 종가 대비 등락률을 회색으로 적는다.
@@ -1472,13 +1472,17 @@
       const title = c.box.insertBefore(Object.assign(document.createElement("div"), { className: "top title" }), c.box.querySelector(".val"));
       title.append(Object.assign(document.createElement("span"), { className: "name", textContent: INDEX_TITLE[key.split("-")[1]] || INDEX_NAME[key.split("-")[1]] }));
       const close = dates.indexOf(data.base_date);
-      let late = false, chosen = false, early = null, after = null, ext = null;
+      let late = false, chosen = false, early = null, after = null, ext = null, earlies = {};
       // 그림과 글씨가 쓰는 판단의 예측이다. 지수 카드는 예측을 쓰지 않는다.
       const plan = (f) => (aim ? f.predict : null);
-      // 리포트 날짜 값의 정규장 다음 세션 [값, 거래일 번호, 위 줄 글씨, 프리장 여부]. 없으면 null이다.
-      // 지난 날짜의 정규장 다음 세션은 그날 판단의 기준 가격인 애프터장 값이다.
+      // 고른 날짜 값의 정규장 다음 세션 [값, 거래일 번호, 위 줄 글씨, 프리장 여부]. 없으면 null이다.
+      // 지난 날짜의 정규장 다음 세션은 그날 프리장 값의 앞 세션이 그날 판단의 기준 가격 날짜이면 그 프리장 값이고, 아니면 그날 판단의 기준 가격인 애프터장 값이다.
       const extra = (f) => {
-        if (f.day !== date) return [f.base, at(f) + BASE_AFTER, sessionAt("애프터마켓", afterEnd(f.base_date)), false];
+        if (f.day !== date) {
+          const dawn = earlies[f.day];
+          if (dawn?.session === f.base_date && dawn.ratio != null) return [hist[at(f)] * dawn.ratio, at(f) + afterClose(dawn.time), sessionAt("프리마켓", dawn.time), true];
+          return [f.base, at(f) + BASE_AFTER, sessionAt("애프터마켓", afterEnd(f.base_date)), false];
+        }
         if (early?.session === data.base_date) {
           return [hist[close] * early.ratio, close + afterClose(early.time), sessionAt("프리마켓", early.time), true];
         }
@@ -1623,9 +1627,11 @@
       return {
         box: c.box,
         show,
-        // 리포트 날짜의 프리장 값(`r/premarket.json`)과 지수의 애프터장 값(`r/afterhours.json`)을 받아, 받은 시각이 바뀌었으면 카드를 다시 그린다.
-        live(found, afters) {
-          const tail = afters?.[data.base_date]?.ratio != null ? afters[data.base_date] : null;
+        // 지수의 날짜별 프리장 값(`r/premarket.json`)과 애프터장 값(`r/afterhours.json`)을 받아, 리포트 날짜 값을 받은 시각이 바뀌었으면 카드를 다시 그린다.
+        // 지난 날짜를 고르면 그날의 프리장 값을 쓴다.
+        live(days, afters) {
+          const found = days?.[date], tail = afters?.[data.base_date]?.ratio != null ? afters[data.base_date] : null;
+          earlies = days ?? {};
           if (found?.time === early?.time && tail?.time === after?.time) return;
           early = found ?? null;
           after = tail;
@@ -1790,7 +1796,7 @@
       return `<span class="row"><span>${INDEX_NAME[key.split("-")[1]]}</span><b class="price ${tone(day)}">${fmt(hist[at])}</b>`
         + `<b class="${tone(day)}">${signed(day, 2)}%</b>${tail}</span>`;
     };
-    const live = (early, afters) => [index, predict].forEach((part) => part?.live(early, afters));
+    const live = (earlies, afters) => [index, predict].forEach((part) => part?.live(earlies, afters));
     return { names: parts.map(([, name]) => name), slides: parts.map(([part]) => [part.box]), show, quote, live };
   }
 
