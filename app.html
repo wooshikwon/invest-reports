@@ -293,7 +293,7 @@
      그림이 두 장 이상이면 그림과 사진 설명을 한 장씩 넘겨 보는 묶음에 싣고, 묶음 아래 가운데에 장마다 점 하나를 찍어 보고 있는 장의 점을 밝게 칠한다. 점을 누르면 그 장으로 넘긴다.
      이슈 그래프는 이슈 해설 문단 사이에 미국 거시 지표 카드와 같은 모양으로 싣고, 그래프 설명은 카드 내용과 같은 좌우 여백을 두고 단다.
      그림의 사진 설명과 그래프 설명 아래에서 다음 말머리나 문단까지는 위 문단에서 그래프 제목까지와 같은 28px을 띄운다. 히스토리 상자 아래 이슈 해설 말머리도 28px을 띄운다.
-     종목 상세의 대표 이미지는 같은 모양으로 절 제목 위, 화면 맨 위에 싣고, 그림과 절 제목 사이에는 절 사이 띠를 두지 않는다. */
+     종목 상세의 대표 이미지는 같은 모양으로 절 제목 위, 화면 맨 위 이슈 띠 바로 아래에 붙여 싣고, 그림과 절 제목 사이에는 절 사이 띠를 두지 않는다. */
   .issue-page > h4 { margin-top: 15.5px; }
   .issue-page > :is(p, ul, ol) { color: var(--hint); }
   :is(.issue-page, #report) > figure.issue-image { margin: 12px calc(50% - 50vw) 0; }
@@ -307,7 +307,7 @@
   :is(.issue-page, #report) > figure.issue-image .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background .2s ease; }
   :is(.issue-page, #report) > figure.issue-image .dots i.on { background: var(--hint); }
   .issue-page > figure.issue-image + * { margin-top: 28px; }
-  #report > figure.issue-image { margin-top: 0; }
+  #report > figure.issue-image { margin-top: -16px; }
   #report > figure.issue-image + h2:not(:first-child) { margin-top: 28px; }
   #report > figure.issue-image + h2:not(:first-child)::before { content: none; }
   .issue-page > figure.issue-chart { margin: 0 0 28px; }
@@ -1478,7 +1478,8 @@
     };
 
     // 지수 카드와 예측 카드(`priceCard`): 두 카드는 같은 틀로 만들고, 위 줄 아래 이름 줄에 "나스닥 100"처럼 지수 이름(`INDEX_TITLE`)을 쓴다.
-    // 그림 아래 −·+ 단추로 종가를 그릴 기간을 고른다. 기간은 3년, 2년, 1년, 6개월, 3개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다. 단추 사이의 점 묶음은 누른 채 끌어 기간을 바로 고른다(`zoomDrag`).
+    // 그림 아래 −·+ 단추로 종가를 그릴 기간을 고른다. 기간은 3년, 2년, 1년, 6개월, 3개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
+    // 기간은 가로축 전체의 길이여서, 예측 카드는 지수 카드와 같은 기간에서 예측 25거래일만큼 종가를 짧게 그린다. 단추 사이의 점 묶음은 누른 채 끌어 기간을 바로 고른다(`zoomDrag`).
     // 처음에는 가장 짧은 3개월을 그린다. 봉 비율(`r/candles.json`)이 있으면 그 줄 오른쪽 끝에 선·봉 단추(`kindButton`)를 두고,
     // 봉 그림이면 종가 선 대신 3년·2년은 월봉, 1년은 주봉, 6개월·3개월은 일봉을 그린다. 예측 카드는 봉을 마지막 종가까지 그리고, 예측 범위와 기준 가격 점선은 선 그림과 같게 그리되 예측이 시작하는 흰 점은 찍지 않는다.
     // 지수 카드(`aim`이 거짓)는 예측을 그리지 않는다. 종가 선은 고른 날짜 판단의 기준 가격 날짜 종가에서 끝나고, 가로축은 그다음 거래일에서 끝난다.
@@ -1525,10 +1526,10 @@
       };
       const seg = sessionSeg((on) => { late = on; chosen = true; show(frame); });
       // `stop`는 종가 선이 끝나는 거래일 번호이고, `xmax`는 가로축 오른쪽 끝이다. 지수 카드는 고른 날짜마다 둘을 옮긴다.
-      // 기간(`DAYS`)마다 그림 왼쪽 끝(`start`)은 `stop`에서 그 거래일 수만큼 앞이다.
+      // 기간(`DAYS`)마다 그림 왼쪽 끝(`start`)은 가로축 마지막 거래일(`xmax - 1`)에서 그 거래일 수만큼 앞이다.
       const L = 4, R = W - 4, T = 22, DAYS = [756, 504, 252, 126, 63];
       let stop = last, xmax = last + (aim ? 25 : 1);
-      const start = (k) => Math.max(0, stop - DAYS[k]);
+      const start = (k) => Math.max(0, xmax - 1 - DAYS[k]);
       let span = DAYS.length - 1, frame = null, raf = 0, ratios = null;
       const zoom = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
       zoom.innerHTML = `<button type="button" aria-label="기간 늘리기">\u2212</button><span class="steps">${"<i></i>".repeat(DAYS.length)}</span><button type="button" aria-label="기간 줄이기">+</button>`;
@@ -2857,13 +2858,13 @@
     // 일별 선: 점마다 [날짜, 값, 글자]이고, 지수 카드의 종가 선과 같은 모양으로 그린다. 가는 회색 선으로 점을 잇고, 가로축 아래에
     // 달이 바뀌는 점마다 달 이름을 적는다. 달 이름과 선 굵기는 지수 카드가 같은 기간을 그릴 때와 같게 정한다.
     // 기간 안 최고·최저 점에 점을 찍어 글자를 적고, 오늘 점은 흰 점으로 찍는다. 세로축은 값의 최저에서 최고까지이고,
-    // 최저 글자가 들어가게 최저 점 아래에 20px을 비운다.
+    // 최저 글자가 들어가게 최저 점 아래에 20px을 비운다. 그림 높이(`height`)를 받으면 가로축을 그 높이의 24px 위에 긋는다.
     // 가로축은 마지막 점 오른쪽 `reach` 거래일까지 담는다. 정규장 다음 세션의 [값, 마지막 점에서 거래일 거리](`extra`)를 받으면 그 자리에 값을 흰 점으로 찍고
     // 마지막 점에서 점선으로 잇는다. 세로축은 그 값까지 담는다.
     // 봉 비율과 봉 하나가 묶는 기간과 값 글자(`candle`, `{ ratios, unit, label }`)를 받으면 선 대신 봉을 그리고, 세로축을 봉의 고가와 저가까지 담는다.
     // 최고·최저 글자는 가장 높은 고가와 가장 낮은 저가를 봉 위아래에 적고, 정규장 다음 세션 값은 짧은 가로선(`candleTick`)으로 긋는다.
-    daily({ points, extra = null, reach = 0, candle = null }) {
-      const L = 4, R = 312, T = 22, B = 154, s = canvas(FIGURE), values = points.map(([, v]) => v), last = points.length - 1;
+    daily({ points, extra = null, reach = 0, candle = null, height = FIGURE }) {
+      const L = 4, R = 312, T = 22, B = height - 24, s = frame(height), values = points.map(([, v]) => v), last = points.length - 1;
       const groups = candle && candleGroups(points.map(([day]) => day), values, candle.ratios, candle.unit, last);
       const shown = groups ? groups.flatMap((group) => [group[3], group[4]]) : values;
       const ends = extra == null ? shown : [...shown, extra[0]], span = Math.max(1, last + reach);
@@ -3076,11 +3077,13 @@
       const candles = data.candles?.some(Boolean) ? data.candles : null;
       const SPAN = [...new Set([252, 126, 63].map((days) => Math.min(days, closes.length)))];
       let span = SPAN.length - 1;
+      // 그림 높이는 지수 카드의 그림 높이와 같다.
+      const PLOT = 236;
       // 고른 기간의 봉 그림 설정. 선 그림이면 null이다.
       const candle = () => (candleOn && candles ? { ratios: candles.slice(-SPAN[span]), unit: candleUnit(SPAN[span]), label } : null);
       const color = change > 0 ? "#ff5c5c" : change < 0 ? "#5b9bff" : DIMS;
       const [card] = gauge({ name: `${data.name} ${data.symbol}`, asof: sessionAt("정규장", closeAt(day)), value: price(now, "달러"),
-        state: [`${signed(change)}%`, color], figure: { type: "daily", points: points.slice(-SPAN[span]), candle: candle() } });
+        state: [`${signed(change)}%`, color], figure: { type: "daily", points: points.slice(-SPAN[span]), candle: candle(), height: PLOT } });
       const top = card.querySelector(".top"), asof = card.querySelector(".asof"), value = card.querySelector(".val b"), state = card.querySelector(".state");
       top.classList.add("title");
       card.prepend(Object.assign(document.createElement("div"), { className: "top" }));
@@ -3098,7 +3101,7 @@
       // 가로축은 단추와 관계없이 다음 세션 값의 자리까지 담아, 단추를 바꿔도 종가 선이 움직이지 않는다.
       const plot = () => {
         const shown = extra();
-        return GAUGES.daily({ points: points.slice(-SPAN[span]), extra: late && shown ? [shown[0], shown[2]] : null, reach: shown?.[2] ?? 0, candle: candle() });
+        return GAUGES.daily({ points: points.slice(-SPAN[span]), extra: late && shown ? [shown[0], shown[2]] : null, reach: shown?.[2] ?? 0, candle: candle(), height: PLOT });
       };
       const seg = sessionSeg((on) => { late = on; repaint(); });
       const repaint = () => {
