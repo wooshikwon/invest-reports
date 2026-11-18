@@ -104,10 +104,11 @@ cron이 사전 리포트를 올린 16:30 ET부터 애프터장이 닫히는 20:0
 `r/stocks/{심볼}.json`에는 종목 상세 페이지의 값으로 한글 이름, 업종, 설명, 지도 지수와 그 지수 안 시가총액 순위, 1년 종가, 공시 카드 세 장(실적·매출 구성·최근 공시),
 대표 이미지 세~다섯 장의 주소와 사진 설명을 적는다(`stock_pages`). 대표 이미지는 `STOCK_IMAGES`의 `{심볼}-{순번}.webp`를 `r/stocks/`로 복사한다.
 종목 상세 페이지는 맨 위에 대표 이미지를 싣고, 이슈 상세 페이지의 틀로 주가 카드와 기업 설명을 그리고, `공시 상세` 절에 공시 카드를 탭 세 개로 그린다.
-`r/candles.json`에는 지수마다 날짜를 키로 ^NDX·^NBI 야후 일봉의 [시가, 고가, 저가]를 그날 종가로 나눈 비율을 적고, `r/stocks/{심볼}.json`의
-`candles`에는 같은 비율을 종가와 같은 순서로 적는다(`candle_ratios`). 지수 카드의 종가는 ETF 눈금을 지수 눈금으로 늘린 값이고 종목 종가는 토스 종가로 메운 값이라,
-미니 앱은 비율을 카드의 종가에 곱해 봉을 그린다. 지수 카드와 종목 상세 페이지의 주가 카드는 그림 아래 −·+ 단추 줄 오른쪽 끝에 선·봉 단추를 두고,
-봉을 고르면 3년·2년 기간은 월봉, 1년은 주봉, 6개월·3개월은 일봉으로 그린다. 고른 그림 종류는 기기에 남겨 다른 리포트와 종목에도 쓴다.
+`r/candles.json`에는 지수마다 날짜를 키로 ^NDX·^NBI 야후 일봉의 [시가, 고가, 저가]를 그날 종가로 나눈 비율을, `oil`에 WTI 선물(CL=F)의 같은 비율을 적고,
+`r/stocks/{심볼}.json`의 `candles`에는 같은 비율을 종가와 같은 순서로 적는다(`candle_ratios`). 지수 카드의 종가는 ETF 눈금을 지수 눈금으로 늘린 값이고
+종목 종가는 토스 종가로 메운 값이라, 미니 앱은 비율을 카드의 종가에 곱해 봉을 그린다. 지수 카드와 종목 상세 페이지의 주가 카드는 그림 아래 −·+ 단추 줄 오른쪽 끝에,
+미국 거시 지표의 유가 카드는 그림 아래 줄 오른쪽 끝에 선·봉 단추를 둔다. 봉 그림은 3년·2년 기간은 월봉, 1년은 주봉, 6개월·3개월은 일봉으로 그린다.
+처음에는 봉 그림이고, 고른 그림 종류는 기기에 남겨 다른 리포트와 종목에도 쓴다.
 
 `system/simulation.json`의 `quantiles`에 5% 값이 있는 리포트는 요약 절 세 그림을 그림 파일 대신 값으로 그린다.
 그런 리포트의 공개본에서는 12M + Predictions·Montecarlo·권장 추종 배율 그림을 빼고, `report.html` 끝에 카드 값을
@@ -184,6 +185,7 @@ PRICE_YEARS = 3  # 지수 카드와 예측 카드가 그리는 종가 기간(년
 # 시장 페이지의 지수 지도가 되감기 날짜의 첫날보다 앞서 종가를 받는 날 수다. 첫날의 앞 두 세션이 들도록 일주일을 더 받는다.
 MAP_LEAD_DAYS = 7
 STOCK_DAYS = 366  # 종목 상세 페이지의 주가 카드가 그리는 종가 기간(일)
+OIL_TICKER = "CL=F"  # 미국 거시 지표 유가 카드의 WTI 선물 야후 심볼
 AFTER_OPEN, AFTER_CLOSE = dt.time(16), dt.time(20)  # 뉴욕 애프터장이 열리고 닫히는 시각. 지도와 머리 상자의 애프터장 값은 닫히는 시각까지의 마지막 체결가다
 PREMARKET_OPEN, PREMARKET_CLOSE = dt.time(4), dt.time(9, 30)  # 뉴욕 프리장이 열리고 닫히는 시각. 끝 시각이 닫히는 시각 뒤인 `r/premarket.json` 값은 정규장 값이다
 REGULAR_EVERY = 30  # 정규장 값을 다시 받는 간격(분). 정규장이 열린 뒤 첫 회차와 마감 값은 이 간격과 관계없이 받는다
@@ -473,7 +475,8 @@ def candle_ratios(tickers: list[str], start: str, previous: dict[str, dict]) -> 
     """야후 일봉에서 `start`부터 심볼마다 날짜별 [시가, 고가, 저가]를 그날 종가로 나눈 비율을 받는다.
 
     비율이라 미니 앱이 카드의 종가에 곱해 지수 눈금이나 토스 종가 눈금의 봉으로 바꾼다. 앞서 쓴 비율(`previous`)에 새로 받은 날짜를 덮고,
-    `start` 앞 날짜는 지운다. 야후가 답하지 않은 심볼은 앞서 쓴 비율만 남는다.
+    `start` 앞 날짜는 지운다. 야후가 답하지 않은 심볼은 앞서 쓴 비율만 남는다. 선물 일봉은 시가가 고가보다 높거나 저가보다 낮게 오기도 해서,
+    고가와 저가는 시가와 종가까지 넓힌다.
     """
     import yfinance as yf
 
@@ -483,8 +486,9 @@ def candle_ratios(tickers: list[str], start: str, previous: dict[str, dict]) -> 
         own = dict(previous.get(ticker, {}))
         if frame is not None and ticker in frame.columns.get_level_values(0):
             rows = frame[ticker].dropna(subset=["Open", "High", "Low", "Close"])
-            own.update({day.date().isoformat(): [round(row[name] / row["Close"], 5) for name in ("Open", "High", "Low")]
-                        for day, row in rows.iterrows() if row["Close"] > 0})
+            own.update({day.date().isoformat(): [round(value / row["Close"], 5) for value in (
+                row["Open"], max(row["Open"], row["High"], row["Close"]), min(row["Open"], row["Low"], row["Close"]))]
+                for day, row in rows.iterrows() if row["Close"] > 0})
         found[ticker] = {day: own[day] for day in sorted(own) if day >= start}
     return found
 
@@ -531,11 +535,11 @@ def stock_pages(con: sqlite3.Connection, cm, board: dict, start: str, folder: Pa
 
 def market(vault: Path, out: Path) -> Path:
     """`r/market.json`의 `map`에 지수마다 지도의 값(`index_map`)과 애프터장 값(`after_prices`)을 쓰고, `r/stocks/{심볼}.json`에 지도 종목마다
-    종목 상세 페이지의 값(`stock_pages`)을, `r/stocks/{심볼}-{순번}.webp`에 대표 이미지를, `r/candles.json`에 지수마다 날짜별 봉 비율을 쓴다.
+    종목 상세 페이지의 값(`stock_pages`)을, `r/stocks/{심볼}-{순번}.webp`에 대표 이미지를, `r/candles.json`에 지수와 유가(`oil`)마다 날짜별 봉 비율을 쓴다.
 
     지도 날짜는 공개본이 있는 가장 늦은 리포트 날짜에서 `REWIND_DAYS`일과 `MAP_LEAD_DAYS`일을 거슬러 간 날부터다.
     종목 상세 페이지의 종가는 그 날짜에서 `STOCK_DAYS`일을 거슬러 간 날부터다. 지도에서 내려간 종목의 파일과 페이지가 싣지 않는 그림 파일은 지운다.
-    봉 비율(`candle_ratios`)은 지수(`SECTOR_INDEX_TICKERS`)와 지도 종목마다 공개본이 있는 가장 이른 리포트 날짜에서 `PRICE_YEARS`년과
+    봉 비율(`candle_ratios`)은 지수(`SECTOR_INDEX_TICKERS`)와 WTI 선물(`OIL_TICKER`)과 지도 종목마다 공개본이 있는 가장 이른 리포트 날짜에서 `PRICE_YEARS`년과
     `MAP_LEAD_DAYS`일을 거슬러 간 날부터 받고, 앞서 쓴 `r/candles.json`과 종목 상세 페이지의 비율에 덮는다.
     """
     published = sorted(p.name[:8] for p in (out / "r").glob("*-*") if p.name[:8].isdigit())
@@ -549,21 +553,23 @@ def market(vault: Path, out: Path) -> Path:
         after_prices(board, json.loads(target.read_text(encoding="utf-8"))["map"] if target.exists() else {}, render_inputs(vault).price_source)
         folder = out / "r" / "stocks"
         folder.mkdir(exist_ok=True)
-        tickers = predictions_chart(vault).path_bands.SECTOR_INDEX_TICKERS
+        index_tickers = predictions_chart(vault).path_bands.SECTOR_INDEX_TICKERS
+        tickers = {**{index: index_tickers[index] for index in board}, "oil": OIL_TICKER}
         candles = out / "r" / "candles.json"
-        previous = {tickers[index]: days for index, days in json.loads(candles.read_text(encoding="utf-8")).items()} if candles.exists() else {}
+        previous = ({tickers[name]: days for name, days in json.loads(candles.read_text(encoding="utf-8")).items() if name in tickers}
+                    if candles.exists() else {})
         for page in folder.glob("*.json"):
             kept = json.loads(page.read_text(encoding="utf-8"))
             previous[page.stem] = {day: ratio for (day, _), ratio in zip(kept["closes"], kept.get("candles", [])) if ratio}
         first = dt.date.fromisoformat(f"{published[0][:4]}-{published[0][4:6]}-{published[0][6:]}")
         symbols = sorted({stock["symbol"] for found in board.values() for stock in found["stocks"]})
-        ratios = candle_ratios([tickers[index] for index in board] + symbols,
+        ratios = candle_ratios(list(tickers.values()) + symbols,
                                (first - dt.timedelta(days=round(365.25 * PRICE_YEARS) + MAP_LEAD_DAYS)).isoformat(), previous)
         pages = stock_pages(con, cm, board, (latest - dt.timedelta(days=STOCK_DAYS)).isoformat(), folder, out, ratios)
     finally:
         con.close()
     target.write_text(json.dumps({"map": board}, ensure_ascii=False) + "\n", encoding="utf-8")
-    candles.write_text(json.dumps({index: ratios[tickers[index]] for index in board}, separators=(",", ":")) + "\n", encoding="utf-8")
+    candles.write_text(json.dumps({name: ratios[ticker] for name, ticker in tickers.items()}, separators=(",", ":")) + "\n", encoding="utf-8")
     shown = {f"{symbol}.json" for symbol in pages} | {image["src"].split("?")[0].rsplit("/", 1)[1] for page in pages.values() for image in page["images"]}
     for page in folder.iterdir():
         if page.name not in shown:
