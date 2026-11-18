@@ -69,7 +69,7 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 리포트가 판정 뒤에 바뀌어 찾지 못한 자리는 감싸지 않고 표준 오류로 알린다. `invest-reports` 미니 앱은 단추에 점선 밑줄을 긋고,
 누르면 용어 아래에 대표 표기와 설명을 담은 말풍선을 연다.
 
-`r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 본 리포트를 처음 만든 시각(`written`, 서울 시각)을 적는다.
+`r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 본 리포트를 처음 만든 시각(`written`), 항목을 마지막으로 쓴 시각(`updated`)을 서울 시각으로 적는다.
 앞 날짜 리포트의 이슈가 뒤 리포트 이슈의 히스토리에 들면, 앞 날짜 리포트 항목의 `later`에 그 이슈 번호를 키로 히스토리를 가진
 가장 늦은 리포트의 `리포트 키/이슈 번호`를 적는다. 미니 앱의 "자세히 보기" 단추는 이 값으로 이슈의 가장 늦은 히스토리를 연다. `invest-reports` 미니 앱은 제목 위
 작은 글씨로 날짜 줄을 그린다. 같은 리포트를 다시 만들어도 처음 만든 시각은 그대로 둔다.
@@ -119,8 +119,9 @@ ETF 눈금을 지수 눈금으로 늘려 적는다(`card_scale`). 공개본이 �
 `r/index.json` 항목에는 `stage: "pre"`와 전날 정규장 `session`·`close`만 적은 `moves`를 쓰고, 앞 날짜의 사전 리포트 항목과 폴더는 지운다.
 전날이 뉴욕 정규장 세션이 아니면 종료 코드 3, 그날 본 리포트가 이미 있으면 종료 코드 4로 끝내고 아무것도 쓰지 않는다. 전날 세션의 종가가 `reference.db`에 아직 없으면 실패로 끝낸다.
 `--stage running`은 그날 사전 리포트 항목의 `stage`를 `running`으로 바꾸고, 판단 배치가 애프터장이 끝난 뒤 시작하므로 `r/market.json`을 다시 써서 전날 애프터장 값을 단다. 본 리포트를 만들면 같은 키의 항목을 새로 쓰므로 `stage`가 없어지고,
-`invest-reports` 미니 앱은 `stage`가 없는 항목을 분석 완료로 그리고, 그 옆에 `written`의 시각을 적는다.
-미니 앱은 `상세 이슈 해설` 절의 이슈 목록 위에도 분석 완료 시각을 적는다. 본 리포트는 자기 항목의 `written`을, 사전 리포트는 이슈를 옮겨 온 앞 본 리포트 항목의 `written`을 쓴다.
+`invest-reports` 미니 앱은 `stage`가 없는 항목을 분석 완료로 그린다. 날짜 줄 끝에는 `updated`와 리포트 날짜의 프리장 값, 리포트 날짜 앞 세션의
+애프터장 값의 체결 시각 가운데 가장 늦은 시각을 적는다. 미니 앱은 `상세 이슈 해설` 절의 이슈 목록 위에 분석 완료 시각을 "11/17 11:43 기준"처럼 적는다.
+본 리포트는 자기 항목의 `written`을, 사전 리포트는 이슈를 옮겨 온 앞 본 리포트 항목의 `written`을 쓴다.
 """
 import argparse
 import datetime as dt
@@ -1371,9 +1372,10 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     heading = TITLE_RE.match(html.unescape(title))
     if not heading:
         raise SystemExit(f"제목 끝에 날짜가 없다: {title}")
-    written = entries.get(key, {}).get("written") or dt.datetime.now(SEOUL).strftime("%Y-%m-%d %H:%M")
+    now = dt.datetime.now(SEOUL).strftime("%Y-%m-%d %H:%M")
+    written = entries.get(key, {}).get("written") or now
     later = entries.get(key, {}).get("later")
-    entries[key] = {"title": heading.group(1), "day": heading.group(2), "written": written, "date": date, "index": index}
+    entries[key] = {"title": heading.group(1), "day": heading.group(2), "written": written, "updated": now, "date": date, "index": index}
     if later:
         entries[key]["later"] = later
     if (move := moves(vault, index, date)):
@@ -1492,7 +1494,7 @@ def pre(date: str, index: str, vault: Path, out: Path) -> str:
 
     close, before = history[-1][1], history[-2][1]
     entries[key] = {"title": entries[previous]["title"], "day": f"{date} ({'월화수목금토일'[day.weekday()]})", "date": date,
-                    "index": index, "stage": entries.get(key, {}).get("stage", "pre"),
+                    "index": index, "stage": entries.get(key, {}).get("stage", "pre"), "updated": dt.datetime.now(SEOUL).strftime("%Y-%m-%d %H:%M"),
                     "moves": {"session": round((close / before - 1) * 100, 2) + 0.0, "after": None, "close": round(close, 2), "base": None}}
     write_entries(out, entries)
     market(vault, out)
@@ -1500,7 +1502,7 @@ def pre(date: str, index: str, vault: Path, out: Path) -> str:
 
 
 def running(date: str, index: str, vault: Path, out: Path) -> str | None:
-    """리포트 날짜 `date`의 사전 리포트 목록 항목의 `stage`를 `running`으로 바꾸고, 시장 페이지의 지도와 종목 상세 페이지의 값(`market`)을
+    """리포트 날짜 `date`의 사전 리포트 목록 항목의 `stage`를 `running`으로, `updated`를 지금 시각으로 바꾸고, 시장 페이지의 지도와 종목 상세 페이지의 값(`market`)을
     다시 써서 지도에 전날 애프터장 값을 단다. 사전 리포트가 없으면 `None`이다."""
     key = f"{date.replace('-', '')}-{index}"
     entries = published_entries(out)
@@ -1508,6 +1510,7 @@ def running(date: str, index: str, vault: Path, out: Path) -> str | None:
         return None
     market(vault, out)
     entries[key]["stage"] = "running"
+    entries[key]["updated"] = dt.datetime.now(SEOUL).strftime("%Y-%m-%d %H:%M")
     write_entries(out, entries)
     return key
 
