@@ -122,6 +122,10 @@ ETF 눈금을 지수 눈금으로 늘려 적는다(`card_scale`). 공개본이 �
 `invest-reports` 미니 앱은 `stage`가 없는 항목을 분석 완료로 그린다. 날짜 줄 끝에는 `updated`와 리포트 날짜의 프리장 값, 리포트 날짜 앞 세션의
 애프터장 값의 체결 시각 가운데 가장 늦은 시각을 적는다. 미니 앱은 `상세 이슈 해설` 절의 이슈 목록 위에 분석 완료 시각을 "11/17 11:43 KST"처럼 적는다.
 본 리포트는 자기 항목의 `written`을, 사전 리포트는 이슈를 옮겨 온 앞 본 리포트 항목의 `written`을 쓴다.
+`r/progress.json`에는 `stage`가 `running`인 그날 지수마다 판단 배치가 닿은 단계(`step`), 그 단계에 닿은 시각(`since`), 배치를 시작한 시각(`start`)을 적는다(`progress`).
+단계는 `PROGRESS_MARKS`의 파일이 그날 지수 폴더에 생긴 차례로 정하고, `plan`에는 지난 `PROGRESS_SESSIONS`개 세션의 도구 호출 요약에서 잰 단계마다 걸린 분의
+중앙값을 시작부터 누적해 적는다(`progress_plan`). cron이 판단 배치 동안 10분마다 부르고, 값이 바뀐 회차만 쓴다.
+미니 앱은 분석 중 스티커에 지금 단계의 누적 분과 그 단계에 머문 분으로 `분석 중 NN%`를 적고, 단계의 몫을 넘기지 않으며 99%에서 멈춘다.
 """
 import argparse
 import datetime as dt
@@ -170,6 +174,12 @@ MAP_LEAD_DAYS = 7
 STOCK_DAYS = 366  # 종목 상세 페이지의 주가 카드가 그리는 종가 기간(일)
 AFTER_OPEN, AFTER_CLOSE = dt.time(16), dt.time(20)  # 뉴욕 애프터장이 열리고 닫히는 시각. 지도와 머리 상자의 애프터장 값은 닫히는 시각까지의 마지막 체결가다
 PREMARKET_OPEN, PREMARKET_CLOSE = dt.time(4), dt.time(9, 30)  # 뉴욕 프리장이 열리고 닫히는 시각. 지도와 머리 상자의 프리장 값은 닫히는 시각까지의 마지막 체결가다
+# 판단 배치의 진척률 단계. [단계에 닿으면 그날 지수 폴더에 생기는 파일, 지난 세션 도구 호출 요약에서 그 단계의 첫 Main 호출]이다.
+# 차례로 입력 렌더링, ④ Main 읽기의 결과 초안, ⑥ 판정, ⑧ 리포트, ⑧ 교정, ⑨ 이슈 이미지와 그래프, 세션 끝, 리포트 게시다.
+PROGRESS_MARKS = [("input-manifest.json", None), ("system/form-draft.md", r"^Write\s.*/form-draft\.md"), ("scratchpad.md", r"^Write\s.*/scratchpad\.md"),
+                  ("report.md", r"^Write\s.*/report\.md"), ("system/report-draft.md", r"^Agent\[invest-style\]"),
+                  ("system/issue-images.json", r"^Agent\[invest-(image|chart)\]"), ("system/invest-report-{index}-tools.log", None), (None, None)]
+PROGRESS_SESSIONS = 10  # 진척률 단계마다 걸리는 분을 잴 때 쓰는 지난 세션 수
 STOCK_IMAGES = Path.home() / "data" / "invest-reports" / "stock-images"  # invest-stock-profile 스킬이 고르고 `profile_store.py --draw`가 그린 대표 이미지
 TICK_STEP = 5  # 일정과 예측 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
@@ -599,6 +609,77 @@ def afterhours(vault: Path, out: Path) -> Path | None:
             del own[day]
     target.write_text(json.dumps(kept, ensure_ascii=False) + "\n", encoding="utf-8")
     return target
+
+
+def progress_plan(vault: Path, entries: dict, today: dt.date) -> list[int]:
+    """판단 배치가 시작한 뒤 `PROGRESS_MARKS`의 단계마다 그 단계에 닿기까지 걸리는 분을 지난 세션 기록으로 잰다.
+
+    세션마다 도구 호출 요약(`system/invest-report-{지수}-tools.log`)의 첫 줄 시각부터 `pattern`에 맞는 첫 Main 호출까지, 세션 끝 시각까지,
+    `r/index.json`의 본 리포트를 처음 만든 시각(`written`)까지를 잰다. 모든 단계를 지난 세션 가운데 오늘 전 `PROGRESS_SESSIONS`개에서
+    앞 단계부터 다음 단계까지 걸린 분의 중앙값을 차례로 더한다. 첫 값은 0이고 마지막 값은 리포트 게시까지 걸린 분이다.
+    """
+    gaps = []
+    for entry in sorted((entry for entry in entries.values() if not entry.get("stage") and entry.get("written") and entry["date"] < today.isoformat()),
+                        key=lambda entry: entry["date"], reverse=True):
+        log = vault / f"routine/invest/{entry['date'][:7]}/{entry['date']}/{entry['index']}/system/invest-report-{entry['index']}-tools.log"
+        lines = log.read_text(encoding="utf-8", errors="replace").splitlines() if log.exists() else []
+        span = re.search(r"(\d\d:\d\d:\d\d) ~ (\d\d:\d\d:\d\d)", lines[2] if len(lines) > 2 else "")
+        if not span:
+            continue
+        clock = lambda moment: dt.datetime.fromisoformat(f"{entry['date']}T{moment}")
+        calls = [(clock(found[1]), found[2]) for line in lines if (found := re.match(r"(\d\d:\d\d:\d\d)\s+main\s+(.*)", line))]
+        marks = [clock(span[1])] + [next((moment for moment, call in calls if re.search(pattern, call)), None) for _, pattern in PROGRESS_MARKS[1:-2]]
+        marks += [clock(span[2]), dt.datetime.fromisoformat(entry["written"].replace(" ", "T"))]
+        if None in marks or marks != sorted(marks):
+            continue
+        gaps.append([(after - before).total_seconds() / 60 for before, after in zip(marks, marks[1:])])
+        if len(gaps) == PROGRESS_SESSIONS:
+            break
+    plan = [0]
+    for column in zip(*gaps):
+        plan.append(plan[-1] + sorted(column)[len(column) // 2])
+    return [round(minutes) for minutes in plan]
+
+
+def progress(vault: Path, out: Path) -> Path | None:
+    """`r/progress.json`에 오늘 분석 중인 지수마다 판단 배치가 닿은 단계(`step`)와 그 단계에 닿은 시각(`since`)을 쓴다.
+
+    단계는 `PROGRESS_MARKS`에서 그날 지수 폴더에 있는 가장 늦은 단계 파일로 정한다. 단계 파일은 판단 배치의 입력(`input-manifest.json`)보다
+    늦게 바뀐 파일만 세고, 세션 끝에 쓰는 도구 호출 요약은 다른 단계 파일보다 늦게 바뀌었을 때만 센다. 같은 날 세션을 다시 돌리면
+    앞 세션의 파일이 남기 때문이다. 단계에 닿은 시각은 단계가 바뀐 회차에 그 단계 파일이 바뀐 시각을 적고, 단계가 그대로면 앞 회차 값을 둔다.
+    판단 배치의 시작 시각(`start`)은 입력이 바뀐 시각이다. 단계마다 그 단계에 닿기까지 걸리는 분(`plan`)을 함께 적는다(`progress_plan`).
+    오늘 분석 중인 리포트가 없거나 값이 앞 회차와 같으면 쓰지 않고 `None`이다.
+    """
+    today = dt.datetime.now(SEOUL).date()
+    entries = published_entries(out)
+    running = sorted(entry["index"] for entry in entries.values() if entry["date"] == today.isoformat() and entry.get("stage") == "running")
+    if not running:
+        return None
+    target = out / "r" / "progress.json"
+    written = json.loads(target.read_text(encoding="utf-8")) if target.exists() else {}
+    kept = written.get("indexes", {}) if written.get("date") == today.isoformat() else {}
+    stamp = lambda path: dt.datetime.fromtimestamp(path.stat().st_mtime, SEOUL).replace(microsecond=0)
+    found = {}
+    for index in running:
+        folder = vault / f"routine/invest/{today:%Y-%m}/{today}/{index}"
+        if not (folder / PROGRESS_MARKS[0][0]).exists():
+            continue
+        start = stamp(folder / PROGRESS_MARKS[0][0])
+        times = [stamp(folder / name.format(index=index)) if (folder / name.format(index=index)).exists() else None for name, _ in PROGRESS_MARKS[:-1]]
+        times = [moment if moment and moment >= start else None for moment in times]
+        if times[-1] and times[-1] < max(moment for moment in times[:-1] if moment):
+            times[-1] = None
+        step = max(position for position, moment in enumerate(times) if moment)
+        since = kept[index]["since"] if kept.get(index, {}).get("step") == step else times[step].isoformat()
+        found[index] = {"step": step, "since": since, "start": start.isoformat()}
+    if not found:
+        return None
+    value = {"date": today.isoformat(), "plan": progress_plan(vault, entries, today), "indexes": found}
+    if value == written:
+        return None
+    target.write_text(json.dumps(value, ensure_ascii=False) + "\n", encoding="utf-8")
+    return target
+
 
 def public_markdown(text: str, vault: Path, out_dir: Path, base: str) -> str:
     """공개본 마크다운. 그림은 `out_dir`로 복사하고 `app.html` 기준 상대 경로로 바꾼다.
@@ -1522,13 +1603,14 @@ def main() -> int:
     parser.add_argument("--stage", choices=("pre", "running"), help="본 리포트 대신 사전 리포트를 만들거나(pre) 사전 리포트를 분석 중으로 바꾼다(running)")
     parser.add_argument("--premarket", action="store_true", help="리포트 대신 오늘 프리장 값(`r/premarket.json`)만 쓴다")
     parser.add_argument("--afterhours", action="store_true", help="리포트 대신 오늘 애프터장 값(`r/afterhours.json`)만 쓴다")
+    parser.add_argument("--progress", action="store_true", help="리포트 대신 오늘 판단 배치의 진척 단계(`r/progress.json`)만 쓴다")
     args = parser.parse_args()
     vault, out = Path(args.vault).expanduser(), Path(args.out)
-    if args.premarket or args.afterhours:
-        print((premarket if args.premarket else afterhours)(vault, out) or "")
+    if args.premarket or args.afterhours or args.progress:
+        print((premarket if args.premarket else afterhours if args.afterhours else progress)(vault, out) or "")
         return 0
     if not (args.date and args.index):
-        parser.error("--premarket이나 --afterhours가 아니면 --date와 --index가 필요하다")
+        parser.error("--premarket, --afterhours, --progress가 아니면 --date와 --index가 필요하다")
     if args.stage == "pre":
         print(pre(args.date, args.index, vault, out))
     elif args.stage == "running":

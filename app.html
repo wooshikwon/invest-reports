@@ -47,7 +47,7 @@
   main { position: relative; max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-edge)) 16px calc(40px + var(--offscreen, 0px)); }
   /* 문서 맨 위에는 리포트 날짜와 요일, 리포트가 보이는 값을 마지막으로 바꾼 서울 시각을 절 제목과 같은 회색의 작은 글씨로 쓰고(`#day`), 그 아래에 머리 상자(`#masthead`)를 둔다.
      날짜 줄은 본문과 함께 화면 위로 지나간다.
-     날짜 오른쪽에는 그날 판단 배치의 단계를 작은 알약(`.stage`)으로 쓴다. 알약 왼쪽에는 점을 찍는다. 사전 리포트는 회색 "분석 전", 판단 배치가 도는 동안은 노란 "분석 중"과 깜박이는 점이다.
+     날짜 오른쪽에는 그날 판단 배치의 단계를 작은 알약(`.stage`)으로 쓴다. 알약 왼쪽에는 점을 찍는다. 사전 리포트는 회색 "분석 전", 판단 배치가 도는 동안은 노란 "분석 중 NN%"와 깜박이는 점이다. 진척률 숫자는 자리 폭이 같은 숫자로 쓴다.
      본 리포트는 지수색 그라데이션 점과 글자, 옅은 지수색 바탕으로 "분석 완료"를 쓴다.
      머리 상자는 32px 높이의 위 줄과 18px 높이의 아래 줄(`header`)이고, 왼쪽에 시세(`#ticker`)를, 위 줄 오른쪽 끝에 달력 단추를 쓴다. 날짜 줄이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
      시세에 아래 줄이 없으면(애프터장 값이 아직 없는 사전 리포트) 머리 상자를 위 줄 높이로 줄인다.
@@ -67,7 +67,7 @@
   #day .stage.done::before { background: var(--index-ink); }
   #day .stage.done { background: var(--index-ink), linear-gradient(100deg, color-mix(in srgb, var(--index-to) 16%, transparent), color-mix(in srgb, var(--index) 16%, transparent));
                      -webkit-background-clip: text, padding-box; background-clip: text, padding-box; color: transparent; }
-  #day .stage.running { background: rgba(255, 200, 87, .14); color: #ffc857; }
+  #day .stage.running { background: rgba(255, 200, 87, .14); color: #ffc857; font-variant-numeric: tabular-nums; }
   #day .stage.running::before { animation: stage-blink 1.2s ease-in-out infinite; }
   @keyframes stage-blink { 50% { opacity: .25; } }
   @media (prefers-reduced-motion: reduce) { #day .stage.running::before { animation: none; } }
@@ -3335,8 +3335,31 @@
         stamp(Math.max(updated, ...values.filter(Boolean).map((value) => Date.parse(value.time))));
       });
       const stage = entry.stage || "done";
-      day.append(Object.assign(document.createElement("span"), { className: `stage ${stage}`,
+      const pill = day.appendChild(Object.assign(document.createElement("span"), { className: `stage ${stage}`,
         textContent: { pre: "분석 전", running: "분석 중", done: "분석 완료" }[stage] }));
+      // 분석 중이면 화면이 보이는 동안 1분마다, 화면이 다시 보일 때마다 `r/progress.json`과 `r/index.json`을 새로 받는다.
+      // `r/progress.json`은 build.py `progress`가 판단 배치 동안 10분마다 지수마다 적는 단계(`step`)와 그 단계에 닿은 시각(`since`), 단계마다 그 단계에 닿기까지
+      // 걸리는 분(`plan`)이다. 진척률은 지금 단계의 누적 분에 그 단계에 머문 분을 다음 단계의 몫까지만 더해 마지막 누적 분으로 나눈 값이고, 줄지 않으며 99%에서 멈춘다.
+      // `r/index.json`의 항목에서 `stage`가 없어지면 본 리포트가 올라온 것이므로 미니 앱을 다시 연다.
+      if (stage === "running") {
+        let shown = 0;
+        const watch = () => {
+          if (document.visibilityState !== "visible") return;
+          Promise.all(["progress", "index"].map((name) => fetch(`r/${name}.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}))))
+            .then(([progressed, indexed]) => {
+              if (indexed[key] && !indexed[key].stage) return location.reload();
+              const own = progressed.date === entry.date && progressed.indexes?.[entry.index], plan = progressed.plan || [];
+              if (!own || plan.length < 2 || !plan.at(-1)) return;
+              const step = Math.min(own.step, plan.length - 2);
+              const inside = Math.min(Math.max((Date.now() - Date.parse(own.since)) / 60e3, 0), plan[step + 1] - plan[step]);
+              shown = Math.max(shown, Math.min(99, Math.floor((plan[step] + inside) / plan.at(-1) * 100)));
+              pill.textContent = `분석 중 ${shown}%`;
+            });
+        };
+        watch();
+        setInterval(watch, 60e3);
+        document.addEventListener("visibilitychange", watch);
+      }
     }
     const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
     if (key !== latest(listing, key.split("-")[1])) {
