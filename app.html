@@ -17,6 +17,8 @@
     --accent: #EAEAEA;
     /* 절 제목, 선택되지 않은 날짜는 본문보다 연한 회색 하나로 쓴다. */
     --dim: #7A828C;
+    /* 돋보기 그림은 줌 단계와 예측 필터가 같이 쓰는 가림막(mask)이다. */
+    --magnifier: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='6' cy='6' r='4.3'/%3E%3Cpath d='M9.2 9.2L12.6 12.6'/%3E%3C/svg%3E");
     --index: var(--hint);
     --index-to: var(--hint);
     /* 지수색 글자와 별은 왼쪽의 짙은 옆 색상에서 오른쪽의 지수색으로 천천히 옮겨 가는 그라데이션으로 칠한다.
@@ -558,8 +560,7 @@
   .gauge .zoom .steps i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, .22); }
   /* 고른 기간의 돋보기는 + 쪽 기간일수록 크게 그린다. 차지하는 너비는 11px로 두어 크기가 바뀌어도 −, + 단추가 움직이지 않는다. */
   .gauge .zoom .steps i.on { --size: 12.1px; width: var(--size); height: var(--size); margin: 0 calc((11px - var(--size)) / 2); border-radius: 0; background: #fff;
-    -webkit-mask: var(--magnifier) center / contain no-repeat; mask: var(--magnifier) center / contain no-repeat;
-    --magnifier: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='6' cy='6' r='4.3'/%3E%3Cpath d='M9.2 9.2L12.6 12.6'/%3E%3C/svg%3E"); }
+    -webkit-mask: var(--magnifier) center / contain no-repeat; mask: var(--magnifier) center / contain no-repeat; }
   .gauge .zoom .steps i.on:nth-child(1) { --size: 7.7px; }
   .gauge .zoom .steps i.on:nth-child(2) { --size: 9.9px; }
   .gauge .zoom .steps i.on:nth-child(4) { --size: 14.3px; }
@@ -598,6 +599,15 @@
   :is(.indexmap > .top, .gauge .top) .session { flex: none; margin: -6px 0 -6px auto; align-self: center; }
   /* 주가와 예측 카드와 종목 상세 주가 카드는 맨 위 줄에 기준 시각을 흐린 작은 글씨로 쓰고, 그 아래 이름 줄에 지수나 종목 이름과 세션 단추를 둔다. */
   .gauge .top.title { margin-top: 3px; }
+  /* 1개월 예측 절 제목은 오른쪽 끝에 예측 필터 단추(`aim`)를 둔다. 단추는 세션 단추와 같은 바탕에 이름을 쓰고, 켜면 고른 세션 단추처럼 밝게 칠한다.
+     필터를 켠 주가와 예측 카드는 이름 줄 오른쪽 끝에 세션 단추 대신 돋보기(`lens`)를 그린다. */
+  h2:has(> .aim) { display: flex; align-items: center; }
+  h2 > .aim { order: 1; flex: none; margin: -4px 0 -4px auto; padding: 4px 10px; border: 0; border-radius: 9px; background: rgba(255, 255, 255, .06);
+              color: var(--hint); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  h2 > .aim::before { content: attr(data-label); }
+  h2 > .aim.on { background: rgba(255, 255, 255, .16); color: #fff; }
+  .gauge .top .lens { flex: none; width: 16px; height: 16px; margin: -6px 11px -6px auto; align-self: center; background: #fff;
+                      -webkit-mask: var(--magnifier) center / contain no-repeat; mask: var(--magnifier) center / contain no-repeat; }
   .gauge.ext .val b, .gauge.ext .state { color: var(--hint); }
   .indexmap .board > button { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
                             overflow: hidden; padding: 2px; border: 0; border-radius: 5px; color: #fff; font: inherit; line-height: 1.2; text-align: center;
@@ -1115,9 +1125,23 @@
         bar.appendChild(button);
       });
       const change = (i) => [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j));
-      const box = slider(set.slides, report.querySelector("h2"), { change, name: "cards", feel: true });
+      const head = report.querySelector("h2"), box = slider(set.slides, head, { change, name: "cards", feel: true });
       box.prepend(bar);
       cardRewind(box, date, set, cards.pre ? cards : null);
+      // 리포트 날짜 판단에 예측이 있으면 절 제목 오른쪽 끝에 예측 필터 단추를 켠 채로 둔다. 단추 이름은 `data-label`로 그려 절 제목 글자에 넣지 않는다.
+      if (set.filter) {
+        const aim = Object.assign(document.createElement("button"), { type: "button", className: "aim on" });
+        Object.assign(aim.dataset, { label: "예측 필터" });
+        aim.setAttribute("aria-label", "예측 필터");
+        aim.setAttribute("aria-pressed", "true");
+        aim.addEventListener("click", () => {
+          feelPress();
+          const on = aim.classList.toggle("on");
+          aim.setAttribute("aria-pressed", on);
+          set.filter(on);
+        });
+        head.append(aim);
+      }
       return;
     }
     const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
@@ -1457,11 +1481,13 @@
     // 사전 리포트(`data.pre`)의 리포트 날짜 값은 예측 없이 종가 선과 지난 예측만 그리고, 위 줄에 마지막 종가 날짜를,
     // 가운데 줄에 그 종가와 전날 대비 등락률을 정규장 등락률 색(`tone`)의 점과 글씨로 적는다.
     // 위 줄 아래 이름 줄에는 "나스닥 100"처럼 지수 이름(`INDEX_TITLE`)을 쓴다.
-    // 리포트 날짜 값을 보는 동안 기준 가격 날짜 다음 세션 값이 있으면 이름 줄 오른쪽에 정규장·애프터장이나 정규장·프리장 단추를 둔다.
+    // 리포트 날짜 판단에 예측이 있으면 절 제목의 예측 필터(`filter`)를 켠 채로 연다. 필터를 켜면 리포트 날짜 값에 그 판단의 예측을 그리고 이름 줄 오른쪽에 돋보기를 그린다.
+    // 필터를 끄면 리포트 날짜 값을 사전 리포트처럼 예측 없이 그리고, 위 줄에 마지막 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 적는다. 지난 날짜 판단의 예측은 필터와 관계없이 그린다.
+    // 리포트 날짜 값을 예측 없이 보는 동안 기준 가격 날짜 다음 세션 값이 있으면 이름 줄 오른쪽에 정규장·애프터장이나 정규장·프리장 단추를 둔다.
     // 애프터장 값은 본 리포트의 기준 가격이고, 사전 리포트는 정규장 종가에 지수 ETF의 애프터장 등락 비율(`r/afterhours.json`)을 곱한 값이다.
     // 프리장 값(`early`)은 정규장 종가에 지수 ETF의 프리장 등락 비율을 곱한 값이며, 프리장 값이 있으면 프리장 값을 쓴다.
     // 정규장 다음 단추를 고르면 위 줄에 그 세션 이름과 시각을, 가운데 줄에 그 값과 정규장 종가 대비 등락률을 회색으로 적는다.
-    // 그림의 본 리포트 애프터장 값은 기준 가격 점이다. 사전 리포트의 애프터장 값과 프리장 값은 그 체결 시각 자리(`afterClose`)에 흰 점으로 찍어 앞 점에서 점선으로 잇는다.
+    // 본 리포트의 애프터장 값은 종가 네 시간 뒤에, 사전 리포트의 애프터장 값과 프리장 값은 그 체결 시각 자리(`afterClose`)에 흰 점으로 찍어 마지막 종가 점에서 점선으로 잇는다.
     // 가로축 범위는 단추와 관계없이 같아서, 단추를 바꿔도 종가와 예측의 자리가 움직이지 않는다.
     // 처음에는 가장 늦은 세션을 고르고, 단추를 누른 뒤에는 누른 세션을 유지한다.
     const predict = (() => {
@@ -1469,7 +1495,11 @@
       const title = c.box.insertBefore(Object.assign(document.createElement("div"), { className: "top title" }), c.box.querySelector(".val"));
       title.append(Object.assign(document.createElement("span"), { className: "name", textContent: INDEX_TITLE[key.split("-")[1]] || INDEX_NAME[key.split("-")[1]] }));
       const close = dates.indexOf(data.base_date);
-      let late = false, chosen = false, early = null, after = null, ext = null;
+      let late = false, chosen = false, early = null, after = null, ext = null, aim = !!data.predict;
+      // 그림과 글씨가 쓰는 판단의 예측이다. 예측 필터를 끄면 리포트 날짜 판단의 예측을 쓰지 않는다.
+      const plan = (f) => (f.day === date && !aim ? null : f.predict);
+      const lens = Object.assign(document.createElement("span"), { className: "lens", role: "img", title: "예측 필터" });
+      lens.setAttribute("aria-label", "예측 필터");
       // 리포트 날짜 값의 정규장 다음 세션 [값, 거래일 번호, 위 줄 글씨, 프리장 여부]. 없으면 null이다.
       const extra = () => {
         if (early?.session === data.base_date) {
@@ -1496,7 +1526,7 @@
       const end = (f, q) => f.predict[q][f.predict[q].length - 1];
       // 기간마다 세로 범위: 보이는 종가·예측 면·지난 예측을 담고, 최저 점 아래에 글씨가 들어갈 20px을 비운다.
       const range = (x0) => {
-        const shown = hist.slice(x0, last + 1), band = frame.predict || { q25: [], q75: [] }, more = ext ? [ext[0]] : [];
+        const shown = hist.slice(x0, last + 1), band = plan(frame) || { q25: [], q75: [] }, more = ext ? [ext[0]] : [];
         let lo = Math.min(...shown, ...band.q25, ...past.map((p) => p.lo), ...more);
         const hi = Math.max(...shown, ...band.q75, ...past.map((p) => p.hi), ...more);
         const low = Math.min(...shown);
@@ -1506,7 +1536,7 @@
       // `x0`는 그림 왼쪽 끝의 거래일 번호다. 기간을 옮기는 동안에는 소수 값을 받아 두 기간 사이를 이어 그린다.
       const draw = (x0, lo, hi, marks) => {
         s.replaceChildren();
-        const f = frame, fx = at(f), p = f.predict;
+        const f = frame, fx = at(f), p = plan(f);
         const X = (i) => L + (i - x0) / (xmax - x0) * (R - L), Y = (v) => B - (v - lo) / (hi - lo) * (B - T);
         const clip = shape("clipPath", { id: "predict-clip" });
         clip.append(shape("rect", { x: L, y: 0, width: R - L, height: B }));
@@ -1589,23 +1619,26 @@
       const show = (f) => {
         frame = f;
         cancelAnimationFrame(raf);
-        const session = Math.round((hist[last] / hist[last - 1] - 1) * 1e4) / 100, shown = f.day === date ? extra() : null;
+        const p = plan(f), session = Math.round((hist[last] / hist[last - 1] - 1) * 1e4) / 100, shown = f.day === date && !p ? extra() : null;
         if (shown && !chosen) late = true;
         ext = shown && late ? shown : null;
         seg.rename(!!shown?.[3]);
         seg.mark(late);
         if (shown) title.append(seg.box); else seg.box.remove();
-        c.box.classList.toggle("ink", !!f.predict && !ext);
+        if (f.day === date && p) title.append(lens); else lens.remove();
+        c.box.classList.toggle("ink", !!p && !ext);
         c.box.classList.toggle("ext", !!ext);
-        c.box.querySelector(".state").className = `state ${f.predict || ext ? "" : tone(session)}`;
+        c.box.querySelector(".state").className = `state ${p || ext ? "" : tone(session)}`;
         if (ext) c.head(f, `${signed((ext[0] / hist[close] - 1) * 100, 2)}%`, fmt(ext[0]), ext[2]);
-        else if (f.predict) c.head(f, `${signed((end(f, "q50") / f.base - 1) * 100)}%`, fmt(end(f, "q50")));
+        else if (p) c.head(f, `${signed((end(f, "q50") / f.base - 1) * 100)}%`, fmt(end(f, "q50")));
         else c.head(f, `${signed(session, 2)}%`, fmt(hist[last]), `${md(dates[last])} ${usZone(dates[last])} 종가`);
         tween(span, span, 1);
       };
       return {
         box: c.box,
         show,
+        // 예측 필터를 켜거나(`on`이 참) 끄고 카드를 다시 그린다. 리포트 날짜 판단에 예측이 없으면 null이다.
+        filter: data.predict ? (on) => { aim = on; show(frame); } : null,
         // 리포트 날짜의 프리장 값(`r/premarket.json`)과 지수의 애프터장 값(`r/afterhours.json`)을 받아, 받은 시각이 바뀌었으면 카드를 다시 그린다.
         live(found, afters) {
           const tail = afters?.[data.base_date]?.ratio != null ? afters[data.base_date] : null;
@@ -1773,7 +1806,7 @@
         + `<b class="${tone(day)}">${signed(day, 2)}%</b>${tail}</span>`;
     };
     const names = ["지수와 예측", "일정", "권장 배율"].slice(0, parts.length);
-    return { names, slides: parts.map((part) => [part.box]), show, quote, live: predict.live };
+    return { names, slides: parts.map((part) => [part.box]), show, quote, live: predict.live, filter: predict.filter };
   }
 
   // 그림 카드 묶음 아래에 지난 판단 날짜로 되감는 슬라이더를 둔다(build.py `r/rewind-{지수}/cards.json`). 리포트 날짜와 그 앞 날짜만
