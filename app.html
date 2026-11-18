@@ -282,8 +282,8 @@
   .carousel .rewind span::after { content: ""; position: absolute; top: 100%; left: calc(50% + var(--tail, 0px)); margin-left: -5px; border: 5px solid transparent; border-top-color: rgba(72, 78, 90, .72); }
   .carousel .rewind.held span { opacity: 1; }
   /* 절 제목 아래 첫 요소는 절 제목의 아래 여백만큼 띄우고, 절 안의 항목 사이는 30px씩 띄운다.
-     1개월 예측 절의 세 소제목 사이는 이슈 문단 사이만큼 띄운다. */
-  /* 1개월 예측 절의 세 문단은 소제목만 보이고, 상세 이슈 해설의 이슈 해설 문단과 이벤트 캘린더의 이벤트마다 표는 펼쳐 둔다.
+     지수와 예측 절의 세 소제목 사이는 이슈 문단 사이만큼 띄운다. */
+  /* 지수와 예측 절의 세 문단은 소제목만 보이고, 상세 이슈 해설의 이슈 해설 문단과 이벤트 캘린더의 이벤트마다 표는 펼쳐 둔다.
      소제목을 누르면 문단이나 표가 펼쳐지거나 접히고, 펼친 문단이나 표를 눌러도 접힌다. 펼친 소제목과 문단 사이는 표식이 없는 소제목의 아래 여백만큼 띄우고, 펼친 문단은 `--hint` 색으로 쓰고,
      펼친 이벤트 표는 열 제목을 소제목 색, 칸 글자를 펼친 문단 색으로 쓴다. 펼치고 접을 때는 내용 높이가 이어서 바뀐다. */
   /* 상세 이슈 해설의 이슈 해설 문단은 소제목 없이 말머리 아래에 펼친 문단처럼 여백과 색을 쓴다. 이슈 해설 대신 현재 상태·주요 분기와 예측·종합 시나리오 소제목 세 개를 단 리포트는 세 문단을 접는다.
@@ -472,7 +472,7 @@
   .bubble.gloss { width: min(320px, calc(100vw - 24px)); padding: 12px 14px; box-sizing: border-box; }
   .bubble.gloss b { position: relative; z-index: 1; display: block; margin-bottom: 4px; color: #fff; font-size: 14px; font-weight: 600; }
   .bubble.gloss p { padding: 0; font-size: 14px; line-height: 1.55; white-space: normal; }
-  /* 1개월 예측 절의 그림 이름 탭은 날짜 상자와 같은 색으로 그리고, 고른 탭으로 줄을 옮기지 않는다. */
+  /* 지수와 예측 절의 그림 이름 탭은 날짜 상자와 같은 색으로 그리고, 고른 탭으로 줄을 옮기지 않는다. */
   .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
   .tabs button { appearance: none; border: 0; font: inherit; font-size: 14px; font-weight: 600; padding: 6px 12px; border-radius: 8px;
                  background: rgba(255, 255, 255, .05); color: var(--dim); cursor: pointer; }
@@ -707,7 +707,7 @@
   const tg = window.Telegram && window.Telegram.WebApp;
   // 텔레그램 앱 안에서만 기기를 진동시킨다. 이슈 상자·달력 단추·달력 날짜·지수 전환 단추·바로가기 단추·지수 지도 칸을 누르거나 접기 상자를 펼치면 가벼운 충격 진동을 낸다.
   // 당겨 새로고침은 새로 받기를 시작할 때 가벼운 충격 진동을, 다시 연 리포트를 다 그렸을 때 성공 알림 진동을 낸다.
-  // 접기, 목록으로 돌아가기는 진동하지 않는다. 1개월 예측 절에서 보는 카드와 날짜 레버로 고른 날짜, 이벤트 캘린더에서 보는 날짜,
+  // 접기, 목록으로 돌아가기는 진동하지 않는다. 지수와 예측 절에서 보는 카드와 날짜 레버로 고른 날짜, 이벤트 캘린더에서 보는 날짜,
   // 미국 거시 지표에서 보는 지표, 이슈 그림에서 보는 그림이 바뀔 때마다 선택 변경 진동을 낸다.
   // 브라우저에서는 진동하지 않는다.
   const haptic = (tg && tg.initData && tg.HapticFeedback) || null;
@@ -917,7 +917,7 @@
   const INDEX = { nasdaq: ["#8FBCE6", "#AFA6EC"], biotech: ["#AE9CE6", "#E09DCB"] };
   // 달력의 지수 단추에 쓰는 이름이다.
   const SHORT = { nasdaq: "나스닥 리포트", biotech: "바이오 리포트" };
-  // 1개월 예측 절의 첫 카드 탭, 머리 상자 기준 가격, 시장 페이지의 한 눈에 보기 절 제목에 쓰는 리포트 지수의 이름이다.
+  // 지수와 예측 절의 첫 카드 탭, 머리 상자 기준 가격, 시장 페이지의 한 눈에 보기 절 제목에 쓰는 리포트 지수의 이름이다.
   // build.py card_scale이 카드 가격을 지수 눈금으로 늘려 적으므로 머리 상자 가격은 시장 탭의 같은 이름 지수 값과 같다.
   const INDEX_NAME = { nasdaq: "나스닥", biotech: "바이오" };
   // 지수 카드와 예측 카드의 이름 줄에 쓰는 지수 이름이다.
@@ -3346,8 +3346,8 @@
     }
     report.innerHTML = body;
     const outlook = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "1개월 지수 방향 예측");
-    // 리포트의 "1개월 지수 방향 예측" 절은 "1개월 예측"이라는 제목으로 보인다. 제목으로 절을 찾는 코드는 이 제목을 쓴다.
-    if (outlook) outlook.textContent = "1개월 예측";
+    // 리포트의 "1개월 지수 방향 예측" 절은 "지수와 예측"이라는 제목으로 보인다. 제목으로 절을 찾는 코드는 이 제목을 쓴다.
+    if (outlook) outlook.textContent = "지수와 예측";
     calendar(listing, date);
     const focus = +query.get("issue") || 0;
     // 시장 페이지 첫 절인 한 눈에 보기 절의 제목을 미국 거시 지표 절 제목 앞에 둔다. 미국 거시 지표 절이 없으면 문서 끝에 둔다.
@@ -3360,8 +3360,8 @@
     const pages = focus ? null : paginate();
     if (!focus) {
       figures(date);
-      heads("1개월 예측");
-      fold("1개월 예측");
+      heads("지수와 예측");
+      fold("지수와 예측");
       indicators(date);
       marketed.then(({ map }) => {
         if (!map?.[index]?.stocks.length) return glance.remove();
@@ -3484,7 +3484,7 @@
   }
   // 리포트 화면의 절을 `PAGES`의 페이지에 나눠 담는다. 페이지마다 단추 이름과 그 페이지에 넣을 절 제목을 두고, 목록에 없는 절은 앞 절의 페이지에 넣는다.
   // 넘기기 묶음은 노드를 옮기면 스크롤 위치가 처음으로 돌아가므로, 리포트를 받은 직후 묶음을 만들기 전에 나눈다.
-  const PAGES = [["예측", ["1개월 예측", "이벤트 캘린더"]], ["이슈", ["상세 이슈 해설"]], ["시장", ["한 눈에 보기", "미국 거시 지표"]]];
+  const PAGES = [["예측", ["지수와 예측", "이벤트 캘린더"]], ["이슈", ["상세 이슈 해설"]], ["시장", ["한 눈에 보기", "미국 거시 지표"]]];
   // 바로가기 단추의 선 아이콘이다. 예측은 마디 셋이 앞으로 굵어지는 접이식 망원경, 이슈는 불꽃, 시장은 고리를 두른 행성이다. 망원경은 마디마다 앞쪽 굵은 마디 자리를 마스크로 비워, 접히면 굵은 마디가 가는 마디를 가린다. 행성은 앞쪽 고리 둘레를 마스크로 비워 고리가 행성 앞을 지나게 그리고, 뒤쪽 고리는 행성 원판 자리를 비운 마스크로 가려 행성 뒤를 지나게 그린다.
   // 행성은 다른 아이콘보다 작아 보여 1.05배로 키우고, 선 굵기는 다른 아이콘과 같게 둔다.
   const PAGE_ICONS = {
@@ -3669,7 +3669,7 @@
       ...MAP_HELP,
     ],
   };
-  // 절 제목마다 설명 상자에 쓸 항목을 둔다. 항목마다 이름을 굵게 쓰고 그 아래에 설명을 쓴다. 1개월 예측 절은 `OUTLOOK_HELP`와 `CARD_HELP`가 항목을 만든다.
+  // 절 제목마다 설명 상자에 쓸 항목을 둔다. 항목마다 이름을 굵게 쓰고 그 아래에 설명을 쓴다. 지수와 예측 절은 `OUTLOOK_HELP`와 `CARD_HELP`가 항목을 만든다.
   const HELP = {
     "상세 이슈 해설": [
       ["이슈를 고르는 기준", "주가 예측에 영향이 큰 이슈부터 보여줘요. 이슈 하나를 빼고 다시 계산했을 때 예측이 크게 바뀔수록 영향이 커요."],
@@ -3685,13 +3685,13 @@
   const QUESTION = '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1"/>'
     + '<path d="M6.2 6.2a1.8 1.8 0 1 1 2.6 1.6c-.5.3-.8.6-.8 1.2v.4" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'
     + '<circle cx="8" cy="11.6" r=".8" fill="currentColor"/></svg>';
-  // 그림 카드가 없는 리포트의 1개월 예측 설명. 첫 항목 이름은 카드 탭과 같은 리포트 지수의 이름이다.
+  // 그림 카드가 없는 리포트의 지수와 예측 설명. 첫 항목 이름은 카드 탭과 같은 리포트 지수의 이름이다.
   const OUTLOOK_HELP = (name) => [
     [name, "파란 실선은 예측 중앙값이에요. 파란 면에는 25거래일 뒤 가격이 25~75% 확률로 들어와요. 회색 점과 면은 지난 리포트의 예측이에요."],
     ["일정", "이슈와 이벤트를 반영한 경로 2만 개의 등락률 분포예요. 두 파란 선 사이에 경로의 가운데 50%가 들어와요."],
     ["권장 배율", "경로 2만 개의 한 달 평균 등락을 배율로 바꾼 분포예요. 파란 실선이 1.0(지수 추종)보다 왼쪽이면 하락 쪽 판단이고, 오른쪽이면 상승 쪽 판단이에요."],
   ];
-  // 그림 카드가 있는 리포트의 1개월 예측 설명. 판단 색 이름은 지수마다 다르다.
+  // 그림 카드가 있는 리포트의 지수와 예측 설명. 판단 색 이름은 지수마다 다르다.
   const CARD_HELP = (ink, name) => [
     [name, `예측한 25거래일 뒤 가격 범위의 중앙값을 알려드려요. ${ink} 면에는 25거래일 뒤 가격이 50% 확률로 들어와요. 회색 점선과 면은 지난 리포트의 예측이에요.`],
     ["일정", `이슈와 이벤트를 반영한 주가 경로 2만 개로 거래일마다 등락률 범위를 계산해요. 진한 면에 경로의 가운데 50%가, 옅은 면에 가운데 80%가 들어와요.`],
@@ -3702,8 +3702,8 @@
   function help() {
     report.querySelectorAll("h2").forEach((head) => {
       const title = head.textContent.trim(), index = key.split("-")[1];
-      if (title !== "1개월 예측" && !HELP[title] && !(title === "한 눈에 보기" && GLANCE_HELP[index])) return;
-      const items = title === "한 눈에 보기" ? GLANCE_HELP[index] : title !== "1개월 예측" ? HELP[title]
+      if (title !== "지수와 예측" && !HELP[title] && !(title === "한 눈에 보기" && GLANCE_HELP[index])) return;
+      const items = title === "한 눈에 보기" ? GLANCE_HELP[index] : title !== "지수와 예측" ? HELP[title]
         : report.querySelector(".carousel.cards") ? CARD_HELP(INK[index] || "하늘색", INDEX_NAME[index]) : OUTLOOK_HELP(INDEX_NAME[index]);
       head.append(question(title, () => {
         const list = document.createElement("ul");
