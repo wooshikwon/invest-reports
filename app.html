@@ -534,7 +534,7 @@
   .gauge p { margin: 20px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--hint); }
   /* 요약 절 그림 카드는 위 줄에 회색 맥락 글씨, 가운데 줄에 값과 상태를 두고, 그림은 카드 폭에 맞춘 SVG로 그린다. 카드의 그림은 모두 높이와
      가로축 높이가 같아, 카드를 넘겨도 가로축이 같은 높이에 있다. 카드의 상태 글씨와 점(`--card-color`)은 카드마다 정한 색으로 칠하고,
-     예측 카드(`ink`)는 상태 글씨와 점, 큰 값을 절 제목 글씨와 같은 지수색 그라데이션(`--index-ink`)으로 칠하고, 사전 리포트의 종가 카드는 정규장 등락률 색(`up`·`down`)으로 칠한다.
+     예측 카드(`ink`)는 상태 글씨와 점을, 예측·일정과 예측·권장 배율 카드는 큰 값을 절 제목 글씨와 같은 지수색 그라데이션(`--index-ink`)으로 칠하고, 사전 리포트의 종가 카드는 정규장 등락률 색(`up`·`down`)으로 칠한다.
      범위 값의 물결표는 흐린 글씨로 띄어 쓴다. */
   .gauge .ctx { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
   .gauge.summary .state { color: var(--card-color); }
@@ -1465,7 +1465,7 @@
     // 맥락 글씨를 따로 받으면 카드를 만들 때의 맥락 글씨 대신 쓴다.
     const card = (ctx) => {
       const box = Object.assign(document.createElement("div"), { className: "gauge summary ink" });
-      box.innerHTML = '<div class="top"><span class="ctx"></span></div><div class="val"><b></b><span class="state"><i></i><span></span></span></div><div class="fig"></div><div class="foot"></div>';
+      box.innerHTML = '<div class="top"><span class="ctx"></span></div><div class="val"><b class="ink"></b><span class="state"><i></i><span></span></span></div><div class="fig"></div><div class="foot"></div>';
       const [label, value, state] = [box.querySelector(".ctx"), box.querySelector(".val b"), box.querySelector(".state")];
       const svg = box.querySelector(".fig").appendChild(shape("svg", { viewBox: `0 0 ${W} ${H}` }));
       const head = (frame, text, big, context = ctx) => {
