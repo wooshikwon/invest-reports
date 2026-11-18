@@ -362,7 +362,7 @@
      마지막 상자에는 "비중이 낮은 이슈 N건"을 제목으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 문단을 보이거나
      검토했지만 비중을 낮춘 이슈를 보인다.
      목록과 내용을 바꾸는 동안에는 두 쪽을 넘기기 장처럼 장 사이만큼 띄워 나란히 옆으로 옮기고, 묶음 밖으로 나간 부분은 가린다. */
-  /* 상세 이슈 해설 절 제목과 이슈 목록 사이에는 이슈 해설을 쓴 판단 배치의 분석 완료 시각을 "11/17 11:43 기준"처럼 흐린 작은 글씨로 쓴다. */
+  /* 상세 이슈 해설 절 제목과 이슈 목록 사이에는 이슈 해설을 쓴 판단 배치의 분석 완료 시각을 "11/17 11:43 KST"처럼 흐린 작은 글씨로 쓴다. */
   .issue-asof { margin: -4px 0 12px; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
   .issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); cursor: pointer; }
   /* 바로 앞 리포트의 이벤트 캘린더가 적은 이벤트의 결과를 다룬 이슈 상자는 지수색 그라데이션으로 외곽선을 두르고, 외곽선 위쪽 왼쪽에 "10월 CPI 결과"처럼
@@ -1875,7 +1875,7 @@
   // 왼쪽 아래의 뒤로가기 단추를 누르면 앞 페이지로 돌아가고, 앞 페이지가 없으면 같은 리포트의 리포트 화면을 연다.
   // `at`이 있으면 히스토리에서 그 날짜 항목을 고른 채로 연다.
   // 이슈 화면의 절 제목은 보고 있는 이슈의 번호로 "이슈 N위"라고 쓰고, 검토했지만 비중을 낮춘 이슈를 보는 동안에는 "검토했지만 비중을 낮춘 이슈"로 쓴다.
-  // `analyzed`가 있으면 리포트 화면의 절 제목과 이슈 목록 사이에 "11/17 11:43 기준"처럼 그 시각을 쓴다. 값은 `r/index.json`의 `written`과 같은 서울 시각이다.
+  // `analyzed`가 있으면 리포트 화면의 절 제목과 이슈 목록 사이에 "11/17 11:43 KST"처럼 그 시각을 쓴다. 값은 `r/index.json`의 `written`과 같은 서울 시각이다.
   function section(title, focus = 0, at = null, analyzed = "") {
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
     if (!head) return;
@@ -2129,7 +2129,7 @@
     head.classList.add("issues");
     head.after(box);
     if (analyzed) box.before(Object.assign(document.createElement("p"), { className: "issue-asof",
-      textContent: `${analyzed.slice(5, 7)}/${analyzed.slice(8, 10)} ${analyzed.slice(11, 16)} 기준` }));
+      textContent: `${analyzed.slice(5, 7)}/${analyzed.slice(8, 10)} ${analyzed.slice(11, 16)} KST` }));
     if (!focus) return;
     const shown = numbers.indexOf(focus);
     if (shown < 0) {
