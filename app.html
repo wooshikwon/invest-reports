@@ -58,7 +58,7 @@
      정규장이 열려 정규장 값이 오면 아래 줄을 지우고, 위 줄을 "나스닥 $27,850 +0.50%"처럼 같은 방법으로 옮긴 정규장 가격과 그 등락률로 바꾸며, 장이 끝나면 마감 값에서 멈춘다.
      시세가 한 줄이면 이름과 가격은 절 제목과 같은 크기로, 등락률은 그보다 작은 13px로 쓴다. 두 줄이면 아래 줄을 이 크기로 쓰고, 위 줄의 이름과 가격, 등락률은 모두 13px로 쓴다.
      이름 칸은 두 이름 가운데 긴 쪽의 폭이라 두 가격의 왼쪽 끝이 맞고, 등락률은 줄마다 가격 바로 뒤에 붙인다.
-     지수 이름과 세션 이름은 흰색으로 쓴다. 가격과 등락률은 그 줄의 등락률이 오르면 빨강, 내리면 파랑으로 칠한다.
+     지수 이름은 흰색으로, 세션 이름은 지수 이름과 헷갈리지 않게 회색(`--dim`)으로 쓴다. 가격과 등락률은 그 줄의 등락률이 오르면 빨강, 내리면 파랑으로 칠한다.
      상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 페이지 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
      흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
   #day { display: flex; align-items: center; margin: 0; font-size: 12.5px; font-weight: 600; line-height: 20px; color: var(--dim); }
@@ -110,6 +110,7 @@
   #ticker:empty { display: none; }
   #ticker .row { display: grid; grid-template-columns: auto 1fr; align-items: baseline; column-gap: 6px; }
   #ticker .name { font-size: 15.5px; font-weight: 700; color: #fff; }
+  #ticker .name.ext { color: var(--dim); }
   #ticker .quote { display: flex; align-items: baseline; gap: 6px; }
   #ticker .row:has(.ext) > :not(.ext) { font-size: 13px; line-height: 22px; }
   #ticker .row:has(.ext) > :not(.ext) b.price { font-size: 13px; }
