@@ -1476,7 +1476,8 @@
 
     // 지수 카드와 예측 카드(`priceCard`): 두 카드는 같은 틀로 만들고, 위 줄 아래 이름 줄에 "나스닥 100"처럼 지수 이름(`INDEX_TITLE`)을 쓴다.
     // 그림 아래 −·+ 단추로 종가를 그릴 기간을 고른다. 기간은 3년, 2년, 1년, 6개월, 3개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
-    // 지수 카드는 봉 비율(`r/candles.json`)이 있으면 그 줄 오른쪽 끝에 선·봉 단추(`kindButton`)를 두고, 봉 그림이면 종가 선 대신 3년·2년은 월봉, 1년은 주봉, 6개월·3개월은 일봉을 그린다.
+    // 처음에는 가장 짧은 3개월을 그린다. 봉 비율(`r/candles.json`)이 있으면 그 줄 오른쪽 끝에 선·봉 단추(`kindButton`)를 두고,
+    // 봉 그림이면 종가 선 대신 3년·2년은 월봉, 1년은 주봉, 6개월·3개월은 일봉을 그린다. 예측 카드는 봉을 마지막 종가까지 그리고, 예측 범위와 기준 가격 점선은 선 그림과 같게 그린다.
     // 지수 카드(`aim`이 거짓)는 예측을 그리지 않는다. 종가 선은 고른 날짜 판단의 기준 가격 날짜 종가에서 끝나고, 가로축은 그다음 거래일에서 끝난다.
     // 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 정규장 등락률 색(`tone`)의 점과 글씨로 적는다. 사전 리포트는 지수 카드만 둔다.
     // 지수 카드는 기준 가격 날짜 다음 세션 값이 있으면 이름 줄 오른쪽에 정규장·애프터장이나 정규장·프리장 단추를 둔다. 지난 날짜의 다음 세션 값은 그날 프리장 값이 있으면 그 값이고, 없으면 그날 판단의 기준 가격이다.
@@ -1486,7 +1487,7 @@
     // 리포트 날짜의 프리장 값이 정규장 값(`phase`가 `regular`)이면 단추를 정규장 단추 하나로 줄이고, 위 줄에 정규장과 시각을, 가운데 줄에 그 값과 앞 종가 대비 등락률을 등락률 색으로 적는다.
     // 정규장 값은 전날 정규장이 열릴 때 만든 사전 리포트만 받는다(`onLive`).
     // 본 리포트의 애프터장 값은 종가 네 시간 뒤에, 사전 리포트의 애프터장 값과 프리장 값, 정규장 값은 그 체결 시각 자리(`afterClose`)에 흰 점으로 찍어 마지막 종가 점에서 점선으로 잇는다.
-    // 가로축 범위는 단추와 관계없이 같아서, 단추를 바꿔도 종가의 자리가 움직이지 않는다. 리포트 날짜는 가장 늦은 세션을, 지난 날짜는 정규장을 고른다.
+    // 가로축 범위는 단추와 관계없이 같아서, 단추를 바꿔도 종가의 자리가 움직이지 않는다. 가장 늦은 리포트의 리포트 날짜는 가장 늦은 세션을, 지난 날짜와 지난 리포트는 정규장을 고른다.
     // 단추를 누르면 되감기 슬라이더가 다른 날짜를 고를 때까지 누른 세션을 유지한다.
     // 예측 카드(`aim`이 참)는 리포트 날짜 판단에 예측이 있을 때만 두고, 가로축을 마지막 종가 뒤 25거래일까지 늘린다. 종가 선 오른쪽에 고른 날짜 판단의
     // 25~75% 범위와 50% 선을 그리고, 회색 점선과 면으로 지난 리포트의 예측을 그린다. 위 줄은 "25거래일 뒤 예측 중앙값"이고,
@@ -1525,7 +1526,7 @@
       const L = 4, R = W - 4, T = 22, DAYS = [756, 504, 252, 126, 63];
       let stop = last, xmax = last + (aim ? 25 : 1);
       const start = (k) => Math.max(0, stop - DAYS[k]);
-      let span = 2, frame = null, raf = 0, ratios = null;
+      let span = DAYS.length - 1, frame = null, raf = 0, ratios = null;
       const zoom = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
       zoom.innerHTML = `<button type="button" aria-label="기간 늘리기">\u2212</button><span class="steps">${"<i></i>".repeat(DAYS.length)}</span><button type="button" aria-label="기간 줄이기">+</button>`;
       const [wider, narrower] = zoom.querySelectorAll("button");
@@ -1535,9 +1536,9 @@
         zoom.querySelectorAll(".steps i").forEach((dot, i) => dot.classList.toggle("on", i === span));
       };
       level();
-      // 봉 그림이면 참이다. 봉 비율은 지수 카드만 받는다.
+      // 봉 그림이면 참이다.
       const candle = () => candleOn && !!ratios;
-      if (!aim) candled.then((found) => {
+      candled.then((found) => {
         const days = found[key.split("-")[1]];
         if (!days) return;
         ratios = dates.map((day) => days[day] ?? null);
@@ -1581,9 +1582,18 @@
         }
         const i0 = Math.max(0, Math.floor(x0)), width = 1.4 - .4 * Math.max(0, Math.min(1, (stop - x0 - 63) / 693));
         const stroke = { fill: "none", stroke: PRICE, "stroke-width": width, "stroke-linejoin": "round" };
-        // 최고·최저 글씨는 기간이 정해진 뒤에만 그리고, 가운데를 그림 양 끝에서 30px 안쪽에 둔다.
+        // 봉 그림이면 그림 왼쪽 끝부터 `stop`까지 보이는 봉이다.
+        const groups = candle() ? candleGroups(dates, hist, ratios, candleUnit(DAYS[span]), stop).filter((group) => group[1] >= i0) : null;
+        // 최고·최저 글씨는 기간이 정해진 뒤에만 그리고, 가운데를 그림 양 끝에서 30px 안쪽에 둔다. 봉 그림이면 점 없이 가장 높은 고가와 가장 낮은 저가를 봉 위아래에 적는다.
         const extremes = () => {
           const group = s.appendChild(shape("g", { class: "marks" }));
+          if (groups) {
+            const high = groups.reduce((a, b) => (b[3] > a[3] ? b : a)), low = groups.reduce((a, b) => (b[4] < a[4] ? b : a));
+            [[high, high[3], -5, "최고"], [low, low[4], 13, "최저"]].forEach(([[a, b], v, dy, text]) => {
+              group.append(shape("text", { x: Math.min(Math.max(X((a + b) / 2), L + 30), R - 30), y: Y(v) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${fmt(v)}`));
+            });
+            return;
+          }
           const shown = hist.slice(i0, stop + 1);
           [[i0 + shown.indexOf(Math.max(...shown)), -7, "최고"], [i0 + shown.indexOf(Math.min(...shown)), 15, "최저"]].forEach(([i, dy, text]) => {
             group.append(shape("circle", { cx: X(i), cy: Y(hist[i]), r: 2.5, fill: PRICE }));
@@ -1597,33 +1607,23 @@
           g.append(shape("path", { d: path([from, to]), ...stroke, "stroke-dasharray": "2 2" }));
           s.append(shape("circle", { cx: to[0], cy: to[1], r: 2.5, fill: "#EAEAEA", stroke: "#171719", "stroke-width": 1 }));
         };
-        if (!p && candle()) {
-          const groups = candleGroups(dates, hist, ratios, candleUnit(DAYS[span]), stop).filter((group) => group[1] >= i0);
-          drawCandles(g, groups, X, Y, (R - L) / (xmax - x0));
-          if (marks) {
-            const group = s.appendChild(shape("g", { class: "marks" }));
-            const high = groups.reduce((a, b) => (b[3] > a[3] ? b : a)), low = groups.reduce((a, b) => (b[4] < a[4] ? b : a));
-            [[high, high[3], -5, "최고"], [low, low[4], 13, "최저"]].forEach(([[a, b], v, dy, text]) => {
-              group.append(shape("text", { x: Math.min(Math.max(X((a + b) / 2), L + 30), R - 30), y: Y(v) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${fmt(v)}`));
-            });
-          }
-          dawn([X(stop), Y(hist[stop])]);
-          return;
-        }
+        const step = (R - L) / (xmax - x0);
         if (!p) {
-          g.append(shape("path", { d: path(hist.slice(i0, stop + 1).map((v, k) => [X(i0 + k), Y(v)])), ...stroke }));
+          if (groups) drawCandles(g, groups, X, Y, step);
+          else g.append(shape("path", { d: path(hist.slice(i0, stop + 1).map((v, k) => [X(i0 + k), Y(v)])), ...stroke }));
           if (marks) extremes();
-          s.append(shape("circle", { cx: X(stop), cy: Y(hist[stop]), r: 2.5, fill: PRICE }));
+          if (!groups) s.append(shape("circle", { cx: X(stop), cy: Y(hist[stop]), r: 2.5, fill: PRICE }));
           dawn([X(stop), Y(hist[stop])]);
           return;
         }
         const xs = p.q50.map((_, k) => X(fx + (k || BASE_AFTER))), origin = [xs[0], Y(f.base)];
         g.append(shape("path", { d: `${path(xs.map((x, k) => [x, Y(p.q25[k])]))}L${xs.slice().reverse().map((x, k) => `${x} ${Y(p.q75[xs.length - 1 - k])}`).join("L")}Z`, fill: color, opacity: .22 }));
-        g.append(shape("path", { d: path(hist.slice(i0, fx + 1).map((v, k) => [X(i0 + k), Y(v)])), ...stroke }));
+        if (groups) drawCandles(g, groups, X, Y, step);
+        else g.append(shape("path", { d: path(hist.slice(i0, fx + 1).map((v, k) => [X(i0 + k), Y(v)])), ...stroke }));
         g.append(shape("path", { d: path([[X(fx), Y(hist[fx])], origin]), ...stroke, "stroke-dasharray": "2 2" }));
         const today = [X(last + BASE_AFTER), Y(data.base)];
         if (last > fx) {
-          g.append(shape("path", { d: path([origin, ...hist.slice(fx + 1).map((v, k) => [X(fx + 1 + k), Y(v)])]), ...stroke }));
+          if (!groups) g.append(shape("path", { d: path([origin, ...hist.slice(fx + 1).map((v, k) => [X(fx + 1 + k), Y(v)])]), ...stroke }));
           g.append(shape("path", { d: path([[X(last), Y(hist[last])], today]), ...stroke, "stroke-dasharray": "2 2" }));
         }
         s.append(shape("path", { d: path(xs.map((x, k) => [x, Y(p.q50[k])])), fill: "none", stroke: color, "stroke-width": 1.4, "stroke-linejoin": "round" }));
@@ -1651,7 +1651,7 @@
       };
       wider.addEventListener("click", () => move(-1));
       narrower.addEventListener("click", () => move(1));
-      // 되감기 슬라이더가 다른 날짜를 고르면 사용자가 고른 단추를 지우고, 리포트 날짜는 가장 늦은 세션을, 지난 날짜는 정규장을 고른다.
+      // 되감기 슬라이더가 다른 날짜를 고르면 사용자가 고른 단추를 지우고, 가장 늦은 리포트의 리포트 날짜는 가장 늦은 세션을, 지난 날짜와 지난 리포트는 정규장을 고른다.
       // 리포트 날짜의 정규장 값은 늘 고른 채로 둔다. 예측 카드는 정규장 다음 세션 값을 그리지 않는다.
       const show = (f) => {
         if (f !== frame) chosen = false;
@@ -1664,7 +1664,7 @@
         }
         const session = Math.round((hist[stop] / hist[stop - 1] - 1) * 1e4) / 100, found = extra(f);
         const shown = p ? null : found, regular = shown?.[3] === "regular";
-        if (!chosen || regular) late = !!shown && now;
+        if (!chosen || regular) late = !!shown && now && (regular || !document.documentElement.classList.contains("past"));
         ext = shown && late ? shown : null;
         seg.rename(shown?.[3] ?? "after");
         seg.mark(late);
@@ -3003,7 +3003,7 @@
   // 첫 상자에는 주가 카드와 기업 설명을 둔다. 주가 카드는 이름 자리에 종목 이름과 티커를 쓰고, 마지막 종가와 앞 세션 종가 대비 등락률을 쓰며,
   // 그림 아래 −·+ 단추로 1년, 6개월, 3개월 가운데 기간을 골라 일별 종가 선을 다시 그린다. 종가가 기간보다 짧으면 있는 종가를 모두 그리고, 같은 그림이 되는 기간은 하나만 둔다.
   // 봉 비율(`candles`)이 있으면 그 줄 오른쪽 끝에 선·봉 단추(`kindButton`)를 두고, 봉 그림이면 종가 선 대신 1년은 주봉, 6개월·3개월은 일봉을 그린다.
-  // 처음에는 가장 긴 기간을 그린다.
+  // 처음에는 가장 짧은 기간을 그린다.
   // 카드 맨 위 줄에는 기준일 글씨를 쓰고, 그 아래 이름 줄에 종목 이름과 티커를 쓴다.
   // 마지막 종가 날짜의 애프터장 체결가(`r/market.json` 지도 값, 없으면 `r/afterhours.json`의 체결가)나 그 다음 프리장 체결가(`r/premarket.json`)가 있으면 이름 줄 오른쪽에
   // 정규장·애프터장이나 정규장·프리장 단추를 둔다. 두 값이 다 있으면 프리장 값을 쓴다.
@@ -3040,7 +3040,7 @@
       const label = (v) => `$${Math.round(v).toLocaleString("en-US")}`, points = closes.map(([d, v]) => [d, v, label(v)]);
       const candles = data.candles?.some(Boolean) ? data.candles : null;
       const SPAN = [...new Set([252, 126, 63].map((days) => Math.min(days, closes.length)))];
-      let span = 0;
+      let span = SPAN.length - 1;
       // 고른 기간의 봉 그림 설정. 선 그림이면 null이다.
       const candle = () => (candleOn && candles ? { ratios: candles.slice(-SPAN[span]), unit: candleUnit(SPAN[span]), label } : null);
       const color = change > 0 ? "#ff5c5c" : change < 0 ? "#5b9bff" : DIMS;
