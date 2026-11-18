@@ -624,7 +624,7 @@
   .bubble.quote p.lead { padding: 8px 0 4px; font-size: 13.5px; line-height: 1.5; white-space: normal; }
   .bubble.quote button { margin: 2px -14px 0 auto; padding: 8px 14px; gap: 4px; color: var(--accent); font-size: 13.5px; }
   .bubble.quote button svg { color: var(--accent); }
-  /* 리포트 화면은 절을 예측 페이지와 이슈 페이지에 나눠 담고 한 페이지만 보여 준다. 가린 페이지는 높이를 0으로 줄여 숨기되 안의 요소는 자리를 그대로 잡아 두어,
+  /* 리포트 화면은 절을 예측·이슈·시장 페이지에 나눠 담고 한 페이지만 보여 준다. 가린 페이지는 높이를 0으로 줄여 숨기되 안의 요소는 자리를 그대로 잡아 두어,
      넘기기 묶음이 보고 있던 장과 높이를 지킨다. 보이는 페이지 끝에는 바로가기 알약만큼 여백을 더해 마지막 줄이 알약에 가리지 않게 한다.
      페이지를 바꾸는 동안(`flow`)에는 떠나는 페이지부터 여는 페이지까지를 한 자리에 겹쳐 쌓고 화면 폭씩 옆으로 늘어놓아 함께 옆으로 민다. 페이지마다 바탕색을 칠해 아래 글자가 비치지 않게 하고,
      위아래로 맞춰 그린 페이지가 제목과 머리 상자를 덮지 않게 본문 위아래 밖은 자른다. 옆으로 늘어놓은 페이지가 문서 폭을 늘리면 휴대폰 웹뷰가 문서 폭에 맞춰 화면을 축소하므로,
@@ -636,7 +636,7 @@
   #report > .page.off { height: 0; padding: 0; overflow: hidden; visibility: hidden; }
   #report.flow { display: grid; grid-template-columns: minmax(0, 1fr); overflow: visible clip; pointer-events: none; }
   #report.flow > .page { grid-area: 1 / 1; background: var(--bg); }
-  /* 화면 아래 가운데에 세 페이지의 바로가기를 가로로 긴 반투명 유리 알약 하나에 담아 띄운다. 알약 뒤 본문은 흐리게 비친다. 알약 위의 손길은 화면을 움직이지 않고 레버를 끄는 데 쓴다. */
+  /* 화면 아래 가운데에 페이지마다 바로가기를 가로로 긴 반투명 유리 알약 하나에 담아 띄운다. 알약 뒤 본문은 흐리게 비친다. 알약 위의 손길은 화면을 움직이지 않고 레버를 끄는 데 쓴다. */
   nav.jump { position: fixed; z-index: 5; left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
              display: flex; padding: 5px; border-radius: 27px; touch-action: none; user-select: none; -webkit-user-select: none;
              background: color-mix(in srgb, var(--bg) 40%, transparent);
@@ -1875,7 +1875,7 @@
   }
 
   // 이슈 화면과 종목 상세의 왼쪽 아래에 뒤로가기 단추를 띄운다.
-  // 주소로 바로 연 화면의 단추는 주소에서 `names`를 지우고 리포트 화면의 `page`번 페이지를 맨 위부터 연다.
+  // 주소로 바로 연 화면의 단추는 주소에서 `names`를 지우고 리포트 화면에서 단추 이름이 `page`인 페이지를 맨 위부터 연다.
   function backward(names, page) {
     const back = document.body.appendChild(document.createElement("button"));
     back.className = "back";
@@ -2196,7 +2196,7 @@
       return;
     }
     [...report.children].forEach((node) => node === head || node === box || node.remove());
-    backward(["issue", "at"], 1);
+    backward(["issue", "at"], "이슈");
     const bar = document.getElementById("issue-bar");
     const rename = (next) => {
       if (label.textContent === next) return;
@@ -2943,7 +2943,7 @@
       head.before(figure);
       gallery(figure);
     }
-    backward(["stock", "session"], 2);
+    backward(["stock", "session"], "시장");
     const closes = data.closes, last = closes.length - 1;
     if (last > 0) {
       const [day, now] = closes[last], change = (now / closes[last - 1][1] - 1) * 100;
@@ -3459,15 +3459,11 @@
     issueCharts();
     toneTags(report);
     fold("상세 이슈 해설", 4, ["이슈 해설"]);
-    // 본 리포트의 이슈 해설은 그 리포트의 분석 완료 시각을 기준으로 하고, 사전 리포트의 이슈 해설은 앞 날짜의 가장 늦은 본 리포트에서 옮겨 왔으므로 그 리포트의 분석 완료 시각을 기준으로 한다.
-    const source = entry && !entry.stage ? entry : listing[Object.keys(listing)
-      .filter((name) => listing[name].index === index && !listing[name].stage && listing[name].date < date)
-      .sort((a, b) => listing[b].date.localeCompare(listing[a].date))[0]];
-    section("상세 이슈 해설", focus, query.get("at"), source?.written);
+    section("상세 이슈 해설", focus, query.get("at"), entry?.written);
     // 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
     report.querySelectorAll("h3").forEach(trail);
     // 주소로 바로 연 이슈 화면과 종목 상세의 뒤로가기 단추로 연 리포트 화면(`land`)은 단추가 적은 페이지(이슈 화면은 이슈 페이지, 종목 상세는 시장 페이지)를
-    // 맨 위부터 보여 준다. 그 밖에는 `history.state`에 적힌 페이지를 연다.
+    // 맨 위부터 보여 준다. 그 밖에는 `history.state`에 적힌 페이지를 연다. 리포트에 그 페이지가 없으면 첫 페이지를 연다.
     const [landKey, landPage] = (sessionStorage.getItem("land") || "").split(" ");
     const land = !focus && landKey === key;
     if (land) sessionStorage.removeItem("land");
@@ -3479,7 +3475,7 @@
       turn = jump(pages);
       const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "이벤트 캘린더");
       if (head?.pick) toCalendar = (day) => { turn(pages.findIndex((page) => page.contains(head)), head); head.pick(day); };
-      turn(land ? +landPage : history.state?.page || 0);
+      turn(Math.max(0, pages.findIndex((page) => page.dataset.name === (land ? landPage : history.state?.page))));
     }
     // 일정과 예측처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
     // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
@@ -3571,6 +3567,7 @@
     addEventListener("pageshow", () => { ring.classList.remove("ready"); ring.style.opacity = 0; });
   }
   // 리포트 화면의 절을 `PAGES`의 페이지에 나눠 담는다. 페이지마다 단추 이름과 그 페이지에 넣을 절 제목을 두고, 목록에 없는 절은 앞 절의 페이지에 넣는다.
+  // 리포트에 절이 하나도 없는 페이지는 만들지 않는다. 상세 이슈 해설 절이 없는 사전 리포트에는 이슈 페이지가 없다.
   // 넘기기 묶음은 노드를 옮기면 스크롤 위치가 처음으로 돌아가므로, 리포트를 받은 직후 묶음을 만들기 전에 나눈다.
   const PAGES = [["예측", ["지수와 예측", "이벤트 캘린더"]], ["이슈", ["상세 이슈 해설"]], ["시장", ["한 눈에 보기", "미국 거시 지표"]]];
   // 바로가기 단추의 선 아이콘이다. 예측은 마디 셋이 앞으로 굵어지는 접이식 망원경, 이슈는 불꽃, 시장은 고리를 두른 행성이다. 망원경은 마디마다 앞쪽 굵은 마디 자리를 마스크로 비워, 접히면 굵은 마디가 가는 마디를 가린다. 행성은 앞쪽 고리 둘레를 마스크로 비워 고리가 행성 앞을 지나게 그리고, 뒤쪽 고리는 행성 원판 자리를 비운 마스크로 가려 행성 뒤를 지나게 그린다.
@@ -3614,10 +3611,16 @@
     ], { duration: 1500 })),
   };
   function paginate() {
-    const pages = PAGES.map(() => Object.assign(document.createElement("div"), { className: "page" }));
+    const titled = [...report.children].filter((node) => node.tagName === "H2").map((h) => h.textContent.trim());
+    const kept = PAGES.filter(([, titles]) => titles.some((title) => titled.includes(title)));
+    const pages = kept.map(([name]) => {
+      const page = Object.assign(document.createElement("div"), { className: "page" });
+      page.dataset.name = name;
+      return page;
+    });
     let at = 0;
     [...report.children].forEach((node) => {
-      const i = node.tagName === "H2" ? PAGES.findIndex(([, titles]) => titles.includes(node.textContent.trim())) : -1;
+      const i = node.tagName === "H2" ? kept.findIndex(([, titles]) => titles.includes(node.textContent.trim())) : -1;
       if (i >= 0) at = i;
       pages[at].append(node);
     });
@@ -3629,7 +3632,7 @@
   let turn = null, toCalendar = null;
   // 화면 아래 바로가기 알약에 페이지마다 단추를 두고 `turn`을 돌려준다. 단추를 누르면 그 페이지만 보여 주고, 페이지 맨 위로 옮긴다.
   // 보고 있는 페이지의 단추를 다시 누르면 페이지 맨 위로 부드럽게 옮기고 단추의 아이콘을 다시 움직인다.
-  // 보고 있는 페이지 번호(`page`)는 `history.state`에 적어, 뒤로 가기와 새로 고침으로 돌아와도 그 페이지를 연다.
+  // 보고 있는 페이지의 단추 이름(`page`)은 `history.state`에 적어, 뒤로 가기와 새로 고침으로 돌아와도 그 페이지를 연다.
   // 알약 위에서 누른 채 6px 넘게 움직이면 레버가 손가락을 따라 움직이고, 레버 가운데에서 가장 가까운 단추를 흰색으로 쓴다. 손을 떼면 그 단추를 누른 것과 같이 그 페이지를 연다.
   // `turn`이 `head`를 받으면 그 절 제목 글자가 화면 맨 위에서 본 페이지 첫 절 제목 글자의 높이에 오도록 옮긴다. 문서 끝이 모자라면 그 페이지 아래 여백을 늘린다.
   // 다른 페이지를 열면 페이지들이 바로가기 단추 순서대로 옆으로 흘러간다(`flow`). 오른쪽 페이지를 열면 화면이 왼쪽으로, 왼쪽 페이지를 열면 오른쪽으로 흐르고,
@@ -3668,7 +3671,7 @@
       if (motion.matches) return;
       const svg = buttons[i].querySelector("svg");
       svg.getAnimations({ subtree: true }).forEach((run) => run.cancel());
-      ICON_MOTIONS[PAGES[i][0]](svg);
+      ICON_MOTIONS[pages[i].dataset.name](svg);
     };
     const open = (i, head, still = false) => {
       const from = page, left = scrollY;
@@ -3682,7 +3685,7 @@
         lever.style.transition = "";
         if (page >= 0) wave(i);
         page = i;
-        history.replaceState({ ...history.state, page: i }, "");
+        history.replaceState({ ...history.state, page: pages[i].dataset.name }, "");
       }
       let top = 0;
       if (head) {
@@ -3699,7 +3702,7 @@
       else open(i);
     };
     let drag = null, dragged = false;
-    const buttons = PAGES.map(([name], i) => {
+    const buttons = pages.map(({ dataset: { name } }, i) => {
       const button = nav.appendChild(Object.assign(document.createElement("button"), { type: "button" }));
       button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${PAGE_ICONS[name]}</svg><span>${name}</span>`;
       button.addEventListener("click", () => { if (dragged) dragged = false; else press(i); });
