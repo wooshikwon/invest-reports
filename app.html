@@ -1478,7 +1478,7 @@
     // 봉 그림이면 종가 선 대신 3년·2년은 월봉, 1년은 주봉, 6개월·3개월은 일봉을 그린다. 예측 카드는 봉을 마지막 종가까지 그리고, 예측 범위는 선 그림과 같게 그리되 기준 가격 날짜 종가에서 기준 가격으로 잇는 점선은 그리지 않는다.
     // 봉 그림이면 리포트 날짜에 고른 지수 카드의 정규장 다음 세션 값을 다음 거래일이 든 기간의 흐린 잠정 봉(`candleLate`)으로 그린다.
     // 두 카드는 되감기 슬라이더가 고른 날짜와 관계없이 종가를 마지막 정규장 종가까지 그리고, 고른 날짜의 값에 '현재' 표시(`nowMark`)를 찍는다.
-    // 지수 카드(`aim`이 거짓)는 예측을 그리지 않고, 가로축은 마지막 종가 다음 거래일에서 끝난다. '현재' 표시는 고른 날짜 판단의 기준 가격 날짜 종가에 찍는다.
+    // 지수 카드(`aim`이 거짓)는 예측을 그리지 않고, 가로축은 마지막 종가 다음 거래일에서 끝난다. '현재' 표시는 고른 날짜 판단의 기준 가격 날짜 종가에 찍고, 봉 그림이면 그 종가가 든 봉의 고가 위에 찍는다.
     // 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 정규장 등락률 색(`tone`)의 점과 글씨로 적는다. 사전 리포트는 지수 카드만 둔다.
     // 지수 카드는 기준 가격 날짜 다음 세션 값이 있으면 이름 줄 오른쪽에 정규장·애프터장이나 정규장·프리장 단추를 둔다. 지난 날짜의 다음 세션 값은 그날 프리장 값이 있으면 그 값이고, 없으면 그날 판단의 기준 가격이다.
     // 애프터장 값은 본 리포트의 기준 가격이고, 사전 리포트는 정규장 종가에 지수 ETF의 애프터장 등락 비율(`r/afterhours.json`)을 곱한 값이다.
@@ -1487,6 +1487,7 @@
     // 리포트 날짜의 프리장 값이 정규장 값(`phase`가 `regular`)이면 단추를 정규장 단추 하나로 줄이고, 위 줄에 정규장과 시각을, 가운데 줄에 그 값과 앞 종가 대비 등락률을 등락률 색으로 적는다.
     // 정규장 값은 전날 정규장이 열릴 때 만든 사전 리포트만 받는다(`onLive`).
     // 선 그림이면 정규장 다음 세션 값은 세션과 체결 시각에 관계없이 다음 거래일 자리에 '현재' 표시로 찍어 고른 날짜의 종가 점에서 점선으로 잇는다.
+    // 봉 그림이면 그 값의 '현재' 표시는 다음 거래일이 든 봉의 고가 위에 찍는다.
     // 가로축 범위는 단추와 관계없이 같아서, 단추를 바꿔도 종가의 자리가 움직이지 않는다. 가장 늦은 리포트의 리포트 날짜는 가장 늦은 세션을, 지난 날짜와 지난 리포트는 정규장을 고른다.
     // 단추를 누르면 되감기 슬라이더가 다른 날짜를 고를 때까지 누른 세션을 유지한다.
     // 예측 카드(`aim`이 참)는 리포트 날짜 판단에 예측이 있을 때만 두고, 가로축을 마지막 종가 뒤 25거래일까지 늘린다. 종가 선 오른쪽에 고른 날짜 판단의
@@ -1604,10 +1605,12 @@
         const step = (R - L) / (xmax - x0);
         const xs = p && p.q50.map((_, k) => X(fx + (k || BASE_AFTER))), origin = p && [xs[0], Y(f.base)];
         if (p) g.append(shape("path", { d: `${path(xs.map((x, k) => [x, Y(p.q25[k])]))}L${xs.slice().reverse().map((x, k) => `${x} ${Y(p.q75[xs.length - 1 - k])}`).join("L")}Z`, fill: color, opacity: .22 }));
-        // 봉 그림이면 리포트 날짜에 고른 정규장 다음 세션 값만 잠정 봉으로 덧붙이고, `center(i)`는 거래일 `i`가 든 봉의 가운데 x다.
+        // 봉 그림이면 리포트 날짜에 고른 정규장 다음 세션 값만 잠정 봉으로 덧붙인다. `center(i)`는 거래일 `i`가 든 봉의 가운데 x이고,
+        // `mark(i, y)`는 '현재' 표시의 높이로, 선 그림이면 값의 높이 `y`, 봉 그림이면 그 봉의 고가 5px 위다.
         const drawn = groups && (ext && stop === last ? candleLate(groups, dates, unit, ext[0]) : groups);
         const centers = drawn ? drawCandles(g, drawn, X, Y, step, R + 3) : null;
-        const center = (i) => (drawn ? centers[Math.max(0, drawn.findLastIndex(([a]) => a <= i))] : X(i));
+        const bar = (i) => Math.max(0, drawn.findLastIndex(([a]) => a <= i));
+        const center = (i) => (drawn ? centers[bar(i)] : X(i)), mark = (i, y) => (drawn ? Y(drawn[bar(i)][3]) - 5 : y);
         if (!drawn) g.append(shape("path", { d: path(hist.slice(i0, last + 1).map((v, k) => [X(i0 + k), Y(v)])), ...stroke }));
         if (p) {
           if (!drawn) g.append(shape("path", { d: path([[X(fx), Y(hist[fx])], origin]), ...stroke, "stroke-dasharray": "2 2" }));
@@ -1618,14 +1621,14 @@
         }
         if (marks) extremes();
         const close = [center(stop), Y(hist[stop])];
-        if (!ext) return nowMark(s, ...close, "regular");
+        if (!ext) return nowMark(s, close[0], mark(stop, close[1]), "regular");
         // 선 그림이면 정규장 다음 세션 값은 다음 거래일 자리에 찍어 고른 날짜의 종가 점에서 점선으로 잇는다.
         const next = [center(stop + 1), Y(ext[0])];
         if (!drawn) {
           g.append(shape("path", { d: path([close, next]), ...stroke, "stroke-dasharray": "2 2" }));
           s.append(shape("circle", { cx: close[0], cy: close[1], r: 2.5, fill: PRICE }));
         }
-        nowMark(s, ...next, ext[2]);
+        nowMark(s, next[0], mark(stop + 1, next[1]), ext[2]);
       };
       // `from` 기간에서 `to` 기간으로 가는 도중 `t`(0~1) 지점의 그림. 왼쪽 끝과 세로 범위를 같은 곡선으로 옮기고, 넓히는 동안 새로 들어온
       // 과거 종가가 범위 밖이면 범위를 그만큼 먼저 넓혀 선이 가로축 아래로 내려가지 않게 한다.
@@ -2863,6 +2866,7 @@
     // 마지막 점에서 점선으로 잇는다. 세로축은 그 값까지 담는다. '현재' 표시의 색은 `extra`의 세션(`kind`)으로 고른다.
     // 봉 비율과 봉 하나가 묶는 기간과 값 글자(`candle`, `{ ratios, unit, label }`)를 받으면 선 대신 봉을 그리고, 세로축을 봉의 고가와 저가까지 담는다.
     // 최고·최저 글자는 가장 높은 고가와 가장 낮은 저가를 봉 위아래에 적고, 정규장 다음 세션 값은 다음 거래일이 든 기간의 흐린 잠정 봉(`candleLate`)으로 그린다.
+    // 봉 그림의 '현재' 표시는 마지막 봉의 고가 위에 찍는다.
     daily({ points, extra = null, kind = "regular", reach = 0, candle = null, height = FIGURE }) {
       const L = 4, R = 312, T = 22, B = height - 24, s = frame(height), values = points.map(([, v]) => v), days = points.map(([day]) => day), last = points.length - 1;
       const groups = candle && candleGroups(days, values, candle.ratios, candle.unit, last);
@@ -2879,12 +2883,12 @@
       });
       s.append(shape("line", { x1: L, x2: R, y1: B, y2: B, stroke: DIMS, "stroke-width": 1 }));
       if (groups) {
-        const centers = drawCandles(s, extra != null ? candleLate(groups, days, candle.unit, extra) : groups, X, Y, (R - L) / span, R + 3);
+        const bars = extra != null ? candleLate(groups, days, candle.unit, extra) : groups, centers = drawCandles(s, bars, X, Y, (R - L) / span, R + 3);
         const high = groups.reduce((a, b) => (b[3] > a[3] ? b : a)), lowest = groups.reduce((a, b) => (b[4] < a[4] ? b : a));
         [[high, high[3], -5, "최고"], [lowest, lowest[4], 13, "최저"]].forEach(([[a, b], v, dy, text]) => {
           s.append(shape("text", { x: Math.min(Math.max(X((a + b) / 2), L + 36), R - 36), y: Y(v) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${candle.label(v)}`));
         });
-        nowMark(s, centers[centers.length - 1], Y(extra ?? values[last]), extra != null ? kind : "regular");
+        nowMark(s, centers[centers.length - 1], Y(bars[bars.length - 1][3]) - 5, extra != null ? kind : "regular");
         return s;
       } else {
         s.append(shape("path", { d: `M${points.map(([, v], i) => `${X(i)} ${Y(v)}`).join("L")}`, fill: "none", stroke: PRICE,
