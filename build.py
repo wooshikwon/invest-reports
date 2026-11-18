@@ -86,7 +86,8 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `정규장 | 애프터마켓` 단추로 칸 값과 색을 애프터장 체결가와 정규장 종가 대비 등락률로 바꾼다.
 `r/premarket.json`에는 지수마다 리포트 날짜와 같은 뉴욕 날짜를 키로 그날 프리장과 정규장의 마지막 체결가를 적는다(`premarket`). 값은 지수 ETF의
 앞 세션 정규장 종가 대비 비율(`ratio`), 지도 종목마다의 체결가(`stocks`), 값을 받은 시각(`time`), 앞 세션 날짜(`session`)와 그 시각의 세션(`phase`)이다.
-cron이 프리장이 열릴 때부터 정규장이 닫힐 때까지 10분마다 부르고, 정규장이 열리면 프리장 값을 정규장 값으로 덮으며, 정규장이 닫힌 뒤에는 마지막 값을 그대로 둔다.
+cron이 프리장이 열릴 때부터 정규장이 닫힐 때까지 부른다. 프리장 값은 10분마다 받고, 정규장이 열리면 첫 회차가 프리장 값을 정규장 값으로 덮은 뒤
+정시와 30분에만 정규장 값을 다시 받으며, 정규장이 닫힌 뒤에는 마감 값을 한 번 받아 그대로 둔다.
 미니 앱은 프리장 값이면 그 날짜 리포트의 머리 상자 아래 줄을 프리마켓 값으로 바꾸고,
 지도의 단추를 `정규장 | 다음날 프리마켓`으로 바꿔 애프터장 값 자리에 프리장 체결가와 정규장 종가 대비 등락률을 쓴다.
 요약 절의 지수 카드와 종목 상세 페이지의 주가 카드도 같은 값으로 위 줄 오른쪽에 `정규장 | 애프터마켓`이나 `정규장 | 프리마켓` 단추를 두고,
@@ -177,6 +178,7 @@ MAP_LEAD_DAYS = 7
 STOCK_DAYS = 366  # 종목 상세 페이지의 주가 카드가 그리는 종가 기간(일)
 AFTER_OPEN, AFTER_CLOSE = dt.time(16), dt.time(20)  # 뉴욕 애프터장이 열리고 닫히는 시각. 지도와 머리 상자의 애프터장 값은 닫히는 시각까지의 마지막 체결가다
 PREMARKET_OPEN, PREMARKET_CLOSE = dt.time(4), dt.time(9, 30)  # 뉴욕 프리장이 열리고 닫히는 시각. 끝 시각이 닫히는 시각 뒤인 `r/premarket.json` 값은 정규장 값이다
+REGULAR_EVERY = 30  # 정규장 값을 다시 받는 간격(분). 정규장이 열린 뒤 첫 회차와 마감 값은 이 간격과 관계없이 받는다
 # 판단 배치의 진척률 단계. [단계에 닿으면 그날 지수 폴더에 생기는 파일, 지난 세션 도구 호출 요약에서 그 단계의 첫 Main 호출]이다.
 # 차례로 입력 렌더링, ④ Main 읽기의 결과 초안, ⑥ 판정, ⑧ 리포트, ⑧ 교정, ⑨ 이슈 이미지와 그래프, 세션 끝, 리포트 게시다.
 PROGRESS_MARKS = [("input-manifest.json", None), ("system/form-draft.md", r"^Write\s.*/form-draft\.md"), ("scratchpad.md", r"^Write\s.*/scratchpad\.md"),
@@ -537,8 +539,9 @@ def premarket(vault: Path, out: Path) -> Path | None:
     (`price_source.batch_time_price`). 마지막 체결이 오늘 `PREMARKET_OPEN` 전이면 오늘 체결이 없으므로 null이다.
     끝 시각은 지금과 오늘 정규장이 닫히는 시각(`exchange_calendars`의 마감 시각, 조기 폐장일은 그날의 마감 시각) 가운데 이른 쪽이라,
     정규장이 열리면 프리장 값을 정규장 값으로 덮고, 정규장이 닫힌 뒤에는 정규장 마지막 체결가가 남는다.
+    정규장 값은 정규장이 열린 뒤 첫 회차와 끝 시각의 분이 `REGULAR_EVERY`로 나누어떨어지는 회차, 마감 값을 받는 회차에만 쓴다.
     마감 체결이 1분봉에 실리도록 마감 뒤 5분 동안은 쓰지 않는다.
-    오늘이 뉴욕 정규장 세션이 아니거나, 지금이 `PREMARKET_OPEN` 전이거나, 마감 뒤 5분 안이거나, 오늘 값을 정규장 마감까지 이미 받았으면 쓰지 않고 `None`이다.
+    오늘이 뉴욕 정규장 세션이 아니거나, 지금이 `PREMARKET_OPEN` 전이거나, 마감 뒤 5분 안이거나, 정규장 값을 다시 받을 회차가 아니거나, 오늘 값을 정규장 마감까지 이미 받았으면 쓰지 않고 `None`이다.
     지도의 첫 날짜보다 앞선 날짜의 값은 지운다.
     """
     now = dt.datetime.now(NEW_YORK)
@@ -558,6 +561,8 @@ def premarket(vault: Path, out: Path) -> Path | None:
     session = xnys.previous_session(today.isoformat()).date().isoformat()
     opened = dt.datetime.combine(today, PREMARKET_OPEN, NEW_YORK)
     phase = "regular" if end > dt.datetime.combine(today, PREMARKET_CLOSE, NEW_YORK) else "pre"
+    if phase == "regular" and end < closed and end.minute % REGULAR_EVERY and all(kept.get(index, {}).get(today.isoformat(), {}).get("phase") == "regular" for index in board):
+        return None
     source, etfs = render_inputs(vault).price_source, predictions_chart(vault).path_bands.SECTOR_DB_TICKERS
 
     @functools.cache
