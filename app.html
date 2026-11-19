@@ -641,9 +641,10 @@
   .asset-trades { display: flex; justify-content: space-between; align-items: center; width: 100%; height: 48px; margin: 40px 0 8px; padding: 0 14px 0 16px; border: 0;
                   border-radius: 12px; background: rgba(255, 255, 255, .05); font: inherit; font-size: 15px; font-weight: 600; color: var(--text); cursor: pointer; }
   .asset-trades svg { color: var(--dim); }
-  .signal { padding: 14px 16px 4px; border-radius: 12px; background: rgba(255, 255, 255, .05); line-height: 1.4; letter-spacing: -.2px; }
+  .signal + .asset-trades { margin-top: 0; }
+  .signal { margin: 40px 0 8px; padding: 14px 16px 4px; border-radius: 12px; background: rgba(255, 255, 255, .05); line-height: 1.4; letter-spacing: -.2px; }
   .signal .top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-  .signal .top b { flex: 1; font-size: 15.5px; font-weight: 700; }
+  .signal .top b { flex: 1; font-size: 15px; font-weight: 600; color: var(--text); }
   .signal .top small { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
   .signal .top .lamp { width: 12px; height: 12px; }
   .signal .gate { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-top: 1px solid rgba(255, 255, 255, .06); }
@@ -651,9 +652,9 @@
   .signal .gate strong { display: block; font-size: 13px; font-weight: 600; color: var(--hint); }
   .signal .gate p { margin: 2px 0 0; font-size: 14px; color: var(--text); }
   .signal .lamp { flex: none; width: 8px; height: 8px; border-radius: 50%; }
-  .signal .green { color: #30d158; } .signal .lamp.green { background: #30d158; box-shadow: 0 0 8px rgba(48, 209, 88, .55); }
-  .signal .orange { color: #ff9f0a; } .signal .lamp.orange { background: #ff9f0a; box-shadow: 0 0 8px rgba(255, 159, 10, .55); }
-  .signal .red { color: #ff453a; } .signal .lamp.red { background: #ff453a; box-shadow: 0 0 8px rgba(255, 69, 58, .55); }
+  .signal .lamp.green { background: #30d158; box-shadow: 0 0 8px rgba(48, 209, 88, .55); }
+  .signal .lamp.orange { background: #ff9f0a; box-shadow: 0 0 8px rgba(255, 159, 10, .55); }
+  .signal .lamp.red { background: #ff453a; box-shadow: 0 0 8px rgba(255, 69, 58, .55); }
   .carousel.asset-cards { margin-top: 24px; }
   .asset-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; }
   .asset-item strong { display: block; font-size: 15px; font-weight: 500; color: var(--text); }
@@ -4155,15 +4156,14 @@
   const assetRow = (name, sub, value, tail) => `<div class="asset-item"><div><strong>${name}</strong><small>${sub}</small></div>`
     + `<div><strong>${value}</strong>${tail ? `<small>${tail}</small>` : ""}</div></div>`;
   const assetDay = (date) => `${+date.slice(5, 7)}.${+date.slice(8, 10)}`;
-  // 집행 신호등 카드. 값(`signal`)은 거래 내역 값의 `signal`이고, 그 지수(`index`)의 값이 없으면 카드를 두지 않는다. 위 줄에 지수의 종합 색과 판정, 판정한 날짜를 쓰고,
+  // 집행 신호등 카드. 값(`signal`)은 거래 내역 값의 `signal`이고, 그 지수(`index`)의 값이 없으면 카드를 두지 않는다. 위 줄에 지수의 종합 색과 카드 이름, 판정한 날짜를 쓰고,
   // 그 아래 옵티마이저 게이트와 조건부 게이트마다 그 관문의 색과 배치가 쓴 이유를 쓴다.
-  const SIGNAL_LABEL = { green: "오늘 집행", orange: "지켜보는 중", red: "오늘 집행 안 함" };
   const assetSignal = (signal, index) => {
     const sector = signal?.sectors?.[index];
     if (!sector) return "";
     const lamp = (color) => `<i class="lamp ${color}"></i>`;
     const gate = (name, value) => `<div class="gate">${lamp(value.color)}<div><strong>${name}</strong><p>${assetText(value.reason)}</p></div></div>`;
-    return `<div class="signal"><div class="top">${lamp(sector.color)}<b class="${sector.color}">${SIGNAL_LABEL[sector.color]}</b><small>${assetDay(signal.date)} 집행 신호등</small></div>`
+    return `<div class="signal"><div class="top">${lamp(sector.color)}<b>집행 신호등</b><small>${assetDay(signal.date)} 판정</small></div>`
       + gate("옵티마이저 게이트", sector.optimizer) + gate("조건부 게이트", sector.conditional) + "</div>";
   };
   const assetSaved = () => { try { return JSON.parse(sessionStorage.getItem(ASSET_FLAG)); } catch { return null; } };
@@ -4268,7 +4268,7 @@
     const chevron = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     // 평가 금액의 가림을 벗겼는지(`bare`)는 미니 앱을 닫을 때까지만 기억하고 기기에는 적지 않으므로, 미니 앱을 열 때마다 가려진 채로 시작한다.
     let last = null, bare = false, chosen = null;
-    // 첫 절 내 투자는 보고 있는 리포트 지수의 종목(`sector`)만 모아 평가금 합계와 수익·수익률을 쓰고, 그 아래 그림 카드와 거래 내역 단추, 집행 신호등 카드를 둔다.
+    // 첫 절 내 투자는 보고 있는 리포트 지수의 종목(`sector`)만 모아 평가금 합계와 수익·수익률을 쓰고, 그 아래 그림 카드와 집행 신호등 카드, 거래 내역 단추를 둔다.
     // 둘째 절 상세 보유 종목은 그 종목들의 종목 줄을 쓴다.
     // 맨 아래 절 내 계좌는 원화·달러 주문 가능 현금을 그 통화로, 대기자금(SGOV)을 고른 단위로 쓴다. SGOV를 들고 있지 않으면 대기자금 줄을 두지 않는다.
     const fill = (data) => {
@@ -4289,7 +4289,7 @@
         + [["USD", "$"], ["KRW", "원"]].map(([currency, label]) => `<button type="button" data-unit="${currency}"${currency === unit ? ' class="on"' : ""}>${label}</button>`).join("")
         + `</div></h2><div class="asset-sum${bare ? "" : " veil"}" role="button" tabindex="0"><b class="veiled">평가 금액 보기</b>`
         + `<b>${assetMoney(total("value"), unit)}</b>${change(profit, purchase ? profit / purchase : 0)}</div>`
-        + `<button type="button" class="asset-trades">거래 내역${chevron}</button>${assetSignal(data.trades?.signal, index)}<h2>상세 보유 종목</h2>`
+        + `${assetSignal(data.trades?.signal, index)}<button type="button" class="asset-trades">거래 내역${chevron}</button><h2>상세 보유 종목</h2>`
         + (mine.length ? mine.map((it) => item(it, assetShares(it.quantity))).join("") : `<p class="status">${INDEX_NAME[index]} 종목을 들고 있지 않다.</p>`)
         + `<h2>내 계좌</h2>` + assetRow("원화", "주문 가능", assetMoney(accounts.KRW.cash, "KRW")) + assetRow("달러", "주문 가능", assetMoney(accounts.USD.cash, "USD"))
         + (waiting ? item({ ...waiting, name: "대기자금" }, `${waiting.symbol} ${assetShares(waiting.quantity)}`) : "");
