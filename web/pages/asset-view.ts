@@ -1,7 +1,16 @@
 // @ts-nocheck
+import "./asset-view.css";
+import { ASSET_URL } from "../shared/account";
 import { gaugeCard, indexInk } from "../shared/card";
+import { INDEX_NAME } from "../shared/chrome";
 import { figure, signed, tone } from "../shared/format";
+import { slider } from "../shared/motion";
+import { dial, rewindFrames, rewindOffset } from "../shared/rewind";
+import { key, visit } from "../shared/route";
 import { DIMS, shape } from "../shared/svg";
+import { feelPress, feelSlide, tg } from "../shared/telegram";
+// 내 자산 조각. 내 자산 페이지와 거래 내역 화면의 글씨와 그림은 모두 이 파일에 있고, 공개 화면(`asset.ts`, `trades.ts`)은 Worker가 계좌 요약을 건넨 뒤에만
+// 이 파일을 `import()`로 불러온다. 빌드는 이 파일과 `asset-view.css`를 `assets/asset-view-*.js`·`assets/asset-view-*.css`로 따로 낸다.
 // 내 자산 페이지와 거래 내역 화면이 함께 쓰는 글씨. 달러는 `$`와 소수 둘째 자리까지, 원화는 원 단위 정수로 쓰고, `bare`면 원화 뒤 "원"을 뺀다.
 export const assetSign = (v) => (v > 0 ? "+" : v < 0 ? "−" : "");
 export const assetMoney = (v, currency, bare) => currency === "USD" ? `$${figure(Math.abs(v))}` : `${Math.round(Math.abs(v)).toLocaleString("ko-KR")}${bare ? "" : "원"}`;
@@ -97,4 +106,142 @@ export function assetCards(perf) {
   const show = (past) => draws.forEach((draw) => draw(past));
   show(null);
   return { cards, show };
+}
+
+// 내 자산 페이지(`page`)를 그리는 함수를 돌려준다. 공개 화면 `asset.ts`가 Worker가 건넨 계좌 요약(`data`)마다 이 함수를 부른다.
+export function assetPage(page) {
+  // 금액 단위와 보던 그림 카드는 기기에 적어 두고 다음에 열 때도 그대로 쓴다.
+  const view = { unit: "KRW", card: 0 };
+  try { const kept = JSON.parse(localStorage.getItem("asset-view")); view.unit = kept.unit === "USD" ? "USD" : "KRW"; view.card = kept.card | 0; } catch {}
+  const remember = () => { try { localStorage.setItem("asset-view", JSON.stringify(view)); } catch {} };
+  const chevron = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  // 평가 금액의 가림을 벗겼는지(`bare`)는 미니 앱을 닫을 때까지만 기억하고 기기에는 적지 않으므로, 미니 앱을 열 때마다 가려진 채로 시작한다.
+  let last = null, bare = false, chosen = null;
+  // 첫 절 내 투자는 보고 있는 리포트 지수의 종목(`sector`)만 모아 평가금 합계와 수익·수익률을 쓰고, 그 아래 그림 카드와 집행 신호등 카드를 둔다.
+  // 둘째 절 상세 보유 종목은 그 종목들의 종목 줄을 쓰고, 그 아래 거래 내역 단추를 둔다.
+  // 맨 아래 절 내 계좌는 원화·달러 주문 가능 현금을 그 통화로, 대기자금(SGOV)을 고른 단위로 쓴다. SGOV를 들고 있지 않으면 대기자금 줄을 두지 않는다.
+  const fill = (data) => {
+    last = data;
+    const index = key.split("-")[1], { rate, accounts } = data, unit = view.unit;
+    // 금액은 고른 단위로 바꿔 쓴다. 다른 통화 금액은 요약을 만든 시각의 환율로 바꾼다.
+    const into = (v, currency) => (currency === unit ? v : unit === "KRW" ? v * rate : v / rate);
+    const change = (v, r, bare) => `<span class="${tone(v)}">${assetSign(v)}${assetMoney(v, unit, bare)} (${Math.abs(r * 100).toFixed(1)}%)</span>`;
+    const held = data.items.map((item) => ({ ...item, value: into(item.value, item.currency), profit: into(item.profit, item.currency), purchase: into(item.purchase, item.currency) }));
+    const mine = held.filter((item) => item.sector === index), waiting = held.find((item) => item.sector === "sgov");
+    const total = (field) => mine.reduce((sum, item) => sum + item[field], 0), profit = total("profit"), purchase = total("purchase");
+    const item = (it, sub) => assetRow(assetText(it.name), sub, assetMoney(it.value, unit), change(it.profit, it.rate, true));
+    page.innerHTML = `<h2 class="asset-head">내 투자<div class="seg">`
+      + [["USD", "$"], ["KRW", "원"]].map(([currency, label]) => `<button type="button" data-unit="${currency}"${currency === unit ? ' class="on"' : ""}>${label}</button>`).join("")
+      + `</div></h2><div class="asset-sum${bare ? "" : " veil"}" role="button" tabindex="0"><b class="veiled">평가 금액 보기</b>`
+      + `<b>${assetMoney(total("value"), unit)}</b>${change(profit, purchase ? profit / purchase : 0)}</div>`
+      + `${assetSignal(data.trades?.signal, index)}<h2>상세 보유 종목</h2>`
+      + (mine.length ? mine.map((it) => item(it, assetShares(it.quantity))).join("") : `<p class="status">${INDEX_NAME[index]} 종목을 들고 있지 않다.</p>`)
+      + `<button type="button" class="asset-trades">거래 내역${chevron}</button><h2>내 계좌</h2>` + assetRow("원화", "주문 가능", assetMoney(accounts.KRW.cash, "KRW")) + assetRow("달러", "주문 가능", assetMoney(accounts.USD.cash, "USD"))
+      + (waiting ? item({ ...waiting, name: "대기자금" }, `${waiting.symbol} ${assetShares(waiting.quantity)}`) : "");
+    const perf = data.performance?.sectors?.[index], { cards, show } = assetCards(perf);
+    if (!cards.length) return page.querySelector(".asset-sum").insertAdjacentHTML("afterend", '<p class="status">그림 값이 아직 없다.</p>');
+    const bar = document.createElement("div");
+    bar.className = "tabs";
+    cards.forEach(([label], i) => {
+      const button = Object.assign(document.createElement("button"), { textContent: label });
+      button.addEventListener("click", () => box.go(i));
+      bar.appendChild(button);
+    });
+    const pick = (i) => { [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j)); if (view.card !== i) { view.card = i; remember(); } };
+    const box = slider(cards.map(([, card]) => [card]), page.querySelector(".asset-sum"), { start: Math.min(view.card, cards.length - 1), change: pick, name: "asset-cards", feel: true });
+    box.prepend(bar);
+    // 그림 카드 묶음 아래에 리포트 그림 카드와 같은 기준 날짜 슬라이더를 둔다. 고를 수 있는 날짜는 되감기 자료의 판단 날짜 가운데
+    // 기준 가격 날짜가 집행 성과의 마지막 거래일을 넘지 않는 날이고, 마지막 날짜는 받은 값 그대로 그린다.
+    // 지난 날짜의 현재·목표 배율은 거래 내역의 그날 블록에서 읽고, 블록이 없으면 목표 배율을 그날 판단의 평균 배율로 쓴다.
+    // 고른 날짜는 화면을 닫을 때까지 기억해, 금액 단위를 바꾸거나 새 계좌 요약을 받아 다시 그려도 그 날짜로 그린다.
+    const blocks = data.trades?.sectors?.[index] || [], end = perf?.returns?.days?.at(-1);
+    rewindFrames(index).then((all) => {
+      if (!all || !box.isConnected) return;
+      const frames = all.filter((frame) => frame.chart && (!end || frame.base_date <= end)), latest = frames.at(-1)?.day;
+      const days = frames.filter((frame) => rewindOffset(frame.day, latest) >= 0).map((frame) => frame.day);
+      if (days.length < 2) return;
+      const past = (day) => {
+        if (day === latest) return null;
+        const frame = frames.find((f) => f.day === day), block = blocks.find((b) => b.date === day);
+        return { chart: frame.chart, base_date: frame.base_date, current: block?.current ?? null, target: block?.target ?? null };
+      };
+      const at = days.indexOf(chosen);
+      let frame = 0;
+      dial(box, latest, days, at < 0 ? days.length - 1 : at, (i) => {
+        chosen = days[i];
+        if (!frame) frame = requestAnimationFrame(() => { frame = 0; show(past(chosen)); });
+      });
+    });
+  };
+  page.addEventListener("click", (event) => {
+    const unit = event.target.closest("[data-unit]");
+    if (unit && unit.dataset.unit !== view.unit) { feelSlide(); view.unit = unit.dataset.unit; remember(); fill(last); }
+    if (event.target.closest(".asset-trades, .signal.go")) { feelPress(); visit(key, { trades: key.split("-")[1] }); }
+    const sum = event.target.closest(".asset-sum");
+    if (sum) { feelPress(); bare = !bare; sum.classList.toggle("veil", !bare); }
+  });
+  return fill;
+}
+
+// 거래 내역 화면의 집행 요청 절과 거래 내역 절. 상태 표식은 블록의 상태(`state`)마다 [글씨, 색]이고, 토스에 주문을 낸 블록(`executed`)은 표식을 두지 않는다.
+export const TRADE_STATE = {
+  pending: ["결정 대기", "wait"], approved: ["승인", "wait"], rejected: ["취소", "off"], auto_approved: ["무응답 승인", "done"],
+  executed: [], unfilled: ["미체결", "off"], not_required: ["주문 없음", "off"],
+};
+// 지수(`index`)의 거래 내역을 `page`에 그리는 `render`와, 집행 시각에 블록을 내리려고 걸어 둔 회차를 푸는 `stop`을 돌려준다.
+// 공개 화면 `trades.ts`가 Worker가 건넨 계좌 요약마다 `render`를 부른다.
+export function tradesView(page, index) {
+  const WEEK = "일월화수목금토", clock = (runAt) => runAt.slice(11, 16), due = (runAt) => Date.parse(`${runAt}:00+09:00`);
+  const side = (value) => (value === "BUY" ? '<span class="side up">매수</span>' : '<span class="side down">매도</span>');
+  let last = null, timer = null;
+  const render = (data) => {
+    last = data;
+    clearTimeout(timer);
+    const trades = data.trades, request = trades?.request, now = Date.now();
+    const asked = request && (request.sectors?.[index]?.order_count || 0) > 0 && now < due(request.run_at) ? request : null;
+    const decided = data.decisions?.date === request?.date ? data.decisions.sectors?.[index]?.decision : null;
+    const blocks = trades?.sectors?.[index] || [];
+    const open = asked && blocks.find((block) => block.date === asked.date);
+    const block = (b, live) => {
+      const state = live ? ({ approve: "approved", cancel: "rejected" }[decided] || asked.sectors[index].status) : b.state;
+      const running = !live && b.run_at && ["pending", "approved"].includes(state) && now >= due(b.run_at);
+      const [label, kind] = running ? ["집행 중", "wait"] : TRADE_STATE[state] || [state, "off"];
+      const rows = b.executions?.length
+        ? b.executions.map((e) => assetRow(`${e.symbol}${side(e.side)}`, e.quantity != null ? assetShares(e.quantity) : "", e.amount != null ? `$${figure(e.amount)}` : "",
+          `${e.at.slice(11, 16)} ${e.filled ? "체결" : "미체결"}`).replace('"asset-item"', e.filled ? '"asset-item"' : '"asset-item miss"'))
+        : (b.orders || []).map((o) => assetRow(`${o.symbol}${side(o.side)}`, o.shares != null ? `약 ${assetShares(o.shares)}` : "", assetMoney(o.krw, "KRW"),
+          o.usd != null ? `약 $${figure(o.usd)}` : ""));
+      const act = live ? `<p class="note">${{ approved: `${clock(asked.run_at)}에 집행한다. 그 전까지 취소할 수 있다.`,
+        rejected: `이 지수는 집행하지 않는다. ${clock(asked.run_at)} 전까지 다시 승인할 수 있다.` }[state] || `${clock(asked.run_at)}까지 취소하지 않으면 그대로 집행한다.`}</p>`
+        + `<div class="act"><button type="button" data-decision="cancel"${state === "rejected" ? ' class="on" disabled' : ""}>${state === "rejected" ? "취소함" : "취소"}</button>`
+        + `<button type="button" data-decision="approve" class="go${state === "approved" ? ' on" disabled' : '"'}>${state === "approved" ? "승인함" : "승인"}</button></div>` : "";
+      return `<div class="trade" data-date="${b.date}"><div class="top"><b>${assetDay(b.date)} (${WEEK[new Date(`${b.date}T12:00:00Z`).getUTCDay()]})</b>`
+        + (label ? `<span class="badge ${kind}">${label}</span>` : "") + "</div>"
+        + (b.current != null && b.target != null ? `<div class="lev">현재 ${b.current.toFixed(3)}배 → 목표 ${b.target.toFixed(3)}배</div>` : "")
+        + (b.reason ? `<p class="why">${assetText(b.reason)}</p>` : "") + (rows.length ? `<div class="rows">${rows.join("")}</div>` : "") + act + "</div>";
+    };
+    const past = blocks.filter((b) => b !== open);
+    page.innerHTML = (open ? `<h2>집행 요청</h2>${block(open, true)}` : "")
+      + `<h2>거래 내역</h2>` + (past.length ? past.map((b) => block(b)).join("") : '<p class="status">거래 내역이 없다.</p>');
+    if (open) timer = setTimeout(() => render(last), due(asked.run_at) - now + 1000);
+  };
+  page.addEventListener("click", async (event) => {
+    const button = event.target.closest(".act button:not(:disabled)");
+    if (!button) return;
+    feelPress();
+    const card = button.closest(".trade");
+    card.querySelectorAll(".act button").forEach((other) => (other.disabled = true));
+    let error = "결정을 적지 못했다. 다시 눌러 달라.";
+    try {
+      const response = await fetch(`${ASSET_URL}/decide`, { method: "POST", cache: "no-store",
+        body: JSON.stringify({ initData: tg.initData, date: card.dataset.date, sector: index, decision: button.dataset.decision }) });
+      const answer = await response.json().catch(() => null);
+      if (response.ok && answer) return render({ ...last, decisions: answer });
+      if (response.status === 403) error = "본인 확인에 실패했다. 미니 앱을 다시 열어 달라.";
+      else if (answer?.error) error = `결정을 적지 못했다. ${answer.error}.`;
+    } catch {}
+    render(last);
+    page.querySelector(`.trade[data-date="${card.dataset.date}"] .note`)?.replaceChildren(error);
+  });
+  return { render, stop: () => clearTimeout(timer) };
 }

@@ -1,7 +1,7 @@
 // @ts-nocheck
-import { reportPage, unturn } from "../pages/report";
-import { stockDetail } from "../pages/stock";
-import { tradesPage } from "../pages/trades";
+import * as reportScreen from "../pages/report";
+import * as stockScreen from "../pages/stock";
+import * as tradesScreen from "../pages/trades";
 import { ASSET } from "./account";
 import { backEdge, backward } from "./back";
 import { latest, masthead, paint, ticker, unglos } from "./chrome";
@@ -52,7 +52,7 @@ export const visit = (target, more = {}) => {
   location.search = params.toString();
 };
 export const fail = (message) => { report.innerHTML = `<p class="status">${message}</p>`; };
-// 종목 상세는 리포트 대신 `r/stocks/{티커}.json`을 받아 그린다(`stockDetail`). 거래 내역 화면은 리포트를 받지 않고 계좌 요약으로 그린다(`tradesPage`).
+// 종목 상세는 리포트 대신 `r/stocks/{티커}.json`을 받아 그린다(`pages/stock.ts`). 거래 내역 화면은 리포트를 받지 않고 계좌 요약으로 그린다(`pages/trades.ts`).
 export const symbol = query.get("stock");
 // 한 화면이 받는 값과 거는 손길은 그 화면의 수명(`life`)에 묶는다. 화면을 바꾸면 수명을 끊어 앞 화면의 손길을 떼고, 늦게 받은 값으로 앞 화면을 그리지 않는다.
 export let life = new AbortController();
@@ -60,10 +60,9 @@ export let life = new AbortController();
 export let returned = performance.getEntriesByType("navigation")[0]?.type === "back_forward";
 // 지수 단추와 뒤로 가기는 문서를 다시 열지 않고 그 자리에서 화면을 다시 그린다(`reshow`). 리포트 키와 깊이는 바뀐 기록에서 다시 읽는다.
 // 앞 화면은 새 화면을 그리기 직전에 걷는다(`leave`). 날짜 줄과 지수 단추, 과거 리포트 띠, 시세 줄, 바로가기 알약, 뒤로 가기 띠, 말풍선, 그림 카드의 지수색 칠을 지우고,
-// 실시간 값을 받는 곳과 페이지를 여는 함수를 비운 뒤 화면을 맨 위로 옮긴다.
+// 실시간 값을 받는 곳을 비운 뒤 화면을 맨 위로 옮긴다.
 export const leave = () => {
   forget();
-  unturn();
   unglos();
   unpress();
   document.querySelectorAll(".index-pick, .back-edge, .back-ring, nav.jump, body > .bubble").forEach((node) => node.remove());
@@ -85,9 +84,18 @@ export const reshow = (back) => {
   ({ depth = 0, from = "" } = history.state || {});
   present();
 };
+// 화면은 저마다 `mount(root, ctx)`로 본문 상자(`report`)에 그리고 `unmount()`로 걷는다. `ctx.signal`은 그 화면의 수명이다.
+// 새 화면을 그리기 직전에 앞 화면을 걷고(`unmount`), 화면마다 같은 머리 상자와 바로가기를 걷은 뒤(`leave`) 새 화면을 그린다.
+let screen = null;
+const mount = (next, ctx) => {
+  screen = next;
+  return next.mount(report, { signal: life.signal, ...ctx });
+};
 export function present() {
   const { signal } = life;
   const arrive = () => {
+    screen?.unmount();
+    screen = null;
     leave();
     paint();
     if (depth > 0 && !query.get("issue") && !symbol && !trades) backEdge();
@@ -99,18 +107,19 @@ export function present() {
       arrive();
       if (!query.get("trades")) history.replaceState(history.state, "", `?r=${key}&trades=${trades}`);
       backward(["trades"], ASSET);
-      return tradesPage(trades);
+      return mount(tradesScreen, { index: trades });
     }
     if (symbol) {
       arrive();
       if (!/^[A-Z][A-Z.-]{0,9}$/.test(symbol)) throw new Error("bad symbol");
-      return fetch(`r/stocks/${symbol}.json`, { cache }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(stockDetail);
+      return fetch(`r/stocks/${symbol}.json`, { cache }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then((data) => mount(stockScreen, { data }));
     }
     return Promise.all([reportText(key), listed]).then(([body, listing]) => {
       delete texts[found];
       if (signal.aborted) return;
       arrive();
-      reportPage(body, listing);
+      mount(reportScreen, { body, listing });
     });
   }).catch(() => {
     if (signal.aborted) return;

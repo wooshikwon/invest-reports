@@ -5,7 +5,7 @@ import { marketed } from "../shared/data";
 import { price, signed } from "../shared/format";
 import { GAUGES, gauge } from "../shared/gauge";
 import { question } from "../shared/help";
-import { onLive } from "../shared/live";
+import { subscribe } from "../shared/live";
 import { slider } from "../shared/motion";
 import { dial, rewindOffset } from "../shared/rewind";
 import { key, query, report } from "../shared/route";
@@ -31,7 +31,10 @@ import { gallery, viewer } from "../shared/viewer";
 // 프리장 값이 리포트 날짜의 정규장 값이면 단추를 정규장 단추 하나로 줄이고, 그 체결가와 등락률을 등락률 색으로 쓰며 그림에 점선으로 잇는다.
 // 공시 상세 절은 탭 띠와 넘기기 묶음에 실적, 매출 구성, 최근 공시 카드를 담는다. 카드 이름 뒤 물음표 단추는 카드의 `help` 문단을 보여 주고, 그림 아래에 해설(`text`)을 둔다.
 // 재무 값이 없는 카드는 그림과 해설 대신 안내 문장(`empty`)을 쓴다. 카드가 없으면 공시 상세 절을 두지 않는다.
-export function stockDetail(data) {
+// 종목 상세는 `mount`로 그리고 `unmount`로 걷는다. 종목 상세가 거는 손길과 받는 값은 모두 수명(`life`)에 묶여 있어 `unmount`가 따로 걷을 것은 없다.
+export const mount = (root, { data }) => stockDetail(data);
+export const unmount = () => {};
+function stockDetail(data) {
   document.title = data.name;
   document.getElementById("issue-bar").textContent = data.name;
   const head = Object.assign(document.createElement("h2"), { className: "issues inside" });
@@ -165,7 +168,7 @@ export function stockDetail(data) {
       after = own?.after?.[map[data.index].dates.indexOf(day)] ?? null;
       repaint();
     });
-    onLive((found) => {
+    subscribe((found) => {
       const own = found.early[data.index]?.[date], value = own?.session === day ? own.stocks[data.symbol] ?? null : null;
       const behind = found.after[data.index]?.[day], price = behind?.stocks[data.symbol] ?? null;
       if (value === early?.price && own?.time === early?.time && price === tail?.price && behind?.time === tail?.time) return;

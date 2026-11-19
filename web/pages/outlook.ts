@@ -4,7 +4,7 @@ import { gaugeCard, indexInk } from "../shared/card";
 import { INDEX_NAME, INDEX_TITLE, ticker } from "../shared/chrome";
 import { candled } from "../shared/data";
 import { tone } from "../shared/format";
-import { onLive } from "../shared/live";
+import { subscribe } from "../shared/live";
 import { slider } from "../shared/motion";
 import { cardRewind } from "../shared/rewind";
 import { key, report } from "../shared/route";
@@ -22,7 +22,7 @@ export function figures(date) {
     data.remove();
     const cards = JSON.parse(data.textContent), set = summaryCards(cards, date);
     ticker.innerHTML = set.quote();
-    onLive((found) => {
+    subscribe((found) => {
       const index = key.split("-")[1], earlies = found.early[index] ?? {}, after = found.after[index];
       ticker.innerHTML = set.quote(earlies[date], after);
       set.live(earlies, after);
@@ -106,7 +106,7 @@ export function summaryCards(data, date) {
   // 프리장 값(`early`)은 정규장 종가에 지수 ETF의 프리장 등락 비율을 곱한 값이며, 프리장 값이 있으면 프리장 값을 쓴다.
   // 정규장 다음 단추를 고르면 위 줄에 그 세션 이름과 시각을, 가운데 줄에 그 값과 정규장 종가 대비 등락률을 회색으로 적는다.
   // 리포트 날짜의 프리장 값이 정규장 값(`phase`가 `regular`)이면 단추를 정규장 단추 하나로 줄이고, 위 줄에 정규장과 시각을, 가운데 줄에 그 값과 앞 종가 대비 등락률을 등락률 색으로 적는다.
-  // 정규장 값은 전날 정규장이 열릴 때 만든 사전 리포트만 받는다(`onLive`).
+  // 정규장 값은 전날 정규장이 열릴 때 만든 사전 리포트만 받는다(`subscribe`).
   // 선 그림이면 정규장 다음 세션 값은 세션과 체결 시각에 관계없이 다음 거래일 자리에 '현재' 표시로 찍어 고른 날짜의 종가 점에서 점선으로 잇는다.
   // 봉 그림이면 그 값의 '현재' 표시는 다음 거래일이 든 봉의 고가 위에 찍는다.
   // 예측을 끈 카드는 가장 늦은 리포트의 리포트 날짜에 가장 늦은 세션을, 지난 날짜와 지난 리포트는 정규장을 고른다. 단추를 누르면 되감기 슬라이더가 다른 날짜를 고를 때까지 누른 세션을 유지한다.

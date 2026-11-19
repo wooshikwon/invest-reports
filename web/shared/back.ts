@@ -4,8 +4,10 @@ import { feelPress, feelSlide } from "./telegram";
 // 이슈 화면과 종목 상세의 왼쪽 아래에 뒤로가기 단추를 띄운다.
 // 주소로 바로 연 화면의 단추는 주소에서 `names`를 지우고 리포트 화면의 `page` 페이지를 맨 위부터 연다.
 export function backward(names, page) {
+  const { signal } = life;
   const back = document.body.appendChild(document.createElement("button"));
   back.className = "back";
+  signal.addEventListener("abort", () => back.remove(), { once: true });
   back.innerHTML = '<svg width="12" height="20" viewBox="0 0 12 20" aria-hidden="true"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // 단추 이름은 어디서 열었든 "뒤로가기"이고, 돌아가는 곳은 이 화면을 연 곳이다. 이슈 화면 안에서 다른 이슈로 넘겨도 돌아가는 곳은 바뀌지 않는다.
   back.setAttribute("aria-label", "뒤로가기");
@@ -26,13 +28,13 @@ export function backward(names, page) {
   document.addEventListener("touchstart", (event) => {
     const { target, touches } = event;
     swipe = touches.length === 1 && !target.closest(".viewer, .help-card, .carousel") ? { x: touches[0].clientX, y: touches[0].clientY } : null;
-  }, { passive: true });
+  }, { passive: true, signal });
   document.addEventListener("touchend", (event) => {
     if (!swipe) return;
     const touch = event.changedTouches[0], dx = touch.clientX - swipe.x, dy = touch.clientY - swipe.y;
     swipe = null;
     if (dx > 60 && dx > 1.5 * Math.abs(dy)) back.click();
-  }, { passive: true });
+  }, { passive: true, signal });
   // 화면이 내용의 아래쪽으로 8px 넘게 내려가면 단추를 감추고, 위쪽으로 8px 넘게 올라가면 다시 띄운다.
   // 올라간 거리는 마지막으로 올라간 뒤 가장 깊이 내려간 위치부터, 내려간 거리는 마지막으로 내려간 뒤 가장 얕게 올라간 위치부터 잰다. 문서 양 끝을 넘어 튕긴 위치는 문서 끝으로 센다.
   let deepest = scrollY, shallowest = scrollY;
@@ -48,7 +50,7 @@ export function backward(names, page) {
       shallowest = y;
       back.classList.add("hide");
     }
-  }, { passive: true });
+  }, { passive: true, signal });
 }
 
 // 미니 앱 안에서 다른 리포트로 옮겨 온 리포트 화면(`depth`가 0보다 크면)은 화면 왼쪽 끝 18px 띠에서 오른쪽으로 밀어 앞 화면으로 돌아간다.

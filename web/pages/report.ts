@@ -8,14 +8,17 @@ import { figures } from "./outlook";
 import { indexPick, latest } from "../shared/chrome";
 import { marketed } from "../shared/data";
 import { help } from "../shared/help";
-import { liveValue, onLive } from "../shared/live";
+import { subscribe } from "../shared/live";
 import { motion, settle, settleStart } from "../shared/motion";
 import { key, life, query, report, returned } from "../shared/route";
 import { fold, heads, toneTags, trail } from "../shared/sections";
 import { feelPress, feelSlide } from "../shared/telegram";
 import { viewer } from "../shared/viewer";
 // 리포트 화면과 이슈 화면을 그린다. `body`는 `r/{키}/report.html`이고, `listing`은 `r/index.json`이다.
-export function reportPage(body, listing) {
+// 리포트 화면과 이슈 화면은 `mount`로 그리고 `unmount`로 걷는다. 화면이 거는 손길과 받는 값은 수명(`life`)에 묶여 있고, `unmount`는 페이지를 여는 함수를 비운다.
+export const mount = (root, { body, listing }) => reportPage(body, listing);
+export const unmount = () => unturn();
+function reportPage(body, listing) {
   const { signal } = life;
   settleStart();
   const entry = listing[key];
@@ -36,7 +39,7 @@ export function reportPage(body, listing) {
       clock.data = ` ${minutes < 0 ? "-" : ""}${String(Math.floor(size / 60)).padStart(2, "0")}:${String(size % 60).padStart(2, "0")} KST`;
     };
     stamp(updated);
-    onLive((found) => {
+    subscribe((found) => {
       const values = [found.early[entry.index]?.[entry.date],
                       ...Object.entries(found.after[entry.index] || {}).filter(([session]) => session < entry.date).map(([, value]) => value)];
       stamp(Math.max(updated, ...values.filter(Boolean).map((value) => Date.parse(value.time))));
@@ -44,16 +47,16 @@ export function reportPage(body, listing) {
     const stage = entry.stage || "done";
     const pill = day.appendChild(Object.assign(document.createElement("span"), { className: `stage ${stage}`,
       textContent: { pre: "분석 전", running: "분석 중", done: "분석 완료" }[stage] }));
-    // 분석 중이면 화면이 보이는 동안 1분마다, 화면이 다시 보일 때마다 실시간 값 `progress`와 `r/index.json`을 새로 받는다.
+    // 분석 중이면 실시간 값을 받는 회차마다 `progress`와 `r/index.json`을 새로 본다. 회차는 `shared/live.ts`의 `subscribe`가 정하고, 값이 같은 회차에도 부른다.
     // `progress`는 build.py `progress`가 판단 배치 동안 10분마다 지수마다 적는 단계(`step`)와 그 단계에 닿은 시각(`since`), 단계마다 그 단계에 닿기까지
     // 걸리는 분(`plan`)이다. 진척률은 지금 단계의 누적 분에 그 단계에 머문 분을 다음 단계의 몫까지만 더해 마지막 누적 분으로 나눈 값이고, 줄지 않으며 99%에서 멈춘다.
     // `r/index.json`의 항목에서 `stage`가 없어지면 본 리포트가 올라온 것이므로 미니 앱을 다시 연다.
     if (stage === "running") {
       let shown = 0;
-      const watch = () => {
-        if (document.visibilityState !== "visible") return;
-        Promise.all([liveValue("progress"), fetch("r/index.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}))])
-          .then(([progressed, indexed]) => {
+      subscribe((found) => {
+        const progressed = found.progress;
+        fetch("r/index.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}))
+          .then((indexed) => {
             if (signal.aborted) return;
             if (indexed[key] && !indexed[key].stage) return location.reload();
             const own = progressed.date === entry.date && progressed.indexes?.[entry.index], plan = progressed.plan || [];
@@ -63,11 +66,7 @@ export function reportPage(body, listing) {
             shown = Math.max(shown, Math.min(99, Math.floor((plan[step] + inside) / plan.at(-1) * 100)));
             pill.textContent = `분석 중 ${shown}%`;
           });
-      };
-      watch();
-      const timer = setInterval(watch, 60e3);
-      signal.addEventListener("abort", () => clearInterval(timer));
-      document.addEventListener("visibilitychange", watch, { signal });
+      }, true);
     }
   }
   const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
@@ -98,7 +97,7 @@ export function reportPage(body, listing) {
     marketed.then(({ map }) => {
       if (signal.aborted) return;
       if (!map?.[index]?.stocks.length) return glance.remove();
-      indexMap(glance, map[index], date, (hook) => onLive((found) => hook(found.early[index]?.[date], found.after[index])));
+      indexMap(glance, map[index], date, (hook) => subscribe((found) => hook(found.early[index]?.[date], found.after[index])));
     });
   }
   issueCharts();
@@ -222,7 +221,7 @@ export function paginate() {
 // `turn(i, head, still)`은 i번 페이지를 연다. `toCalendar(day)`는 예측 페이지의 이벤트 캘린더에서 거래일 `day`의 장을 연다.
 // 둘 다 리포트 화면에서만 만든다.
 export let turn = null, toCalendar = null;
-export const unturn = () => { turn = toCalendar = null; };
+const unturn = () => { turn = toCalendar = null; };
 // 화면 아래 바로가기 알약에 페이지마다 단추를 두고 `turn`을 돌려준다. 단추를 누르면 그 페이지만 보여 주고, 페이지 맨 위로 옮긴다.
 // 보고 있는 페이지의 단추를 다시 누르면 페이지 맨 위로 부드럽게 옮기고 단추의 아이콘을 다시 움직인다.
 // 보고 있는 페이지 이름(`page`)은 `history.state`에 적어, 뒤로 가기와 새로 고침으로 돌아와도 그 페이지를 연다.

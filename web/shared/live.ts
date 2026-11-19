@@ -1,43 +1,105 @@
-// @ts-nocheck
 import { listed } from "./data";
 import { key, life } from "./route";
-// 실시간 값 `premarket`·`afterhours`·`progress`는 claude-svr의 build.py가 Cloudflare KV에 쓰고 invest-live Worker(`LIVE_URL`)가 `GET /{이름}`으로 돌려주는 값이다.
-// Worker가 답하지 않으면 빈 값으로 보고, 화면은 리포트에 적힌 값으로 그린다.
-// `premarket`은 build.py `premarket`이 뉴욕 프리장부터 정규장 마감까지 10분마다 지수마다 적는 그날 프리장이나 정규장의 마지막 체결가이고, `afterhours`는
-// build.py `afterhours`가 사전 리포트를 올린 뒤 애프터장이 끝날 때까지 10분마다 지수마다 적는 그날 애프터장의 마지막 체결가다. 머리 상자, 지도, 주가와 예측 카드,
-// 종목 상세의 주가 카드가 쓴다. `onLive(hook)`은 두 값을 `{ early, after, regular }`로 묶어 `hook`을 부르고, 가장 늦은 리포트를 보는 동안 화면이 보이면 5분마다,
-// 화면이 다시 보일 때마다 새로 받아 다시 부른다.
+// 실시간 값 `premarket`·`afterhours`·`progress`는 claude-svr가 invest-live Worker(`LIVE_URL`)에 쓰고, Worker가 `GET /` 한 번에 `{ premarket, afterhours, progress }`로 돌려주는 값이다.
+// 값이 없는 이름은 키가 없다. 처음 받을 때 Worker가 답하지 않으면 빈 값으로 보고, 화면은 리포트에 적힌 값으로 그린다. 그 뒤로 답하지 않은 회차는 받아 둔 값을 그대로 둔다.
+// `premarket`은 뉴욕 프리장부터 정규장 마감까지 지수마다 적는 그날 프리장이나 정규장의 마지막 체결가이고, `afterhours`는 사전 리포트를 올린 뒤
+// 애프터장이 끝날 때까지 지수마다 적는 그날 애프터장의 마지막 체결가다. 머리 상자, 지도, 주가와 예측 카드, 종목 상세의 주가 카드가 쓴다.
+// `progress`는 판단 배치 동안 지수마다 적는 단계와 그 단계에 닿은 시각이다. 분석 중인 리포트의 단계 표시가 쓴다.
 // 정규장 값은 그 세션이 열릴 때 만든 다음날 사전 리포트(목록 항목의 `live`가 그 세션 날짜인 리포트)만 그린다. 그 리포트는 `early`에서 그 값을
 // 리포트 날짜 키로 받고, 다른 리포트는 정규장 값 대신 그날 프리장의 마지막 값(`pre`)을 받는다. `regular`는 지수마다 뉴욕 날짜별 정규장 값이다.
 export const LIVE_URL = "https://invest-live.wonwooshik.workers.dev";
-export const liveValue = (name) => fetch(`${LIVE_URL}/${name}`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
-export const hooks = [];
-export let lived = null;
-export const forget = () => { hooks.length = 0; lived = null; };
-export const live = () => (lived = Promise.all([...["premarket", "afterhours"].map(liveValue), listed]).then(([found, after, listing]) => {
+// 실시간 값을 받는 간격(분)이다. Worker 요청 수가 하루 한도에 다가가면 이 값 하나를 3이나 5로 올린다.
+export const LIVE_EVERY = 1;
+// 서버는 매 분 0초에 값을 새로 쓰므로, 앱은 간격의 정시에서 3초 뒤에 받는다.
+const LATE = 3e3;
+
+export type Live = { early: Record<string, any>; after: Record<string, any>; regular: Record<string, any>; progress: Record<string, any> };
+type Hook = (found: Live) => void;
+
+// 지금부터 다음 `every`분 간격 정시 3초 뒤까지 남은 밀리초다. 간격은 1970년 1월 1일 0시부터 세므로 1·3·5분 간격의 정시는 매시 정각에서 시작한다.
+export const nextBeat = (every: number, now = Date.now()) => {
+  const period = every * 60e3;
+  return (Math.floor((now - LATE) / period) + 1) * period + LATE - now;
+};
+
+// `every`분 간격 정시 3초 뒤마다 `run`을 부른다. 화면이 숨거나 `active`가 거짓이면 다음 회차를 걸지 않고, `signal`이 끊기면 걸어 둔 회차를 푼다.
+// 돌려주는 `arm`은 다음 회차를 다시 건다. 조건이 바뀐 곳(구독, 화면이 다시 보임, 페이지 전환)에서 부른다.
+export function beat(every: number, run: () => void, active: () => boolean, signal: AbortSignal) {
+  let timer = 0;
+  const stop = () => { clearTimeout(timer); timer = 0; };
+  const arm = () => {
+    stop();
+    if (signal.aborted || document.visibilityState !== "visible" || !active()) return;
+    timer = setTimeout(() => {
+      timer = 0;
+      if (document.visibilityState !== "visible" || !active()) return;
+      run();
+      arm();
+    }, nextBeat(every));
+  };
+  signal.addEventListener("abort", stop, { once: true });
+  document.addEventListener("visibilitychange", () => (document.visibilityState === "visible" ? arm() : stop()), { signal });
+  return arm;
+}
+
+const hooks: { hook: Hook; each: boolean; signal: AbortSignal }[] = [];
+let text: string | null = null, found: Live | null = null, asking: Promise<boolean> | null = null, arm = () => {};
+
+const shape = (value: any, listing: any): Live => {
   const own = listing[key], early = {}, regular = {};
-  Object.entries(found).forEach(([index, days]) => {
+  Object.entries(value.premarket || {}).forEach(([index, days]: [string, any]) => {
     early[index] = {};
     regular[index] = {};
-    Object.entries(days).forEach(([day, value]) => {
+    Object.entries(days).forEach(([day, value]: [string, any]) => {
       if (value.phase !== "regular") return (early[index][day] = value);
       regular[index][day] = value;
       early[index][day] = value.pre ? { ...value.pre, session: value.session, phase: "pre" } : null;
     });
     if (own?.live && own.index === index) early[index][own.date] = days[own.live] ?? null;
   });
-  return { early, after, regular };
-}));
-export const onLive = (hook) => {
+  return { early, after: value.afterhours || {}, regular, progress: value.progress || {} };
+};
+
+// `GET /`을 한 번 부른다. 받은 본문이 앞 회차와 같거나(304를 받은 브라우저는 저장해 둔 같은 본문을 건넨다) Worker가 답하지 않았으면 거짓을 돌려준다.
+const ask = () => (asking ||= fetch(`${LIVE_URL}/`, { cache: "no-cache" })
+  .then((r) => (r.ok ? r.text() : null)).catch(() => null)
+  .then((body) => Promise.all([body, listed]))
+  .then(([body, listing]) => {
+    asking = null;
+    if (body == null) {
+      if (found) return false;
+      body = "{}";
+    }
+    if (body === text && found) return false;
+    let value = {};
+    try { value = JSON.parse(body) || {}; } catch {}
+    text = body;
+    found = shape(value, listing);
+    return true;
+  }));
+
+// 실시간 값을 쓰는 리포트(가장 늦은 리포트나 다음날 사전 리포트)를 보는 동안에만 정시마다 받는다. 지난 리포트(`past`)는 연 때 한 번만 받는다.
+const live = () => hooks.length > 0 && !document.documentElement.classList.contains("past");
+const tick = () => ask().then((changed) => hooks.forEach(({ hook, each, signal }) => signal.aborted || (changed || each) && hook(found)));
+
+// 화면은 `subscribe(hook)`으로만 실시간 값을 받는다. 받아 둔 값이 있으면 그 값으로, 없으면 받은 뒤 `hook`을 부르고, 그 뒤로는 값이 바뀐 회차에만 다시 부른다.
+// `each`가 참이면 값이 같아도 회차마다 부른다. 구독은 그 화면의 수명(`life`)에 묶인다.
+export const subscribe = (hook: Hook, each = false) => {
   const { signal } = life;
-  hooks.push(hook);
-  (lived || live()).then((found) => signal.aborted || hook(found));
+  hooks.push({ hook, each, signal });
+  (found ? Promise.resolve(true) : ask()).then(() => signal.aborted || hook(found));
+  arm();
 };
-export const refresh = () => {
-  if (!hooks.length || document.visibilityState !== "visible" || document.documentElement.classList.contains("past")) return;
-  live().then((found) => hooks.forEach((hook) => hook(found)));
+
+// 화면을 바꾸면 구독과 받아 둔 값을 비운다. 다음 화면은 처음 구독할 때 새로 받는다.
+export const forget = () => {
+  hooks.length = 0;
+  text = found = null;
+  arm();
 };
+
+// 화면이 다시 보이면 바로 한 번 받은 뒤 정시 주기로 돌아간다. 숨은 동안에는 회차를 걸지 않는다.
 export function initLive() {
-  setInterval(refresh, 5 * 60e3);
-  document.addEventListener("visibilitychange", refresh);
+  arm = beat(LIVE_EVERY, tick, live, new AbortController().signal);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && live()) tick(); });
 }
