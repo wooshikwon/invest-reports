@@ -86,7 +86,8 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `정규장 | 애프터마켓` 단추로 칸 값과 색을 애프터장 체결가와 정규장 종가 대비 등락률로 바꾼다.
 프리장·정규장 값, 애프터장 값, 판단 배치 진척률 세 실시간 값은 저장소에 커밋하지 않고 Cloudflare KV(`CLOUDFLARE_LIVE_NAMESPACE`)의
 `premarket`·`afterhours`·`progress` 키에 쓴다. 앞 회차 값도 같은 키에서 읽는다(`read_live`, `write_live`).
-미니 앱은 invest-live Worker(`worker/live.js`)의 `GET /{키}`로 세 값을 받는다.
+미니 앱은 invest-live Worker(`worker/live.js`)의 `GET /{키}`로 세 값을 받는다. `progress`는 Worker의 DO에도 쓰고(`post_live`),
+DO의 `premarket`·`afterhours`는 live.py가 1분마다 쓴다. Worker의 `GET /`는 DO의 세 값을 한 응답으로 돌려준다.
 `premarket` 키에는 지수마다 리포트 날짜와 같은 뉴욕 날짜를 키로 그날 프리장과 정규장의 마지막 체결가를 적는다(`premarket`). 값은 지수 ETF의
 앞 세션 정규장 종가 대비 비율(`ratio`), 지도 종목마다의 체결가(`stocks`), 값을 받은 시각(`time`), 앞 세션 날짜(`session`)와 그 시각의 세션(`phase`)이다.
 cron이 프리장이 열릴 때부터 정규장이 닫힐 때까지 부른다. 프리장 값은 10분마다 받고, 정규장이 열리면 첫 회차가 프리장 값을 정규장 값으로 덮은 뒤
@@ -214,6 +215,7 @@ WEEKS = 12  # 하이일드 스프레드의 막대 그림이 거슬러 그리는 
 RATE_MOVE_BP = 12.5  # 다음 회의까지 누적 변화가 이 bp 이상이면 인상 예상, 음수로 이 값 이하면 인하 예상
 RATE_STEP_BP = 25  # 연준이 기준금리를 한 번에 바꾸는 폭. 금리 경로 그림은 이 폭의 위아래 높이에 점선 가로선을 긋는다
 RATE_RANGE_BP = 100  # 금리 경로 그림의 세로축 상한. 회의 세 번의 누적 변화는 보통 ±1%p 안에 들고, 넘는 막대는 축 끝에서 자른다
+LIVE_URL = "https://invest-live.wonwooshik.workers.dev"  # 실시간 값 Worker 주소. `GET /`가 DO의 세 값을 돌려준다
 
 
 def report_pdf(vault: Path):
@@ -608,12 +610,36 @@ def read_live(name: str) -> dict:
 
 
 def write_live(name: str, value: dict) -> None:
-    """실시간 값 KV의 `name` 키에 `value`를 덮어쓴다. Cloudflare가 성공을 답하지 않으면 RuntimeError를 낸다."""
+    """실시간 값 KV의 `name` 키에 `value`를 덮어쓴다. Cloudflare가 성공을 답하지 않으면 RuntimeError를 낸다.
+
+    `progress`는 invest-live DO에도 쓴다(`post_live`). DO의 `premarket`·`afterhours`는 live.py가 1분마다 쓴다.
+    """
     request = live_request(name, data=json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode(), method="PUT")
     with urllib.request.urlopen(request, timeout=30) as answer:
         result = json.loads(answer.read())
     if not result.get("success"):
         raise RuntimeError(f"KV 쓰기 실패: {result.get('errors')}")
+    if name == "progress":
+        post_live(name, value)
+
+
+def post_live(name: str, value: dict) -> None:
+    """invest-live Worker의 DO에 `name` 값을 `POST /write/{name}`으로 덮어쓴다. 비밀 값은 ~/.cloudflare_env의 `LIVE_SECRET`으로만 받는다.
+
+    Worker가 204를 답하지 않으면 RuntimeError를 낸다.
+    """
+    if not os.environ.get("LIVE_SECRET"):
+        raise EnvironmentError("환경변수 없음: LIVE_SECRET")
+    request = urllib.request.Request(f"{LIVE_URL}/write/{name}", method="POST",
+                                     data=json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode(),
+                                     headers={"X-Live-Secret": os.environ["LIVE_SECRET"], "Content-Type": "application/json", "User-Agent": "invest-reports"})
+    try:
+        with urllib.request.urlopen(request, timeout=30) as answer:
+            status = answer.status
+    except urllib.error.HTTPError as error:
+        status = error.code
+    if status != 204:
+        raise RuntimeError(f"DO 쓰기 실패: {name} {status}")
 
 
 def premarket(vault: Path, out: Path) -> dict | None:
