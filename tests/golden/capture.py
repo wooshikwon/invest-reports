@@ -2,9 +2,11 @@
 
     python3 tests/golden/capture.py --ref v0.8 --out ~/data/invest-reports/golden/v0.8
     python3 tests/golden/capture.py --ref /path/to/built --out /tmp/golden-new --only asset,trades
+    python3 tests/golden/capture.py --ref /path/to/built --out /tmp/golden-split --split
 
 `--ref`는 git 태그·커밋이거나 `app.html`(과 `assets/`, `maps/`)이 있는 폴더이고, 앱 코드만 거기서 읽는다. 리포트 자료 `r/`는 늘
 `--data`(기본 `v0.8`)의 git 시점에서 읽는다. 두 쪽 모두 git 시점이면 `git archive`로 임시 폴더에 풀고 끝나면 지운다.
+`--split`이면 리포트 자료를 `fixtures.split`으로 build.py가 지금 쓰는 모양으로 바꿔, 이슈 과거 맥락과 요약 카드 값을 `history.json`·`cards.json`에서 받는 길로 연다.
 
 모든 요청은 가짜 주소 `https://app.local/`과 아래 세 곳만 답하고, 나머지 외부 요청은 abort한 뒤 실패로 끝낸다.
 - `telegram.org`: 빈 스크립트. 텔레그램 WebApp은 init 스크립트가 흉내 낸다(사용자 ID는 1이나 2).
@@ -127,9 +129,12 @@ class Server:
 class Run:
     """화면 하나를 여는 데 쓰는 브라우저 문맥을 만든다. 화면 함수는 `open`으로 페이지를 받는다."""
 
-    def __init__(self, browser, server: Server):
+    def __init__(self, browser, server: Server, split: bool = False):
         self.browser, self.server, self.context = browser, server, None
         self.pre = fixtures.pre_report(server.data)
+        self.base = {}
+        if split:
+            self.pre, self.base = fixtures.split(server.data, self.pre), fixtures.split(server.data, {})
 
     def open(self, query: str = "", uid: int = 1, dataset: str = "base"):
         context = self.browser.new_context(viewport={"width": 390, "height": 1000}, device_scale_factor=1, reduced_motion="reduce",
@@ -138,7 +143,7 @@ class Run:
         context.add_init_script(mock(uid))
         if uid == 1:
             context.add_init_script("try { localStorage.setItem('asset', '1'); } catch {}")
-        context.route("**/*", self.server.handler(self.pre if dataset == "pre" else {}, fixtures.account()))
+        context.route("**/*", self.server.handler(self.pre if dataset == "pre" else self.base, fixtures.account()))
         self.context = context
         page = context.new_page()
         page.on("pageerror", lambda error: self.server.errors.append(f"pageerror: {str(error)[:300]}"))
@@ -256,6 +261,7 @@ def main() -> int:
     parser.add_argument("--data", default="v0.8", help="리포트 자료 r/의 git 시점이나 폴더")
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--only", default="", help="쉼표로 가른 화면 이름")
+    parser.add_argument("--split", action="store_true", help="리포트 자료를 `fixtures.split`으로 바꿔 `history.json`·`cards.json`을 따로 받는 길로 연다")
     args = parser.parse_args()
     names = [name for name in args.only.split(",") if name] or list(SCREENS)
     unknown = [name for name in names if name not in SCREENS]
@@ -273,7 +279,7 @@ def main() -> int:
         failed = []
         with sync_playwright() as p:
             browser = launch(p)
-            run = Run(browser, server)
+            run = Run(browser, server, args.split)
             for name in names:
                 try:
                     page = SCREENS[name](run)

@@ -1,10 +1,12 @@
 """골든 캡처가 미니 앱에 돌려주는 지어낸 값.
 
 계좌 요약(`invest-account`), 실시간 값(`invest-live`의 `premarket`·`afterhours`·`progress`), 다음날 사전 리포트를 모두 여기서 만든다.
+`split`은 v0.8 리포트 자료를 build.py가 지금 쓰는 모양(이슈 과거 맥락과 요약 카드 값을 `history.json`·`cards.json`으로 뺀 모양)으로 바꾼다.
 계좌 값과 신호등 값은 손으로 지어낸 상수와 고정 시드의 난수로 만들고, 실시간 체결가는 `r/market.json` 지도의 공개 종가에 종목마다 고정한 비율을 곱해 만든다.
 실제 계좌, 토스, Worker, 소유자 ID는 읽지 않는다. 모든 시각은 `NOW` 하나에서 나온다.
 """
 import datetime as dt
+import html
 import importlib.util
 import json
 import math
@@ -175,3 +177,37 @@ def pre_report(data_root: Path) -> dict:
                         "moves": {"session": None, "after": None, "close": None, "base": None}, "live": SESSION}
     listing = json.dumps(dict(sorted(entries.items(), reverse=True)), ensure_ascii=False, indent=1) + "\n"
     return {"r/index.json": listing.encode(), f"r/{PRE_KEY}/report.html": body.encode()}
+
+
+HISTORY_RE = re.compile(r'\s*<template class="issue-history">(.*?)</template>\s*', re.DOTALL)
+SECTION_RE = re.compile(r'<section data-day="([^"]*)" data-title="([^"]*)">(.*?)</section>(?=<section data-day=|$)', re.DOTALL)
+CARDS_RE = re.compile(r'<script type="application/json" id="cards">(.*?)</script>\n?', re.DOTALL)
+
+
+def split(data_root: Path, overlay: dict) -> dict:
+    """`r/*/report.html`(`overlay`에 있으면 그 바이트)의 `issue-history` 템플릿과 `#cards` 조각을 build.py처럼 `r/{키}/history.json`·`cards.json`으로 빼고,
+    `r/index.json`의 목록 항목에 쓴 JSON의 이름을 `parts`로 적은 `{경로: 바이트}`를 돌려준다. 템플릿의 이슈 `id`는 그 앞 마지막 이슈 제목의 `data-issue`다."""
+    out = dict(overlay)
+    entries = json.loads(out.get("r/index.json") or (data_root / "r" / "index.json").read_bytes())
+    for key in entries:
+        path = f"r/{key}/report.html"
+        found = data_root / path
+        if path not in out and not found.is_file():
+            continue
+        body = (out.get(path) or found.read_bytes()).decode("utf-8")
+        history = {}
+        for match in HISTORY_RE.finditer(body):
+            issue = re.findall(r'<h3[^>]*data-issue="([^"]*)"', body[:match.start()])[-1]
+            history[html.unescape(issue)] = [{"day": day, "title": html.unescape(title), "html": chunk}
+                                             for day, title, chunk in SECTION_RE.findall(match.group(1))]
+        cards = CARDS_RE.search(body)
+        values = {"history": history, "cards": json.loads(cards.group(1)) if cards else None}
+        parts = [name for name, value in values.items() if value]
+        if not parts:
+            continue
+        out[path] = CARDS_RE.sub("", HISTORY_RE.sub("\n", body)).encode()
+        for name in parts:
+            out[f"r/{key}/{name}.json"] = (json.dumps(values[name], ensure_ascii=False) + "\n").encode()
+        entries[key]["parts"] = parts
+    out["r/index.json"] = (json.dumps(entries, ensure_ascii=False, indent=1) + "\n").encode()
+    return out

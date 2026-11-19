@@ -5,7 +5,7 @@ import * as tradesScreen from "../pages/trades";
 import { ASSET } from "./account";
 import { backEdge, backward } from "./back";
 import { latest, masthead, paint, ticker, unglos } from "./chrome";
-import { listed, reportText, texts } from "./data";
+import { listed, parts, reportPart, reportText, texts } from "./data";
 import { forget } from "./live";
 import { unpress } from "./press";
 import { cache, landed } from "./pull";
@@ -115,11 +115,18 @@ export function present() {
       return fetch(`r/stocks/${symbol}.json`, { cache }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then((data) => mount(stockScreen, { data }));
     }
-    return Promise.all([reportText(key), listed]).then(([body, listing]) => {
-      delete texts[found];
-      if (signal.aborted) return;
-      arrive();
-      mount(reportScreen, { body, listing });
+    // 리포트 화면은 요약 카드 값을 받은 뒤 그리고, 이슈 과거 맥락은 그린 뒤 받아 붙인다. 이슈 화면은 이슈 과거 맥락을 받은 뒤 그리고 요약 카드 값은 받지 않는다.
+    const text = reportText(key), issue = !!query.get("issue");
+    return listed.then((listing) => {
+      const history = reportPart(key, "history", listing).catch(() => null);
+      return Promise.all([text, issue ? null : reportPart(key, "cards", listing), issue ? history : null]).then(([body, cards, past]) => {
+        delete texts[found];
+        delete parts[`${found}/history`];
+        delete parts[`${found}/cards`];
+        if (signal.aborted) return;
+        arrive();
+        mount(reportScreen, { body, listing, cards, history: issue ? past : history });
+      });
     });
   }).catch(() => {
     if (signal.aborted) return;

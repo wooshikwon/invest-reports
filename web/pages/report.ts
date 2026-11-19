@@ -16,9 +16,9 @@ import { feelPress, feelSlide } from "../shared/telegram";
 import { viewer } from "../shared/viewer";
 // 리포트 화면과 이슈 화면을 그린다. `body`는 `r/{키}/report.html`이고, `listing`은 `r/index.json`이다.
 // 리포트 화면과 이슈 화면은 `mount`로 그리고 `unmount`로 걷는다. 화면이 거는 손길과 받는 값은 수명(`life`)에 묶여 있고, `unmount`는 페이지를 여는 함수를 비운다.
-export const mount = (root, { body, listing }) => reportPage(body, listing);
+export const mount = (root, { body, listing, cards, history }) => reportPage(body, listing, cards, history);
 export const unmount = () => unturn();
-function reportPage(body, listing) {
+function reportPage(body, listing, cards, history) {
   const { signal } = life;
   settleStart();
   const entry = listing[key];
@@ -90,7 +90,7 @@ function reportPage(body, listing) {
   }
   const pages = focus ? null : paginate();
   if (!focus) {
-    figures(date);
+    figures(date, cards);
     heads("지수와 예측");
     fold("지수와 예측");
     indicators(date);
@@ -107,7 +107,7 @@ function reportPage(body, listing) {
   const source = entry && !entry.stage ? entry : listing[Object.keys(listing)
     .filter((name) => listing[name].index === index && !listing[name].stage && listing[name].date < date)
     .sort((a, b) => listing[b].date.localeCompare(listing[a].date))[0]];
-  section("상세 이슈 해설", focus, query.get("at"), source?.written);
+  section("상세 이슈 해설", focus, query.get("at"), source?.written, history);
   // 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
   report.querySelectorAll("h3").forEach(trail);
   // 주소로 바로 연 이슈 화면과 종목 상세의 뒤로가기 단추로 연 리포트 화면(`land`)은 단추가 적은 페이지(이슈 화면은 이슈 페이지, 종목 상세는 시장 페이지)를

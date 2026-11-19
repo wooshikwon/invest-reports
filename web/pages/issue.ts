@@ -2,7 +2,7 @@
 import { backward } from "../shared/back";
 import { issueChart } from "../shared/gauge";
 import { EASE, GLIDE, glide, motion } from "../shared/motion";
-import { key, report, visit } from "../shared/route";
+import { key, life, report, visit } from "../shared/route";
 import { toneTags, trail } from "../shared/sections";
 import { feelPress } from "../shared/telegram";
 import { gallery, viewer } from "../shared/viewer";
@@ -14,7 +14,10 @@ import { gallery, viewer } from "../shared/viewer";
 // `at`이 있으면 히스토리에서 그 날짜 항목을 고른 채로 연다.
 // 이슈 화면의 절 제목은 보고 있는 이슈의 번호로 "이슈 N위"라고 쓰고, 검토했지만 비중을 낮춘 이슈를 보는 동안에는 "검토했지만 비중을 낮춘 이슈"로 쓴다.
 // `analyzed`가 있으면 리포트 화면의 절 제목과 이슈 목록 사이에 "11/17 11:43 KST"처럼 그 시각을 쓴다. 값은 `r/index.json`의 `written`과 같은 서울 시각이다.
-export function section(title, focus = 0, at = null, analyzed = "") {
+// `pasts`는 `r/{키}/history.json`의 값이나 그 값을 줄 약속이다. 이슈 `id`마다 앞 날짜 이슈 조각과 오늘 항목을 날짜(`day`), 이슈 해설 소제목(`title`), 조각(`html`)으로 담는다.
+// 값이면 이슈 문단을 만들 때 `issue-history` 템플릿으로 바꿔 넣고, 약속이면 받은 뒤 이슈 문단 끝의 이웃 이슈 칸 앞에 넣는다. 템플릿이 이미 든 지난 리포트의 이슈는 그 템플릿을 쓴다.
+export function section(title, focus = 0, at = null, analyzed = "", pasts = null) {
+  const { signal } = life;
   const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
   if (!head) return;
   // 절 제목 글자만 바꾸도록 글자를 따로 감싼다.
@@ -96,6 +99,8 @@ export function section(title, focus = 0, at = null, analyzed = "") {
     });
     const page = box.appendChild(document.createElement("div"));
     page.className = "issue-page";
+    const shelved = pasts && !pasts.then && !nodes.some((node) => node.matches?.("template.issue-history")) && shelve(pasts[nodes[0]?.dataset.issue]);
+    if (shelved) nodes.push(shelved);
     page.append(...nodes);
     if (lead) written(lead, nodes[0].dataset.written);
     if (image) gallery(image);
@@ -134,7 +139,18 @@ export function section(title, focus = 0, at = null, analyzed = "") {
     nav.className = "step";
     nav.append(pass(i, i - 1, "prev"), pass(i, i + 1, "next"));
   });
-  // 이슈 해설 말머리 앞에 히스토리 상자를 넣는다. `build.py`가 넣은 `issue-history` 템플릿에는 같은 이슈를 다룬 앞 날짜 리포트의 이슈 조각과
+  pasts?.then?.((found) => {
+    if (!found || signal.aborted) return;
+    pages.forEach((page, i) => {
+      if (page.querySelector(":scope > template.issue-history")) return;
+      const shelved = shelve(found[items[i][0]?.dataset.issue]);
+      if (!shelved) return;
+      const nav = page.querySelector(":scope > nav.step");
+      if (nav) nav.before(shelved); else page.append(shelved);
+      Object.assign(page, chronicle(page, shelved));
+    });
+  });
+  // 이슈 해설 말머리 앞에 히스토리 상자를 넣는다. `issue-history` 템플릿(`shelve`가 `history.json`으로 만들거나 지난 리포트의 `report.html`에 든 것)에는 같은 이슈를 다룬 앞 날짜 리포트의 이슈 조각과
   // 날짜마다 이슈 해설 소제목이 날짜 순으로 들고, 마지막 항목이 오늘이다. 상자에는 날짜와 소제목을 오늘부터 앞 날짜 순으로 한 줄씩 쓰고 보고 있는 날짜의 줄을 굵게 쓴다.
   // 최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝의 펼침 단추를 누르면 다섯 줄까지 펼친 뒤 나머지 줄은 목록 안에서 스크롤하게 한다.
   // 펼친 뒤 같은 단추(`이전 해설 숨기기`)나 최근 세 줄을 누르면 앞선 줄을 다시 접고, 앞선 줄을 누르면 펼친 채 둔다.
@@ -147,6 +163,20 @@ export function section(title, focus = 0, at = null, analyzed = "") {
     const line = Object.assign(document.createElement("p"), { className: "written", textContent: date.replaceAll("-", ".") });
     lead.after(line);
   }
+  // `history.json`의 한 이슈 항목을 `build.py`가 지난 리포트에 넣던 것과 같은 `issue-history` 템플릿으로 만든다. 항목이 없으면 `null`을 돌려준다.
+  // 조각은 템플릿의 문서에서 읽어 그림을 받지 않는다.
+  function shelve(days) {
+    if (!days?.length) return null;
+    const template = Object.assign(document.createElement("template"), { className: "issue-history" });
+    for (const { day, title, html } of days) {
+      const part = template.content.ownerDocument.createElement("section");
+      part.dataset.day = day;
+      part.dataset.title = title;
+      part.innerHTML = html;
+      template.content.append(part);
+    }
+    return template;
+  }
   function chronicle(page, template) {
     const entries = [...template.content.children], today = entries.length - 1;
     const isLead = (node) => node.tagName === "H4" && node.querySelector("mark")?.textContent.trim() === "이슈 해설";
@@ -155,7 +185,7 @@ export function section(title, focus = 0, at = null, analyzed = "") {
       const cut = nodes.findIndex(isLead);
       return cut < 0 ? [nodes, []] : [nodes.slice(0, cut), nodes.slice(cut)];
     };
-    const contents = entries.map((_, k) => (k === today ? split([...page.children].filter((node) => node !== template)) : null));
+    const contents = entries.map((_, k) => (k === today ? split([...page.children].filter((node) => node !== template && !node.matches("nav.step"))) : null));
     const day = (k) => `${+entries[k].dataset.day.slice(5, 7)}/${+entries[k].dataset.day.slice(8)}`;
     const prepare = (k) => {
       const part = document.importNode(entries[k], true);

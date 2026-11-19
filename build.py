@@ -3,7 +3,7 @@
 
 사용법: python3 build.py --date 2026-10-19 --index nasdaq [--vault ~/obsidian-vault] [--out .] [--stage pre|running]
 
-`r/{YYYYMMDD}-{지수}/`에 `report.html`과 그림을 쓰고 `r/index.json`의 목록을 갱신한다. `invest-reports` 미니 앱은
+`r/{YYYYMMDD}-{지수}/`에 `report.html`과 그림, 이슈 과거 맥락 `history.json`과 요약 카드 값 `cards.json`을 쓰고 `r/index.json`의 목록을 갱신한다. `invest-reports` 미니 앱은
 `start_param`으로 받은 `{YYYYMMDD}-{지수}`를 열어 그 조각을 그리고, 키 없이 열리면 목록에서 가장 늦은 나스닥 리포트를 연다.
 
 공개본이 끝나는 자리와 공개본에 남으면 안 되는 말은 invest-report `report_pdf.py`의 값을 그대로 쓴다.
@@ -52,10 +52,10 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 그 이벤트가 모두 중요도 낮음이면 `data-event-level="low"`도 단다.
 `invest-reports` 미니 앱은 그 이슈 상자에 외곽선을 두르고 외곽선 위쪽 왼쪽에 "10월 CPI 결과"처럼 이벤트 이름표를 단다.
 외곽선과 이름표는 날짜 띠의 별처럼 중요도 높음·보통 이벤트면 지수색, 낮음 이벤트만이면 회색으로 칠한다.
-번호 붙은 이슈 뒤에는 그 `id`를 노드로 묶은 앞 날짜 이슈를 `issue-history` 템플릿으로 넣는다. 앞 날짜 이슈는 그날 `system/issues.json`의
-`nodes`에 오늘 `id`가 든 이슈이고, 내용은 그날 공개본 `report.html`의 이슈 조각을 그대로 쓴다. 템플릿에는 오늘을 포함한 모든 날짜의
-날짜와 이슈 해설 소제목을 날짜 순으로 적고, 오늘 항목에는 내용을 넣지 않는다. 앞 날짜 이슈가 없는 이슈에는 템플릿을 넣지 않는다.
-`invest-reports` 미니 앱은 템플릿으로 이슈 그림과 이슈 해설 사이에 오늘부터 앞 날짜 순으로 히스토리 상자를 그리고, 소제목을 누르면 이슈 문단을 그날의 내용으로 바꾼다.
+번호 붙은 이슈마다 그 `id`를 노드로 묶은 앞 날짜 이슈를 `r/{키}/history.json`에 그 `id`를 키로 적는다. 앞 날짜 이슈는 그날 `system/issues.json`의
+`nodes`에 오늘 `id`가 든 이슈이고, 내용(`html`)은 그날 공개본 `report.html`의 이슈 조각을 그대로 쓴다. 값에는 오늘을 포함한 모든 날짜의
+날짜(`day`)와 이슈 해설 소제목(`title`)을 날짜 순으로 적고, 오늘 항목의 내용은 비운다. 앞 날짜 이슈가 없는 이슈는 적지 않고, 적을 이슈가 없으면 파일을 쓰지 않는다.
+`invest-reports` 미니 앱은 이 값으로 이슈 그림과 이슈 해설 사이에 오늘부터 앞 날짜 순으로 히스토리 상자를 그리고, 소제목을 누르면 이슈 문단을 그날의 내용으로 바꾼다.
 번호 붙은 이슈 소제목 뒤에는 리포트 폴더 `assets/issue-{번호}-{순번}.webp`가 있는 그림을 순번대로 한 그림 묶음에 넣는다. 그림은 이슈마다 한 장에서 세 장이다.
 그림마다 위에 `AI 생성 이미지` 표시를 얹고, `system/issue-images.json`에 그 그림의 사진 설명(`caption`)이 있으면 그림 아래 캡션에 쓴다. 그림은 `run-with-notify.sh`가 ⑨의 이슈 이미지 선정 결과로 만든다. 첫 그림의 정사각을 잘라
 `THUMB`px 썸네일 `issue-{번호}-thumb.webp`를 만들어 묶음의 `data-thumb`에 적는다. `invest-reports` 미니 앱은 이슈 목록 상자에 썸네일을 붙이고, 그림이 두 장 이상인 묶음은 넘겨 보는 묶음과 쪽 점으로 그린다.
@@ -73,6 +73,8 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 앞 날짜 리포트의 이슈가 뒤 리포트 이슈의 히스토리에 들면, 앞 날짜 리포트 항목의 `later`에 그 이슈 번호를 키로 히스토리를 가진
 가장 늦은 리포트의 `리포트 키/이슈 번호`를 적는다. 미니 앱의 "자세히 보기" 단추는 이 값으로 이슈의 가장 늦은 히스토리를 연다. `invest-reports` 미니 앱은 제목 위
 작은 글씨로 날짜 줄을 그린다. 같은 리포트를 다시 만들어도 처음 만든 시각은 그대로 둔다.
+`parts`에는 그 리포트 폴더에 쓴 `history`·`cards` JSON의 이름을 적는다. 미니 앱은 `parts`에 적힌 JSON만 받고, `parts`가 없는 지난 리포트에서는
+`report.html` 안의 `issue-history` 템플릿과 `<script type="application/json" id="cards">` 조각에서 같은 값을 읽는다.
 `invest-reports` 미니 앱의 달력은 같은 목록에서 그 지수의 리포트 날짜를 찾아 흰 글자로 쓰고, 날짜 아래에 `moves`의 `session`을 적는다.
 달력 위 `나스닥 | 바이오` 단추로 지수를 바꾸면 달력은 그 지수의 리포트 날짜로 다시 그려지고, 날짜를 누르면 그 날짜의 그 지수 리포트가 열린다.
 `moves`에는 리포트 날짜 전날 정규장 종가의 앞 세션 종가 대비 등락률(`session`, %)과 기준 가격의 기준 가격 날짜 종가 대비
@@ -115,8 +117,8 @@ cron이 사전 리포트를 올린 16:30 ET부터 애프터장이 닫히는 20:0
 처음에는 봉 그림이고, 고른 그림 종류는 기기에 남겨 다른 리포트와 종목에도 쓴다.
 
 `system/simulation.json`의 `quantiles`에 5% 값이 있는 리포트는 요약 절 세 그림을 그림 파일 대신 값으로 그린다.
-그런 리포트의 공개본에서는 12M + Predictions·Montecarlo·권장 추종 배율 그림을 빼고, `report.html` 끝에 카드 값을
-`<script type="application/json" id="cards">`로 붙인다. 카드 값은 `PRICE_YEARS`년 종가와 날짜, 지난 리포트가 예측한 25거래일 뒤 가격,
+그런 리포트의 공개본에서는 12M + Predictions·Montecarlo·권장 추종 배율 그림을 빼고, 카드 값을
+`r/{키}/cards.json`에 적는다. 카드 값은 `PRICE_YEARS`년 종가와 날짜, 지난 리포트가 예측한 25거래일 뒤 가격,
 그날 25·50·75% 가격, 10~90% 수익률 분위수와 사안 일정, 체류 적분 밀도를 담는다(`summary_cards`). 종가와 가격은 예측을 계산한
 ETF 눈금을 지수 눈금으로 늘려 적는다(`card_scale`). 공개본이 있는 그 지수 리포트
 가운데 가장 늦은 날짜에서 `REWIND_DAYS`일 안의 카드 값 리포트는 되감기 날짜가 되고, `r/rewind-{지수}/cards.json`에 날짜마다
@@ -126,7 +128,7 @@ ETF 눈금을 지수 눈금으로 늘려 적는다(`card_scale`). 공개본이 �
 `--stage pre`는 판단 배치가 돌기 전에 그날 리포트 키로 사전 리포트를 만든다. cron은 전날 뉴욕 정규장이 열릴 때 한 번, 닫힌 뒤에 한 번 부른다.
 정규장 중에는 그 앞 세션까지의 종가로 만들고 목록 항목의 `live`에 전날 날짜를 적으며, 닫힌 뒤에는 전날까지의 종가로 다시 만들고 `live`를 지운다.
 사전 리포트는 그 지수의 가장 늦은 본 리포트 공개본에서
-`1개월 지수 방향 예측` 절의 본문과 카드 값을 빼고, 이슈 소제목의 `data-new`를 지우고 `data-age`를 그날 기준으로 다시 단다.
+`1개월 지수 방향 예측` 절의 본문과 카드 값을 빼고, 이슈 소제목의 `data-new`를 지우고 `data-age`를 그날 기준으로 다시 단다. 앞 리포트의 `history.json`은 그대로 옮겨 적는다.
 `미국 거시 지표` 카드 값은 그 시각까지 `reference.db`에 적재한 값으로 판단 배치와 같은 `render_inputs.py` 함수가 만든 입력에서 다시 뽑고,
 지표 소제목 뒤의 해설은 지운다.
 카드 값은 `pre`를 참으로 두고 전날까지 `PRICE_YEARS`년 종가를 담는다.
@@ -1493,10 +1495,10 @@ def issue_history(vault: Path, index: str, day: dt.date, out: Path) -> dict[str,
     return history
 
 
-def mark_issue_history(body: str, history: dict[str, list[tuple[dt.date, int, str]]], day: dt.date) -> str:
-    """번호 붙은 이슈 뒤에 앞 날짜 이슈 조각과 날짜마다 이슈 해설 소제목을 담은 `issue-history` 템플릿을 넣는다.
-    마지막 항목은 오늘 이슈이고, 그 항목의 날짜는 이슈 해설을 쓴 날짜(`data-written`)다."""
-    parts, last = [], 0
+def history_sections(body: str, history: dict[str, list[tuple[dt.date, int, str]]], day: dt.date) -> dict[str, list[dict]]:
+    """번호 붙은 이슈마다 앞 날짜 이슈 조각(`html`)과 날짜(`day`), 이슈 해설 소제목(`title`)을 날짜 순으로 담은 `history.json` 값. 키는 이슈의 `data-issue`다.
+    마지막 항목은 오늘 이슈이고, 그 항목의 날짜는 이슈 해설을 쓴 날짜(`data-written`)이며 조각은 비운다."""
+    sections = {}
     for start, stop in issue_segments(body):
         segment = body[start:stop]
         issue = re.match(r'<h3[^>]*data-issue="([^"]*)"', segment)
@@ -1506,11 +1508,8 @@ def mark_issue_history(body: str, history: dict[str, list[tuple[dt.date, int, st
         days = [(when, explainer_title(chunk), re.sub(r'\sid="[^"]*"', "", chunk)) for when, _, chunk in past]
         written = re.match(r'<h3[^>]*data-written="([^"]*)"', segment)
         days.append((dt.date.fromisoformat(written.group(1)) if written else day, explainer_title(segment), ""))
-        sections = "".join(f'<section data-day="{when}" data-title="{html.escape(title)}">{chunk}</section>'
-                           for when, title, chunk in days)
-        parts += [body[last:stop].rstrip(), f'\n<template class="issue-history">{sections}</template>\n']
-        last = stop
-    return "".join(parts) + body[last:]
+        sections[html.unescape(issue.group(1))] = [{"day": str(when), "title": title, "html": chunk} for when, title, chunk in days]
+    return sections
 
 
 def link_later(entries: dict, key: str, history: dict[str, list[tuple[dt.date, int, str]]], bundles: Path) -> None:
@@ -1567,10 +1566,7 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     body = mark_issue_charts(body, source.parent / "system" / "issue-charts.json")
     body = mark_issue_carry(body, source.parent / "system" / "issues.json", index, out)
     history = issue_history(vault, index, day, out)
-    body = mark_issue_history(body, history, day)
-    if card:
-        data = json.dumps(card, ensure_ascii=False).replace("</", "<\\/")
-        body += f'<script type="application/json" id="cards">{data}</script>\n'
+    parts = write_parts(target, {"history": history_sections(body, history, day), "cards": card})
     (target / "report.html").write_text(body, encoding="utf-8")
 
     entries = published_entries(out)
@@ -1581,6 +1577,8 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     written = entries.get(key, {}).get("written") or now
     later = entries.get(key, {}).get("later")
     entries[key] = {"title": heading.group(1), "day": heading.group(2), "written": written, "updated": now, "date": date, "index": index}
+    if parts:
+        entries[key]["parts"] = parts
     if later:
         entries[key]["later"] = later
     if (move := moves(vault, index, date)):
@@ -1590,6 +1588,14 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     rewind(index, vault, out)
     market(vault, out)
     return key
+
+
+def write_parts(target: Path, values: dict) -> list[str]:
+    """값이 있는 이름마다 리포트 폴더 `target`에 `{이름}.json`을 쓰고, 쓴 이름을 돌려준다."""
+    names = [name for name, value in values.items() if value]
+    for name in names:
+        (target / f"{name}.json").write_text(json.dumps(values[name], ensure_ascii=False) + "\n", encoding="utf-8")
+    return names
 
 
 def published_entries(out: Path) -> dict:
@@ -1700,18 +1706,19 @@ def pre(date: str, index: str, vault: Path, out: Path) -> str:
     closes = [round(close * scale, 2) for _, close in history]
     dates = [d for d, _ in history]
     card = {"pre": True, "dates": dates, "history": closes, "day": date, "base_date": history[-1][0], "base": closes[-1]}
-    body += f'<script type="application/json" id="cards">{json.dumps(card, ensure_ascii=False)}</script>\n'
+    carried = out / "r" / previous / "history.json"
     target = out / "r" / key
     if target.exists():
         shutil.rmtree(target)
     target.mkdir(parents=True)
+    parts = write_parts(target, {"history": json.loads(carried.read_text(encoding="utf-8")) if carried.is_file() else None, "cards": card})
     (target / "report.html").write_text(body, encoding="utf-8")
 
     close, before = history[-1][1], history[-2][1]
     entries[key] = {"title": entries[previous]["title"], "day": f"{date} ({'월화수목금토일'[day.weekday()]})", "date": date,
                     "index": index, "stage": entries.get(key, {}).get("stage", "pre"), "updated": dt.datetime.now(SEOUL).strftime("%Y-%m-%d %H:%M"),
                     "moves": {"session": None if live else round((close / before - 1) * 100, 2) + 0.0, "after": None,
-                              "close": None if live else round(close, 2), "base": None}}
+                              "close": None if live else round(close, 2), "base": None}, "parts": parts}
     if live:
         entries[key]["live"] = session.isoformat()
     write_entries(out, entries)

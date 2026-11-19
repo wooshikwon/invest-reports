@@ -4,6 +4,7 @@ import { feelPress, haptic } from "./telegram";
 // 문서 맨 위에서 시작해 아래로 끌면 본문이 손가락을 따라 내려온다. 본문은 처음에 끈 거리의 85%만큼 내려오고, 더 끌수록 따라오는 비율이 조금씩 줄어 손가락보다 덜 내려온다.
 // 끈 거리 `d`에 본문은 1020 × (√(1 + d/600) − 1)px 내려오므로 비율은 줄어도 끄는 거리에 한계는 없다.
 // 새로고침 표시는 벌어진 틈의 가운데에 두고, 본문이 176px에 닿을 때까지 호를 그만큼 늘린다. 176px에 닿으면 호가 돌기 시작하고, 손을 떼기 전에 미니 앱 문서와 `r/index.json`, `r/market.json`, 리포트나 종목 값을 서버에서 새로 받는다.
+// 리포트는 `report.html`과 `r/index.json`의 `parts`에 적힌 `history.json`·`cards.json`을 새로 받는다.
 // 새로 받기가 손을 떼기 전에 끝나도 호는 계속 돈다. 손을 떼면 본문과 표시가 96px 아래 자리로 올라가 멈춘다. 그 자리에 닿고 새로 받기도 끝나면 미니 앱을 다시 연다.
 // 다시 연 문서는 `sessionStorage`의 `pulled`를 읽어 표시를 96px 아래에 두고, 앞 문서에서 돌던 각도부터 호를 이어 돌린다. 과거 리포트 띠도 앞 문서처럼 먼저 세운다.
 // 리포트는 앞 문서가 막 새로 받은 사본을 서버에 다시 묻지 않고 쓰고, 다 그릴 때까지 본문을 감춘다. 리포트를 다 그리면(`landed`) 본문이 96px 아래 자리에서 나타나고
@@ -46,10 +47,13 @@ export function initPull() {
     pull.classList.add("spin");
     spun = Date.now();
     const stock = query.get("stock");
-    const urls = [location.href.split("#")[0], "r/index.json", "r/market.json",
-      ...(stock ? [`r/stocks/${stock}.json`] : /^\d{8}-[a-z]+$/.test(key) ? [`r/${key}/report.html`] : [])];
-    fetching = Promise.all(urls.map((url) => fetch(url, { cache: "reload" }).then((r) => { if (!r.ok) throw new Error(r.status); })))
-      .then(() => true, () => false);
+    const named = !stock && /^\d{8}-[a-z]+$/.test(key);
+    const urls = [location.href.split("#")[0], "r/market.json", ...(stock ? [`r/stocks/${stock}.json`] : named ? [`r/${key}/report.html`] : [])];
+    const reload = (url) => fetch(url, { cache: "reload" }).then((r) => { if (!r.ok) throw new Error(r.status); return r; });
+    // 리포트의 이슈 과거 맥락과 요약 카드 값은 새로 받은 `r/index.json`의 `parts`에 적힌 것만 새로 받는다.
+    const listed = reload("r/index.json").then((r) => r.json())
+      .then((listing) => Promise.all((named ? listing[key]?.parts ?? [] : []).map((part) => reload(`r/${key}/${part}.json`))));
+    fetching = Promise.all([...urls.map(reload), listed]).then(() => true, () => false);
   };
   const release = () => {
     from = null;

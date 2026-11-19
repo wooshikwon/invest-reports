@@ -14,13 +14,14 @@ import { feelPress } from "../shared/telegram";
 // 요약의 Outlook 그림 자리에 12M + Predictions(지수와 예측), Montecarlo(일정과 예측), Outlook(권장 배율) 순서로 넘기는 묶음을 둔다.
 // Montecarlo 그림은 원래 이벤트 캘린더 절에 있으므로 그 자리에서는 뺀다. 12M + Predictions가 없는 리포트는 두 장을 넘긴다.
 // 묶음 위에는 그림 이름 탭을 둔다. 탭을 누르면 그 그림으로 넘기고, 넘기면 보고 있는 그림의 탭을 밝힌다.
-// 그림 카드 값(`build.py`가 리포트 끝에 둔 `#cards`)이 있는 리포트는 그림 대신 주가와 예측, 일정, 권장 배율 카드 세 장을 넘긴다.
+// 그림 카드 값(`given`, `build.py`가 쓴 `r/{키}/cards.json`. 그 파일이 없는 지난 리포트는 리포트 끝의 `#cards`)이 있는 리포트는 그림 대신 주가와 예측, 일정, 권장 배율 카드 세 장을 넘긴다.
 // 사전 리포트의 카드 값(`pre`)은 주가와 예측 카드 한 장만 두고, 되감기 슬라이더는 앞 날짜의 판단과 사전 리포트의 종가를 고르게 한다.
-export function figures(date) {
+export function figures(date, given = null) {
   const data = report.querySelector("#cards");
-  if (data) {
-    data.remove();
-    const cards = JSON.parse(data.textContent), set = summaryCards(cards, date);
+  data?.remove();
+  const cards = given ?? (data && JSON.parse(data.textContent));
+  if (cards) {
+    const set = summaryCards(cards, date);
     ticker.innerHTML = set.quote();
     subscribe((found) => {
       const index = key.split("-")[1], earlies = found.early[index] ?? {}, after = found.after[index];
