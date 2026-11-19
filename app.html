@@ -4023,8 +4023,8 @@
     const cards = [];
     const lev = perf?.leverage;
     if (lev?.today?.length > 1) {
-      const c = gaugeCard(`기준 ${lev.anchor.toFixed(1)}배 · 현재 ${lev.current.toFixed(2)}배`, W, H), s = c.svg, n = lev.today.length;
-      c.head("", big(lev.target.toFixed(2), "배"));
+      const c = gaugeCard(`기준 ${lev.anchor.toFixed(1)}배 · 현재 ${lev.current.toFixed(3)}배`, W, H), s = c.svg, n = lev.today.length;
+      c.head("", big(lev.target.toFixed(3), "배"));
       const xs = Array.from({ length: n }, (_, i) => lev.anchor * (1 + lev.low + (lev.high - lev.low) * i / (n - 1)));
       const X = (v) => Math.min(R, Math.max(L, L + (v - xs[0]) / (xs[n - 1] - xs[0]) * (R - L))), peak = Math.max(...lev.today, ...lev.quiet);
       const Y = (v) => B - v / peak * (B - T);
@@ -4197,7 +4197,7 @@
           + `<button type="button" data-decision="approve" class="go${state === "approved" ? ' on" disabled' : '"'}>${state === "approved" ? "승인함" : "승인"}</button></div>` : "";
         return `<div class="trade" data-date="${b.date}"><div class="top"><b>${assetDay(b.date)} (${WEEK[new Date(`${b.date}T12:00:00Z`).getUTCDay()]})</b>`
           + `<span class="badge ${kind}">${label}</span></div>`
-          + (b.current != null && b.target != null ? `<div class="lev">현재 ${b.current.toFixed(2)}배 → 목표 ${b.target.toFixed(2)}배${b.anchor != null ? ` · 기준 ${b.anchor.toFixed(1)}배` : ""}</div>` : "")
+          + (b.current != null && b.target != null ? `<div class="lev">현재 ${b.current.toFixed(3)}배 → 목표 ${b.target.toFixed(3)}배${b.anchor != null ? ` · 기준 ${b.anchor.toFixed(1)}배` : ""}</div>` : "")
           + (b.reason ? `<p class="why">${assetText(b.reason)}</p>` : "") + (rows.length ? `<div class="rows">${rows.join("")}</div>` : "") + act + "</div>";
       };
       const past = blocks.filter((b) => b !== open);
