@@ -574,7 +574,7 @@
   /* 세션 단추(`session`)는 정규장을 해, 애프터장을 초승달, 프리장을 언덕 위로 해가 오르는 새벽 그림으로 그리고, 그림의 닫힌 면(`f`)을 선과 같은 색으로 채운다.
      고른 단추는 밝은 바탕에 세션 색으로 칠한다. 정규장은 노랑, 애프터장은 보라, 프리장은 주황이고, 등락률의 빨강·파랑과 겹치지 않는 색이다. 고르지 않은 단추는 회색이다.
      지도와 카드의 기준 시각 글씨(`kind`)도 그 값의 세션 색으로 쓴다. 종가 글씨 "미국 11/17 정규장, 06:00 KST"는 정규장 색이다.
-     지도에서는 위 줄 오른쪽 끝에, 주가 카드와 주가와 예측 카드, 일정과 예측 카드에서는 이름 줄 오른쪽 끝에 두되 그 줄 높이를 늘리지 않는다.
+     지도에서는 위 줄 오른쪽 끝에, 주가 카드와 주가와 예측 카드에서는 이름 줄 오른쪽 끝에 두되 그 줄 높이를 늘리지 않는다. 끈 단추(`disabled`)는 고른 칸 없이 회색으로 흐리게 쓴다.
      애프터마켓·프리마켓 값을 고른 카드(`ext`)는 다음 정규장 전의 임시 값이므로 값과 등락률을 회색으로 쓴다. 리포트 날짜의 정규장 값을 그리는 카드는 정규장 단추 하나만 두고 회색으로 쓰지 않는다. */
   .session { display: flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, .06); }
   .session button { display: grid; place-items: center; width: 34px; height: 22px; padding: 0; border: 0; border-radius: 7px; background: none;
@@ -585,6 +585,7 @@
   [data-kind="after"] { --kind: #a78bfa; }
   [data-kind="pre"] { --kind: #ff9f43; }
   .session button.on { background: rgba(255, 255, 255, .16); color: var(--kind); }
+  .session button:disabled { background: none; color: var(--hint); opacity: .4; cursor: default; }
   :is(.indexmap > .top, .gauge) .kind { color: var(--kind); }
   .session button[hidden] { display: none; }
   :is(.indexmap > .top, .gauge .top) .session { flex: none; margin: -6px 0 -6px auto; align-self: center; }
@@ -625,8 +626,9 @@
   /* 내 자산 페이지는 보고 있는 리포트의 지수(나스닥은 QQQ·QLD·TQQQ, 바이오는 IBB·BIB) 종목만 쓴다. 첫 절 내 투자는 제목 오른쪽에 달러·원화 표시 단추를 두고,
      그 아래 그 지수 종목의 평가금 합계를 요약 절 그림 카드의 값과 같은 크기로 크게 쓴 뒤 수익·수익률을 쓴다. 합계와 수익·수익률은 처음에 가려 두고(`veil`)
      그 자리에 합계와 같은 크기의 회색 글씨로 "평가 금액 보기"를 쓴다. 그 자리를 누를 때마다 가림을 벗기거나 다시 씌운다. 그 아래 배율·누적 수익률·초과 수익률 그림 카드 세 장을
-     넘기는 묶음과 거래 내역 화면을 여는 긴 단추를 둔다. 수익·수익률과 그림 카드 묶음 사이는 24px 띄운다. 거래 내역 단추는 그림 카드 묶음과 다음 절의 띠에서 똑같이 40px 띄운다. 둘째 절 상세 보유 종목은 종목마다 이름과 수량, 평가금과 수익·수익률을 쓴다. 맨 아래 절 내 계좌는 원화·달러 주문 가능 현금과
-     대기자금(SGOV)을 종목과 같은 줄 모양으로 쓴다. 표시 단추는 옅은 바탕에 고른 칸을 밝게 칠한다. 손익과 매수는 빨간색, 손실과 매도는 파란색으로 쓴다.
+     넘기는 묶음과 집행 신호등 카드를 둔다. 수익·수익률과 그림 카드 묶음 사이는 24px 띄운다. 옵티마이저 게이트가 초록이면 신호등 카드에 지수색 테두리를 두르고 누를 수 있게 한다(`go`).
+     둘째 절 상세 보유 종목은 종목마다 이름과 수량, 평가금과 수익·수익률을 쓰고, 종목 줄 아래 12px 띄워 거래 내역 화면을 여는 긴 단추를 둔다. 맨 아래 절 내 계좌는 원화·달러 주문 가능 현금과
+     대기자금(SGOV)을 종목과 같은 줄 모양으로 쓴다. 종목 줄은 둘째 줄이 한쪽에만 있어도 양쪽 첫 줄의 위를 맞춘다. 표시 단추는 옅은 바탕에 고른 칸을 밝게 칠한다. 손익과 매수는 빨간색, 손실과 매도는 파란색으로 쓴다.
      글씨는 다른 페이지와 같은 위계로 쓴다. 합계는 그림 카드의 값과 같은 30px 굵은 글씨, 거래 블록의 날짜는 그림 카드 이름과 같은 15.5px 굵은 글씨,
      수익·수익률 줄과 종목 줄의 이름·값은 본문과 같은 15px, 종목 줄의 둘째 줄은 13px 회색으로 쓴다. 종목 줄의 값은 이름보다 굵게 쓴다.
      표시 단추는 세션 단추 묶음과 같은 크기로, 칸마다 가로 34px, 세로 22px에 12px 글씨를 쓴다. */
@@ -641,11 +643,11 @@
   .asset-sum b { display: block; margin-bottom: 3px; font-size: 30px; font-weight: 800; letter-spacing: -.5px; color: var(--accent); }
   .asset-sum b.veiled { color: var(--hint); }
   .asset-sum.veil > :not(.veiled), .asset-sum:not(.veil) > .veiled { display: none; }
-  .asset-trades { display: flex; justify-content: space-between; align-items: center; width: 100%; height: 48px; margin: 40px 0 8px; padding: 0 14px 0 16px; border: 0;
+  .asset-trades { display: flex; justify-content: space-between; align-items: center; width: 100%; height: 48px; margin: 12px 0 0; padding: 0 14px 0 16px; border: 0;
                   border-radius: 12px; background: rgba(255, 255, 255, .05); font: inherit; font-size: 15px; font-weight: 600; color: var(--text); cursor: pointer; }
   .asset-trades svg { color: var(--dim); }
-  .signal + .asset-trades { margin-top: 0; }
   .signal { margin: 20px 0 8px; padding: 4px 16px; border-radius: 12px; background: rgba(255, 255, 255, .05); line-height: 1.4; letter-spacing: -.2px; }
+  .signal.go { box-shadow: inset 0 0 0 1.5px var(--index); cursor: pointer; -webkit-tap-highlight-color: transparent; }
   .signal .gate { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; }
   .signal .gate .lamp { margin-top: 5px; }
   .signal .gate strong { display: block; font-size: 13px; font-weight: 600; color: var(--hint); }
@@ -655,7 +657,7 @@
   .signal .lamp.orange { background: #ff9f0a; box-shadow: 0 0 8px rgba(255, 159, 10, .55); }
   .signal .lamp.red { background: #ff453a; box-shadow: 0 0 8px rgba(255, 69, 58, .55); }
   .carousel.asset-cards { margin-top: 24px; }
-  .asset-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; }
+  .asset-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 10px 0; }
   .asset-item strong { display: block; font-size: 15px; font-weight: 500; color: var(--text); }
   .asset-item small { display: block; margin-top: 2px; font-size: 13px; color: var(--dim); }
   .asset-item > :last-child { flex: none; text-align: right; }
@@ -665,8 +667,9 @@
   /* 내 자산 그림 카드는 선 이름을 적지 않으므로 그림 아래 줄을 두지 않는다. */
   .asset-cards .gauge .foot { display: none; }
   /* 거래 내역 화면은 날짜마다 블록 하나를 맨 위가 최신이 되게 쌓는다. 블록 위 줄 왼쪽에 날짜를, 오른쪽 끝에 상태 표식을 쓴다. 그 아래 배율 변화를 쓰고,
-     주문 이유는 옅은 바탕의 둥근 상자에 담아 블록의 다른 글씨와 가른다. 체결이 있으면 체결을, 없으면 보낸 주문을 종목 줄로 쓴다. 종목 줄은 왼쪽 위에 종목과
-     그 오른쪽 매수·매도를, 그 아래 수량을 쓰고, 오른쪽 위에 거래 금액을, 그 아래 체결은 체결한 서울 시각을, 주문은 달러 금액을 쓴다. 집행 시각 전의 집행 요청
+     주문 이유는 옅은 바탕의 둥근 상자에 담아 블록의 다른 글씨와 가른다. 토스에 낸 주문이 있으면 낸 주문마다, 없으면 보낼 주문을 종목 줄로 쓴다. 종목 줄은 왼쪽 위에 종목과
+     그 오른쪽 매수·매도를, 그 아래 수량을 쓰고, 오른쪽 위에 거래 금액을, 그 아래 낸 주문은 체결한 서울 시각 뒤 "체결"이나 주문한 서울 시각 뒤 "미체결"을, 보낼 주문은 달러 금액을 쓴다.
+     미체결 주문의 금액은 회색으로 쓴다. 토스에 주문을 낸 블록은 상태 표식을 두지 않는다. 집행 시각 전의 집행 요청
      블록은 거래 내역 절 위에 따로 두고, 맨 아래에 집행 안내와 취소·승인 단추를 둔다. 고른 결정의 단추는 눌린 모양으로 두고, 집행 시각이 지나면 두 단추를
      모두 끈다. 결정을 기다리는 상태 표식은 지수색으로 칠한다. */
   .trade { margin: 0 0 10px; padding: 14px 16px 6px; border-radius: 14px; background: rgba(255, 255, 255, .05); }
@@ -682,6 +685,7 @@
   .trade .rows { margin-top: 8px; }
   .trade > :is(.top, .lev, .why):last-child { margin-bottom: 8px; }
   .trade .asset-item { padding: 8px 0; }
+  .trade .asset-item.miss > :last-child strong { color: var(--hint); }
   .trade .note { margin: 8px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--dim); }
   .trade .act { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 10px; }
   .trade .act button { height: 44px; border: 0; border-radius: 10px; background: rgba(255, 255, 255, .08); font: inherit; font-size: 15px; font-weight: 700;
@@ -1388,7 +1392,7 @@
     pre: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 20.5C6 17 9 16 12 16s6 1 10 4.5"/><path class="f" d="M7.5 16.6a4.5 4.5 0 0 1 9 0Z"/><path d="M12 6.2v2.6M5.4 9.6l1.7 1.7M18.6 9.6l-1.7 1.7"/></svg>',
   };
   const SESSION_NAME = { regular: "정규장", after: "애프터마켓", pre: "프리마켓" };
-  // 정규장 값과 정규장 다음 세션(애프터장이나 프리장)의 값을 고르는 단추 한 쌍(`box`)이다. 지도와 종목 상세의 주가 카드, 주가와 예측 카드, 일정과 예측 카드가 같이 쓴다.
+  // 정규장 값과 정규장 다음 세션(애프터장이나 프리장)의 값을 고르는 단추 한 쌍(`box`)이다. 지도와 종목 상세의 주가 카드, 주가와 예측 카드가 같이 쓴다.
   // 단추는 글씨 대신 세션 그림을 그리고, 세션 이름을 단추의 이름(`aria-label`)과 풍선 글씨(`title`)로, 세션 종류를 `data-kind`로 단다.
   // `pick(late)`는 사용자가 다른 단추를 누를 때 부르고, `late`는 정규장 다음 단추를 고르면 참이다. `mark(late)`는 고른 단추를 칠하고,
   // `rename(kind, name)`은 정규장 다음 단추를 `kind` 세션(`pre`, `after`, `regular`)의 그림으로 바꾸고 이름을 `name`으로 단다.
@@ -1399,7 +1403,7 @@
     const mark = (late) => [...box.children].forEach((button, i) => button.classList.toggle("on", !!i === late));
     box.addEventListener("click", (event) => {
       const button = event.target.closest("button");
-      if (!button || button.classList.contains("on")) return;
+      if (!button || button.disabled || button.classList.contains("on")) return;
       feelPress();
       mark(button === box.lastElementChild);
       pick(button === box.lastElementChild);
@@ -1657,7 +1661,7 @@
     // 처음에는 가장 짧은 3개월을 그린다. 봉 비율(`r/candles.json`)이 있으면 그 줄 오른쪽 끝에 선·봉 단추(`kindButton`)를 두고,
     // 봉 그림이면 종가 선 대신 3년·2년은 월봉, 1년은 주봉, 6개월·3개월은 일봉을 그린다.
     // 봉 그림이면 리포트 날짜에 고른 정규장 다음 세션 값을 다음 거래일이 든 기간의 흐린 잠정 봉(`candleLate`)으로 그린다.
-    // 카드는 되감기 슬라이더가 고른 날짜와 관계없이 종가를 마지막 정규장 종가까지 그리고, 고른 날짜의 값에 '현재' 표시(`nowMark`)를 찍는다.
+    // 카드는 되감기 슬라이더가 고른 날짜와 관계없이 종가를 마지막 정규장 종가까지 그리고, 예측을 끈 카드는 고른 날짜의 값에 '현재' 표시(`nowMark`)를 찍는다.
     // '현재' 표시는 고른 날짜 판단의 기준 가격 날짜 종가에 찍고, 봉 그림이면 그 종가가 든 봉의 고가 위에 찍는다.
     // 그 종가가 예측을 켠 그림 왼쪽 끝 밖에 있으면 그 종가가 드는 가장 짧은 기간으로 넓히고, + 단추로는 그 종가가 빠지는 기간까지 줄이지 않는다.
     // 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 정규장 등락률 색(`tone`)의 점과 글씨로 적는다.
@@ -1669,16 +1673,17 @@
     // 정규장 값은 전날 정규장이 열릴 때 만든 사전 리포트만 받는다(`onLive`).
     // 선 그림이면 정규장 다음 세션 값은 세션과 체결 시각에 관계없이 다음 거래일 자리에 '현재' 표시로 찍어 고른 날짜의 종가 점에서 점선으로 잇는다.
     // 봉 그림이면 그 값의 '현재' 표시는 다음 거래일이 든 봉의 고가 위에 찍는다.
-    // 가장 늦은 리포트의 리포트 날짜는 가장 늦은 세션을, 지난 날짜와 지난 리포트는 정규장을 고른다. 단추를 누르면 되감기 슬라이더가 다른 날짜를 고를 때까지 누른 세션을 유지한다.
+    // 예측을 끈 카드는 가장 늦은 리포트의 리포트 날짜에 가장 늦은 세션을, 지난 날짜와 지난 리포트는 정규장을 고른다. 단추를 누르면 되감기 슬라이더가 다른 날짜를 고를 때까지 누른 세션을 유지한다.
     // 예측 단추(`aim`)를 켜면 고른 날짜 판단의 예측과 지난 리포트의 예측을 그린다. 처음에는 끈 채로 열고, 예측이 없는 사전 리포트에는 단추를 두지 않는다.
     // 켠 카드는 고른 날짜 판단에 예측이 있으면 위 줄에 "25거래일 뒤 예측 중앙값"을, 가운데 줄에 그 값을 지수색 그라데이션으로 쓰고 지수색 점 뒤에 기준 가격 대비 등락률을 적는다.
-    // 이때 그림에서는 정규장 '현재' 표시를 지우고, 애프터마켓·프리마켓 '현재' 표시는 예측의 지수색 점 두 개와 함께 남긴다.
+    // 켠 카드는 되감기 슬라이더가 고른 날짜와 관계없이 '현재' 표시를 리포트 날짜의 가장 늦은 세션 값(`upcoming()`)에, 그 값이 없으면 마지막 정규장 종가에 찍고,
+    // 세션 단추를 모두 끈다. 되감기 슬라이더는 예측만 고른 날짜 판단의 예측으로 바꾼다.
     // 끈 카드의 가로축은 마지막 종가 다음 거래일에서 끝나고, 켠 카드의 가로축은 마지막 종가 뒤 25거래일에서 끝난다. 그림 왼쪽 끝도 같은 거래일 수만큼 옮겨 기간을 지킨다.
     // 단추를 누르면 기간을 바꿀 때와 같은 곡선으로 가로축과 세로 범위를 옮기면서 예측을 서서히 나타내거나 지운다.
     // 판단의 예측은 기준 가격 점에서 출발하는 25~75% 범위와 50% 선이다. 기준 가격 점은 애프터마켓·프리마켓 '현재' 표시처럼 기준 가격 날짜 다음 거래일 자리에 찍고,
     // 25거래일 뒤 값은 그 거래일 자리에 찍으며, 그 사이 날은 두 자리 사이에 고르게 놓는다.
     // 기준 가격 점과 25거래일 뒤 50% 값의 점은 지수색으로 찍고, 기준 가격 점은 종가와 잇지 않는다. 지난 리포트의 예측은 회색 점선과 면으로 그린다.
-    // 고른 날짜 판단에 예측이 없으면 지난 리포트의 예측만 그리고, 머리 글씨와 '현재' 표시는 끈 카드와 같다.
+    // 고른 날짜 판단에 예측이 없으면 지난 리포트의 예측만 그리고, 머리 글씨에는 '현재' 표시의 값을 끈 카드와 같은 모양으로 적는다.
     const price = (() => {
       const c = card(""), s = c.svg, clipId = "price-clip", title = c.title;
       c.box.querySelector(".val b").className = "";
@@ -1801,15 +1806,14 @@
         }
         if (marks) extremes();
         const close = [center(stop), Y(hist[stop])];
-        // 고른 날짜 판단에 예측이 있으면 예측을 켜는 만큼 정규장 '현재' 표시를 흐리게 한다. 애프터마켓·프리마켓 표시는 그대로 둔다.
-        const dim = f.predict && (!ext || ext[2] === "regular") ? 1 - r : 1, now = s.insertBefore(shape("g", { opacity: dim }), ends);
+        const now = s.insertBefore(shape("g"), ends);
         // 날짜 슬라이더가 고른 종가가 아직 그림 왼쪽 끝 앞이면(기간을 넓히는 도중) '현재' 표시를 찍지 않는다.
         if (stop < i0) return;
         if (!ext) return nowMark(now, close[0], mark(stop, close[1]), "regular");
         // 선 그림이면 정규장 다음 세션 값은 다음 거래일 자리에 찍어 고른 날짜의 종가 점에서 점선으로 잇는다.
         const next = [center(stop + 1), Y(ext[0])];
         if (!drawn) {
-          g.append(shape("path", { d: path([close, next]), ...stroke, "stroke-dasharray": "2 2", opacity: dim }));
+          g.append(shape("path", { d: path([close, next]), ...stroke, "stroke-dasharray": "2 2" }));
           now.append(shape("circle", { cx: close[0], cy: close[1], r: 2.5, fill: PRICE }));
         }
         nowMark(now, next[0], mark(stop + 1, next[1]), ext[2]);
@@ -1844,23 +1848,24 @@
         ahead = aim ? 1 : 0;
         toggle.classList.toggle("on", aim);
         toggle.setAttribute("aria-pressed", aim);
-        head();
-        animate(span, seen);
+        const from = span;
+        settle();
+        animate(from, seen);
       });
-      // 되감기 슬라이더가 다른 날짜를 고르면 사용자가 고른 단추를 지우고, 가장 늦은 리포트의 리포트 날짜는 가장 늦은 세션을, 지난 날짜와 지난 리포트는 정규장을 고른다.
+      // '현재' 표시를 찍을 값과 세션 단추, 머리 글씨를 정한다. 예측을 켠 카드는 가장 늦은 값을 쓰고 세션 단추를 모두 끈다.
+      // 예측을 끈 카드는 가장 늦은 리포트의 리포트 날짜에 가장 늦은 세션을, 지난 날짜와 지난 리포트는 정규장을 고르고, 사용자가 누른 단추가 있으면 그 세션을 쓴다.
       // 리포트 날짜의 정규장 값은 늘 고른 채로 둔다.
-      const show = (f) => {
-        if (f !== frame) chosen = false;
-        frame = f;
-        const now = f.day === date, from = span;
-        stop = now ? last : at(f);
+      const settle = () => {
+        const f = frame, now = f.day === date;
+        stop = now || aim ? last : at(f);
         span = Math.min(span, most());
         level();
-        const session = Math.round((hist[stop] / hist[stop - 1] - 1) * 1e4) / 100, shown = extra(f), regular = shown?.[2] === "regular";
-        if (!chosen || regular) late = !!shown && now && (regular || !document.documentElement.classList.contains("past"));
-        ext = shown && late ? shown : null;
+        const session = Math.round((hist[stop] / hist[stop - 1] - 1) * 1e4) / 100, shown = aim ? upcoming() : extra(f), regular = shown?.[2] === "regular";
+        if (!aim && (!chosen || regular)) late = !!shown && now && (regular || !document.documentElement.classList.contains("past"));
+        ext = shown && (aim || late) ? shown : null;
         seg.rename(shown?.[2] ?? "after");
-        seg.mark(late);
+        seg.mark(aim ? null : late);
+        [...seg.box.children].forEach((button) => (button.disabled = aim));
         if (shown) title.append(seg.box); else seg.box.remove();
         head = () => {
           const p = aim ? f.predict : null, move = ext && Math.round((ext[0] / hist[stop] - 1) * 1e4) / 100, end = p?.q50.at(-1);
@@ -1873,6 +1878,13 @@
           else c.head(`${signed(session, 2)}%`, fmt(hist[stop]), sessionTag("regular", sessionAt("정규장", closeAt(dates[stop]))));
         };
         head();
+      };
+      // 되감기 슬라이더가 다른 날짜를 고르면 사용자가 고른 단추를 지운다.
+      const show = (f) => {
+        if (f !== frame) chosen = false;
+        frame = f;
+        const from = span;
+        settle();
         // 고른 날짜의 종가가 그림 밖으로 나가 기간을 넓혔으면 − 단추처럼 그림을 이어 옮긴다. 기간을 옮기는 도중이면 다음 장면이 고른 날짜로 그린다.
         if (span !== from) animate(from, seen);
         else if (!raf) tween(span, span, 1);
@@ -1885,16 +1897,13 @@
     // 세로선과 범위 끝이 만나는 곳에 그날의 등락률을 적는다. 그림 아래 줄 가운데에는 고른 일정의 날짜와 이름을 적고, 이름이 줄을 넘으면 말줄임표로 줄인다.
     // 그 줄 양옆의 꺽쇠를 누르면 앞뒤 일정을 고르고, 일정 이름을 누르면 같은 페이지 아래의 이벤트 캘린더에서 같은 거래일을 연다(`toCalendar`).
     // 지난 날짜를 고르면 그날 기준 가격 뒤의 실제 종가 등락률을 흰 선으로 그린다. 등락률은 고른 날짜 판단의 기준 가격 대비 값이다.
-    // 리포트 날짜 판단의 기준 가격 날짜 다음 세션 값(`upcoming()`)이 있으면 이름 줄 오른쪽 끝에 주가와 예측 카드와 같은 정규장·애프터장이나 정규장·프리장 단추를 둔다.
     // 선의 끝은 리포트 날짜를 고르면 기준 가격 날짜의 정규장 종가이고, 지난 날짜를 고르면 실제 종가 선이 기준 가격 날짜까지 닿을 때 그 선의 끝이다.
-    // 정규장 다음 단추를 고르면 그 끝 종가 점에서 세션 값까지 점선으로 잇고 세션 값에 '현재' 표시를 찍는다. 세션 값은 정규장 종가(16:00 ET)에서 체결 뉴욕 시각까지 지난 시간만큼
-    // 거래일 자리를 옮겨 놓는다. 정규장 단추를 고르면 끝 종가에 정규장 '현재' 표시를 찍는다.
-    // 세션 값은 늘 리포트 날짜의 값이므로 가장 늦은 리포트는 고른 날짜와 관계없이 가장 늦은 세션을, 지난 리포트는 정규장을 고른다. 단추를 누르면 되감기 슬라이더가 다른 날짜를 고를 때까지 누른 세션을 유지한다.
+    // 리포트 날짜 판단의 기준 가격 날짜 다음 세션 값(`upcoming()`)이 있으면 그 끝 종가 점에서 세션 값까지 점선으로 잇고 세션 값에 '현재' 표시를 찍는다.
+    // 세션 값은 정규장 종가(16:00 ET)에서 체결 뉴욕 시각까지 지난 시간만큼 거래일 자리를 옮겨 놓는다. 세션 값이 없으면 끝 종가에 정규장 '현재' 표시를 찍는다.
+    // 세션 값은 늘 리포트 날짜의 가장 늦은 값이므로 고른 날짜와 관계없이 같은 값을 그리고, 세션 단추를 두지 않는다.
     const tree = data.pre ? null : (() => {
       const c = card("25거래일 뒤 범위"), s = c.svg;
       const L = 4, R = W - 4, T = 38;
-      let late = false, chosen = false;
-      const seg = sessionSeg((on) => { late = on; chosen = true; draw(); });
       const box = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "evbox" }));
       const chevron = (d, label) => Object.assign(document.createElement("button"), { type: "button", ariaLabel: label,
         innerHTML: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>` });
@@ -1948,13 +1957,9 @@
         // 선의 끝 종가 [거래일, 등락률]과 세션 값 [거래일, 등락률, 세션]이다. 끝 종가가 기준 가격 날짜가 아니면 둘 다 없다.
         const end = f.day === date ? [0, (hist[close] / f.base - 1) * 100]
           : actual.length && f.days[actual.length - 1] === data.base_date ? [actual.length - 1, actual.at(-1)] : null;
-        const shown = end && upcoming(), regular = shown?.[2] === "regular";
-        if (!chosen || regular) late = !!shown && (regular || !document.documentElement.classList.contains("past"));
-        seg.rename(shown?.[2] ?? "after");
-        seg.mark(late);
-        if (shown) c.title.append(seg.box); else seg.box.remove();
+        const shown = end && upcoming();
         const hour = shown && (+shown[3].slice(11, 13) + shown[3].slice(14, 16) / 60);
-        const tail = shown && late ? [end[0] + ((hour - 16 + 24) % 24) / 24, (shown[0] / f.base - 1) * 100, shown[2]] : null;
+        const tail = shown ? [end[0] + ((hour - 16 + 24) % 24) / 24, (shown[0] / f.base - 1) * 100, shown[2]] : null;
         const reach = Math.max(15, ...[pct["10"], pct["90"], actual].flat().map(Math.abs), ...[end, tail].filter(Boolean).map((v) => Math.abs(v[1])));
         const top = Math.ceil(reach / 5) * 5;
         const X = (d) => L + d / n * (R - L), Y = (v) => B - (Math.max(-top, Math.min(top, v)) + top) / (2 * top) * (B - T);
@@ -2004,7 +2009,7 @@
       return {
         box: c.box,
         show(f) {
-          if (frame?.day !== f.day) { pick = null; chosen = false; }
+          if (frame?.day !== f.day) pick = null;
           frame = f;
           draw();
         },
@@ -4165,12 +4170,14 @@
   const assetDay = (date) => `${+date.slice(5, 7)}.${+date.slice(8, 10)}`;
   // 집행 신호등 카드. 값(`signal`)은 거래 내역 값의 `signal`이고, 그 지수(`index`)의 값이 없으면 카드를 두지 않는다. 옵티마이저 게이트와
   // 조건부 게이트 가운데 더 묶는 관문(빨강 > 주황 > 초록) 한 줄만 그 관문의 이름, 색, 배치가 쓴 이유로 쓰고, 두 관문의 색이 같으면 옵티마이저 게이트를 쓴다.
+  // 옵티마이저 게이트가 초록이면 카드를 단추(`go`)로 만들어, 누르면 그날 집행 요청을 맨 위에 두는 거래 내역 화면을 연다.
   const assetSignal = (signal, index) => {
     const sector = signal?.sectors?.[index];
     if (!sector) return "";
     const rank = ["green", "orange", "red"], { optimizer, conditional } = sector;
     const [name, value] = rank.indexOf(conditional.color) > rank.indexOf(optimizer.color) ? ["조건부 게이트", conditional] : ["옵티마이저 게이트", optimizer];
-    return `<div class="signal"><div class="gate"><i class="lamp ${value.color}"></i><div><strong>${name}</strong><p>${assetText(value.reason)}</p></div></div></div>`;
+    const go = optimizer.color === "green" ? ' go" role="button" tabindex="0' : "";
+    return `<div class="signal${go}"><div class="gate"><i class="lamp ${value.color}"></i><div><strong>${name}</strong><p>${assetText(value.reason)}</p></div></div></div>`;
   };
   const assetSaved = () => { try { return JSON.parse(sessionStorage.getItem(ASSET_FLAG)); } catch { return null; } };
   // 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 카드 이름과 상자 목록(`cards`)과 다시 그리는 함수(`show`)를 돌려준다.
@@ -4274,8 +4281,8 @@
     const chevron = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     // 평가 금액의 가림을 벗겼는지(`bare`)는 미니 앱을 닫을 때까지만 기억하고 기기에는 적지 않으므로, 미니 앱을 열 때마다 가려진 채로 시작한다.
     let last = null, bare = false, chosen = null;
-    // 첫 절 내 투자는 보고 있는 리포트 지수의 종목(`sector`)만 모아 평가금 합계와 수익·수익률을 쓰고, 그 아래 그림 카드와 집행 신호등 카드, 거래 내역 단추를 둔다.
-    // 둘째 절 상세 보유 종목은 그 종목들의 종목 줄을 쓴다.
+    // 첫 절 내 투자는 보고 있는 리포트 지수의 종목(`sector`)만 모아 평가금 합계와 수익·수익률을 쓰고, 그 아래 그림 카드와 집행 신호등 카드를 둔다.
+    // 둘째 절 상세 보유 종목은 그 종목들의 종목 줄을 쓰고, 그 아래 거래 내역 단추를 둔다.
     // 맨 아래 절 내 계좌는 원화·달러 주문 가능 현금을 그 통화로, 대기자금(SGOV)을 고른 단위로 쓴다. SGOV를 들고 있지 않으면 대기자금 줄을 두지 않는다.
     const fill = (data) => {
       if (!data || data.error) {
@@ -4295,9 +4302,9 @@
         + [["USD", "$"], ["KRW", "원"]].map(([currency, label]) => `<button type="button" data-unit="${currency}"${currency === unit ? ' class="on"' : ""}>${label}</button>`).join("")
         + `</div></h2><div class="asset-sum${bare ? "" : " veil"}" role="button" tabindex="0"><b class="veiled">평가 금액 보기</b>`
         + `<b>${assetMoney(total("value"), unit)}</b>${change(profit, purchase ? profit / purchase : 0)}</div>`
-        + `${assetSignal(data.trades?.signal, index)}<button type="button" class="asset-trades">거래 내역${chevron}</button><h2>상세 보유 종목</h2>`
+        + `${assetSignal(data.trades?.signal, index)}<h2>상세 보유 종목</h2>`
         + (mine.length ? mine.map((it) => item(it, assetShares(it.quantity))).join("") : `<p class="status">${INDEX_NAME[index]} 종목을 들고 있지 않다.</p>`)
-        + `<h2>내 계좌</h2>` + assetRow("원화", "주문 가능", assetMoney(accounts.KRW.cash, "KRW")) + assetRow("달러", "주문 가능", assetMoney(accounts.USD.cash, "USD"))
+        + `<button type="button" class="asset-trades">거래 내역${chevron}</button><h2>내 계좌</h2>` + assetRow("원화", "주문 가능", assetMoney(accounts.KRW.cash, "KRW")) + assetRow("달러", "주문 가능", assetMoney(accounts.USD.cash, "USD"))
         + (waiting ? item({ ...waiting, name: "대기자금" }, `${waiting.symbol} ${assetShares(waiting.quantity)}`) : "");
       const perf = data.performance?.sectors?.[index], { cards, show } = assetCards(perf);
       if (!cards.length) return page.querySelector(".asset-sum").insertAdjacentHTML("afterend", '<p class="status">그림 값이 아직 없다.</p>');
@@ -4337,7 +4344,7 @@
     page.addEventListener("click", (event) => {
       const unit = event.target.closest("[data-unit]");
       if (unit && unit.dataset.unit !== view.unit) { feelSlide(); view.unit = unit.dataset.unit; remember(); fill(last); }
-      if (event.target.closest(".asset-trades")) { feelPress(); visit(key, { trades: key.split("-")[1] }); }
+      if (event.target.closest(".asset-trades, .signal.go")) { feelPress(); visit(key, { trades: key.split("-")[1] }); }
       const sum = event.target.closest(".asset-sum");
       if (sum) { feelPress(); bare = !bare; sum.classList.toggle("veil", !bare); }
     });
@@ -4355,14 +4362,14 @@
     load();
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && shown) load(); }, { signal });
   }
-  // 거래 내역 화면(`?trades={지수}`)은 내 자산 페이지의 거래 내역 단추와 집행 알림의 단추가 여는 화면이다. 계좌 요약과 함께 받은 거래 내역(`trades`)에서
+  // 거래 내역 화면(`?trades={지수}`)은 내 자산 페이지의 거래 내역 단추와 초록 신호등 카드, 집행 알림의 단추가 여는 화면이다. 계좌 요약과 함께 받은 거래 내역(`trades`)에서
   // 그 지수의 블록을 맨 위가 최신이 되게 쌓는다. 그날 승인 요청(`trades.request`)이 그 지수에 주문을 두었고 집행 시각(`run_at`, KST) 전이면,
   // 그날 블록을 거래 내역 절 위 집행 요청 절로 옮기고 취소·승인 단추를 단다. 단추는 Worker의 `/decide`에 결정을 적고, Worker가 돌려준 결정으로 블록을 다시 그린다.
   // 결정은 지수마다 따로이고, 아무것도 누르지 않은 지수는 집행 시각에 그대로 집행한다. 집행 시각이 지나면 그 블록을 거래 내역 절로 내려 단추를 끈다.
   // 받아 둔 계좌 요약이 있으면 그 값부터 그리고, 화면을 열 때와 미니 앱으로 돌아올 때마다 새로 받는다.
   const TRADE_STATE = {
     pending: ["결정 대기", "wait"], approved: ["승인", "wait"], rejected: ["취소", "off"], auto_approved: ["무응답 승인", "done"],
-    filled: ["체결", "done"], unfilled: ["미체결", "off"], not_required: ["주문 없음", "off"],
+    executed: [], unfilled: ["미체결", "off"], not_required: ["주문 없음", "off"],
   };
   function tradesPage(index) {
     const title = `${INDEX_NAME[index]} 거래 내역`;
@@ -4385,8 +4392,9 @@
         const state = live ? ({ approve: "approved", cancel: "rejected" }[decided] || asked.sectors[index].status) : b.state;
         const running = !live && b.run_at && ["pending", "approved"].includes(state) && now >= due(b.run_at);
         const [label, kind] = running ? ["집행 중", "wait"] : TRADE_STATE[state] || [state, "off"];
-        const rows = b.fills?.length
-          ? b.fills.map((f) => assetRow(`${f.symbol}${side(f.side)}`, assetShares(f.quantity), `$${figure(f.amount)}`, `${f.at.slice(11, 16)} 체결`))
+        const rows = b.executions?.length
+          ? b.executions.map((e) => assetRow(`${e.symbol}${side(e.side)}`, e.quantity != null ? assetShares(e.quantity) : "", e.amount != null ? `$${figure(e.amount)}` : "",
+            `${e.at.slice(11, 16)} ${e.filled ? "체결" : "미체결"}`).replace('"asset-item"', e.filled ? '"asset-item"' : '"asset-item miss"'))
           : (b.orders || []).map((o) => assetRow(`${o.symbol}${side(o.side)}`, o.shares != null ? `약 ${assetShares(o.shares)}` : "", assetMoney(o.krw, "KRW"),
             o.usd != null ? `약 $${figure(o.usd)}` : ""));
         const act = live ? `<p class="note">${{ approved: `${clock(asked.run_at)}에 집행한다. 그 전까지 취소할 수 있다.`,
@@ -4394,7 +4402,7 @@
           + `<div class="act"><button type="button" data-decision="cancel"${state === "rejected" ? ' class="on" disabled' : ""}>${state === "rejected" ? "취소함" : "취소"}</button>`
           + `<button type="button" data-decision="approve" class="go${state === "approved" ? ' on" disabled' : '"'}>${state === "approved" ? "승인함" : "승인"}</button></div>` : "";
         return `<div class="trade" data-date="${b.date}"><div class="top"><b>${assetDay(b.date)} (${WEEK[new Date(`${b.date}T12:00:00Z`).getUTCDay()]})</b>`
-          + `<span class="badge ${kind}">${label}</span></div>`
+          + (label ? `<span class="badge ${kind}">${label}</span>` : "") + "</div>"
           + (b.current != null && b.target != null ? `<div class="lev">현재 ${b.current.toFixed(3)}배 → 목표 ${b.target.toFixed(3)}배</div>` : "")
           + (b.reason ? `<p class="why">${assetText(b.reason)}</p>` : "") + (rows.length ? `<div class="rows">${rows.join("")}</div>` : "") + act + "</div>";
       };
@@ -4474,7 +4482,7 @@
   ];
   // 그림 카드가 있는 리포트의 지수와 예측 설명. 판단 색 이름은 지수마다 다르다.
   const CARD_HELP = (ink) => [
-    ["주가와 예측", `예측 단추를 켜면 25거래일 뒤까지의 예측을 주가 위에 그려요. ${ink} 실선은 예측 중앙값이고, ${ink} 면에는 25거래일 뒤 가격이 50% 확률로 들어와요. ${ink} 점 두 개는 예측을 시작한 애프터마켓 가격과 25거래일 뒤 예측 중앙값이에요. 예측을 켜면 큰 글씨가 25거래일 뒤 예측 중앙값으로 바뀌어요. 회색 점선과 면은 지난 리포트의 예측이에요.`],
+    ["주가와 예측", `예측 단추를 켜면 25거래일 뒤까지의 예측을 주가 위에 그려요. ${ink} 실선은 예측 중앙값이고, ${ink} 면에는 25거래일 뒤 가격이 50% 확률로 들어와요. ${ink} 점 두 개는 예측을 시작한 애프터마켓 가격과 25거래일 뒤 예측 중앙값이에요. 예측을 켜면 큰 글씨가 25거래일 뒤 예측 중앙값으로 바뀌고, '현재' 표시는 가장 최근 가격에 머물러요. 날짜를 되감으면 예측만 그날 리포트의 예측으로 바뀌어요. 회색 점선과 면은 지난 리포트의 예측이에요.`],
     ["일정", `이슈와 이벤트를 반영한 주가 경로 2만 개로 거래일마다 등락률 범위를 계산해요. 진한 면에 경로의 가운데 50%가, 옅은 면에 가운데 80%가 들어와요.`],
     ["권장 배율", `${ink} 세로선이 권장 배율이에요. 권장 배율이 1.0(지수 추종)보다 작으면 리포트가 하락을 예상한다는 뜻이고, 크면 상승을 예상한다는 뜻이에요.`],
   ];
