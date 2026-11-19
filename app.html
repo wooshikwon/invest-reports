@@ -643,10 +643,27 @@
   body { overflow-x: clip; }
   #report { display: flow-root; }
   #report > .page { padding-bottom: 36px; }
+  /* 내 자산 페이지는 첫 카드에 원화로 합친 총자산과 총 수익·오늘 손익·투자 원금·환율을, 다음 두 카드에 원화·달러 계좌를, 마지막 카드에 보유 종목을 평가액이 큰 순서로 적는다.
+     종목마다 왼쪽에 이름과 수량·현재가·오늘 등락률을, 오른쪽에 평가액과 수익·수익률을 쓴다. 손익과 등락률은 오르면 빨간색, 내리면 파란색으로 쓴다. */
+  .asset { margin-bottom: 12px; padding: 16px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); font-variant-numeric: tabular-nums; }
+  .asset .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; color: var(--dim); }
+  .asset .top b { font-size: 17px; font-weight: 700; color: var(--accent); }
+  .asset .sub { margin-top: 2px; font-size: 12.5px; color: var(--dim); text-align: right; }
+  .asset .total { margin: 4px 0 10px; font-size: 28px; font-weight: 800; color: var(--accent); letter-spacing: -.5px; }
+  .asset .row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 5px 0; font-size: 14px; color: var(--hint); }
+  .asset .row b { font-weight: 600; color: var(--text); text-align: right; }
+  .asset .item { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid rgba(255, 255, 255, .06); }
+  .asset .top + .item { margin-top: 6px; border-top: 0; }
+  .asset .item:last-child { padding-bottom: 2px; }
+  .asset .item strong { display: block; font-size: 15px; font-weight: 700; color: var(--text); }
+  .asset .item small { display: block; margin-top: 3px; font-size: 12.5px; color: var(--dim); }
+  .asset .item > :last-child { flex: none; text-align: right; }
+  .asset :is(b, span, small).up { color: #ff5c5c; }
+  .asset :is(b, span, small).down { color: #5b9bff; }
   #report > .page.off { height: 0; padding: 0; overflow: hidden; visibility: hidden; }
   #report.flow { display: grid; grid-template-columns: minmax(0, 1fr); overflow: visible clip; pointer-events: none; }
   #report.flow > .page { grid-area: 1 / 1; background: var(--bg); }
-  /* 화면 아래 가운데에 세 페이지의 바로가기를 가로로 긴 반투명 유리 알약 하나에 담아 띄운다. 알약 뒤 본문은 흐리게 비친다. 알약 위의 손길은 화면을 움직이지 않고 레버를 끄는 데 쓴다. */
+  /* 화면 아래 가운데에 페이지마다 바로가기를 가로로 긴 반투명 유리 알약 하나에 담아 띄운다. 알약 뒤 본문은 흐리게 비친다. 알약 위의 손길은 화면을 움직이지 않고 레버를 끄는 데 쓴다. */
   nav.jump { position: fixed; z-index: 5; left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
              display: flex; padding: 5px; border-radius: 27px; touch-action: none; user-select: none; -webkit-user-select: none;
              background: color-mix(in srgb, var(--bg) 40%, transparent);
@@ -665,6 +682,7 @@
   /* 망원경 끝의 별과 불꽃의 불똥은 아이콘이 움직일 때만 잠깐 보이고, 불꽃은 밑동 가운데를 축으로 흔든다. */
   nav.jump button svg :is(.star, .spark) { opacity: 0; fill: currentColor; stroke: none; transform-box: fill-box; transform-origin: center; }
   nav.jump button svg .flame { transform-box: fill-box; transform-origin: 50% 100%; }
+  nav.jump button svg .wallet { transform-origin: 12px 21px; }
   nav.jump button.on { color: #fff; }
   /* 보고 있는 페이지의 단추 뒤에 밝은 레버를 깔고, 페이지를 바꾸면 레버를 그 단추로 미끄러뜨린다. 끄는 동안 레버는 손가락을 바로 따라가고 조금 밝아진다. */
   nav.jump .lever { position: absolute; top: 5px; bottom: 5px; left: 0; border-radius: 22px; pointer-events: none;
@@ -1932,7 +1950,7 @@
   }
 
   // 이슈 화면과 종목 상세의 왼쪽 아래에 뒤로가기 단추를 띄운다.
-  // 주소로 바로 연 화면의 단추는 주소에서 `names`를 지우고 리포트 화면의 `page`번 페이지를 맨 위부터 연다.
+  // 주소로 바로 연 화면의 단추는 주소에서 `names`를 지우고 리포트 화면의 `page` 페이지를 맨 위부터 연다.
   function backward(names, page) {
     const back = document.body.appendChild(document.createElement("button"));
     back.className = "back";
@@ -2253,7 +2271,7 @@
       return;
     }
     [...report.children].forEach((node) => node === head || node === box || node.remove());
-    backward(["issue", "at"], 1);
+    backward(["issue", "at"], "이슈");
     const bar = document.getElementById("issue-bar");
     const rename = (next) => {
       if (label.textContent === next) return;
@@ -3130,7 +3148,7 @@
       head.before(figure);
       gallery(figure);
     }
-    backward(["stock", "session"], 2);
+    backward(["stock", "session"], "시장");
     const closes = data.closes, last = closes.length - 1;
     if (last > 0) {
       const [day, now] = closes[last], change = (now / closes[last - 1][1] - 1) * 100;
@@ -3735,10 +3753,15 @@
       if (document.documentElement.classList.contains("past")) freeze("이벤트 캘린더", latest(listing, key.split("-")[1]));
       events(date, listing);
       help();
-      turn = jump(pages);
       const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "이벤트 캘린더");
-      if (head?.pick) toCalendar = (day) => { turn(pages.findIndex((page) => page.contains(head)), head); head.pick(day); };
-      turn(land ? +landPage : history.state?.page || 0);
+      // `place`는 페이지와 바로가기 단추를 새로 묶고 `name` 페이지를 연다. 이름이 없거나 묶음에 없는 페이지면 첫 페이지를 연다.
+      const place = (shown, names, name, still) => {
+        document.querySelector("nav.jump")?.remove();
+        turn = jump(shown, names);
+        toCalendar = head?.pick ? (day) => { turn(shown.findIndex((page) => page.contains(head)), head); head.pick(day); } : null;
+        turn(Math.max(0, names.indexOf(name)), null, still);
+      };
+      assets(pages, PAGES.map(([name]) => name), place, land ? landPage : history.state?.page);
     }
     // 일정과 예측처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
     // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
@@ -3832,17 +3855,33 @@
   // 리포트 화면의 절을 `PAGES`의 페이지에 나눠 담는다. 페이지마다 단추 이름과 그 페이지에 넣을 절 제목을 두고, 목록에 없는 절은 앞 절의 페이지에 넣는다.
   // 넘기기 묶음은 노드를 옮기면 스크롤 위치가 처음으로 돌아가므로, 리포트를 받은 직후 묶음을 만들기 전에 나눈다.
   const PAGES = [["예측", ["지수와 예측", "이벤트 캘린더"]], ["이슈", ["상세 이슈 해설"]], ["시장", ["한 눈에 보기", "미국 거시 지표"]]];
-  // 바로가기 단추의 선 아이콘이다. 예측은 마디 셋이 앞으로 굵어지는 접이식 망원경, 이슈는 불꽃, 시장은 고리를 두른 행성이다. 망원경은 마디마다 앞쪽 굵은 마디 자리를 마스크로 비워, 접히면 굵은 마디가 가는 마디를 가린다. 행성은 앞쪽 고리 둘레를 마스크로 비워 고리가 행성 앞을 지나게 그리고, 뒤쪽 고리는 행성 원판 자리를 비운 마스크로 가려 행성 뒤를 지나게 그린다.
+  // 바로가기 단추의 선 아이콘이다. 자산은 위에 동전이 뜬 지갑이고, 동전은 지갑 윗변 아래를 마스크로 가려 지갑 안으로 떨어지면 보이지 않는다. 예측은 마디 셋이 앞으로 굵어지는 접이식 망원경, 이슈는 불꽃, 시장은 고리를 두른 행성이다. 망원경은 마디마다 앞쪽 굵은 마디 자리를 마스크로 비워, 접히면 굵은 마디가 가는 마디를 가린다. 행성은 앞쪽 고리 둘레를 마스크로 비워 고리가 행성 앞을 지나게 그리고, 뒤쪽 고리는 행성 원판 자리를 비운 마스크로 가려 행성 뒤를 지나게 그린다.
   // 행성은 다른 아이콘보다 작아 보여 1.05배로 키우고, 선 굵기는 다른 아이콘과 같게 둔다.
   const PAGE_ICONS = {
+    자산: '<mask id="asset-slot" maskUnits="userSpaceOnUse" x="0" y="-12" width="24" height="19.4"><rect x="0" y="-12" width="24" height="19.4" fill="#fff" stroke="none"/></mask><g mask="url(#asset-slot)"><circle class="coin" cx="14.5" cy="4.2" r="2.7"/></g><rect class="wallet" x="3" y="8" width="18" height="13" rx="3"/><path class="wallet" d="M21 12h-3.5a2.5 2.5 0 0 0 0 5H21"/>',
     예측: '<g transform="translate(12 12) scale(1.05) rotate(-40)"><mask id="scope-eyepiece" maskUnits="userSpaceOnUse" x="-14" y="-8" width="28" height="16"><rect x="-14" y="-8" width="28" height="16" fill="#fff" stroke="none"/><rect class="tube" x="-5.5" y="-2.3" width="6.5" height="4.6" fill="#000" stroke="#000" stroke-width="1.6"/><rect class="objective" x="1" y="-3.2" width="8.5" height="6.4" fill="#000" stroke="#000" stroke-width="1.6"/></mask><mask id="scope-tube" maskUnits="userSpaceOnUse" x="-14" y="-8" width="28" height="16"><rect x="-14" y="-8" width="28" height="16" fill="#fff" stroke="none"/><rect class="objective" x="1" y="-3.2" width="8.5" height="6.4" fill="#000" stroke="#000" stroke-width="1.6"/></mask><rect class="eyepiece" mask="url(#scope-eyepiece)" vector-effect="non-scaling-stroke" x="-10.5" y="-1.5" width="5" height="3"/><g mask="url(#scope-tube)"><rect class="tube" vector-effect="non-scaling-stroke" x="-5.5" y="-2.3" width="6.5" height="4.6"/></g><rect class="objective" vector-effect="non-scaling-stroke" x="1" y="-3.2" width="8.5" height="6.4"/><path class="star" d="M15 -3Q15.9 -.9 18 0Q15.9 .9 15 3Q14.1 .9 12 0Q14.1 -.9 15 -3Z"/></g>',
     이슈: '<path class="flame" d="M8.5 14.5C9.88 14.5 11 13.38 11 12C11 10.62 10.5 10 10 9C8.93 6.86 9.78 4.95 12 3C12.5 5.5 14 7.9 16 9.5C18 11.1 19 13 19 15C19 18.87 15.87 22 12 22C8.13 22 5 18.87 5 15C5 13.85 5.43 12.71 6 12C6 13.38 7.12 14.5 8.5 14.5Z"><animate attributeName="d" dur="1.3s" begin="indefinite" values="M8.5 14.5C9.88 14.5 11 13.38 11 12C11 10.62 10.5 10 10 9C8.93 6.86 9.78 4.95 12 3C12.5 5.5 14 7.9 16 9.5C18 11.1 19 13 19 15C19 18.87 15.87 22 12 22C8.13 22 5 18.87 5 15C5 13.85 5.43 12.71 6 12C6 13.38 7.12 14.5 8.5 14.5Z;M8.5 14.5C9.88 14.5 10.52 13.38 10.4 11.64C10.4 10.17 9.54 9.28 8.8 8.1C7.17 5.42 7.82 3.51 9.2 1.2C10.54 4.42 12.88 7.27 15.2 8.6C17.6 10.65 19 13 19 15C19 18.87 15.87 22 12 22C8.13 22 5 18.87 5 15C5 13.85 5.23 12.71 5.6 12C5.6 13.38 7.12 14.5 8.5 14.5Z;M8.5 14.5C9.88 14.5 11.4 13.38 11.5 12.2C11.5 10.87 11.3 10.4 11 9.5C10.53 7.54 11.88 5.43 15 3.6C14.6 5.86 15.3 8.18 17 9.9C18.5 11.3 19 13 19 15C19 18.87 15.87 22 12 22C8.13 22 5 18.87 5 15C5 13.85 5.68 12.71 6.5 12C6.5 13.38 7.12 14.5 8.5 14.5Z;M8.5 14.5C9.88 14.5 10.84 13.38 10.8 11.36C10.8 9.82 10.18 8.72 9.6 7.4C8.29 4.54 8.94 3.03 10.8 0.6C11.66 4.06 13.41 7.06 15.5 8.3C17.75 10.5 19 13 19 15C19 18.87 15.87 22 12 22C8.13 22 5 18.87 5 15C5 13.85 5.33 12.71 5.8 12C5.8 13.38 7.12 14.5 8.5 14.5Z;M8.5 14.5C9.88 14.5 11.28 13.38 11.35 12.36C11.35 11.07 11.06 10.72 10.7 9.9C10.07 8.18 11.32 6.07 14.2 4.4C14.04 6.34 15 8.6 16.8 10.5C18.4 11.6 19 13 19 15C19 18.87 15.87 22 12 22C8.13 22 5 18.87 5 15C5 13.85 5.73 12.71 6.6 12C6.6 13.38 7.12 14.5 8.5 14.5Z;M8.5 14.5C9.88 14.5 10.68 13.38 10.6 11.84C10.6 10.42 9.86 9.68 9.2 8.6C7.77 6.28 8.52 4.47 10.2 2.4C11.24 5.14 13.36 7.76 15.6 9.3C17.8 11 19 13 19 15C19 18.87 15.87 22 12 22C8.13 22 5 18.87 5 15C5 13.85 5.28 12.71 5.7 12C5.7 13.38 7.12 14.5 8.5 14.5Z;M8.5 14.5C9.88 14.5 11.12 13.38 11.15 11.76C11.15 10.32 10.74 9.52 10.3 8.4C9.45 5.93 10.55 4.07 13.1 1.9C13.27 4.84 14.43 7.55 16.3 9C18.15 10.85 19 13 19 15C19 18.87 15.87 22 12 22C8.13 22 5 18.87 5 15C5 13.85 5.53 12.71 6.2 12C6.2 13.38 7.12 14.5 8.5 14.5Z;M8.5 14.5C9.88 14.5 10.92 13.38 10.9 12.04C10.9 10.67 10.34 10.08 9.8 9.1C8.63 7.05 9.43 5.19 11.5 3.3C12.15 5.68 13.83 7.97 15.9 9.6C17.95 11.15 19 13 19 15C19 18.87 15.87 22 12 22C8.13 22 5 18.87 5 15C5 13.85 5.38 12.71 5.9 12C5.9 13.38 7.12 14.5 8.5 14.5Z;M8.5 14.5C9.88 14.5 11 13.38 11 12C11 10.62 10.5 10 10 9C8.93 6.86 9.78 4.95 12 3C12.5 5.5 14 7.9 16 9.5C18 11.1 19 13 19 15C19 18.87 15.87 22 12 22C8.13 22 5 18.87 5 15C5 13.85 5.43 12.71 6 12C6 13.38 7.12 14.5 8.5 14.5Z" keyTimes="0;.11;.24;.37;.5;.62;.74;.87;1" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1;.45 0 .55 1"/></path><path class="spark" d="M18.4 1C19.1 2.5 20.1 3.9 20.1 5.4A1.7 1.7 0 0 1 16.7 5.4C16.7 3.9 17.7 2.5 18.4 1Z"/><path class="spark" d="M5 5.3C5.5 6.4 6.3 7.4 6.3 8.6A1.3 1.3 0 0 1 3.7 8.6C3.7 7.4 4.5 6.4 5 5.3Z"/>',
     시장: '<g transform="translate(12 12) scale(1.05) rotate(-28)"><mask id="market-ring" maskUnits="userSpaceOnUse" x="-12" y="-12" width="24" height="24"><rect x="-12" y="-12" width="24" height="24" fill="#fff" stroke="none"/><path class="ring" d="M10.6 0A10.6 4.2 0 0 1 -10.6 0" stroke="#000" stroke-width="3.2"/></mask><mask id="market-body" maskUnits="userSpaceOnUse" x="-30" y="-30" width="60" height="60"><rect x="-30" y="-30" width="60" height="60" fill="#fff" stroke="none"/><circle r="7.5" fill="#000" stroke="none"/></mask><circle r="6.8" mask="url(#market-ring)" vector-effect="non-scaling-stroke"/><g mask="url(#market-body)"><path class="ring" vector-effect="non-scaling-stroke" d="M-10.6 0A10.6 4.2 0 0 1 10.6 0"/></g><path class="ring" vector-effect="non-scaling-stroke" d="M10.6 0A10.6 4.2 0 0 1 -10.6 0"/></g>',
   };
-  // 바로가기 단추로 다른 페이지를 열거나 보고 있는 페이지의 단추를 다시 누르면 그 단추의 아이콘을 한 번 움직인다. 예측은 접안 마디 위로 접혀 있던 망원경 마디가 아래 마디부터 하나씩 위로 펼쳐지고, 끝에 별이 잠깐 반짝인다.
+  // 바로가기 단추로 다른 페이지를 열거나 보고 있는 페이지의 단추를 다시 누르면 그 단추의 아이콘을 한 번 움직인다. 자산은 동전이 살짝 뛰어올랐다가 지갑 안으로 떨어지고,
+  // 지갑이 동전을 받으며 아래로 눌렸다 돌아온 뒤 새 동전이 지갑 위에 다시 떠오른다. 예측은 접안 마디 위로 접혀 있던 망원경 마디가 아래 마디부터 하나씩 위로 펼쳐지고, 끝에 별이 잠깐 반짝인다.
   // 이슈는 불꽃 끝과 몸통, 안쪽 불꽃의 모양이 매 순간 달라지며 밑동을 축으로 흔들리고, 그동안 한 번 크게 타올랐다가 원래 크기로 잦아든다. 크게 타오를 때 불꽃 끝 오른쪽 어깨와 왼쪽 짧은 꼭지에서 작은 불꽃 조각이 하나씩 선에서 돋아나 떨어져 나와, 불꽃이 흔들리는 쪽으로 기울며 위로 올라가다 작아지고 사라진다. 모양 변화는 iOS WebKit이 CSS `d` 애니메이션을 지원하지 않아 SVG `<animate>`로 돌린다. 시장은 고리 없는 행성 위로 고리가 떨어져 걸린 뒤 행성 둘레를 한 바퀴 돈다.
   // 고리는 끊긴 데 없는 타원으로 떨어지고, 뒤쪽 반은 행성 원판에 겹친 부분만 가려진다. 행성 앞을 지나는 마스크도 고리와 함께 움직이므로, 고리가 떨어지기 전에는 행성이 온전히 보인다.
   const ICON_MOTIONS = {
+    자산: (svg) => [
+      svg.querySelector(".coin").animate([
+        { opacity: 1, transform: "translateY(0px)" },
+        { opacity: 1, transform: "translateY(-2.6px)", offset: .16, easing: "cubic-bezier(.55, 0, 1, .45)" },
+        { opacity: 1, transform: "translateY(9px)", offset: .42 },
+        { opacity: 0, transform: "translateY(-5px)", offset: .43, easing: "cubic-bezier(.2, .8, .3, 1)" },
+        { opacity: 1, transform: "translateY(0px)", offset: .8 },
+        { opacity: 1, transform: "translateY(0px)" },
+      ], { duration: 1200 }),
+      ...[...svg.querySelectorAll(".wallet")].map((wallet) => wallet.animate([
+        { transform: "none" }, { transform: "none", offset: .4, easing: "ease-out" }, { transform: "scale(1.04, .93)", offset: .5, easing: "ease-in-out" },
+        { transform: "scale(.99, 1.02)", offset: .62, easing: "ease-out" }, { transform: "none", offset: .74 }, { transform: "none" },
+      ], { duration: 1200 })),
+    ],
     예측: (svg) => {
       const out = "cubic-bezier(.2, .8, .3, 1)";
       return [
@@ -3888,12 +3927,12 @@
   let turn = null, toCalendar = null;
   // 화면 아래 바로가기 알약에 페이지마다 단추를 두고 `turn`을 돌려준다. 단추를 누르면 그 페이지만 보여 주고, 페이지 맨 위로 옮긴다.
   // 보고 있는 페이지의 단추를 다시 누르면 페이지 맨 위로 부드럽게 옮기고 단추의 아이콘을 다시 움직인다.
-  // 보고 있는 페이지 번호(`page`)는 `history.state`에 적어, 뒤로 가기와 새로 고침으로 돌아와도 그 페이지를 연다.
+  // 보고 있는 페이지 이름(`page`)은 `history.state`에 적어, 뒤로 가기와 새로 고침으로 돌아와도 그 페이지를 연다.
   // 알약 위에서 누른 채 6px 넘게 움직이면 레버가 손가락을 따라 움직이고, 레버 가운데에서 가장 가까운 단추를 흰색으로 쓴다. 손을 떼면 그 단추를 누른 것과 같이 그 페이지를 연다.
   // `turn`이 `head`를 받으면 그 절 제목 글자가 화면 맨 위에서 본 페이지 첫 절 제목 글자의 높이에 오도록 옮긴다. 문서 끝이 모자라면 그 페이지 아래 여백을 늘린다.
   // 다른 페이지를 열면 페이지들이 바로가기 단추 순서대로 옆으로 흘러간다(`flow`). 오른쪽 페이지를 열면 화면이 왼쪽으로, 왼쪽 페이지를 열면 오른쪽으로 흐르고,
   // 두 칸 떨어진 페이지를 열면 가운데 페이지가 맨 위부터 한가운데를 지나간다. `turn`이 `still`을 받거나 움직임 줄이기 설정이면 흐르지 않고 바로 바꾼다.
-  function jump(pages) {
+  function jump(pages, names) {
     const nav = document.createElement("nav");
     nav.className = "jump";
     const lever = nav.appendChild(Object.assign(document.createElement("i"), { className: "lever" }));
@@ -3927,7 +3966,7 @@
       if (motion.matches) return;
       const svg = buttons[i].querySelector("svg");
       svg.getAnimations({ subtree: true }).forEach((run) => run.cancel());
-      ICON_MOTIONS[PAGES[i][0]](svg);
+      ICON_MOTIONS[names[i]](svg);
     };
     const open = (i, head, still = false) => {
       const from = page, left = scrollY;
@@ -3941,7 +3980,7 @@
         lever.style.transition = "";
         if (page >= 0) wave(i);
         page = i;
-        history.replaceState({ ...history.state, page: i }, "");
+        history.replaceState({ ...history.state, page: names[i] }, "");
       }
       let top = 0;
       if (head) {
@@ -3958,7 +3997,7 @@
       else open(i);
     };
     let drag = null, dragged = false;
-    const buttons = PAGES.map(([name], i) => {
+    const buttons = names.map((name, i) => {
       const button = nav.appendChild(Object.assign(document.createElement("button"), { type: "button" }));
       button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${PAGE_ICONS[name]}</svg><span>${name}</span>`;
       button.addEventListener("click", () => { if (dragged) dragged = false; else press(i); });
@@ -3997,6 +4036,82 @@
     nav.addEventListener("pointercancel", end);
     document.body.append(nav);
     return open;
+  }
+  // 내 자산 페이지는 본인 텔레그램 계정으로 연 리포트 화면의 맨 앞 페이지다. 계좌 요약은 invest-account Worker가 텔레그램 서명을 검증한 뒤에만 건넨다.
+  // 텔레그램 앱 안에서 연 화면만 사용자 ID의 SHA-256을 본인 ID의 해시(`ASSET_OWNER`)와 견주고, 같을 때만 initData를 Worker에 보낸다.
+  // 해시 비교는 남의 계정이 Worker에 요청을 보내지 않게 거르는 일이고, 계좌 요약을 지키는 일은 Worker의 서명 검증이 맡는다.
+  // Worker는 서명한 지 하루가 지난 initData를 거절하므로, 하루 넘게 열어 둔 화면은 요청하지 않고 받아 둔 값을 그대로 둔다.
+  const ASSET = "자산", ASSET_FLAG = "asset", ASSET_OWNER = "1a4e9cab69df9c6c661168c210afc9e893dd9418539ee898807119ec646975d2";
+  const ASSET_URL = "https://invest-account.wonwooshik.workers.dev";
+  async function account() {
+    const user = tg && tg.initData && tg.initDataUnsafe?.user;
+    if (!user || !crypto.subtle) return null;
+    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(user.id))));
+    if ([...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("") !== ASSET_OWNER) return null;
+    if (Date.now() / 1000 - tg.initDataUnsafe.auth_date > 86000) throw new Error("stale");
+    const response = await fetch(ASSET_URL, { method: "POST", body: tg.initData, cache: "no-store" });
+    if (response.status === 403) return null;
+    if (!response.ok) throw new Error(response.status);
+    return response.json();
+  }
+  // 리포트 화면의 페이지(`pages`, 이름은 `names`)를 `place`로 묶고 `name` 페이지를 연다. 본인 계정이면 내 자산 페이지를 맨 앞에 더한다.
+  // Worker가 계좌 요약을 건네면 기기의 `localStorage`에 표시(`ASSET_FLAG`)를 적는다. 표시가 있는 기기는 리포트 화면을 열자마자 내 자산 페이지를 맨 앞에 두고,
+  // 열 페이지가 정해지지 않았으면 내 자산 페이지를 연다. 받은 계좌 요약은 `sessionStorage`에 두어 같은 세션에서 다시 연 리포트 화면은 받은 값부터 그리고,
+  // 리포트 화면을 열 때와 미니 앱으로 돌아올 때마다 새로 받는다. 본인 계정이 아니거나 Worker가 403을 답하면 표시와 받아 둔 값을 지우고 내 자산 페이지를 뺀다.
+  function assets(pages, names, place, name) {
+    const store = (area, value) => { try { if (value == null) area.removeItem(ASSET_FLAG); else area.setItem(ASSET_FLAG, value); } catch {} };
+    const flagged = (() => { try { return localStorage.getItem(ASSET_FLAG) === "1"; } catch { return false; } })();
+    const saved = (() => { try { return JSON.parse(sessionStorage.getItem(ASSET_FLAG)); } catch { return null; } })();
+    const page = Object.assign(document.createElement("div"), { className: "page" });
+    let shown = false;
+    // 이미 연 화면(`still`)에 페이지를 넣거나 뺄 때는 보던 페이지와 화면 위치를 그대로 둔다. 내 자산 페이지를 보다가 빼면 첫 페이지를 맨 위부터 연다.
+    const show = (on, still) => {
+      shown = on;
+      const y = scrollY, at = history.state?.page;
+      if (on) report.prepend(page); else page.remove();
+      place(on ? [page, ...pages] : pages, on ? [ASSET, ...names] : names, still ? (at === ASSET && !on ? null : at) : name, still);
+      if (still && (on || at !== ASSET)) scrollTo(0, y);
+    };
+    const fill = (data) => {
+      if (!data || data.error) {
+        if (!data || !page.querySelector(".asset")) page.innerHTML = `<h2>내 자산</h2><p class="status">${data ? "계좌를 불러오지 못했다. 미니 앱을 다시 열면 새로 받는다." : "계좌를 불러오는 중이다."}</p>`;
+        return;
+      }
+      const { rate, accounts: { KRW: won, USD: usd } } = data;
+      const sign = (v) => (v > 0 ? "+" : v < 0 ? "−" : "");
+      const money = (v, currency, signed) => `${signed ? sign(v) : v < 0 ? "−" : ""}${currency === "USD" ? `$${figure(Math.abs(v))}` : `${Math.round(Math.abs(v)).toLocaleString("ko-KR")}원`}`;
+      const percent = (r) => `${sign(r)}${Math.abs(r * 100).toFixed(2)}%`;
+      const change = (v, r, currency) => `<b class="${tone(v)}">${money(v, currency, true)} (${percent(r)})</b>`;
+      const row = (label, value) => `<div class="row"><span>${label}</span>${value.startsWith("<b") ? value : `<b>${value}</b>`}</div>`;
+      const text = (value) => Object.assign(document.createElement("span"), { textContent: value }).innerHTML;
+      const [, month, day, clock] = data.time.match(/^\d{4}-(\d{2})-(\d{2})T(\d{2}:\d{2})/);
+      const total = won.value + won.cash + (usd.value + usd.cash) * rate;
+      const card = (title, currency, held) => `<div class="asset"><div class="top"><span>${title}</span><b>${money(held.value + held.cash, currency)}</b></div>`
+        + (currency === "USD" ? `<div class="sub">${money((held.value + held.cash) * rate)}</div>` : "")
+        + (held.purchase ? row("평가액", money(held.value, currency)) + row("수익", change(held.profit, held.profit / held.purchase, currency)) : "")
+        + row("주문 가능 현금", money(held.cash, currency)) + "</div>";
+      const items = data.items.map((item) => `<div class="item"><div><strong>${text(item.name)}</strong>`
+        + `<small>${item.name === item.symbol ? "" : `${text(item.symbol)} · `}${item.quantity.toLocaleString("en-US", { maximumFractionDigits: 6 })}주 · `
+        + `${money(item.price, item.currency)} <span class="${tone(item.dailyRate)}">${percent(item.dailyRate)}</span></small></div>`
+        + `<div><strong>${money(item.value, item.currency)}</strong><small class="${tone(item.profit)}">${money(item.profit, item.currency, true)} (${percent(item.rate)})</small></div></div>`).join("");
+      page.innerHTML = `<h2>내 자산</h2><div class="asset"><div class="top"><span>총자산</span><span>${+month}.${+day} ${clock} 기준</span></div>`
+        + `<div class="total">${money(total)}</div>`
+        + row("총 수익", change(won.profit + usd.profit * rate, data.profitRate)) + row("오늘", change(won.daily + usd.daily * rate, data.dailyRate))
+        + row("투자 원금", money(won.purchase + usd.purchase * rate)) + row("환율", `${figure(rate)}원`) + "</div>"
+        + card("원화 계좌", "KRW", won) + card("달러 계좌", "USD", usd)
+        + (items ? `<div class="asset"><div class="top"><span>보유 종목</span></div>${items}</div>` : "");
+    };
+    fill(saved);
+    if (flagged) show(true, false);
+    else place(pages, names, name, false);
+    const load = () => account().then((data) => {
+      store(localStorage, data && "1");
+      store(sessionStorage, data && JSON.stringify(data));
+      if (data) fill(data);
+      if (!!data !== shown) show(!!data, true);
+    }, () => fill({ error: true }));
+    load();
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && shown) load(); });
   }
 
   // 두 지수의 한 눈에 보기 절이 함께 쓰는 설명 항목이다.
