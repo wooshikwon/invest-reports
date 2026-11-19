@@ -220,7 +220,7 @@ WEEKS = 12  # 하이일드 스프레드의 막대 그림이 거슬러 그리는 
 RATE_MOVE_BP = 12.5  # 다음 회의까지 누적 변화가 이 bp 이상이면 인상 예상, 음수로 이 값 이하면 인하 예상
 RATE_STEP_BP = 25  # 연준이 기준금리를 한 번에 바꾸는 폭. 금리 경로 그림은 이 폭의 위아래 높이에 점선 가로선을 긋는다
 RATE_RANGE_BP = 100  # 금리 경로 그림의 세로축 상한. 회의 세 번의 누적 변화는 보통 ±1%p 안에 들고, 넘는 막대는 축 끝에서 자른다
-LIVE_URL = "https://invest-live.wonwooshik.workers.dev"  # 실시간 값 Worker 주소. `GET /`가 DO의 세 값을 돌려준다
+LIVE_URL = "https://invest-live.wonwooshik.workers.dev"  # 실시간 값 Worker 주소. `GET /`가 DO의 네 값을 돌려준다
 
 
 def report_pdf(vault: Path):
@@ -608,7 +608,7 @@ def market(vault: Path, out: Path) -> Path:
 
 
 def read_live() -> dict:
-    """invest-live Worker의 `GET /`가 돌려주는 세 실시간 값 `{premarket, afterhours, progress}`. Worker에 값이 없는 이름은 빠진다."""
+    """invest-live Worker의 `GET /`가 돌려주는 네 실시간 값 `{premarket, afterhours, progress, index}`. Worker에 값이 없는 이름은 빠진다."""
     request = urllib.request.Request(f"{LIVE_URL}/", headers={"User-Agent": "invest-reports"})
     with urllib.request.urlopen(request, timeout=30) as answer:
         return json.loads(answer.read())
