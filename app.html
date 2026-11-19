@@ -644,7 +644,6 @@
   .signal + .asset-trades { margin-top: 0; }
   .signal { margin: 40px 0 8px; padding: 4px 16px; border-radius: 12px; background: rgba(255, 255, 255, .05); line-height: 1.4; letter-spacing: -.2px; }
   .signal .gate { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; }
-  .signal .gate + .gate { border-top: 1px solid rgba(255, 255, 255, .06); }
   .signal .gate .lamp { margin-top: 5px; }
   .signal .gate strong { display: block; font-size: 13px; font-weight: 600; color: var(--hint); }
   .signal .gate p { margin: 2px 0 0; font-size: 14px; color: var(--text); }
@@ -4154,13 +4153,13 @@
     + `<div><strong>${value}</strong>${tail ? `<small>${tail}</small>` : ""}</div></div>`;
   const assetDay = (date) => `${+date.slice(5, 7)}.${+date.slice(8, 10)}`;
   // 집행 신호등 카드. 값(`signal`)은 거래 내역 값의 `signal`이고, 그 지수(`index`)의 값이 없으면 카드를 두지 않는다. 옵티마이저 게이트와
-  // 조건부 게이트를 한 줄씩 두고, 줄마다 그 관문의 색과 배치가 쓴 이유를 쓴다. 두 줄이 모두 초록인 날에 주문이 나간다.
+  // 조건부 게이트 가운데 더 묶는 관문(빨강 > 주황 > 초록) 한 줄만 그 관문의 이름, 색, 배치가 쓴 이유로 쓰고, 두 관문의 색이 같으면 옵티마이저 게이트를 쓴다.
   const assetSignal = (signal, index) => {
     const sector = signal?.sectors?.[index];
     if (!sector) return "";
-    const lamp = (color) => `<i class="lamp ${color}"></i>`;
-    const gate = (name, value) => `<div class="gate">${lamp(value.color)}<div><strong>${name}</strong><p>${assetText(value.reason)}</p></div></div>`;
-    return `<div class="signal">` + gate("옵티마이저 게이트", sector.optimizer) + gate("조건부 게이트", sector.conditional) + "</div>";
+    const rank = ["green", "orange", "red"], { optimizer, conditional } = sector;
+    const [name, value] = rank.indexOf(conditional.color) > rank.indexOf(optimizer.color) ? ["조건부 게이트", conditional] : ["옵티마이저 게이트", optimizer];
+    return `<div class="signal"><div class="gate"><i class="lamp ${value.color}"></i><div><strong>${name}</strong><p>${assetText(value.reason)}</p></div></div></div>`;
   };
   const assetSaved = () => { try { return JSON.parse(sessionStorage.getItem(ASSET_FLAG)); } catch { return null; } };
   // 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 카드 이름과 상자 목록(`cards`)과 다시 그리는 함수(`show`)를 돌려준다.
