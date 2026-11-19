@@ -18,7 +18,7 @@ cron(`~/scripts/cron/invest-live-tick.sh`)이 1분마다 `tick()`을 부른다. 
 `~/data/invest-reports/live/session-{YYYY-MM-DD}.json`에 둔다. 앞 회차 값은 DO에 쓴 값과 같은 `{이름}.json`에 두고 다시 읽는다.
 회차마다 가격 없는 기록(`tick-{날짜}.log`)과, DO에 쓴 그날 값(`snap-{날짜}.jsonl`)을 남긴다.
 
-`--compare`는 KV의 오늘 값을 같은 분의 live.py 값과 견주어 null 집합 일치, `COMPARE_TOLERANCE` 안 종목 비율, 토스 호출 수를
+`--compare`는 KV의 오늘 값을 같은 분과 1분 앞의 live.py 값과 견주어 null 집합 일치, `COMPARE_TOLERANCE` 안 종목 비율, 토스 호출 수를
 가격 없이 `compare-{날짜}.log`에 적는다. KV 경로와 병행하는 동안 cron이 10분마다 부른다.
 """
 from __future__ import annotations
@@ -57,6 +57,9 @@ ENCODING = "gzip, deflate"  # 토스 응답의 압축 방식. toss-trader 클라
 SPARK = "https://query1.finance.yahoo.com/v7/finance/spark"
 SPARK_BATCH = 20  # 야후 spark 한 번에 묻는 심볼 수 상한
 CANDLE_WAIT = 0.05  # 토스 1분봉을 이어 부를 때 사이를 띄우는 초. 차트 조회는 초당 20회까지 받는다
+# 초당 상한은 같은 자격증명을 쓰는 toss-trader·판단 배치와 함께 센다. 그래서 429로 거절된 조회는 `RETRY_WAIT`초 뒤 `ATTEMPTS`번까지 부른다.
+RETRY_WAIT = 2
+ATTEMPTS = 3
 CLOSE_WAIT = dt.timedelta(minutes=5)  # 마감 체결이 1분봉에 실리기를 기다리는 시간
 KEEP_DAYS = 7  # `DATA`의 날짜 붙은 파일을 남기는 날 수
 COMPARE_TOLERANCE = 0.003  # `--compare`가 같은 값으로 보는 상대 차이
@@ -122,17 +125,24 @@ class Toss:
                 fcntl.flock(lock, fcntl.LOCK_UN)
 
     def get(self, path: str, params: dict) -> dict:
-        """GET 한 번의 응답 본문(`result`). 401이면 그 토큰을 죽은 것으로 보고 한 번만 다시 부른다."""
-        used = self.token()
-        for attempt in range(2):
+        """GET 한 번의 응답 본문(`result`). 401이면 그 토큰을 죽은 것으로 보고 한 번만 다시 부른다.
+
+        429면 `RETRY_WAIT`초 뒤 다시 부르고, `ATTEMPTS`번 모두 거절되면 HTTPError를 낸다.
+        """
+        used, renewed = self.token(), False
+        for _ in range(ATTEMPTS):
             self.calls[path.rsplit("/", 1)[-1]] += 1
             answer = requests.get(f"{TOSS}{path}", params=params, timeout=TIMEOUT,
                                   headers={"Authorization": f"Bearer {used}", "Accept-Encoding": ENCODING})
-            if answer.status_code == 401 and not attempt:
-                used = self.token(dead=used)
+            if answer.status_code == 401 and not renewed:
+                used, renewed = self.token(dead=used), True
+                continue
+            if answer.status_code == 429:
+                time.sleep(RETRY_WAIT)
                 continue
             answer.raise_for_status()
             return answer.json()["result"]
+        answer.raise_for_status()
         raise RuntimeError("토스 토큰이 두 번 거절됨")
 
 
@@ -190,14 +200,16 @@ def public_prices(symbols: list[str], toss: Toss | None = None) -> dict[str, tup
 
 
 def close_trades(symbols: list[str], closed: dt.datetime, toss: Toss) -> dict[str, tuple[float, str]]:
-    """심볼마다 정규장 마감 시각까지 끝난 마지막 1분봉의 (종가, 체결 끝 시각 ISO). 토스 1분봉에서, 답하지 않은 심볼은 야후에서 받는다."""
+    """심볼마다 정규장 마감 시각까지 끝난 마지막 1분봉의 (종가, 체결 끝 시각 ISO). 토스 1분봉에서, 답하지 않은 심볼은 야후에서 받는다.
+
+    토스 1분봉의 시각은 봉이 끝나는 시각이다. 그래서 마감 시각이 붙은 봉이 마감 경매 체결까지 담은 마지막 봉이다.
+    """
     found = {}
     for symbol in symbols:
         try:
-            page = toss.get("/api/v1/candles", {"symbol": toss_symbol(symbol), "interval": "1m", "count": 1,
-                                                "before": (closed - dt.timedelta(minutes=1)).isoformat()})
+            page = toss.get("/api/v1/candles", {"symbol": toss_symbol(symbol), "interval": "1m", "count": 1, "before": closed.isoformat()})
             if candles := page.get("candles"):
-                found[symbol] = (float(candles[0]["closePrice"]), (dt.datetime.fromisoformat(candles[0]["timestamp"]) + dt.timedelta(minutes=1)).isoformat())
+                found[symbol] = (float(candles[0]["closePrice"]), dt.datetime.fromisoformat(candles[0]["timestamp"]).isoformat())
         except (requests.RequestException, RuntimeError, ValueError, KeyError) as error:
             print(f"토스 1분봉이 답하지 않음: {type(error).__name__}", file=sys.stderr)
         time.sleep(CANDLE_WAIT)
@@ -356,8 +368,18 @@ def tick(now: dt.datetime | None = None) -> dict[str, dict]:
     return written
 
 
+def near(entry: dict, snap: dict) -> str:
+    """두 값에서 함께 가격이 있는 종목 가운데 `COMPARE_TOLERANCE` 안인 종목 수와 비율."""
+    both = [symbol for symbol, price in entry["stocks"].items() if price is not None and snap["stocks"].get(symbol) is not None]
+    count = sum(abs(snap["stocks"][symbol] / entry["stocks"][symbol] - 1) <= COMPARE_TOLERANCE for symbol in both)
+    return f"{count}/{len(both)} ({100 * count / len(both) if both else 0:.1f}%)"
+
+
 def compare(now: dt.datetime | None = None) -> list[str]:
-    """KV의 오늘 값마다 같은 분의 live.py 값과 견준 줄을 `compare-{날짜}.log`에 적고 돌려준다. 가격은 적지 않는다."""
+    """KV의 오늘 값마다 같은 분의 live.py 값과 견준 줄을 `compare-{날짜}.log`에 적고 돌려준다. 가격은 적지 않는다.
+
+    KV의 체결가는 `price_source.batch_time_price`가 끝 시각의 1분 전에 끝난 토스 1분봉에서 받는다. 그래서 1분 앞 live.py 값과 견준 비율도 함께 적는다.
+    """
     now = now or dt.datetime.now(NEW_YORK)
     today = now.date().isoformat()
     snaps = {}
@@ -375,12 +397,15 @@ def compare(now: dt.datetime | None = None) -> list[str]:
                 continue
             kv_null = {symbol for symbol, price in entry["stocks"].items() if price is None}
             live_null = {symbol for symbol, price in snap["stocks"].items() if price is None}
-            both = [symbol for symbol, price in entry["stocks"].items() if price is not None and snap["stocks"].get(symbol) is not None]
-            near = sum(abs(snap["stocks"][symbol] / entry["stocks"][symbol] - 1) <= COMPARE_TOLERANCE for symbol in both)
+            earlier = (dt.datetime.fromisoformat(entry["time"]) - dt.timedelta(minutes=1)).isoformat()
+            shown = [f"구간 {entry.get('phase', 'after')}/{snap.get('phase', 'after')}",
+                     f"null 집합 {'같음' if kv_null == live_null else '다름'}(KV {len(kv_null)}·live {len(live_null)})",
+                     f"0.3% 안 {near(entry, snap)}"]
+            if before := snaps.get((name, index, earlier)):
+                shown.append(f"1분 앞 live와 0.3% 안 {near(entry, before)}")
             ratio = ("둘 다 null" if entry["ratio"] is None and snap["ratio"] is None else "한쪽 null" if None in (entry["ratio"], snap["ratio"])
                      else "0.3% 안" if abs(snap["ratio"] / entry["ratio"] - 1) <= COMPARE_TOLERANCE else "0.3% 밖")
-            lines.append(f"{head} 구간 {entry.get('phase', 'after')}/{snap.get('phase', 'after')} null 집합 {'같음' if kv_null == live_null else '다름'}"
-                         f"(KV {len(kv_null)}·live {len(live_null)}) 0.3% 안 {near}/{len(both)} ({100 * near / len(both) if both else 0:.1f}%) 지수 비율 {ratio}")
+            lines.append(f"{head} {' '.join(shown)} 지수 비율 {ratio}")
     since = now - dt.timedelta(minutes=COMPARE_EVERY)
     ticks = [record for line in ((DATA / f"tick-{today}.log").read_text().splitlines() if (DATA / f"tick-{today}.log").exists() else [])
              if dt.datetime.fromisoformat((record := json.loads(line))["at"]) > since]

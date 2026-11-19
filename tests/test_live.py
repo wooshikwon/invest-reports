@@ -43,8 +43,8 @@ class Market:
                                       for symbol, (price, stamp) in self.prices.items() if symbol in asked]})
         if params["interval"] == "1d":
             return Answer({"result": {"candles": [{"timestamp": "2026-11-18T14:00:00.000+09:00", "closePrice": str(BASE[params["symbol"]])}]}})
-        price = self.closes[params["symbol"]]
-        return Answer({"result": {"candles": [{"timestamp": "2026-11-20T05:59:00.000+09:00", "closePrice": str(price)}]}})
+        price = self.closes[params["symbol"]]  # 토스 1분봉의 시각은 봉이 끝나는 시각이다
+        return Answer({"result": {"candles": [{"timestamp": params["before"], "closePrice": str(price)}]}})
 
     def yahoo_get(self, url, impersonate, timeout, params):
         asked = params["symbols"].split(",")
@@ -117,6 +117,7 @@ def test_close_wait_then_fix(market):
     assert after["time"] == "2026-11-19T16:05:00-05:00" and after["stocks"] == {"AAPL": 11.0, "MSFT": 21.0}
     assert after["ratio"] == round(506.0 / 506.0, 6)
     assert written["afterhours"]["biotech"]["2026-11-19"]["ratio"] == round(100.0 / 98.0, 6)
+    assert {params["before"] for name, params in market.toss if name == "candles" and params["interval"] == "1m"} == {"2026-11-19T16:00:00-05:00"}
     market.toss.clear()
     assert set(live.tick(at("2026-11-19", "16:06:05"))) == {"afterhours"}  # 마감 값은 한 번만 고정한다
     assert [name for name, _ in market.toss] == ["prices"]
@@ -173,3 +174,14 @@ def test_old_dates_are_dropped(market):
     market.prices = {"QQQ": (501.0, kst("2026-11-19", "05:00:30"))}
     written = live.tick(at("2026-11-19", "05:01:05"))["premarket"]
     assert sorted(written["nasdaq"]) == ["2026-10-01", "2026-11-19"]
+
+
+def test_toss_retries_after_too_many_requests(market, monkeypatch):
+    answers = [Answer({}, 429), Answer({"result": []})]
+    monkeypatch.setattr(live.requests, "get", lambda url, params, timeout, headers: answers.pop(0))
+    monkeypatch.setattr(live.time, "sleep", lambda seconds: None)
+    toss = live.Toss()
+    assert toss.get("/api/v1/prices", {"symbols": "QQQ"}) == [] and toss.calls["prices"] == 2
+    answers[:] = [Answer({}, 429)] * live.ATTEMPTS
+    with pytest.raises(live.requests.HTTPError):
+        toss.get("/api/v1/candles", {"symbol": "QQQ"})
