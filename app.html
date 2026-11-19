@@ -155,13 +155,14 @@
   :root.issue #report > h2:first-child { margin-top: 0; }
   /* 이슈 화면의 새로고침 표시는 맨 위 유리 띠 아래에 벌어지는 틈에 나타난다. */
   :root.issue #pull { top: calc(var(--top-edge) + var(--issue-bar) - 7px); }
-  /* 지수 단추는 머리 상자 오른쪽 끝, 머리 상자 높이의 가운데에 두는 26px 네모다. 네모 안 한쪽 끝에 흰 굵은 세로선을 붙이고, 나머지 칸을 보고 있는 리포트 지수의 지수색으로 칠한다.
-     나스닥 리포트는 세로선을 왼쪽에 붙이고 나머지 칸을 나스닥 지수색으로 칠한다. 바이오 리포트는 세로선을 오른쪽에 붙이고 나머지 칸을 바이오 지수색으로 칠한다.
-     누르면 세로선이 반대쪽 끝으로 0.28초에 걸쳐 옮겨 가고, 세로선이 지나간 칸이 세로선을 따라 바뀐 지수의 지수색으로 칠해진다. */
-  .index-pick { position: absolute; top: 50%; right: 0; width: 26px; height: 26px; margin-top: -13px; padding: 0; overflow: hidden; border: 0; border-radius: 7px;
-                background: var(--left); cursor: pointer; }
+  /* 지수 단추는 머리 상자 오른쪽 끝, 머리 상자 높이의 가운데에 두는 가로 26px, 세로 16px의 직사각형이다. 단추 안 한쪽 끝에 흰 굵은 세로선을 붙이고,
+     나머지 칸을 보고 있는 리포트 지수의 지수색 그라데이션으로 칠한다. 그라데이션은 세로선 쪽 끝에 지수색을, 반대쪽 끝에 지수 옆 색상을 둔다.
+     나스닥 리포트는 세로선을 왼쪽에 붙이고, 바이오 리포트는 세로선을 오른쪽에 붙인다. 두 그라데이션은 서로 좌우를 뒤집은 모양이다.
+     누르면 세로선이 반대쪽 끝으로 0.28초에 걸쳐 옮겨 가고, 세로선이 지나간 칸이 세로선을 따라 바뀐 지수의 그라데이션으로 칠해진다. */
+  .index-pick { position: absolute; top: 50%; right: 0; width: 26px; height: 16px; margin-top: -8px; padding: 0; overflow: hidden; border: 0; border-radius: 5px;
+                background: linear-gradient(to right, var(--left), var(--left-to)); cursor: pointer; }
   .index-pick i { position: absolute; top: 0; bottom: 0; }
-  .index-pick .fill { left: 0; right: 0; background: var(--right); clip-path: inset(0 100% 0 0); transition: clip-path .28s ease-in-out; }
+  .index-pick .fill { left: 0; right: 0; background: linear-gradient(to left, var(--right), var(--right-to)); clip-path: inset(0 100% 0 0); transition: clip-path .28s ease-in-out; }
   .index-pick .bar { left: 0; width: 6px; background: #fff; transition: transform .28s ease-in-out; }
   .index-pick.right .fill { clip-path: inset(0); }
   .index-pick.right .bar { transform: translateX(20px); }
@@ -3518,7 +3519,7 @@
     const pick = masthead.appendChild(Object.assign(document.createElement("button"), {
       type: "button", className: `index-pick${index === order[1] ? " right" : ""}`, innerHTML: '<i class="fill"></i><i class="bar"></i>' }));
     pick.setAttribute("aria-label", `${INDEX_NAME[other]} 리포트 보기`);
-    pick.style.cssText = `--left: ${INDEX[order[0]][0]}; --right: ${INDEX[order[1]][0]}`;
+    pick.style.cssText = `--left: ${INDEX[order[0]][0]}; --left-to: ${INDEX[order[0]][1]}; --right: ${INDEX[order[1]][0]}; --right-to: ${INDEX[order[1]][1]}`;
     pick.addEventListener("click", () => {
       if (pick.disabled) return;
       pick.disabled = true;
