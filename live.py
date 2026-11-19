@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""live.py — 미국 장이 열린 동안 1분마다 공개 종목의 마지막 체결가를 invest-live Worker의 DO에 쓴다.
+"""live.py — 1분마다 공개 종목의 마지막 체결가와 지수 값을 invest-live Worker의 DO에 쓴다.
 
 cron(`~/scripts/cron/invest-live-tick.sh`)이 1분마다 `tick()`을 부른다. 회차마다 장 시간을 판정하고, 토스 `GET /api/v1/prices`를 한 번 불러
 공개 종목과 보유 종목의 마지막 체결가를 받고, `premarket`·`afterhours` 값을 조립해 `POST /write/{이름}`으로 쓴다.
@@ -7,15 +7,26 @@ cron(`~/scripts/cron/invest-live-tick.sh`)이 1분마다 `tick()`을 부른다. 
 그 체결가는 invest-live에 쓰지 않고 invest-account Worker의 DO에 `POST /live`로만 쓴다. 토스가 답하지 않거나 빠뜨린 심볼만 야후 `v7/finance/spark`에서 받는다.
 토스가 체결 시각 없이 준 심볼은 체결이 없는 것으로 보고 야후에 묻지 않는다. 토큰은 toss-trader와 함께 쓰는 캐시 파일만 쓴다.
 
-값의 스키마는 build.py 머리 설명의 `premarket`·`afterhours` 값과 같다. `premarket`은 프리장(`PREMARKET_OPEN`)부터 정규장이 닫힐 때까지 1분마다 그 분의 값을 쓰고,
+값의 스키마는 build.py 머리 설명의 `premarket`·`afterhours`·`index` 값과 같다. `premarket`은 프리장(`PREMARKET_OPEN`)부터 정규장이 닫힐 때까지 1분마다 그 분의 값을 쓰고,
 정규장이 닫히고 `CLOSE_WAIT`가 지난 첫 회차가 마감 시각까지 끝난 1분봉으로 마감 값을 한 번 더 받아 고정한다.
 `afterhours`는 `AFTER_OPEN`과 마감 고정 회차 가운데 늦은 쪽부터 `AFTER_CLOSE`까지 1분마다 쓴다.
 체결가는 `premarket`이면 오늘 `PREMARKET_OPEN` 뒤, `afterhours`이면 오늘 정규장 마감 뒤 체결만 쓴다. 그 체결이 없으면 앞 회차 값을 두고,
 앞 회차 값도 없으면 null이다. 지도의 첫 날짜보다 앞선 날짜의 값은 지운다.
-휴장일, 프리장 전, 마감 뒤 `CLOSE_WAIT` 안, 그날 값을 이미 다 받은 회차는 토스를 부르지 않고 끝난다.
+지수 값마다 날짜 지점(`point`)을 적는다. 날짜 지점은 뉴욕 세션 날짜이고, `premarket` 값은 그 세션, `afterhours` 값은 XNYS 달력의 다음 세션이다.
 
-앞 세션 날짜와 정규장 마감 시각은 세션마다 한 번 `exchange_calendars`에서, 지수 ETF의 앞 세션 종가는 그 세션의 첫 장중 회차에 토스 일봉에서 받아
-`~/data/invest-reports/live/session-{YYYY-MM-DD}.json`에 둔다. 앞 회차 값은 DO에 쓴 값과 같은 `{이름}.json`에 두고 다시 읽는다.
+앞 세션과 다음 세션 사이에 주말이나 휴장일이 있으면, 앞 세션 `AFTER_CLOSE`부터 다음 세션 `PREMARKET_OPEN`까지가 선물 시간대(`futures`)다.
+선물 시간대 회차는 토스를 부르지 않는다. 나스닥 선물(`FUTURES`)이 애프터장 마지막 체결 뒤 새 1분봉을 내면, 앞 세션의 나스닥 `afterhours` 값을
+애프터장 마지막 비율 × (선물 마지막 체결가 ÷ 애프터장 마지막 체결 시각까지 끝난 선물 1분봉 종가)로 바꾸고 `basis`·`futures_time`을 단다.
+애프터장 마지막 비율과 그 시각의 선물 종가는 선물 시간대 첫 회차에 `futures-{앞 세션}.json`에 둔다. 바이오 값은 바꾸지 않는다.
+장 밖과 휴장일 가운데 선물 시간대가 아닌 회차, 마감 뒤 `CLOSE_WAIT` 안, 그날 값을 이미 다 받은 회차는 아무것도 부르지 않고 끝난다.
+
+회차마다 지수(`INDEX_SYMBOLS`)를 야후 spark 묶음 요청 한 번으로 받는다. 선물 시간대에는 선물 심볼도 같은 묶음에 넣는다.
+`index` 값에는 지수마다 마지막 1분봉의 가격과 시각, 그 1분봉을 처음 받은 시각(`loaded`)을 적고, 1분봉 시각이 바뀐 회차에만 쓴다.
+`premarket`의 정규장 값에는 ^NDX·^NBI의 그날 정규장 1분봉 종가로 만든 시가·고가·저가·종가를 앞 세션 지수 종가 대비 비율(`ohlc`)로 적는다.
+
+앞 세션·다음 세션 날짜와 정규장 마감 시각은 날짜마다 한 번 `exchange_calendars`에서, 지수 ETF의 앞 세션 종가는 그 세션의 첫 장중 회차에 토스 일봉에서 받아
+`~/data/invest-reports/live/session-{YYYY-MM-DD}.json`에 둔다. 애프터장 회차는 나스닥 ETF의 마지막 체결 시각도 같은 파일에 둔다.
+앞 회차 값은 DO에 쓴 값과 같은 `{이름}.json`에 두고 다시 읽는다.
 회차마다 가격 없는 기록(`tick-{날짜}.log`)과, DO에 쓴 그날 값(`snap-{날짜}.jsonl`)을 남긴다.
 """
 from __future__ import annotations
@@ -23,6 +34,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import fcntl
+import functools
 import json
 import os
 import subprocess
@@ -35,10 +47,10 @@ import requests
 from curl_cffi import requests as chrome
 
 import build
-from build import AFTER_CLOSE, AFTER_OPEN, NEW_YORK, PREMARKET_CLOSE, PREMARKET_OPEN, ROOT
+from build import AFTER_CLOSE, AFTER_OPEN, NEW_YORK, OIL_TICKER, PREMARKET_CLOSE, PREMARKET_OPEN, ROOT
 
 sys.path.insert(0, str(Path.home() / "obsidian-vault/agent/skills/tool/invest-report/scripts"))
-from path_bands import SECTOR_DB_TICKERS  # noqa: E402  지수마다의 지수 ETF
+from path_bands import SECTOR_DB_TICKERS, SECTOR_INDEX_TICKERS  # noqa: E402  지수마다의 지수 ETF와 지수 심볼
 
 DATA = Path.home() / "data" / "invest-reports" / "live"
 HOLDINGS = Path.home() / "data" / "invest-account" / "holdings.json"  # account_push가 쓰는 보유 종목 심볼 목록(0600)
@@ -60,7 +72,9 @@ RETRY_WAIT = 2
 ATTEMPTS = 3
 CLOSE_WAIT = dt.timedelta(minutes=5)  # 마감 체결이 1분봉에 실리기를 기다리는 시간
 KEEP_DAYS = 7  # `DATA`의 날짜 붙은 파일을 남기는 날 수
-NAMES = ("premarket", "afterhours")
+NAMES = ("premarket", "afterhours", "index")
+INDEX_SYMBOLS = (*SECTOR_INDEX_TICKERS.values(), OIL_TICKER)  # `index` 값에 적는 야후 심볼
+FUTURES = {"nasdaq": "NQ=F"}  # 선물 시간대에 애프터장 값을 바꾸는 지수와 그 선물의 야후 심볼
 
 
 def toss_symbol(symbol: str) -> str:
@@ -81,11 +95,12 @@ def load(path: Path, empty):
 
 
 class Toss:
-    """토스 Open API 조회. 부른 횟수를 경로마다 세고(`calls`), 야후로 넘긴 심볼 수를 센다(`yahoo`)."""
+    """토스 Open API 조회. 부른 횟수를 경로마다 세고(`calls`), 야후로 넘긴 심볼 수(`yahoo`)와 지수 spark 묶음 요청 수(`index`)를 센다."""
 
     def __init__(self):
         self.calls = {"prices": 0, "candles": 0}
         self.yahoo = 0
+        self.index = 0  # 지수 spark 묶음 요청 수
 
     @staticmethod
     def cached(dead: str | None) -> str | None:
@@ -171,6 +186,39 @@ def bars(response: dict, before: dt.datetime | None = None) -> tuple[float, str]
     return None
 
 
+def ended(response: dict, moment: dt.datetime) -> tuple[int, float] | None:
+    """spark 응답에서 `moment`까지 끝난 마지막 1분봉의 (봉 시작 시각 초, 종가). 봉이 없으면 None."""
+    closes = (response.get("indicators", {}).get("quote") or [{}])[0].get("close") or []
+    found = [(stamp, close) for stamp, close in zip(response.get("timestamp") or [], closes) if close is not None and stamp <= moment.timestamp() - 60]
+    return found[-1] if found else None
+
+
+def index_value(kept: dict, quotes: dict[str, dict], now: dt.datetime) -> dict | None:
+    """`kept`의 `index` 값에서 마지막 1분봉 시각이 바뀐 지수만 갈아 새 값을 돌려준다. 바뀐 지수가 없으면 None."""
+    value = dict(kept)
+    for symbol in INDEX_SYMBOLS:
+        if (last := bars(quotes.get(symbol) or {})) and (kept.get(symbol) or {}).get("time") != last[1]:
+            value[symbol] = {"price": round(last[0], 2), "time": last[1], "loaded": now.isoformat(timespec="seconds")}
+    return value if value != kept else None
+
+
+def session_ohlc(quotes: dict[str, dict], opened: dt.datetime, end: dt.datetime) -> dict[str, dict]:
+    """지수마다 `opened`부터 `end`까지 시작한 1분봉 종가의 시가·고가·저가·종가를 앞 세션 지수 종가로 나눈 비율.
+
+    spark는 1분봉 종가만 주므로 네 값을 종가에서 고른다. 앞 세션 지수 종가는 하루치 응답의 `chartPreviousClose`다.
+    그날 정규장 1분봉이 없거나 야후가 답하지 않은 지수는 빠진다.
+    """
+    found = {}
+    for index, symbol in SECTOR_INDEX_TICKERS.items():
+        response = quotes.get(symbol) or {}
+        closes = [close for stamp, close in zip(response.get("timestamp") or [], (response.get("indicators", {}).get("quote") or [{}])[0].get("close") or [])
+                  if close is not None and opened <= dt.datetime.fromtimestamp(stamp, NEW_YORK) <= end]
+        if closes and (base := response.get("meta", {}).get("chartPreviousClose")):
+            found[index] = {name: round(price / base, 6) for name, price in
+                            (("open", closes[0]), ("high", max(closes)), ("low", min(closes)), ("close", closes[-1]))}
+    return found
+
+
 def public_prices(symbols: list[str], toss: Toss | None = None) -> dict[str, tuple[float, str | None]]:
     """심볼마다 (마지막 체결가, 체결 시각 ISO 또는 None). 토스를 한 번 부르고, 토스가 답하지 않거나 빠뜨린 심볼만 야후에서 받는다.
 
@@ -234,31 +282,66 @@ def base_closes(session: str, toss: Toss) -> dict[str, float]:
     return found
 
 
+@functools.cache
+def xnys():
+    return exchange_calendars.get_calendar("XNYS")
+
+
+def next_session(day: str) -> str:
+    """뉴욕 날짜 `day` 뒤의 첫 세션 날짜."""
+    return xnys().date_to_session((dt.date.fromisoformat(day) + dt.timedelta(days=1)).isoformat(), "next").date().isoformat()
+
+
 def calendar_day(day: dt.date) -> dict:
-    """뉴욕 날짜 `day`의 장 운영. 세션이면 앞 세션 날짜(`session`)와 정규장 마감 시각(`closed`)이다. 세션마다 한 번 받아 파일에 둔다."""
+    """뉴욕 날짜 `day`의 장 운영. 날짜마다 한 번 받아 파일에 둔다.
+
+    `session`은 `day` 전의 마지막 세션, `next`는 `day` 뒤의 첫 세션 날짜다. 세션이면 정규장 마감 시각(`closed`)도 적는다.
+    """
     path = DATA / f"session-{day}.json"
-    if path.exists():
-        return load(path, {})
-    xnys = exchange_calendars.get_calendar("XNYS")
-    found = {"date": day.isoformat(), "open": bool(xnys.is_session(day.isoformat()))}
+    found = load(path, {})
+    if "next" in found:
+        return found
+    found.update({"date": day.isoformat(), "open": bool(xnys().is_session(day.isoformat())),
+                  "session": xnys().date_to_session((day - dt.timedelta(days=1)).isoformat(), "previous").date().isoformat(),
+                  "next": next_session(day.isoformat())})
     if found["open"]:
-        found["session"] = xnys.previous_session(day.isoformat()).date().isoformat()
-        found["closed"] = xnys.session_close(day.isoformat()).to_pydatetime().astimezone(NEW_YORK).isoformat()
+        found["closed"] = xnys().session_close(day.isoformat()).to_pydatetime().astimezone(NEW_YORK).isoformat()
     DATA.mkdir(parents=True, exist_ok=True)
     save(path, found)
     edge = (day - dt.timedelta(days=KEEP_DAYS)).isoformat()
     for old in DATA.iterdir():
         stem = old.name.split("-", 1)
-        if stem[0] in ("session", "tick", "snap") and len(stem) > 1 and stem[1][:10] < edge:
+        if stem[0] in ("session", "tick", "snap", "futures") and len(stem) > 1 and stem[1][:10] < edge:
             old.unlink()
     return found
 
 
+def futures_window(now: dt.datetime, day: dict) -> tuple[str, str] | None:
+    """`now`가 선물 시간대이면 (앞 세션, 다음 세션) 날짜. 아니면 None.
+
+    앞 세션 `AFTER_CLOSE`부터 다음 세션 `PREMARKET_OPEN` 전까지이고, 두 세션 사이에 주말이나 휴장일이 있을 때만이다.
+    """
+    if not day["open"]:
+        pair = day["session"], day["next"]
+    elif now.time() >= AFTER_CLOSE:
+        pair = day["date"], day["next"]
+    elif now.time() < PREMARKET_OPEN:
+        pair = day["session"], day["date"]
+    else:
+        return None
+    return pair if dt.date.fromisoformat(pair[1]) - dt.date.fromisoformat(pair[0]) > dt.timedelta(days=1) else None
+
+
 def rounds(now: dt.datetime, day: dict, kept: dict[str, dict]) -> dict[str, tuple[dt.datetime, str]]:
-    """이번 회차에 쓸 값 이름마다 (끝 시각, 구간). 구간은 프리장 `pre`, 정규장 `regular`, 마감 고정 `close`, 애프터장 `after`다."""
+    """이번 회차에 쓸 값 이름마다 (끝 시각, 구간). 구간은 프리장 `pre`, 정규장 `regular`, 마감 고정 `close`, 애프터장 `after`, 선물 시간대 `futures`다.
+
+    선물 시간대 구간은 그날 애프터장 마지막 값을 받은 뒤에만 든다.
+    """
+    minute = now.replace(second=0, microsecond=0)
+    futures = {"afterhours": (minute, "futures")} if futures_window(now, day) else {}
     if not day["open"] or now.time() < PREMARKET_OPEN:
-        return {}
-    today, minute = now.date(), now.replace(second=0, microsecond=0)
+        return futures
+    today = now.date()
     closed = dt.datetime.fromisoformat(day["closed"])
     written = lambda name: {kept[name].get(index, {}).get(today.isoformat(), {}).get("time") for index in SECTOR_DB_TICKERS}
     due = {}
@@ -270,7 +353,48 @@ def rounds(now: dt.datetime, day: dict, kept: dict[str, dict]) -> dict[str, tupl
         end = min(minute, dt.datetime.combine(today, AFTER_CLOSE, NEW_YORK))
         if written("afterhours") != {end.isoformat()}:
             due["afterhours"] = (end, "after")
-    return due
+    return due or futures
+
+
+def futures_base(before: str, kept: dict, quotes: dict[str, dict]) -> dict:
+    """선물 시간대의 기준. 지수마다 앞 세션 `before`의 애프터장 마지막 비율(`ratio`)과, 애프터장 마지막 체결 시각까지 끝난
+    선물 1분봉의 (봉 시작 시각 초, 종가)(`base`)다.
+
+    선물 시간대 첫 회차에 `futures-{before}.json`에 두고 다시 읽는다. 야후가 선물 1분봉을 주지 않은 회차는 파일을 두지 않아 다음 회차가 다시 받는다.
+    애프터장 비율이나 체결 시각, 그때까지의 선물 1분봉이 없는 지수는 빠진다.
+    """
+    path = DATA / f"futures-{before}.json"
+    if path.exists():
+        return load(path, {})
+    if not all((quotes.get(symbol) or {}).get("timestamp") for symbol in FUTURES.values()):
+        return {}
+    traded = load(DATA / f"session-{before}.json", {}).get("trade", {})
+    found = {}
+    for index, symbol in FUTURES.items():
+        ratio = kept.get(index, {}).get(before, {}).get("ratio")
+        if ratio and traded.get(index) and (base := ended(quotes[symbol], dt.datetime.fromisoformat(traded[index]))):
+            found[index] = {"ratio": ratio, "base": list(base)}
+    save(path, found)
+    return found
+
+
+def futures_value(kept: dict, base: dict, quotes: dict[str, dict], end: dt.datetime, before: str) -> dict | None:
+    """선물 시간대의 `afterhours` 새 값. 선물이 `base` 뒤 새 1분봉을 낸 지수만 앞 세션 `before`의 값을 갈아 돌려준다.
+
+    비율은 애프터장 마지막 비율 × (`end`까지 끝난 선물 1분봉 종가 ÷ 기준 종가)이고, `futures_time`은 그 봉이 끝난 시각이다.
+    `time`과 `stocks`는 애프터장 마지막 값 그대로다. 갈 지수가 없으면 None.
+    """
+    changed = False
+    for index, symbol in FUTURES.items():
+        own = kept.get(index, {}).get(before)
+        last = ended(quotes.get(symbol) or {}, end)
+        if not (own and index in base and last and last[0] > base[index]["base"][0]):
+            continue
+        moved = dt.datetime.fromtimestamp(last[0] + 60, NEW_YORK).isoformat()
+        if own.get("futures_time") != moved:
+            own.update(ratio=round(base[index]["ratio"] * last[1] / base[index]["base"][1], 6), basis="futures", futures_time=moved)
+            changed = True
+    return kept if changed else None
 
 
 def public_board() -> dict:
@@ -302,10 +426,12 @@ def priced(trade: tuple[float, str | None] | None, start: dt.datetime) -> float 
     return trade[0] if trade and trade[1] and dt.datetime.fromisoformat(trade[1]) > start else None
 
 
-def assemble(kept: dict, board: dict, trades: dict, end: dt.datetime, span: str, day: dict, base: dict[str, float] | None = None) -> dict:
+def assemble(kept: dict, board: dict, trades: dict, end: dt.datetime, span: str, day: dict, base: dict[str, float] | None = None,
+             ohlc: dict[str, dict] | None = None) -> dict:
     """`kept`의 오늘 값을 `trades`로 갈아 새 값을 돌려준다. `span`이 `after`면 `afterhours`, 아니면 `premarket` 값이다.
 
-    `base`는 `afterhours` 비율의 분모인 지수마다 오늘 정규장 ETF 종가다(`{지수: 종가}`).
+    `base`는 `afterhours` 비율의 분모인 지수마다 오늘 정규장 ETF 종가다(`{지수: 종가}`). `ohlc`는 정규장 값에 적는 지수마다 시가·고가·저가·종가 비율이다.
+    날짜 지점은 `premarket` 값이면 오늘, `afterhours` 값이면 다음 세션이다.
     """
     today = end.date().isoformat()
     closed = dt.datetime.fromisoformat(day["closed"])
@@ -317,12 +443,15 @@ def assemble(kept: dict, board: dict, trades: dict, end: dt.datetime, span: str,
         same = before if before and before.get("phase") == phase else None
         etf, under = SECTOR_DB_TICKERS[index], (base or {}).get(index) if span == "after" else day.get("base", {}).get(SECTOR_DB_TICKERS[index])
         ratio = (price := priced(trades.get(etf), start)) and under and round(price / under, 6)
-        value = {"time": end.isoformat(),
+        value = {"point": day["next"] if span == "after" else today, "time": end.isoformat(),
                  "ratio": ratio if ratio is not None else (same or {}).get("ratio"),
                  "stocks": {stock["symbol"]: (round(price, 2) if (price := priced(trades.get(stock["symbol"]), start)) is not None
                                               else (same or {}).get("stocks", {}).get(stock["symbol"])) for stock in found["stocks"]}}
         if phase:
-            value = {"session": day["session"], "time": value["time"], "phase": phase, "ratio": value["ratio"], "stocks": value["stocks"]}
+            value = {"session": day["session"], **value, "phase": phase}
+            value = {name: value[name] for name in ("session", "point", "time", "phase", "ratio", "stocks")}
+            if phase == "regular" and (candle := (ohlc or {}).get(index) or (same or {}).get("ohlc")):
+                value["ohlc"] = candle
             dawn = before and (before.get("pre") if before.get("phase") == "regular" else {name: before[name] for name in ("time", "ratio", "stocks")})
             if phase == "regular" and dawn:
                 value["pre"] = dawn
@@ -332,55 +461,95 @@ def assemble(kept: dict, board: dict, trades: dict, end: dt.datetime, span: str,
     return kept
 
 
-def tick(now: dt.datetime | None = None) -> dict[str, dict]:
-    """1분 회차. 장 시간 판정, 일괄 조회, 값 조립, invest-live 쓰기, invest-account 쓰기를 차례로 부르고, invest-live에 쓴 값을 이름마다 돌려준다."""
+def pointed(name: str, value: dict) -> dict:
+    """`value`의 지수 값 가운데 날짜 지점이 없는 값에 날짜 지점을 적는다. `premarket`은 그 날짜, `afterhours`는 그 날짜 뒤 첫 세션이다."""
+    for days in value.values():
+        for key, own in days.items():
+            if "point" not in own:
+                own["point"] = key if name == "premarket" else next_session(key)
+    return value
+
+
+def tick(now: dt.datetime | None = None, toss: Toss | None = None) -> dict[str, dict]:
+    """1분 회차. 장 시간 판정, 일괄 조회, 값 조립, invest-live 쓰기, invest-account 쓰기를 차례로 부르고, invest-live에 쓴 값을 이름마다 돌려준다.
+
+    선물 시간대 구간 회차는 토스와 invest-account를 부르지 않고 지수 묶음 요청만 부른다.
+    """
     now = now or dt.datetime.now(NEW_YORK)
+    toss = toss or Toss()
     day = calendar_day(now.date())
     kept = {name: load(DATA / f"{name}.json", {}) for name in NAMES}
     due = rounds(now, day, kept)
     if not due:
         return {}
-    toss, board = Toss(), public_board()
-    if "base" not in day:
-        day["base"] = base_closes(day["session"], toss)
-        save(DATA / f"session-{now.date()}.json", day)
-    public = sorted({stock["symbol"] for found in board.values() for stock in found["stocks"]} | set(SECTOR_DB_TICKERS.values()))
-    held = holding_symbols()
-    trades = public_prices(sorted(set(public) | set(held)), toss)
-    if not any(symbol in trades for symbol in public):
-        raise RuntimeError("토스와 야후 모두 체결가를 주지 않음")
+    window = futures_window(now, day)
+    fresh = window and not (DATA / f"futures-{window[0]}.json").exists()
+    toss.index += 1
+    quotes = spark([*INDEX_SYMBOLS, *(FUTURES.values() if window else ())], range="5d" if fresh else "1d")
+    today = now.date().isoformat()
+    keys = {"premarket": today, "afterhours": today}
     written = {}
-    if "premarket" in due:
-        end, span = due["premarket"]
-        use = close_trades(public, end, toss) if span == "close" else trades
-        written["premarket"] = assemble(kept["premarket"], board, use, end, span, day)
-    if "afterhours" in due:
-        end, span = due["afterhours"]
-        today = now.date().isoformat()
-        closes = {index: ratio * day["base"][etf] for index, etf in SECTOR_DB_TICKERS.items()
-                  if (ratio := kept["premarket"].get(index, {}).get(today, {}).get("ratio")) and day["base"].get(etf)}
-        written["afterhours"] = assemble(kept["afterhours"], board, trades, end, span, day, closes)
+    if due.get("afterhours", (None, ""))[1] == "futures":
+        end, keys["afterhours"] = due["afterhours"][0], window[0]
+        base = futures_base(window[0], kept["afterhours"], quotes)
+        if (value := futures_value(kept["afterhours"], base, quotes, end, window[0])) is not None:
+            written["afterhours"] = value
+    else:
+        board = public_board()
+        if "base" not in day:
+            day["base"] = base_closes(day["session"], toss)
+            save(DATA / f"session-{today}.json", day)
+        public = sorted({stock["symbol"] for found in board.values() for stock in found["stocks"]} | set(SECTOR_DB_TICKERS.values()))
+        held = holding_symbols()
+        trades = public_prices(sorted(set(public) | set(held)), toss)
+        if not any(symbol in trades for symbol in public):
+            raise RuntimeError("토스와 야후 모두 체결가를 주지 않음")
+        if "premarket" in due:
+            end, span = due["premarket"]
+            use = close_trades(public, end, toss) if span == "close" else trades
+            ohlc = session_ohlc(quotes, dt.datetime.combine(now.date(), PREMARKET_CLOSE, NEW_YORK), end) if span != "pre" else None
+            written["premarket"] = assemble(kept["premarket"], board, use, end, span, day, ohlc=ohlc)
+        if "afterhours" in due:
+            end, span = due["afterhours"]
+            closes = {index: ratio * day["base"][etf] for index, etf in SECTOR_DB_TICKERS.items()
+                      if (ratio := kept["premarket"].get(index, {}).get(today, {}).get("ratio")) and day["base"].get(etf)}
+            written["afterhours"] = assemble(kept["afterhours"], board, trades, end, span, day, closes)
+            if found := {index: trades[SECTOR_DB_TICKERS[index]][1] for index in FUTURES
+                         if priced(trades.get(SECTOR_DB_TICKERS[index]), dt.datetime.fromisoformat(day["closed"]))}:
+                day["trade"] = {**day.get("trade", {}), **found}
+                save(DATA / f"session-{today}.json", day)
+        if prices := {symbol: trades[symbol][0] for symbol in held if symbol in trades}:
+            post_account(now, prices)
+    if (value := index_value(kept["index"], quotes, now)) is not None:
+        written["index"] = value
+    snap = DATA / f"snap-{today}.jsonl"
     for name, value in written.items():
+        if name != "index":
+            pointed(name, value)
         build.post_live(name, value)
         save(DATA / f"{name}.json", value)
-        with open(DATA / f"snap-{now.date()}.jsonl", "a", encoding="utf-8") as snaps:
-            for index, days in value.items():
-                snaps.write(json.dumps({"name": name, "index": index, **days[now.date().isoformat()]}, separators=(",", ":")) + "\n")
-    if prices := {symbol: trades[symbol][0] for symbol in held if symbol in trades}:
-        post_account(now, prices)
+        with open(snap, "a", encoding="utf-8") as snaps:
+            for key, days in value.items():
+                found = days if name == "index" else days.get(keys[name])
+                if found:
+                    snaps.write(json.dumps({"name": name, "index": key, **found}, separators=(",", ":")) + "\n")
     record = {"at": now.isoformat(timespec="seconds"), "wrote": sorted(written), "calls": toss.calls,
-              "yahoo": toss.yahoo,
-              "null": {name: sum(price is None for days in value.values() for price in days[now.date().isoformat()]["stocks"].values())
-                       for name, value in written.items()}}
-    with open(DATA / f"tick-{now.date()}.log", "a", encoding="utf-8") as log:
+              "yahoo": toss.yahoo, "index": toss.index,
+              "null": {name: sum(price is None for days in value.values() for price in days.get(keys[name], {}).get("stocks", {}).values())
+                       for name, value in written.items() if name != "index"}}
+    with open(DATA / f"tick-{today}.log", "a", encoding="utf-8") as log:
         log.write(json.dumps(record, separators=(",", ":")) + "\n")
-    os.chmod(DATA / f"snap-{now.date()}.jsonl", 0o600)
+    if snap.exists():
+        os.chmod(snap, 0o600)
     return written
 
 
 def main() -> int:
     argparse.ArgumentParser(description=__doc__.split("\n")[0]).parse_args()
-    print(" ".join(tick()))
+    toss = Toss()
+    written = tick(toss=toss)
+    if sum(toss.calls.values()):
+        print(" ".join(written))
     return 0
 
 

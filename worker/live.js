@@ -1,12 +1,12 @@
-// invest-live — invest-reports 미니 앱에 실시간 값(프리장·정규장 값, 애프터장 값, 판단 배치 진척률)을 건네는 Cloudflare Worker.
+// invest-live — invest-reports 미니 앱에 실시간 값(프리장·정규장 값, 애프터장 값, 판단 배치 진척률, 지수 값)을 건네는 Cloudflare Worker.
 //
-// claude-svr의 live.py가 1분마다 `premarket`·`afterhours`를, build.py `--progress`가 `progress`를
-// SQLite Durable Object `Live`에 `POST /write/{이름}`으로 쓰고, `GET /`가 세 값을 한 응답으로 돌려준다. 다른 경로는 404다.
+// claude-svr의 live.py가 1분마다 `premarket`·`afterhours`·`index`를, build.py `--progress`가 `progress`를
+// SQLite Durable Object `Live`에 `POST /write/{이름}`으로 쓰고, `GET /`가 네 값을 한 응답으로 돌려준다. 다른 경로는 404다.
 // 값은 공개 리포트가 그리는 체결가와 진척 단계라 누구에게나 돌려준다. 쓰기는 비밀 헤더 `X-Live-Secret`이 비밀 값 `LIVE_SECRET`과 같을 때만 받는다.
 
 import { DurableObject } from "cloudflare:workers";
 
-const NAMES = new Set(["premarket", "afterhours", "progress"]);
+const NAMES = new Set(["premarket", "afterhours", "progress", "index"]);
 const HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET",

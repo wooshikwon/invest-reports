@@ -11,7 +11,7 @@ import live  # noqa: E402
 NY = live.NEW_YORK
 BOARD = {"nasdaq": {"dates": ["2026-10-01"], "stocks": [{"symbol": "AAPL"}, {"symbol": "MSFT"}]},
          "biotech": {"dates": ["2026-10-01"], "stocks": [{"symbol": "AMGN"}]}}
-BASE = {"QQQ": 500.0, "IBB": 100.0}  # 2026-11-18 정규장 종가
+BASE = {"QQQ": 500.0, "IBB": 100.0}  # 11월 세션마다의 정규장 종가
 
 
 class Answer:
@@ -27,11 +27,15 @@ class Answer:
 
 
 class Market:
-    """가짜 토스·야후. `prices`는 토스 시세 응답의 심볼마다 (가격, 시각), `closes`는 마감 1분봉, `spark`는 야후 1분봉이다."""
+    """가짜 토스·야후. `prices`는 토스 시세 응답의 심볼마다 (가격, 시각), `closes`는 마감 1분봉, `spark`는 야후 1분봉,
+    `meta`는 야후 응답의 앞 세션 종가(`chartPreviousClose`)다.
+
+    지수 묶음 요청은 `yahoo`에 넣지 않고 그 요청의 `range`를 `indexes`에 넣는다.
+    """
 
     def __init__(self):
-        self.prices, self.closes, self.spark, self.toss_down = {}, {}, {}, False
-        self.toss, self.yahoo = [], []
+        self.prices, self.closes, self.spark, self.meta, self.toss_down = {}, {}, {}, {}, False
+        self.toss, self.yahoo, self.indexes = [], [], []
 
     def toss_get(self, url, params, timeout, headers):
         self.toss.append((url.rsplit("/", 1)[-1], params))
@@ -42,17 +46,22 @@ class Market:
             return Answer({"result": [{"symbol": symbol, "lastPrice": str(price), "currency": "USD", "timestamp": stamp or ""}
                                       for symbol, (price, stamp) in self.prices.items() if symbol in asked]})
         if params["interval"] == "1d":
-            return Answer({"result": {"candles": [{"timestamp": "2026-11-18T14:00:00.000+09:00", "closePrice": str(BASE[params["symbol"]])}]}})
+            return Answer({"result": {"candles": [{"timestamp": f"2026-11-{date:02d}T14:00:00.000+09:00", "closePrice": str(BASE[params["symbol"]])}
+                                                  for date in range(1, 31)]}})
         price = self.closes[params["symbol"]]  # 토스 1분봉의 시각은 봉이 끝나는 시각이다
         return Answer({"result": {"candles": [{"timestamp": params["before"], "closePrice": str(price)}]}})
 
     def yahoo_get(self, url, impersonate, timeout, params):
         asked = params["symbols"].split(",")
-        self.yahoo.extend(asked)
+        if "^NDX" in asked:
+            self.indexes.append(params["range"])
+        else:
+            self.yahoo.extend(asked)
         result = []
         for symbol in asked:
             bars = self.spark.get(symbol, [])
-            result.append({"symbol": symbol, "response": [{"meta": {}, "timestamp": [int(moment.timestamp()) for moment, _ in bars],
+            meta = {"chartPreviousClose": self.meta[symbol]} if symbol in self.meta else {}
+            result.append({"symbol": symbol, "response": [{"meta": meta, "timestamp": [int(moment.timestamp()) for moment, _ in bars],
                                                            "indicators": {"quote": [{"close": [price for _, price in bars]}]}}]})
         return Answer({"spark": {"result": result}})
 
@@ -93,10 +102,11 @@ def test_outside_hours_calls_nothing(market):
     assert market.toss == [] and market.yahoo == []
 
 
-def test_holiday_calls_nothing(market):
+def test_holiday_calls_no_toss(market):
     assert live.tick(at("2026-11-26", "10:00:05")) == {}  # 추수감사절
     assert live.tick(at("2026-11-28", "10:00:05")) == {}  # 토요일
     assert market.toss == [] and market.yahoo == [] and market.written == []
+    assert market.indexes == ["5d", "5d"]  # 선물 시간대라 지수 묶음 요청만 부른다
 
 
 def test_close_wait_then_fix(market):
@@ -137,7 +147,7 @@ def test_premarket_without_trades_is_null(market):
                      "MSFT": (20.0, None), "AMGN": (30.0, kst("2026-11-19", "04:30:00"))}
     written = live.tick(at("2026-11-19", "05:01:05"))["premarket"]
     nasdaq, biotech = written["nasdaq"]["2026-11-19"], written["biotech"]["2026-11-19"]
-    assert nasdaq == {"session": "2026-11-18", "time": "2026-11-19T05:01:00-05:00", "phase": "pre", "ratio": 1.002,
+    assert nasdaq == {"session": "2026-11-18", "point": "2026-11-19", "time": "2026-11-19T05:01:00-05:00", "phase": "pre", "ratio": 1.002,
                       "stocks": {"AAPL": None, "MSFT": None}}
     assert biotech["ratio"] is None and biotech["stocks"] == {"AMGN": 30.0}
     assert market.yahoo == []  # 체결 시각 없는 MSFT는 야후에 묻지 않는다
@@ -230,3 +240,140 @@ def test_post_account_needs_secret_and_204(monkeypatch):
     status = 403
     with pytest.raises(RuntimeError, match="403"):
         live.post_account(at("2026-11-19", "09:41:05"), {"QQQ": 501.0})
+
+
+STOCKS = ("QQQ", "IBB", "AAPL", "MSFT", "AMGN")
+
+
+def traded(market, day: str, clock: str, scale: float = 1.0) -> None:
+    """공개 종목 다섯이 `day` `clock`(뉴욕)에 체결한 토스 시세. 가격은 지어낸 SAMPLE 값이다."""
+    market.prices = {symbol: (price * scale, kst(day, clock)) for symbol, price in zip(STOCKS, (505.0, 99.0, 10.0, 20.0, 30.0))}
+    market.closes = {symbol: price for symbol, (price, _) in market.prices.items()}
+
+
+def minutes(day: str, start: str, end: str, first: float, step: float) -> list[tuple[dt.datetime, float]]:
+    """`start`부터 `end`까지 1분봉. 종가는 `first`에서 분마다 `step`씩 오른다."""
+    found, moment = [], at(day, start)
+    while moment <= at(day, end):
+        found.append((moment, first + step * len(found)))
+        moment += dt.timedelta(minutes=1)
+    return found
+
+
+def test_close_makes_next_point(market):
+    """정규장 마감 고정 회차가 다음 세션의 날짜 지점을 만들고, 마감 값에 그날 정규장 시가·고가·저가·종가 비율을 적는다."""
+    traded(market, "2026-11-19", "15:59:30")
+    market.spark = {"^NDX": minutes("2026-11-19", "09:30", "16:00", 1010.0, 0.1), "^NBI": minutes("2026-11-19", "09:30", "16:00", 200.0, -0.1)}
+    market.meta = {"^NDX": 1000.0, "^NBI": 200.0}
+    written = live.tick(at("2026-11-19", "16:05:05"))
+    close = written["premarket"]["nasdaq"]["2026-11-19"]
+    assert close["point"] == "2026-11-19" and close["phase"] == "regular"
+    assert close["ohlc"] == {"open": 1.01, "high": round(1049.0 / 1000, 6), "low": 1.01, "close": round(1049.0 / 1000, 6)}
+    assert written["premarket"]["biotech"]["2026-11-19"]["ohlc"] == {"open": 1.0, "high": 1.0, "low": round(161.0 / 200, 6), "close": round(161.0 / 200, 6)}
+    after = written["afterhours"]["nasdaq"]["2026-11-19"]
+    assert after["point"] == "2026-11-20" and "basis" not in after  # 11/19 애프터장 값은 11/20 날짜 지점에 그린다
+
+
+def test_after_hours_point_and_last_trade(market):
+    traded(market, "2026-11-19", "16:59:40")
+    written = live.tick(at("2026-11-19", "17:00:05"))
+    assert set(written) == {"premarket", "afterhours"}
+    assert all(days["2026-11-19"]["point"] == "2026-11-20" and "basis" not in days["2026-11-19"] for days in written["afterhours"].values())
+    assert live.calendar_day(dt.date(2026, 11, 19))["trade"] == {"nasdaq": kst("2026-11-19", "16:59:40")}  # 선물 시간대의 기준 시각
+
+
+def test_premarket_and_regular_points(market):
+    traded(market, "2026-11-20", "05:00:30")
+    market.spark = {"^NDX": minutes("2026-11-20", "09:30", "10:20", 1000.0, 1.0)}
+    market.meta = {"^NDX": 1000.0}
+    pre = live.tick(at("2026-11-20", "05:01:05"))["premarket"]["nasdaq"]["2026-11-20"]
+    assert pre["point"] == "2026-11-20" and pre["phase"] == "pre" and "ohlc" not in pre
+    traded(market, "2026-11-20", "10:14:50")
+    regular = live.tick(at("2026-11-20", "10:15:05"))["premarket"]
+    value = regular["nasdaq"]["2026-11-20"]
+    assert value["point"] == "2026-11-20" and value["phase"] == "regular" and value["pre"]["time"] == "2026-11-20T05:01:00-05:00"
+    assert value["ohlc"] == {"open": 1.0, "high": 1.045, "low": 1.0, "close": 1.045}  # 10:15에 시작한 봉까지 쓴다
+    assert "ohlc" not in regular["biotech"]["2026-11-20"]  # ^NBI 1분봉이 없으면 적지 않는다
+
+
+def test_session_after_holiday(market):
+    """추수감사절(11/26) 뒤 세션 11/27의 날짜 지점은 11/25 애프터장 값과 11/27 프리장 값을 받는다."""
+    traded(market, "2026-11-25", "16:59:40")
+    live.tick(at("2026-11-25", "17:00:05"))
+    traded(market, "2026-11-27", "05:00:30")
+    written = live.tick(at("2026-11-27", "05:01:05"))
+    pre = written["premarket"]["nasdaq"]["2026-11-27"]
+    assert pre["session"] == "2026-11-25" and pre["point"] == "2026-11-27"
+    after = {name: value for name, value in market.written if name == "afterhours"}["afterhours"]
+    assert after["nasdaq"]["2026-11-25"]["point"] == "2026-11-27"
+
+
+def test_futures_window_moves_only_nasdaq(market):
+    traded(market, "2026-11-20", "15:59:30")
+    live.tick(at("2026-11-20", "16:05:05"))
+    traded(market, "2026-11-20", "19:59:50", 1.01)
+    last = live.tick(at("2026-11-20", "20:00:10"))["afterhours"]
+    nasdaq, biotech = last["nasdaq"]["2026-11-20"], last["biotech"]["2026-11-20"]
+    market.toss.clear()
+    market.spark = {"NQ=F": [(at("2026-11-20", "16:58"), 1000.0), (at("2026-11-20", "16:59"), 1002.0)]}
+    assert live.tick(at("2026-11-20", "20:30:05")) == {}  # 애프터장 마지막 체결 뒤 선물 체결이 없으면 바꾸지 않는다
+    market.spark["NQ=F"] += [(at("2026-11-22", "18:00"), 1010.0), (at("2026-11-22", "18:59"), 1020.0), (at("2026-11-22", "19:00"), 1030.0)]
+    written = live.tick(at("2026-11-22", "19:00:05"))  # 일요일 19:00 ET
+    moved = written["afterhours"]["nasdaq"]["2026-11-20"]
+    assert moved["basis"] == "futures" and moved["futures_time"] == "2026-11-22T19:00:00-05:00"  # 19:00에 시작한 봉은 아직 끝나지 않았다
+    assert moved["ratio"] == round(nasdaq["ratio"] * 1020.0 / 1002.0, 6)
+    assert moved["time"] == nasdaq["time"] and moved["stocks"] == nasdaq["stocks"] and moved["point"] == "2026-11-23"
+    assert written["afterhours"]["biotech"]["2026-11-20"] == biotech  # 바이오에는 선물이 없다
+    assert live.tick(at("2026-11-22", "19:00:35")) == {}  # 같은 봉이면 다시 쓰지 않는다
+    assert market.toss == [] and market.accounts == []
+    assert market.indexes[-3:] == ["5d", "1d", "1d"]  # 기준을 잡는 첫 회차만 닷새치를 받는다
+
+
+def test_no_futures_between_weekday_sessions(market):
+    traded(market, "2026-11-18", "19:59:50")
+    live.tick(at("2026-11-18", "20:00:10"))
+    market.spark = {"NQ=F": minutes("2026-11-18", "19:50", "23:59", 1000.0, 1.0) + minutes("2026-11-19", "00:00", "03:59", 2000.0, 1.0)}
+    market.written.clear()
+    for clock in ("00:00:05", "02:00:05", "03:59:05"):
+        assert live.tick(at("2026-11-19", clock)) == {}
+    assert live.futures_window(at("2026-11-19", "02:00:05"), live.calendar_day(dt.date(2026, 11, 19))) is None
+    assert live.futures_window(at("2026-11-23", "02:00:05"), live.calendar_day(dt.date(2026, 11, 23))) == ("2026-11-20", "2026-11-23")
+    assert "futures" not in str(market.written)
+
+
+def test_index_value_and_tick_log(market):
+    traded(market, "2026-11-19", "09:40:00")
+    market.spark = {"^NDX": minutes("2026-11-19", "09:30", "09:40", 1000.0, 1.0), "CL=F": minutes("2026-11-19", "09:30", "09:40", 60.0, 0.01)}
+    first = live.tick(at("2026-11-19", "09:41:05"))["index"]
+    assert first["^NDX"] == {"price": 1010.0, "time": "2026-11-19T09:40:00-05:00", "loaded": "2026-11-19T09:41:05-05:00"}
+    assert set(first) == {"^NDX", "CL=F"}  # 1분봉이 없는 ^NBI는 적지 않는다
+    market.spark["CL=F"] += [(at("2026-11-19", "09:41"), 61.0)]
+    second = live.tick(at("2026-11-19", "09:42:05"))["index"]
+    assert second["^NDX"] == first["^NDX"] and second["CL=F"]["loaded"] == "2026-11-19T09:42:05-05:00"  # 바뀐 지수만 받은 시각을 갈아 적는다
+    assert "index" not in live.tick(at("2026-11-19", "09:43:05"))  # 1분봉 시각이 그대로면 쓰지 않는다
+    records = [live.json.loads(line) for line in (live.DATA / "tick-2026-11-19.log").read_text().splitlines()]
+    assert [record["index"] for record in records] == [1, 1, 1] and [record["calls"]["prices"] for record in records] == [1, 1, 1]
+    assert "1010" not in (live.DATA / "tick-2026-11-19.log").read_text()  # 회차 기록에 가격을 쓰지 않는다
+
+
+def test_old_values_get_points(market):
+    (live.DATA / "afterhours.json").write_text('{"nasdaq": {"2026-11-18": {"time": "2026-11-18T20:00:00-05:00", "ratio": 1.0, "stocks": {}}}}')
+    traded(market, "2026-11-19", "16:59:40")
+    after = live.tick(at("2026-11-19", "17:00:05"))["afterhours"]["nasdaq"]
+    assert after["2026-11-18"]["point"] == "2026-11-19" and after["2026-11-19"]["point"] == "2026-11-20"
+
+
+def test_main_prints_only_toss_rounds(market, monkeypatch, capsys):
+    tick = live.tick
+    monkeypatch.setattr(live.sys, "argv", ["live.py"])
+    traded(market, "2026-11-20", "19:59:50")
+    live.tick(at("2026-11-20", "20:00:10"))
+    market.spark = {"NQ=F": [(at("2026-11-20", "16:59"), 1000.0), (at("2026-11-22", "18:30"), 1010.0)]}
+    monkeypatch.setattr(live, "tick", lambda toss: tick(at("2026-11-22", "19:00:05"), toss))
+    live.main()
+    assert capsys.readouterr().out == ""  # 선물 시간대 회차는 계좌 요약을 부르지 않게 아무것도 내지 않는다
+    assert any(name == "afterhours" and "futures" in str(value) for name, value in market.written)
+    traded(market, "2026-11-23", "05:00:30")
+    monkeypatch.setattr(live, "tick", lambda toss: tick(at("2026-11-23", "05:01:05"), toss))
+    live.main()
+    assert capsys.readouterr().out.split() == ["premarket"]
