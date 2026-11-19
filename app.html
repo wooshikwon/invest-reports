@@ -259,29 +259,29 @@
      단추를 누르면 그 자리에 슬라이더를 띄운다. 슬라이더에 댄 손가락은 넘기기 묶음을 옆으로 밀지 않는다.
      막대는 위아래 24px 칸(`bar`)으로만 손가락을 받아, 막대 근처에서 시작한 넘기기를 가로채지 않는다. 막대를 누르면 슬라이더를 닫는다.
      레버는 레버 중심을 둘러싼 56px 칸(`grip`)으로 손가락을 받아, 레버에서 조금 벗어나게 눌러도 레버를 잡는다. */
-  .carousel .rewind { position: relative; width: 52.8%; margin: 10px auto 12px; padding: 8px 0; }
-  .carousel .rewind input { display: block; width: 100%; height: 24px; margin: 0; background: none; -webkit-appearance: none; appearance: none; pointer-events: none; }
-  .carousel .rewind .bar { position: absolute; top: 8px; left: 0; right: 0; height: 24px; touch-action: none; }
-  .carousel .rewind .grip { position: absolute; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; touch-action: none; }
-  .carousel .rewind .open { position: absolute; inset: 8px 0; display: none; width: 100%; padding: 0; border: 0; background: none; color: var(--dim);
+  :is(.carousel, .issue-page) .rewind { position: relative; width: 52.8%; margin: 10px auto 12px; padding: 8px 0; }
+  :is(.carousel, .issue-page) .rewind input { display: block; width: 100%; height: 24px; margin: 0; background: none; -webkit-appearance: none; appearance: none; pointer-events: none; }
+  :is(.carousel, .issue-page) .rewind .bar { position: absolute; top: 8px; left: 0; right: 0; height: 24px; touch-action: none; }
+  :is(.carousel, .issue-page) .rewind .grip { position: absolute; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; touch-action: none; }
+  :is(.carousel, .issue-page) .rewind .open { position: absolute; inset: 8px 0; display: none; width: 100%; padding: 0; border: 0; background: none; color: var(--dim);
     font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
-  .carousel .rewind.shut > :not(.open) { visibility: hidden; }
-  .carousel .rewind.shut .open { display: flex; align-items: center; justify-content: center; gap: 5px; }
-  .carousel .rewind .open svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
-  .carousel .rewind input { --track: linear-gradient(to right, rgba(58, 63, 74, .35) calc(9px + var(--from, 0) * (100% - 18px)), var(--line) 0); }
-  .carousel .rewind input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--track); }
-  .carousel .rewind input::-moz-range-track { height: 4px; border-radius: 2px; background: var(--track); }
+  :is(.carousel, .issue-page) .rewind.shut > :not(.open) { visibility: hidden; }
+  :is(.carousel, .issue-page) .rewind.shut .open { display: flex; align-items: center; justify-content: center; gap: 5px; }
+  :is(.carousel, .issue-page) .rewind .open svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  :is(.carousel, .issue-page) .rewind input { --track: linear-gradient(to right, rgba(58, 63, 74, .35) calc(9px + var(--from, 0) * (100% - 18px)), var(--line) 0); }
+  :is(.carousel, .issue-page) .rewind input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--track); }
+  :is(.carousel, .issue-page) .rewind input::-moz-range-track { height: 4px; border-radius: 2px; background: var(--track); }
   /* 레버는 누르고 있는 동안 1.4배로 키운다. */
-  .carousel .rewind input::-webkit-slider-thumb { width: 18px; height: 10px; margin-top: -3px; border: 0; border-radius: 5px; background: var(--accent);
+  :is(.carousel, .issue-page) .rewind input::-webkit-slider-thumb { width: 18px; height: 10px; margin-top: -3px; border: 0; border-radius: 5px; background: var(--accent);
     transition: transform .15s ease; -webkit-appearance: none; appearance: none; }
-  .carousel .rewind input::-moz-range-thumb { width: 18px; height: 10px; border: 0; border-radius: 5px; background: var(--accent); transition: transform .15s ease; }
-  .carousel .rewind.held input::-webkit-slider-thumb { transform: scale(1.4); }
-  .carousel .rewind.held input::-moz-range-thumb { transform: scale(1.4); }
-  .carousel .rewind span { position: absolute; bottom: calc(100% - 6px); padding: 3px 8px; border-radius: 6px; background: rgba(72, 78, 90, .72); color: #FFFFFF;
+  :is(.carousel, .issue-page) .rewind input::-moz-range-thumb { width: 18px; height: 10px; border: 0; border-radius: 5px; background: var(--accent); transition: transform .15s ease; }
+  :is(.carousel, .issue-page) .rewind.held input::-webkit-slider-thumb { transform: scale(1.4); }
+  :is(.carousel, .issue-page) .rewind.held input::-moz-range-thumb { transform: scale(1.4); }
+  :is(.carousel, .issue-page) .rewind span { position: absolute; bottom: calc(100% - 6px); padding: 3px 8px; border-radius: 6px; background: rgba(72, 78, 90, .72); color: #FFFFFF;
     font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; transform: translateX(-50%);
     opacity: 0; transition: opacity .15s ease; pointer-events: none; }
-  .carousel .rewind span::after { content: ""; position: absolute; top: 100%; left: calc(50% + var(--tail, 0px)); margin-left: -5px; border: 5px solid transparent; border-top-color: rgba(72, 78, 90, .72); }
-  .carousel .rewind.held span { opacity: 1; }
+  :is(.carousel, .issue-page) .rewind span::after { content: ""; position: absolute; top: 100%; left: calc(50% + var(--tail, 0px)); margin-left: -5px; border: 5px solid transparent; border-top-color: rgba(72, 78, 90, .72); }
+  :is(.carousel, .issue-page) .rewind.held span { opacity: 1; }
   /* 절 제목 아래 첫 요소는 절 제목의 아래 여백만큼 띄우고, 절 안의 항목 사이는 30px씩 띄운다.
      지수와 예측 절의 세 소제목 사이는 이슈 문단 사이만큼 띄운다. */
   /* 지수와 예측 절의 세 문단은 소제목만 보이고, 상세 이슈 해설의 이슈 해설 문단과 이벤트 캘린더의 이벤트마다 표는 펼쳐 둔다.
@@ -2896,7 +2896,8 @@
     // 봉 비율과 봉 하나가 묶는 기간과 값 글자(`candle`, `{ ratios, unit, label }`)를 받으면 선 대신 봉을 그리고, 세로축을 봉의 고가와 저가까지 담는다.
     // 최고·최저 글자는 가장 높은 고가와 가장 낮은 저가를 봉 위아래에 적고, 정규장 다음 세션 값은 다음 거래일이 든 기간의 흐린 잠정 봉(`candleLate`)으로 그린다.
     // 봉 그림의 '현재' 표시는 마지막 봉의 고가 위에 찍는다.
-    daily({ points, extra = null, kind = "regular", reach = 0, candle = null, height = FIGURE }) {
+    // `stop`을 받으면 점은 끝까지 그리고 '현재' 표시만 `stop`번 점에 찍는다. 봉 그림이면 그 점이 든 봉의 고가 위에 찍는다. `extra`는 `stop`이 마지막 점일 때만 준다.
+    daily({ points, extra = null, kind = "regular", reach = 0, candle = null, height = FIGURE, stop = points.length - 1 }) {
       const L = 4, R = 312, T = 22, B = height - 24, s = frame(height), values = points.map(([, v]) => v), days = points.map(([day]) => day), last = points.length - 1;
       const groups = candle && candleGroups(days, values, candle.ratios, candle.unit, last);
       const shown = groups ? groups.flatMap((group) => [group[3], group[4]]) : values;
@@ -2917,7 +2918,8 @@
         [[high, high[3], -5, "최고"], [lowest, lowest[4], 13, "최저"]].forEach(([[a, b], v, dy, text]) => {
           s.append(shape("text", { x: Math.min(Math.max(X((a + b) / 2), L + 36), R - 36), y: Y(v) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${candle.label(v)}`));
         });
-        nowMark(s, centers[centers.length - 1], Y(bars[bars.length - 1][3]) - 5, extra != null ? kind : "regular");
+        const at = extra != null ? bars.length - 1 : bars.findLastIndex(([a]) => a <= stop);
+        nowMark(s, centers[at], Y(bars[at][3]) - 5, extra != null ? kind : "regular");
         return s;
       } else {
         s.append(shape("path", { d: `M${points.map(([, v], i) => `${X(i)} ${Y(v)}`).join("L")}`, fill: "none", stroke: PRICE,
@@ -2927,12 +2929,12 @@
           s.append(shape("text", { x: Math.min(Math.max(X(i), L + 36), R - 36), y: Y(values[i]) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${points[i][2]}`));
         });
       }
-      const [end, ahead] = extra != null ? [extra, 1] : [values[last], 0];
+      const [end, ahead] = extra != null ? [extra, 1] : [values[stop], 0];
       if (extra != null) {
         s.append(shape("path", { d: `M${X(last)} ${Y(values[last])}L${X(last + ahead)} ${Y(end)}`, fill: "none", stroke: PRICE, "stroke-width": 1.4, "stroke-dasharray": "2 2" }));
         s.append(shape("circle", { cx: X(last), cy: Y(values[last]), r: 2, fill: PRICE }));
       }
-      nowMark(s, X(last + ahead), Y(end), extra != null ? kind : "regular");
+      nowMark(s, X((extra != null ? last : stop) + ahead), Y(end), extra != null ? kind : "regular");
       return s;
     },
     // 묶음 막대: 묶음마다 [이름, [[값, 글자], ...]]이고 막대는 0 가로선에서 위나 아래로 그린다. 세로축은 `min`에서 `max`까지다.
@@ -3070,6 +3072,8 @@
   // 그림 아래 −·+ 단추로 1년, 6개월, 3개월 가운데 기간을 골라 일별 종가 선을 다시 그린다. 종가가 기간보다 짧으면 있는 종가를 모두 그리고, 같은 그림이 되는 기간은 하나만 둔다.
   // 단추 사이의 점 묶음은 누른 채 끌어 기간을 바로 고른다(`zoomDrag`). 봉 비율(`candles`)이 있으면 그 줄 오른쪽 끝에 선·봉 단추(`kindButton`)를 두고, 봉 그림이면 종가 선 대신 1년은 주봉, 6개월·3개월은 일봉을 그린다.
   // 처음에는 가장 짧은 기간을 그린다.
+  // 카드 끝에는 마지막 종가 날짜와 그 앞 30일 안의 종가 날짜로 되감는 슬라이더(`dial`)를 둔다. 날짜를 고르면 그림은 그대로 두고 그 종가 점에 '현재' 표시를 옮겨 찍으며,
+  // 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 앞 종가 대비 등락률을 쓴다. 지난 날짜에는 세션 단추를 두지 않고, 다시 고르는 마지막 종가 날짜는 처음과 같은 세션을 고른다.
   // 카드 맨 위 줄에는 기준일 글씨를 쓰고, 그 아래 이름 줄에 종목 이름과 티커를 쓴다.
   // 마지막 종가 날짜의 애프터장 체결가(`r/market.json` 지도 값, 없으면 `r/afterhours.json`의 체결가)나 그 다음 프리장 체결가(`r/premarket.json`)가 있으면 이름 줄 오른쪽에
   // 정규장·애프터장이나 정규장·프리장 단추를 둔다. 두 값이 다 있으면 프리장 값을 쓴다.
@@ -3123,28 +3127,30 @@
       // `after`는 마지막 종가 날짜의 애프터장 마지막 체결가(`r/market.json` 지도 값)이고, `tail`은 그 체결가가 아직 없을 때 쓰는 애프터장 값이며,
       // `early`는 그 다음 프리장이나 정규장 값이다. 없으면 null이다.
       const asked = query.get("session"), date = `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
-      let late = asked !== "regular", after = null, tail = null, early = null;
+      // `stop`은 되감기 슬라이더가 고른 종가 번호다.
+      let late = asked !== "regular", after = null, tail = null, early = null, stop = last;
       // 정규장 다음 세션의 종류와 [체결가, 기준 시각 글씨, 세션 종류]. 없으면 null이다.
       const kindOf = () => (early ? (early.regular ? "regular" : "pre") : "after");
-      const extra = () => early ? [early.price, sessionAt(early.regular ? "정규장" : "프리마켓", early.time), kindOf()]
+      const extra = () => stop < last ? null : early ? [early.price, sessionAt(early.regular ? "정규장" : "프리마켓", early.time), kindOf()]
         : after != null ? [after, sessionAt("애프터마켓", afterEnd(day)), "after"]
         : tail ? [tail.price, sessionAt("애프터마켓", tail.time), "after"] : null;
       // 가로축은 단추와 관계없이 다음 세션 값이 있으면 다음 거래일까지 담아, 단추를 바꿔도 종가 선이 움직이지 않는다.
       const plot = () => {
         const shown = extra();
-        return GAUGES.daily({ points: points.slice(-SPAN[span]), extra: late && shown ? shown[0] : null, kind: shown?.[2], reach: shown ? 1 : 0, candle: candle(), height: PLOT });
+        return GAUGES.daily({ points: points.slice(-SPAN[span]), extra: late && shown ? shown[0] : null, kind: shown?.[2], reach: shown ? 1 : 0, candle: candle(), height: PLOT,
+                              stop: stop - closes.length + SPAN[span] });
       };
       const seg = sessionSeg((on) => { late = on; repaint(); });
       const repaint = () => {
         if (early?.regular) late = true;
-        const shown = extra(), on = late && shown, move = on ? (shown[0] / now - 1) * 100 : change;
+        const shown = extra(), on = late && shown, move = on ? (shown[0] / now - 1) * 100 : (closes[stop][1] / closes[stop - 1][1] - 1) * 100;
         const kind = kindOf();
         seg.rename(kind);
         seg.mark(late);
         if (shown) top.append(seg.box); else seg.box.remove();
-        asof.textContent = on ? shown[1] : sessionAt("정규장", closeAt(day));
+        asof.textContent = on ? shown[1] : sessionAt("정규장", closeAt(closes[stop][0]));
         asof.dataset.kind = on ? kind : "regular";
-        value.textContent = price(on ? shown[0] : now, "달러");
+        value.textContent = price(on ? shown[0] : closes[stop][1], "달러");
         card.classList.toggle("ext", !!on && !early?.regular);
         state.lastChild.textContent = `${signed(move)}%`;
         state.style.color = on && !early?.regular ? "" : move > 0 ? "#ff5c5c" : move < 0 ? "#5b9bff" : DIMS;
@@ -3172,6 +3178,14 @@
       level();
       if (candles) zoom.append(kindButton(() => card.querySelector(":scope > svg").replaceWith(plot())));
       page.append(card);
+      const back = closes.map(([d], i) => [d, i]).filter(([d, i]) => i > 0 && rewindOffset(d, day) >= 0);
+      let frame = 0;
+      dial(card, day, back.map(([d]) => d), back.length - 1, (i) => {
+        if (back[i][1] === stop) return;
+        stop = back[i][1];
+        late = asked !== "regular";
+        if (!frame) frame = requestAnimationFrame(() => { frame = 0; repaint(); });
+      });
       marketed.then(({ map }) => {
         const own = map?.[data.index]?.stocks.find((stock) => stock.symbol === data.symbol);
         after = own?.after?.[map[data.index].dates.indexOf(day)] ?? null;
@@ -3261,13 +3275,13 @@
       drawn.classList.add("figure");
       return drawn;
     };
-    // `paints[k](figure)`는 k번째 카드의 그림을 `figure`로 다시 그리고, `figure`를 주지 않으면 마지막으로 그린 값으로 다시 그린다.
+    // `paints[k](figure, stop)`는 k번째 카드의 그림을 `figure`로 다시 그리고, 일별 선 그림이면 '현재' 표시를 `stop`번 점에 찍는다. 값을 주지 않으면 마지막으로 그린 값으로 다시 그린다.
     const spots = [], paints = [], daily = [];
     const slides = cards.map((c) => {
       const [box, name] = gauge(c);
       name.append(question(c.name, () => c.help.map((text) => Object.assign(document.createElement("p"), { textContent: text }))));
-      let figure = c.figure;
-      const paint = (next = figure) => { figure = next; box.querySelector(":scope > .figure")?.replaceWith(figureOf(figure)); };
+      let figure = c.figure, stop;
+      const paint = (next = figure, at = stop) => { figure = next; stop = at; box.querySelector(":scope > .figure")?.replaceWith(figureOf({ ...figure, stop })); };
       paints.push(paint);
       if (figure?.type === "daily") daily.push([box, paint]);
       spots.push(box.appendChild(document.createElement("div")));
@@ -3316,6 +3330,7 @@
   // 지표 카드마다 그림과 해설 사이의 자리 `spots`에 지난 리포트 날짜로 되감는 슬라이더를 둔다(build.py `r/rewind-{지수}/indicators.json`).
   // 리포트 날짜와 그 앞 날짜 가운데 그 지표의 카드 값이 있는 날짜만 고를 수 있고, 리포트 날짜에 카드 값이 없는 지표에는 슬라이더를 두지 않는다.
   // 날짜를 고르면 그날 카드 값으로 그 카드의 기준일·값·그림만 다시 그리고, 이름과 물음표 단추, 해설은 리포트 날짜의 것을 그대로 둔다.
+  // 일별 선 그림(유가)은 리포트 날짜의 그림을 그대로 두고, 그날 그림의 마지막 날짜에 '현재' 표시만 옮겨 찍는다.
   function indicatorRewind(cards, spots, paints, date) {
     fetch(`r/rewind-${key.split("-")[1]}/indicators.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((data) => {
       if (!data) return;
@@ -3332,7 +3347,9 @@
           box.querySelector(".asof").textContent = fresh.querySelector(".asof").textContent;
           const val = box.querySelector(":scope > .val"), next = fresh.querySelector(":scope > .val");
           if (val && next) val.replaceWith(next); else if (val) val.remove(); else if (next) box.querySelector(".top").after(next);
-          paints[k](own[drawn].cards[c.name].figure);
+          const figure = own[drawn].cards[c.name].figure;
+          if (figure.type !== "daily") paints[k](figure);
+          else paints[k](c.figure, c.figure.points.findLastIndex(([day]) => day <= figure.points.at(-1)[0]));
         };
         dial(spots[k], date, own.map((f) => f.day), start, (i) => {
           if (i === drawn) return;
