@@ -538,7 +538,8 @@
   .gauge.summary .state[hidden] { display: none; }
   .gauge.summary .state.up { color: #ff5c5c; }
   .gauge.summary .state.down { color: #5b9bff; }
-  .gauge.summary .val b.ink { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .gauge.ink .state i { background: var(--index-ink); }
+  :is(.gauge.summary .val b.ink, .gauge.ink .state span) { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .gauge.summary .val b .sep { margin: 0 .28em; font-weight: 400; color: var(--dim); }
   .gauge .fig { margin: 10px 0 6px; }
   .gauge .fig svg { display: block; width: 100%; height: auto; overflow: visible; font-variant-numeric: tabular-nums; }
@@ -1494,12 +1495,14 @@
     // 선 그림이면 정규장 다음 세션 값은 세션과 체결 시각에 관계없이 다음 거래일 자리에 '현재' 표시로 찍어 고른 날짜의 종가 점에서 점선으로 잇는다.
     // 봉 그림이면 그 값의 '현재' 표시는 다음 거래일이 든 봉의 고가 위에 찍는다.
     // 가장 늦은 리포트의 리포트 날짜는 가장 늦은 세션을, 지난 날짜와 지난 리포트는 정규장을 고른다. 단추를 누르면 되감기 슬라이더가 다른 날짜를 고를 때까지 누른 세션을 유지한다.
-    // 예측 단추(`aim`)를 켜면 고른 날짜 판단의 예측과 지난 리포트의 예측을 그린다. 처음에는 끈 채로 연다. 예측 단추는 위 줄과 가운데 줄 글씨를 바꾸지 않는다.
+    // 예측 단추(`aim`)를 켜면 고른 날짜 판단의 예측과 지난 리포트의 예측을 그린다. 처음에는 끈 채로 열고, 예측이 없는 사전 리포트에는 단추를 두지 않는다.
+    // 켠 카드는 고른 날짜 판단에 예측이 있으면 위 줄에 "25거래일 뒤 예측 중앙값"을, 가운데 줄에 그 값을 지수색 그라데이션으로 쓰고 지수색 점 뒤에 기준 가격 대비 등락률을 적는다.
+    // 이때 정규장 '현재' 표시는 지운다.
     // 끈 카드의 가로축은 마지막 종가 다음 거래일에서 끝나고, 켠 카드의 가로축은 마지막 종가 뒤 25거래일에서 끝난다. 그림 왼쪽 끝도 같은 거래일 수만큼 옮겨 기간을 지킨다.
     // 단추를 누르면 기간을 바꿀 때와 같은 곡선으로 가로축과 세로 범위를 옮기면서 예측을 서서히 나타내거나 지운다.
     // 판단의 예측은 기준 가격 날짜 종가 네 시간 뒤(`BASE_AFTER`) 자리에 찍은 기준 가격 점에서 출발하는 25~75% 범위와 50% 선이고, 날마다 그 거래일 종가 자리에 놓는다.
-    // 기준 가격은 애프터장 값이어서 기준 가격 점을 애프터마켓 색으로 찍고, 종가와 잇지 않는다. 지난 리포트의 예측은 회색 점선과 면으로 그린다.
-    // 사전 리포트의 리포트 날짜처럼 고른 날짜 판단에 예측이 없으면 지난 리포트의 예측만 그린다.
+    // 기준 가격 점과 25거래일 뒤 50% 값의 점은 지수색으로 찍고, 기준 가격 점은 종가와 잇지 않는다. 지난 리포트의 예측은 회색 점선과 면으로 그린다.
+    // 고른 날짜 판단에 예측이 없으면 지난 리포트의 예측만 그리고, 머리 글씨와 '현재' 표시는 끈 카드와 같다.
     const price = (() => {
       const c = card(""), s = c.svg, clipId = "price-clip";
       c.box.querySelector(".val b").className = "";
@@ -1524,14 +1527,15 @@
         if (!data.pre) return [data.base, sessionAt("애프터마켓", afterEnd(data.base_date)), "after"];
         return after ? [hist[close] * after.ratio, sessionAt("애프터마켓", after.time), "after"] : null;
       };
-      const toggle = title.appendChild(Object.assign(document.createElement("button"), { type: "button", className: "aim", innerHTML: "<span>예측</span>" }));
+      const toggle = Object.assign(document.createElement("button"), { type: "button", className: "aim", innerHTML: "<span>예측</span>" });
+      if (!data.pre) title.append(toggle);
       toggle.setAttribute("aria-pressed", "false");
       const seg = sessionSeg((on) => { late = on; chosen = true; show(frame); });
       // `stop`은 '현재' 표시를 찍는 고른 날짜의 거래일 번호다. `ahead`는 예측 단추를 켠 정도(끄면 0, 켜면 1)이고, 단추를 누르는 동안 그 사이 값을 받는다.
       // 가로축 오른쪽 끝(`xmax`)은 끄면 마지막 종가 다음 거래일, 켜면 마지막 종가 뒤 25거래일이다.
       // 기간(`DAYS`)마다 그림 왼쪽 끝(`start`)은 가로축 마지막 거래일(`xmax - 1`)에서 그 거래일 수만큼 앞이다.
       const L = 4, R = W - 4, T = 22, DAYS = [756, 504, 252, 126, 63];
-      let stop = last, ahead = 0, seen = 0;
+      let stop = last, ahead = 0, seen = 0, head = () => {};
       const xmax = (r) => last + 1 + 24 * r, start = (k, r) => Math.max(0, xmax(r) - 1 - DAYS[k]);
       let span = DAYS.length - 1, frame = null, raf = 0, ratios = null;
       const zoom = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
@@ -1622,11 +1626,17 @@
         if (!drawn) g.append(shape("path", { d: path(hist.slice(i0, last + 1).map((v, k) => [X(i0 + k), Y(v)])), ...stroke }));
         if (p) {
           s.append(shape("path", { d: path(xs.map((x, k) => [x, Y(p.q50[k])])), fill: "none", stroke: color, "stroke-width": 1.4, "stroke-linejoin": "round", opacity: r }));
-          s.append(shape("circle", { cx: xs[0], cy: Y(f.base), r: 2.5, "data-kind": "after", style: "fill: var(--kind)", stroke: "#171719", "stroke-width": 1, opacity: r }));
+          [[xs[0], f.base], [xs.at(-1), p.q50.at(-1)]].forEach(([cx, v]) => s.append(shape("circle", { cx, cy: Y(v), r: 2.5, fill: color, stroke: "#171719", "stroke-width": 1, opacity: r })));
         }
         if (marks) extremes();
         const close = [center(stop), Y(hist[stop])];
-        if (!ext) return nowMark(s, close[0], mark(stop, close[1]), "regular");
+        if (!ext) {
+          if (r < 1 || !f.predict) {
+            nowMark(s, close[0], mark(stop, close[1]), "regular");
+            if (f.predict) s.lastChild.setAttribute("opacity", 1 - r);
+          }
+          return;
+        }
         // 선 그림이면 정규장 다음 세션 값은 다음 거래일 자리에 찍어 고른 날짜의 종가 점에서 점선으로 잇는다.
         const next = [center(stop + 1), Y(ext[0])];
         if (!drawn) {
@@ -1666,6 +1676,7 @@
         ahead = aim ? 1 : 0;
         toggle.classList.toggle("on", aim);
         toggle.setAttribute("aria-pressed", aim);
+        head();
         animate(span, seen);
       });
       // 되감기 슬라이더가 다른 날짜를 고르면 사용자가 고른 단추를 지우고, 가장 늦은 리포트의 리포트 날짜는 가장 늦은 세션을, 지난 날짜와 지난 리포트는 정규장을 고른다.
@@ -1682,11 +1693,17 @@
         seg.rename(shown?.[2] ?? "after");
         seg.mark(late);
         if (shown) title.append(seg.box); else seg.box.remove();
-        const move = ext && Math.round((ext[0] / hist[stop] - 1) * 1e4) / 100;
-        c.box.classList.toggle("ext", !!ext && !regular);
-        c.box.querySelector(".state").className = `state ${ext ? (regular ? tone(move) : "") : tone(session)}`;
-        if (ext) c.head(`${signed(move, 2)}%`, fmt(ext[0]), sessionTag(ext[2], ext[1]));
-        else c.head(`${signed(session, 2)}%`, fmt(hist[stop]), sessionTag("regular", sessionAt("정규장", closeAt(dates[stop]))));
+        head = () => {
+          const p = aim ? f.predict : null, move = ext && Math.round((ext[0] / hist[stop] - 1) * 1e4) / 100, end = p?.q50.at(-1);
+          c.box.classList.toggle("ext", !!ext && !regular && !p);
+          c.box.classList.toggle("ink", !!p);
+          c.box.querySelector(".val b").className = p ? "ink" : "";
+          c.box.querySelector(".state").className = `state ${p ? "" : ext ? (regular ? tone(move) : "") : tone(session)}`;
+          if (p) c.head(`${signed((end / f.base - 1) * 100)}%`, fmt(end), "25거래일 뒤 예측 중앙값");
+          else if (ext) c.head(`${signed(move, 2)}%`, fmt(ext[0]), sessionTag(ext[2], ext[1]));
+          else c.head(`${signed(session, 2)}%`, fmt(hist[stop]), sessionTag("regular", sessionAt("정규장", closeAt(dates[stop]))));
+        };
+        head();
         tween(span, span, 1);
       };
       return {
@@ -3954,7 +3971,7 @@
   ];
   // 그림 카드가 있는 리포트의 지수와 예측 설명. 판단 색 이름은 지수마다 다르다.
   const CARD_HELP = (ink) => [
-    ["주가와 예측", `예측 단추를 켜면 25거래일 뒤까지의 예측을 주가 위에 그려요. ${ink} 실선은 예측 중앙값이고, ${ink} 면에는 25거래일 뒤 가격이 50% 확률로 들어와요. 보라 점은 예측을 시작한 애프터마켓 가격이에요. 회색 점선과 면은 지난 리포트의 예측이에요.`],
+    ["주가와 예측", `예측 단추를 켜면 25거래일 뒤까지의 예측을 주가 위에 그려요. ${ink} 실선은 예측 중앙값이고, ${ink} 면에는 25거래일 뒤 가격이 50% 확률로 들어와요. ${ink} 점 두 개는 예측을 시작한 애프터마켓 가격과 25거래일 뒤 예측 중앙값이에요. 예측을 켜면 큰 글씨가 25거래일 뒤 예측 중앙값으로 바뀌어요. 회색 점선과 면은 지난 리포트의 예측이에요.`],
     ["일정", `이슈와 이벤트를 반영한 주가 경로 2만 개로 거래일마다 등락률 범위를 계산해요. 진한 면에 경로의 가운데 50%가, 옅은 면에 가운데 80%가 들어와요.`],
     ["권장 배율", `${ink} 세로선이 권장 배율이에요. 권장 배율이 1.0(지수 추종)보다 작으면 리포트가 하락을 예상한다는 뜻이고, 크면 상승을 예상한다는 뜻이에요.`],
   ];
