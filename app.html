@@ -2683,7 +2683,7 @@
     return [...groups, [b + 1, b + { day: 1, week: 5, month: 21 }[unit], c, Math.max(c, v), Math.min(c, v), v, true]];
   };
   // 봉을 `parent`에 그린다. `X`는 거래일 번호의 가로 자리, `Y`는 값의 세로 자리, `step`은 거래일 하나의 폭이다. 종가가 시가 이상인 봉은 오름 색, 아래인 봉은 내림 색이다.
-  // 잠정 봉은 등락 색에 회색(#A7ABB0)을 7할 섞은 흐린 색으로 그린다. 앞 봉 뒤에 덧붙인 잠정 봉은 앞 봉과 1px 띄우고, 오른쪽 끝(`right`)을 넘지 않게 자리를 당기고 폭을 줄인다.
+  // 잠정 봉은 등락 색에 회색(#A7ABB0)을 9할 섞은 흐린 색으로 그린다. 앞 봉 뒤에 덧붙인 잠정 봉은 앞 봉과 1px 띄우고, 오른쪽 끝(`right`)을 넘지 않게 자리를 당기고 폭을 줄인다.
   const drawCandles = (parent, groups, X, Y, step, right = Infinity) => groups.map(([a, b, o, h, l, c, late], i) => {
     let x = X((a + b) / 2), w = candleWidth([a, b], step);
     if (late && i && a > groups[i - 1][1]) {
@@ -2691,7 +2691,7 @@
       w = Math.max(1, Math.min(w, right - edge));
       x = Math.max(edge + w / 2, Math.min(x, right - w / 2));
     }
-    const color = c >= o ? (late ? "#C19397" : "#ff5c5c") : (late ? "#90A6C8" : "#5b9bff"), top = Y(Math.max(o, c)), bottom = Y(Math.min(o, c));
+    const color = c >= o ? (late ? "#B0A3A8" : "#ff5c5c") : (late ? "#9FA9B8" : "#5b9bff"), top = Y(Math.max(o, c)), bottom = Y(Math.min(o, c));
     parent.append(shape("path", { d: `M${x} ${Y(h)}V${Y(l)}`, stroke: color, "stroke-width": Math.min(1, w) }));
     parent.append(shape("rect", { x: x - w / 2, y: top, width: w, height: Math.max(.8, bottom - top), fill: color }));
     return x;
