@@ -90,7 +90,7 @@ def account() -> dict:
                     {"date": TODAY, "sector": "nasdaq", "state": "pending", "current": 1.61, "target": 1.82, "anchor": 1.5, "run_at": run_at,
                      "reason": "금리 인하 기대가 커지고 반도체 실적 발표를 앞두고 상승 경로의 비중이 늘었다.",
                      "orders": [order("QLD", "BUY", 820.0, 11.7), order("QQQ", "SELL", 300.0, 0.5)], "fills": []},
-                    {"date": PREVIOUS, "sector": "nasdaq", "state": "filled", "current": 1.48, "target": 1.61, "anchor": 1.5,
+                    {"date": PREVIOUS, "sector": "nasdaq", "state": "executed", "current": 1.48, "target": 1.61, "anchor": 1.5,
                      "reason": "고용 지표가 예상보다 약해 하락 쪽 경로가 줄었다.",
                      "orders": [order("QLD", "BUY", 610.0, 8.8)], "fills": [fill("QLD", "BUY", 8.8, 69.31, PREVIOUS, "23:31")]},
                     {"date": "2026-11-17", "sector": "nasdaq", "state": "not_required", "current": 1.49, "target": 1.48, "anchor": 1.5,
@@ -101,7 +101,7 @@ def account() -> dict:
                 "biotech": [
                     {"date": TODAY, "sector": "biotech", "state": "pending", "current": 0.92, "target": 0.86, "anchor": 1.0, "run_at": run_at,
                      "reason": "대형 임상 결과 발표가 다음 주로 밀려 변동성이 커졌다.", "orders": [order("BIB", "SELL", 260.0, 4.2)], "fills": []},
-                    {"date": "2026-11-12", "sector": "biotech", "state": "filled", "current": 0.98, "target": 0.92, "anchor": 1.0,
+                    {"date": "2026-11-12", "sector": "biotech", "state": "executed", "current": 0.98, "target": 0.92, "anchor": 1.0,
                      "reason": "약가 협상 대상 확대 보도로 하락 경로가 늘었다.",
                      "orders": [order("IBB", "SELL", 300.0, 1.5)], "fills": [fill("IBB", "SELL", 1.5, 199.8, "2026-11-12", "23:31")]},
                 ]}},
