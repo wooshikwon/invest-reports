@@ -55,7 +55,7 @@
      본 리포트는 지수색 그라데이션 점과 글자, 옅은 지수색 바탕으로 "분석 완료"를 쓴다.
      머리 상자는 32px 높이의 위 줄과 18px 높이의 아래 줄(`header`)이고, 왼쪽에 시세(`#ticker`)를, 오른쪽 끝의 세로 가운데에 지수 단추를 쓴다. 날짜 줄이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
      시세에 아래 줄이 없으면(애프터장 값이 아직 없는 사전 리포트, 정규장이 열린 뒤) 머리 상자를 위 줄 높이로 줄인다.
-     시세 위 줄은 "나스닥 $27,940 −1.22%"처럼 흰 지수 이름, 리포트 판단의 기준 가격 날짜의 정규장 종가, 그 종가의 앞 거래일 종가 대비 등락률을 쓴다.
+     시세 위 줄은 "나스닥 $27,940 −1.22%"처럼 지수색 그라데이션 글씨의 지수 이름, 리포트 판단의 기준 가격 날짜의 정규장 종가, 그 종가의 앞 거래일 종가 대비 등락률을 쓴다.
      아래 줄은 지수 이름과 같은 왼쪽 끝에서 "애프터마켓 $27,712 −0.83%"처럼 리포트 판단의 기준 가격과 기준 가격의 정규장 종가 대비 등락률을 쓴다. 기준 가격은 정규장 뒤 애프터마켓 거래까지 반영한 마지막 가격이다.
      사전 리포트는 애프터장 값이 오면 아래 줄에 정규장 종가를 지수 ETF의 애프터장 체결가로 옮긴 가격과 그 등락률을 쓰고, 값은 애프터장이 끝날 때까지 10분마다 바뀐다.
      리포트 날짜에 뉴욕 프리장이 열려 프리장 값이 오면 아래 줄을 "프리마켓 $27,850 +0.50%"처럼 정규장 종가를 지수 ETF의 프리장 체결가로 옮긴 가격과 그 등락률로 바꾼다.
@@ -113,7 +113,7 @@
   #ticker { position: absolute; top: 0; left: 0; right: 38px; overflow: hidden; margin: 0; font-size: 13px; line-height: 32px; white-space: nowrap; font-variant-numeric: tabular-nums; }
   #ticker:empty { display: none; }
   #ticker .row { display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; column-gap: 6px; }
-  #ticker .row > span { font-size: 15.5px; font-weight: 700; color: #fff; }
+  #ticker .row > span { font-size: 15.5px; font-weight: 700; background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
   #ticker .row small { grid-column: 1 / -1; font-size: inherit; font-weight: 700; line-height: 18px; color: var(--hint); }
   #ticker b { font-weight: 700; color: var(--accent); }
   #ticker b.price { font-size: 15.5px; }
