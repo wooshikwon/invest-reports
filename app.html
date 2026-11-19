@@ -4017,8 +4017,8 @@
   const assetDay = (date) => `${+date.slice(5, 7)}.${+date.slice(8, 10)}`;
   const assetSaved = () => { try { return JSON.parse(sessionStorage.getItem(ASSET_FLAG)); } catch { return null; } };
   // 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 카드 이름과 상자 목록을 돌려준다.
-  // 배율 카드는 위 줄에 목표 배율을, 큰 값에 현재 배율을 흰 글씨로 쓴다. 그림에는 오늘 가격 경로들의 배율 분포(지수색 면)와 이슈가 없을 때의 기준 분포(회색 면)를 배율 축에 그리고,
-  // 목표 배율에 지수색 실선, 현재 배율에 주황 점선, 기준 배율에 회색 점선을 긋는다. 누적 수익률 카드는 첫날 대비 고정 배율·판단·집행 누적 수익률을,
+  // 배율 카드는 위 줄에 목표 배율을, 큰 값에 현재 배율을 현재 배율 선과 같은 주황 글씨로 쓴다. 그림에는 오늘 가격 경로들의 배율 분포(지수색 면)와 이슈가 없을 때의 분포(회색 면)를 배율 축에 그리고,
+  // 목표 배율에 지수색 실선, 현재 배율에 주황 점선을 긋는다. 누적 수익률 카드는 첫날 대비 고정 배율·판단·집행 누적 수익률을,
   // 초과 수익률 카드는 판단과 집행의 누적 수익률에서 고정 배율 누적 수익률을 뺀 값을 거래일 축에 그린다. 큰 값은 집행 선의 마지막 값이다.
   function assetCards(perf) {
     const W = 320, H = 236, B = 212, L = 6, R = W - 6, T = 22, color = indexInk(W), NOW = "#FF9F1C", BASE = "#A7ABB0";
@@ -4031,13 +4031,13 @@
       const c = gaugeCard(`목표 ${lev.target.toFixed(3)}배`, W, H), s = c.svg, n = lev.today.length;
       c.head("", big(lev.current.toFixed(3), "배"));
       c.value.className = "";
+      c.value.style.color = NOW;
       const xs = Array.from({ length: n }, (_, i) => lev.anchor * (1 + lev.low + (lev.high - lev.low) * i / (n - 1)));
       const X = (v) => Math.min(R, Math.max(L, L + (v - xs[0]) / (xs[n - 1] - xs[0]) * (R - L))), peak = Math.max(...lev.today, ...lev.quiet);
       const Y = (v) => B - v / peak * (B - T);
       const area = (values) => `M${X(xs[0])} ${B}L${values.map((v, i) => `${X(xs[i])} ${Y(v)}`).join("L")}L${X(xs[n - 1])} ${B}Z`;
       s.append(shape("path", { d: area(lev.quiet), fill: "rgba(167, 171, 176, .14)" }));
       s.append(shape("path", { d: area(lev.today), fill: color, opacity: .2 }));
-      s.append(shape("line", { x1: X(lev.anchor), x2: X(lev.anchor), y1: T, y2: B, stroke: BASE, "stroke-width": 1, "stroke-dasharray": "2 3" }));
       s.append(shape("line", { x1: X(lev.current), x2: X(lev.current), y1: T, y2: B, stroke: NOW, "stroke-width": 1.6, "stroke-dasharray": "4 3" }));
       s.append(shape("line", { x1: X(lev.target), x2: X(lev.target), y1: T, y2: B, stroke: color, "stroke-width": 1.6 }));
       s.append(shape("line", { x1: L, x2: R, y1: B, y2: B, stroke: DIMS }));
@@ -4046,7 +4046,7 @@
         s.append(shape("line", { x1: X(v), x2: X(v), y1: B, y2: B + 4, stroke: DIMS }));
         s.append(shape("text", { x: X(v), y: B + 18, "font-size": 11, fill: Math.abs(v - lev.current) < gap / 4 ? "#EAEAEA" : DIMS, "text-anchor": "middle" }, `${v.toFixed(1)}배`));
       }
-      c.foot.innerHTML = legend([["목표", color], ["현재", NOW, true], ["기준", BASE, true]]);
+      c.foot.innerHTML = legend([["목표", color], ["현재", NOW, true]]);
       cards.push(["배율", c.box]);
     }
     const ret = perf?.returns, n = ret?.days?.length || 0;
