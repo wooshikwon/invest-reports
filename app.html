@@ -860,32 +860,38 @@
         settle(0);
       });
     };
-    // 문서 끝의 튕김(`bounce`)은 본문만 `y`px 옮겼다가 제자리로 되돌린다. 손을 떼고 미끄러지던 화면이 문서 끝에 닿으면 닿는 속도에 비례해
-    // 본문을 최대 48px까지 문서 끝 바깥으로 감속하며 밀어낸 뒤 0.5초에 걸쳐 서서히 되돌린다. 손가락이 화면에 닿으면 튕김을 멈추고 본문을 제자리에 둔다.
+    // 문서 끝의 튕김(`bounce`)은 손을 떼고 미끄러지던 화면이 문서 끝에 닿을 때 본문만 문서 끝 바깥으로 밀었다가 되돌린다. 본문은 닿는 순간의 속도
+    // `v`(px/ms, 아래로 밀려나면 양수)로 출발해 속도를 점점 줄이며 밀려나고, 멈춘 자리에서 정지한 채로 출발해 점점 느려지며 제자리로 돌아온다.
+    // 밀려나는 거리는 속도에 비례하다가 커질수록 덜 늘어 96px에 가까워진다. 밀려나는 시간은 그 거리를 처음 속도로 가다가 속도가 3차 곡선으로
+    // 줄어드는 시간이다. 돌아오는 움직임은 정지에서 놓은 임계 감쇠 용수철이고, 0.12초가 시간 단위이므로 0.7초 남짓 지나 제자리에 닿는다.
+    // 손가락이 화면에 닿으면 튕김을 멈추고 본문을 제자리에 둔다.
     let bouncing = 0;
     const halt = () => { cancelAnimationFrame(bouncing); bouncing = 0; };
-    const bounce = (y) => {
+    const bounce = (v) => {
       halt();
       main.classList.remove("pulling");
-      const out = 140 + Math.abs(y) * 2, back = 500, start = performance.now();
+      const far = Math.sign(v) * 96 * (1 - Math.exp(-Math.abs(v) * 45 / 96)), out = 3 * far / v, unit = 120, start = performance.now();
       const step = (now) => {
-        const t = now - start;
-        const at = t < out ? 1 - (1 - t / out) ** 2 : t < out + back ? (1 + Math.cos(Math.PI * (t - out) / back)) / 2 : 0;
-        main.style.top = `${y * at}px`;
-        bouncing = at ? requestAnimationFrame(step) : 0;
+        const t = Math.max(0, now - start), s = (t - out) / unit;
+        const y = t < out ? far * (1 - (1 - t / out) ** 3) : far * (1 + s) * Math.exp(-s);
+        main.style.top = `${y}px`;
+        bouncing = Math.abs(y) > .2 || t < out ? requestAnimationFrame(step) : (main.style.top = "0px", 0);
       };
       bouncing = requestAnimationFrame(step);
     };
     const bottom = () => scrollY >= document.documentElement.scrollHeight - innerHeight - 1;
-    // 손을 뗀 뒤 2.5초 안의 스크롤만 미끄러짐으로 본다. 속도는 앞 스크롤과의 차이를 시간으로 나눈 값을 고르게 섞어 px/ms로 잰다.
-    let touching = false, lifted = -Infinity, lastY = scrollY, lastT = 0, speed = 0;
+    // 손을 뗀 뒤 4초 안의 스크롤만 미끄러짐으로 본다. 속도(px/ms)는 최근 0.1초 안의 스크롤 기록에서 처음 기록과 마지막 기록 사이의 거리를 시간으로
+    // 나눈 값이다. 문서 끝에 닿는 마지막 스크롤은 문서 끝에서 잘려 짧으므로, 닿을 때는 그 스크롤을 빼고 속도를 잰다.
+    let touching = false, lifted = -Infinity, marks = [];
     addEventListener("scroll", () => {
-      const now = performance.now(), y = scrollY;
-      if (now - lastT < 100) speed = .6 * (y - lastY) / Math.max(1, now - lastT) + .4 * speed; else speed = 0;
-      const glide = !touching && now - lifted < 2500 && Math.abs(speed) > .4;
-      if (glide && y <= 0 && lastY > 0 && speed < 0) bounce(Math.min(48, -speed * 16));
-      else if (glide && y > lastY && bottom() && speed > 0) bounce(-Math.min(48, speed * 16));
-      [lastY, lastT] = [y, now];
+      const now = performance.now(), y = scrollY, edge = y <= 0 || bottom();
+      marks = marks.filter(([t]) => now - t < 100);
+      const prior = marks.at(-1), span = edge ? marks : [...marks, [now, y]];
+      const v = span.length > 1 ? (span.at(-1)[1] - span[0][1]) / Math.max(1, span.at(-1)[0] - span[0][0]) : 0;
+      marks.push([now, y]);
+      if (!edge || !prior || touching || now - lifted > 4000 || Math.abs(v) < .2) return;
+      if (y <= 0 && prior[1] > 0 && v < 0) bounce(-v);
+      else if (y > 0 && y > prior[1] && v > 0) bounce(-v);
     }, { passive: true });
     // 문서 끝에서 화면 밖으로 끌면 본문이 같은 비율로 줄어드는 거리만큼 따라오고, 손을 떼면 0.5초에 걸쳐 서서히 제자리로 돌아간다.
     // 문서 맨 위에서 아래로 끌 때만 새로고침 표시를 띄운다. 문서 맨 아래에서 위로 끌면 본문만 올라간다.
