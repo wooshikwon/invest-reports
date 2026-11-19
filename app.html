@@ -1625,14 +1625,17 @@
         const bar = (i) => Math.max(0, drawn.findLastIndex(([a]) => a <= i));
         const center = (i) => (drawn ? centers[bar(i)] : X(i)), mark = (i, y) => (drawn ? Y(drawn[bar(i)][3]) - 5 : y);
         if (!drawn) g.append(shape("path", { d: path(hist.slice(i0, last + 1).map((v, k) => [X(i0 + k), Y(v)])), ...stroke }));
+        // 예측의 시작점과 끝점은 '현재' 표시보다 위에 그린다.
+        const ends = p ? shape("g", { opacity: r }) : null;
         if (p) {
           s.append(shape("path", { d: path(xs.map((x, k) => [x, Y(p.q50[k])])), fill: "none", stroke: color, "stroke-width": 1.4, "stroke-linejoin": "round", opacity: r }));
-          [[xs[0], f.base], [xs.at(-1), p.q50.at(-1)]].forEach(([cx, v]) => s.append(shape("circle", { cx, cy: Y(v), r: 2.5, fill: color, stroke: "#171719", "stroke-width": 1, opacity: r })));
+          [[xs[0], f.base], [xs.at(-1), p.q50.at(-1)]].forEach(([cx, v]) => ends.append(shape("circle", { cx, cy: Y(v), r: 2.5, fill: color, stroke: "#171719", "stroke-width": 1 })));
+          s.append(ends);
         }
         if (marks) extremes();
         const close = [center(stop), Y(hist[stop])];
         // 고른 날짜 판단에 예측이 있으면 예측을 켜는 만큼 정규장 '현재' 표시를 흐리게 한다. 애프터마켓·프리마켓 표시는 그대로 둔다.
-        const dim = f.predict && (!ext || ext[2] === "regular") ? 1 - r : 1, now = s.appendChild(shape("g", { opacity: dim }));
+        const dim = f.predict && (!ext || ext[2] === "regular") ? 1 - r : 1, now = s.insertBefore(shape("g", { opacity: dim }), ends);
         if (!ext) return nowMark(now, close[0], mark(stop, close[1]), "regular");
         // 선 그림이면 정규장 다음 세션 값은 다음 거래일 자리에 찍어 고른 날짜의 종가 점에서 점선으로 잇는다.
         const next = [center(stop + 1), Y(ext[0])];
