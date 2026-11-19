@@ -67,7 +67,9 @@ def market(tmp_path, monkeypatch):
     monkeypatch.setattr(live.requests, "get", found.toss_get)
     monkeypatch.setattr(live.chrome, "get", found.yahoo_get)
     found.written = []
-    monkeypatch.setattr(live.build, "post_live", lambda name, value: found.written.append(name))
+    monkeypatch.setattr(live.build, "post_live", lambda name, value: found.written.append((name, value)))
+    found.accounts = []
+    monkeypatch.setattr(live, "post_account", lambda now, prices: found.accounts.append((now.isoformat(), prices)))
     return found
 
 
@@ -185,3 +187,46 @@ def test_toss_retries_after_too_many_requests(market, monkeypatch):
     answers[:] = [Answer({}, 429)] * live.ATTEMPTS
     with pytest.raises(live.requests.HTTPError):
         toss.get("/api/v1/candles", {"symbol": "QQQ"})
+
+
+def test_holdings_go_only_to_account(market, monkeypatch):
+    monkeypatch.setattr(live, "holding_symbols", lambda: ["QQQ", "SGOV", "TQQQ"])  # TQQQ는 토스·야후 모두 답하지 않는다
+    market.prices = {"QQQ": (501.0, kst("2026-11-19", "09:40:00")), "IBB": (100.5, kst("2026-11-19", "09:40:00")),
+                     "AAPL": (10.0, kst("2026-11-19", "09:40:00")), "SGOV": (100.2, None)}
+    market.spark = {"TQQQ": []}
+    live.tick(at("2026-11-19", "09:41:05"))
+    assert market.accounts == [("2026-11-19T09:41:05-05:00", {"QQQ": 501.0, "SGOV": 100.2})]
+    assert market.written and all("SGOV" not in str(value) for _, value in market.written)  # 공개 종목이 아닌 보유 종목은 invest-live에 쓰지 않는다
+    assert [name for name, _ in market.toss].count("prices") == 1
+
+
+def test_no_holdings_writes_no_account(market):
+    market.prices = {"QQQ": (501.0, kst("2026-11-19", "09:40:00"))}
+    live.tick(at("2026-11-19", "09:41:05"))
+    assert market.written and market.accounts == []
+
+
+def test_holding_symbols_reads_symbol_list(tmp_path, monkeypatch):
+    monkeypatch.setattr(live, "HOLDINGS", tmp_path / "holdings.json")
+    assert live.holding_symbols() == []
+    (tmp_path / "holdings.json").write_text('["QQQ", "SGOV"]')
+    assert live.holding_symbols() == ["QQQ", "SGOV"]
+
+
+def test_post_account_needs_secret_and_204(monkeypatch):
+    sent = []
+    monkeypatch.setattr(live.requests, "post", lambda url, **kwargs: sent.append((url, kwargs)) or Answer(None, status))
+    monkeypatch.delenv("ACCOUNT_SECRET", raising=False)
+    with pytest.raises(EnvironmentError, match="ACCOUNT_SECRET"):
+        live.post_account(at("2026-11-19", "09:41:05"), {"QQQ": 501.0})
+    assert sent == []
+    monkeypatch.setenv("ACCOUNT_SECRET", "sample-secret")
+    status = 204
+    live.post_account(at("2026-11-19", "09:41:05"), {"QQQ": 501.0})
+    url, kwargs = sent[0]
+    assert url == "https://invest-account.wonwooshik.workers.dev/live"
+    assert kwargs["json"] == {"time": "2026-11-19T09:41:05-05:00", "prices": {"QQQ": 501.0}}
+    assert kwargs["headers"]["X-Account-Secret"] == "sample-secret"
+    status = 403
+    with pytest.raises(RuntimeError, match="403"):
+        live.post_account(at("2026-11-19", "09:41:05"), {"QQQ": 501.0})

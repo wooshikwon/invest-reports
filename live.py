@@ -4,7 +4,7 @@
 cron(`~/scripts/cron/invest-live-tick.sh`)이 1분마다 `tick()`을 부른다. 회차마다 장 시간을 판정하고, 토스 `GET /api/v1/prices`를 한 번 불러
 공개 종목과 보유 종목의 마지막 체결가를 받고, `premarket`·`afterhours` 값을 조립해 `POST /write/{이름}`으로 쓴다.
 공개 종목은 `r/market.json` 지도 종목과 지수 ETF(`SECTOR_DB_TICKERS`)다. 보유 종목은 `~/data/invest-account/holdings.json`(심볼만)에서 읽고,
-같은 호출로 받기만 하며 invest-live에는 쓰지 않는다. 토스가 답하지 않거나 빠뜨린 심볼만 야후 `v7/finance/spark`에서 받는다.
+그 체결가는 invest-live에 쓰지 않고 invest-account Worker의 DO에 `POST /live`로만 쓴다. 토스가 답하지 않거나 빠뜨린 심볼만 야후 `v7/finance/spark`에서 받는다.
 토스가 체결 시각 없이 준 심볼은 체결이 없는 것으로 보고 야후에 묻지 않는다. 토큰은 toss-trader와 함께 쓰는 캐시 파일만 쓴다.
 
 값의 스키마는 build.py `premarket`·`afterhours`와 같다. `premarket`은 프리장(`PREMARKET_OPEN`)부터 정규장이 닫힐 때까지 1분마다 그 분의 값을 쓰고,
@@ -46,6 +46,7 @@ from path_bands import SECTOR_DB_TICKERS  # noqa: E402  지수마다의 지수 E
 DATA = Path.home() / "data" / "invest-reports" / "live"
 HOLDINGS = Path.home() / "data" / "invest-account" / "holdings.json"  # account_push가 쓰는 보유 종목 심볼 목록(0600)
 TOSS = "https://openapi.tossinvest.com"
+ACCOUNT_URL = "https://invest-account.wonwooshik.workers.dev"  # 계좌 Worker 주소. `POST /live`가 보유 종목 체결가를 DO에 쓴다
 TOSS_ENV = Path.home() / ".toss_env"
 # 토스는 한 자격증명에 토큰 하나만 살려 두고, 새로 발급하면 앞의 토큰을 바로 거절한다. 그래서 toss-trader와 같은 캐시 파일과 자물쇠를 쓰고,
 # 남은 시간이 `TOKEN_MARGIN`초보다 많은 캐시 토큰은 새로 받지 않는다.
@@ -285,8 +286,20 @@ def public_board() -> dict:
 
 def holding_symbols() -> list[str]:
     """보유 종목 심볼. 파일이 없으면 빈 목록이다."""
-    held = load(HOLDINGS, [])
-    return list(held.get("symbols", []) if isinstance(held, dict) else held)
+    return load(HOLDINGS, [])
+
+
+def post_account(now: dt.datetime, prices: dict[str, float]) -> None:
+    """invest-account Worker의 DO에 보유 종목 체결가를 `POST /live`로 덮어쓴다. 비밀 값은 ~/.cloudflare_env의 `ACCOUNT_SECRET`으로만 받는다.
+
+    Worker가 204를 답하지 않으면 RuntimeError를 낸다.
+    """
+    if not os.environ.get("ACCOUNT_SECRET"):
+        raise EnvironmentError("환경변수 없음: ACCOUNT_SECRET")
+    answer = requests.post(f"{ACCOUNT_URL}/live", json={"time": now.isoformat(timespec="seconds"), "prices": prices}, timeout=TIMEOUT,
+                           headers={"X-Account-Secret": os.environ["ACCOUNT_SECRET"], "User-Agent": "invest-reports"})
+    if answer.status_code != 204:
+        raise RuntimeError(f"invest-account 쓰기 실패: {answer.status_code}")
 
 
 def priced(trade: tuple[float, str | None] | None, start: dt.datetime) -> float | None:
@@ -294,7 +307,7 @@ def priced(trade: tuple[float, str | None] | None, start: dt.datetime) -> float 
     return trade[0] if trade and trade[1] and dt.datetime.fromisoformat(trade[1]) > start else None
 
 
-def assemble(kept: dict, board: dict, trades: dict, end: dt.datetime, span: str, day: dict, base: float | None = None) -> dict:
+def assemble(kept: dict, board: dict, trades: dict, end: dt.datetime, span: str, day: dict, base: dict[str, float] | None = None) -> dict:
     """`kept`의 오늘 값을 `trades`로 갈아 새 값을 돌려준다. `span`이 `after`면 `afterhours`, 아니면 `premarket` 값이다.
 
     `base`는 `afterhours` 비율의 분모인 지수마다 오늘 정규장 ETF 종가다(`{지수: 종가}`).
@@ -325,7 +338,7 @@ def assemble(kept: dict, board: dict, trades: dict, end: dt.datetime, span: str,
 
 
 def tick(now: dt.datetime | None = None) -> dict[str, dict]:
-    """1분 회차. 장 시간 판정, 일괄 조회, 값 조립, invest-live 쓰기를 차례로 부르고, 쓴 값을 이름마다 돌려준다."""
+    """1분 회차. 장 시간 판정, 일괄 조회, 값 조립, invest-live 쓰기, invest-account 쓰기를 차례로 부르고, invest-live에 쓴 값을 이름마다 돌려준다."""
     now = now or dt.datetime.now(NEW_YORK)
     day = calendar_day(now.date())
     kept = {name: load(DATA / f"{name}.json", {}) for name in NAMES}
@@ -337,7 +350,8 @@ def tick(now: dt.datetime | None = None) -> dict[str, dict]:
         day["base"] = base_closes(day["session"], toss)
         save(DATA / f"session-{now.date()}.json", day)
     public = sorted({stock["symbol"] for found in board.values() for stock in found["stocks"]} | set(SECTOR_DB_TICKERS.values()))
-    trades = public_prices(sorted(set(public) | set(holding_symbols())), toss)
+    held = holding_symbols()
+    trades = public_prices(sorted(set(public) | set(held)), toss)
     if not any(symbol in trades for symbol in public):
         raise RuntimeError("토스와 야후 모두 체결가를 주지 않음")
     written = {}
@@ -357,7 +371,8 @@ def tick(now: dt.datetime | None = None) -> dict[str, dict]:
         with open(DATA / f"snap-{now.date()}.jsonl", "a", encoding="utf-8") as snaps:
             for index, days in value.items():
                 snaps.write(json.dumps({"name": name, "index": index, **days[now.date().isoformat()]}, separators=(",", ":")) + "\n")
-    # U2: 보유 종목 체결가를 invest-account에 쓰는 단계가 여기 붙는다.
+    if prices := {symbol: trades[symbol][0] for symbol in held if symbol in trades}:
+        post_account(now, prices)
     record = {"at": now.isoformat(timespec="seconds"), "wrote": sorted(written), "calls": toss.calls,
               "yahoo": toss.yahoo,
               "null": {name: sum(price is None for days in value.values() for price in days[now.date().isoformat()]["stocks"].values())

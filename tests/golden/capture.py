@@ -8,9 +8,9 @@
 
 모든 요청은 가짜 주소 `https://app.local/`과 아래 세 곳만 답하고, 나머지 외부 요청은 abort한 뒤 실패로 끝낸다.
 - `telegram.org`: 빈 스크립트. 텔레그램 WebApp은 init 스크립트가 흉내 낸다(사용자 ID는 1이나 2).
-- `invest-account`: `fixtures.account()`의 지어낸 계좌 요약과 `/decide` 결정.
+- `invest-account`: initData의 사용자가 1이면 `fixtures.account()`의 지어낸 계좌 요약과 `/decide` 결정, 아니면 403. 그래서 사용자 1이 본인이고 사용자 2는 남이다.
 - `invest-live`: `GET /`은 세 값을 묶은 객체, `GET /{이름}`은 그 값 하나(`fixtures.live()`).
-앱의 소유자 해시 상수 `ASSET_OWNER`는 서빙할 때 sha256("1")로 바꾼다. 그래서 사용자 1이 본인이고 사용자 2는 남이다.
+소유자 해시 상수 `ASSET_OWNER`를 가진 앱 코드(v0.8)는 서빙할 때 그 상수를 sha256("1")로 바꾼다.
 시각은 `fixtures.NOW`로 고정하고(`clock.set_fixed_time`), 화면은 390×1000, 배율 1, `reduced_motion`으로 연다.
 화면을 여는 절차는 화면 이름마다 함수 하나이고 `SCREENS`에 이름 순서대로 모인다. 차이를 받아들이는 선택자는 `compare.ALLOW`에 둔다.
 """
@@ -25,7 +25,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from playwright.sync_api import sync_playwright
 
@@ -75,7 +75,7 @@ class Server:
     def __init__(self, code: Path, data: Path):
         self.code, self.data = code, data
         self.live = fixtures.live(data)
-        self.escaped, self.errors, self.patched = [], [], 0
+        self.escaped, self.errors, self.unpatched = [], [], 0
 
     def file(self, path: str, overlay: dict) -> bytes | None:
         if path in overlay:
@@ -87,7 +87,7 @@ class Server:
         body = found.read_bytes()
         if found.suffix in (".html", ".js"):
             text, count = OWNER_PATTERN.subn(lambda m: m.group(1) + OWNER_STAND_IN + m.group(2), body.decode("utf-8"))
-            self.patched += count
+            self.unpatched += "ASSET_OWNER" in text and not count
             body = text.encode("utf-8")
         return body
 
@@ -112,7 +112,11 @@ class Server:
             if url.startswith(ASSET_URL):
                 if request.method == "OPTIONS":
                     return route.fulfill(status=204, headers=JSON_HEAD)
-                if urlparse(url).path.rstrip("/").endswith("/decide"):
+                decide = urlparse(url).path.rstrip("/").endswith("/decide")
+                init = json.loads(request.post_data or "{}").get("initData", "") if decide else request.post_data or ""
+                if json.loads(parse_qs(init).get("user", ["{}"])[0]).get("id") != 1:
+                    return route.fulfill(status=403, body="", headers=JSON_HEAD)
+                if decide:
                     return route.fulfill(status=200, body=json.dumps(fixtures.decide(account, request.post_data)), headers=JSON_HEAD)
                 return route.fulfill(status=200, body=json.dumps(account), headers=JSON_HEAD)
             self.escaped.append(urlparse(url).netloc)
@@ -285,8 +289,8 @@ def main() -> int:
     finally:
         for temp in temps:
             shutil.rmtree(temp, ignore_errors=True)
-    if not server.patched:
-        print("ASSET_OWNER 상수를 찾지 못함")
+    if server.unpatched:
+        print("ASSET_OWNER 상수를 바꾸지 못함")
         failed.append("owner")
     if server.escaped:
         print(f"막은 외부 요청: {', '.join(sorted(set(server.escaped)))}")
