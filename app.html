@@ -1557,7 +1557,7 @@
         const days = found[key.split("-")[1]];
         if (!days) return;
         ratios = dates.map((day) => days[day] ?? null);
-        zoom.append(kindButton(() => { cancelAnimationFrame(raf); tween(span, span, 1); }));
+        zoom.append(kindButton(() => { cancelAnimationFrame(raf); raf = 0; tween(span, span, 1); }));
         if (candleOn && frame) tween(span, span, 1);
       });
       const past = (data.past ?? []).map(([x, lo, mid, hi]) => ({ x, lo, mid, hi }));
@@ -1639,6 +1639,8 @@
         const close = [center(stop), Y(hist[stop])];
         // 고른 날짜 판단에 예측이 있으면 예측을 켜는 만큼 정규장 '현재' 표시를 흐리게 한다. 애프터마켓·프리마켓 표시는 그대로 둔다.
         const dim = f.predict && (!ext || ext[2] === "regular") ? 1 - r : 1, now = s.insertBefore(shape("g", { opacity: dim }), ends);
+        // 날짜 슬라이더가 고른 종가가 아직 그림 왼쪽 끝 앞이면(기간을 넓히는 도중) '현재' 표시를 찍지 않는다.
+        if (stop < i0) return;
         if (!ext) return nowMark(now, close[0], mark(stop, close[1]), "regular");
         // 선 그림이면 정규장 다음 세션 값은 다음 거래일 자리에 찍어 고른 날짜의 종가 점에서 점선으로 잇는다.
         const next = [center(stop + 1), Y(ext[0])];
@@ -1659,7 +1661,7 @@
       const animate = (from, r0) => {
         cancelAnimationFrame(raf);
         const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 550, t0 = performance.now();
-        const step = (now) => { const t = duration ? Math.min(1, (now - t0) / duration) : 1; tween(from, span, t, r0, ahead); if (t < 1) raf = requestAnimationFrame(step); };
+        const step = (now) => { const t = duration ? Math.min(1, (now - t0) / duration) : 1; tween(from, span, t, r0, ahead); raf = t < 1 ? requestAnimationFrame(step) : 0; };
         raf = requestAnimationFrame(step);
       };
       const move = (by) => {
@@ -1686,8 +1688,7 @@
       const show = (f) => {
         if (f !== frame) chosen = false;
         frame = f;
-        cancelAnimationFrame(raf);
-        const now = f.day === date;
+        const now = f.day === date, from = span;
         stop = now ? last : at(f);
         span = Math.min(span, most());
         level();
@@ -1708,7 +1709,9 @@
           else c.head(`${signed(session, 2)}%`, fmt(hist[stop]), sessionTag("regular", sessionAt("정규장", closeAt(dates[stop]))));
         };
         head();
-        tween(span, span, 1);
+        // 고른 날짜의 종가가 그림 밖으로 나가 기간을 넓혔으면 − 단추처럼 그림을 이어 옮긴다. 기간을 옮기는 도중이면 다음 장면이 고른 날짜로 그린다.
+        if (span !== from) animate(from, seen);
+        else if (!raf) tween(span, span, 1);
       };
       return {
         box: c.box,
@@ -2913,6 +2916,7 @@
     // 최고·최저 글자는 가장 높은 고가와 가장 낮은 저가를 봉 위아래에 적고, 정규장 다음 세션 값은 다음 거래일이 든 기간의 흐린 잠정 봉(`candleLate`)으로 그린다.
     // 봉 그림의 '현재' 표시는 마지막 봉의 고가 위에 찍는다.
     // `stop`을 받으면 점은 끝까지 그리고 '현재' 표시만 `stop`번 점에 찍는다. 봉 그림이면 그 점이 든 봉의 고가 위에 찍는다. `extra`는 `stop`이 마지막 점일 때만 준다.
+    // `stop`번 점이 그림 왼쪽 끝 앞이면 '현재' 표시를 찍지 않는다.
     // 그림 왼쪽 끝은 `start`번 점(소수 값이면 두 점 사이)이고, 그 앞 점은 그리지 않는다. 세로 범위(`bounds`, [아래, 위])를 받으면 그 범위로 그리고,
     // 받지 않으면 `dailyBounds`로 정한다. `marks`가 거짓이면 최고·최저 글자를 적지 않는다. 기간을 옮기는 동안 그 사이 그림을 이 세 값으로 그린다.
     daily({ points, extra = null, kind = "regular", reach = 0, candle = null, height = FIGURE, stop = points.length - 1, start = 0, bounds = null, marks = true }) {
@@ -2941,7 +2945,7 @@
           s.append(shape("text", { x: Math.min(Math.max(X((a + b) / 2), L + 36), R - 36), y: Y(v) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${candle.label(v)}`));
         });
         const at = extra != null ? bars.length - 1 : bars.findLastIndex(([a]) => a <= stop);
-        nowMark(s, centers[at], Y(bars[at][3]) - 5, extra != null ? kind : "regular");
+        if (extra != null || stop >= i0) nowMark(s, centers[at], Y(bars[at][3]) - 5, extra != null ? kind : "regular");
         return s;
       } else {
         g.append(shape("path", { d: `M${seen.map((v, k) => `${X(i0 + k)} ${Y(v)}`).join("L")}`, fill: "none", stroke: PRICE,
@@ -2956,7 +2960,7 @@
         s.append(shape("path", { d: `M${X(last)} ${Y(values[last])}L${X(last + ahead)} ${Y(end)}`, fill: "none", stroke: PRICE, "stroke-width": 1.4, "stroke-dasharray": "2 2" }));
         s.append(shape("circle", { cx: X(last), cy: Y(values[last]), r: 2, fill: PRICE }));
       }
-      nowMark(s, X((extra != null ? last : stop) + ahead), Y(end), extra != null ? kind : "regular");
+      if (extra != null || stop >= i0) nowMark(s, X((extra != null ? last : stop) + ahead), Y(end), extra != null ? kind : "regular");
       return s;
     },
     // 묶음 막대: 묶음마다 [이름, [[값, 글자], ...]]이고 막대는 0 가로선에서 위나 아래로 그린다. 세로축은 `min`에서 `max`까지다.
@@ -3179,7 +3183,7 @@
       const animate = (from) => {
         cancelAnimationFrame(raf);
         const duration = matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 550, t0 = performance.now();
-        const step = (now) => { const t = duration ? Math.min(1, (now - t0) / duration) : 1; tween(from, span, t); if (t < 1) raf = requestAnimationFrame(step); };
+        const step = (now) => { const t = duration ? Math.min(1, (now - t0) / duration) : 1; tween(from, span, t); raf = t < 1 ? requestAnimationFrame(step) : 0; };
         raf = requestAnimationFrame(step);
       };
       const seg = sessionSeg((on) => { late = on; repaint(); });
@@ -3196,8 +3200,8 @@
         card.classList.toggle("ext", !!on && !early?.regular);
         state.lastChild.textContent = `${signed(move)}%`;
         state.style.color = on && !early?.regular ? "" : move > 0 ? "#ff5c5c" : move < 0 ? "#5b9bff" : DIMS;
-        cancelAnimationFrame(raf);
-        draw();
+        // 기간을 옮기는 도중이면 다음 장면이 바뀐 값으로 그린다.
+        if (!raf) draw();
       };
       const zoom = card.appendChild(Object.assign(document.createElement("div"), { className: "foot" }))
         .appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
@@ -3219,16 +3223,19 @@
       narrower.addEventListener("click", () => { feelPress(); move(1); });
       zoomDrag(zoom.querySelector(".steps"), () => span, (i) => move(i - span));
       level();
-      if (candles) zoom.append(kindButton(() => { cancelAnimationFrame(raf); draw(); }));
+      if (candles) zoom.append(kindButton(() => { cancelAnimationFrame(raf); raf = 0; draw(); }));
       page.append(card);
       const back = closes.map(([d], i) => [d, i]).filter(([d, i]) => i > 0 && rewindOffset(d, day) >= 0);
       let frame = 0;
       dial(card, day, back.map(([d]) => d), back.length - 1, (i) => {
         if (back[i][1] === stop) return;
+        const from = span;
         stop = back[i][1];
         span = Math.min(span, most());
         level();
         late = asked !== "regular";
+        // 고른 종가가 그림 밖으로 나가 기간을 넓혔으면 − 단추처럼 그림을 이어 옮긴다.
+        if (span !== from) animate(from);
         if (!frame) frame = requestAnimationFrame(() => { frame = 0; repaint(); });
       });
       marketed.then(({ map }) => {
