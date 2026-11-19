@@ -1311,8 +1311,8 @@
   // 지도는 리포트 날짜 전날까지의 마지막 종가로 그린다. 칸 넓이는 종가에 주식 수를 곱한 시가총액에 비례하고, 큰 종목부터 가로세로 비가 1에 가까운 칸으로 나눠 담는다(squarified treemap).
   // 그 날짜의 애프터장 마지막 체결가가 있으면 지도 위 줄 오른쪽에 정규장(해)·애프터장(초승달) 단추를 두고 애프터장을 고른 채로 연다. 애프터장을 고르면 칸 넓이는 그대로 두고
   // 칸과 말풍선의 가격과 등락률, 칸 색을 애프터장 체결가와 그 체결가의 정규장 종가 대비 등락률로 바꾼다. 애프터장 체결가가 없는 종목은 등락률 자리에 "–"를 쓰고 회색으로 칠한다.
-  // 애프터장 체결가는 지도 값의 `after`이고, 그 값이 없는 종목은 애프터장 값(`r/afterhours.json`)의 지도 날짜 체결가다.
-  // `watch`는 리포트 날짜의 프리장 값(`r/premarket.json`)과 지수의 애프터장 값을 받을 때마다 부를 함수를 건다. 애프터장 값을 받으면 위 줄에 체결가를 받은 뉴욕 시각을 쓴다.
+  // 애프터장 체결가는 지도 값의 `after`이고, 그 값이 없는 종목은 애프터장 값(실시간 값 `afterhours`)의 지도 날짜 체결가다.
+  // `watch`는 리포트 날짜의 프리장 값(실시간 값 `premarket`)과 지수의 애프터장 값을 받을 때마다 부를 함수를 건다. 애프터장 값을 받으면 위 줄에 체결가를 받은 뉴욕 시각을 쓴다.
   // 프리장 값의 앞 세션이 지도 날짜이고 체결가가 있는 종목이 있으면 애프터장 단추를 다음날 프리장(새벽) 단추로 바꾸고, 애프터장 체결가 대신 프리장 체결가로 같은 자리를 그린다.
   // 위 줄에는 프리장 날짜와 체결가를 받은 뉴욕 시각을 쓴다. 그 값이 리포트 날짜의 정규장 값(`phase`가 `regular`)이면 단추를 정규장 단추 하나로 줄이고,
   // 정규장 체결가로 같은 자리를 그리며, 위 줄에 정규장과 체결가를 받은 뉴욕 시각을 쓴다.
@@ -1521,7 +1521,7 @@
     // 그 종가가 예측을 켠 그림 왼쪽 끝 밖에 있으면 그 종가가 드는 가장 짧은 기간으로 넓히고, + 단추로는 그 종가가 빠지는 기간까지 줄이지 않는다.
     // 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 정규장 등락률 색(`tone`)의 점과 글씨로 적는다.
     // 기준 가격 날짜 다음 세션 값이 있으면 이름 줄 오른쪽 끝에 정규장·애프터장이나 정규장·프리장 단추를 둔다. 지난 날짜의 다음 세션 값은 그날 프리장 값이 있으면 그 값이고, 없으면 그날 판단의 기준 가격이다.
-    // 애프터장 값은 본 리포트의 기준 가격이고, 사전 리포트는 정규장 종가에 지수 ETF의 애프터장 등락 비율(`r/afterhours.json`)을 곱한 값이다.
+    // 애프터장 값은 본 리포트의 기준 가격이고, 사전 리포트는 정규장 종가에 지수 ETF의 애프터장 등락 비율(실시간 값 `afterhours`)을 곱한 값이다.
     // 프리장 값(`early`)은 정규장 종가에 지수 ETF의 프리장 등락 비율을 곱한 값이며, 프리장 값이 있으면 프리장 값을 쓴다.
     // 정규장 다음 단추를 고르면 위 줄에 그 세션 이름과 시각을, 가운데 줄에 그 값과 정규장 종가 대비 등락률을 회색으로 적는다.
     // 리포트 날짜의 프리장 값이 정규장 값(`phase`가 `regular`)이면 단추를 정규장 단추 하나로 줄이고, 위 줄에 정규장과 시각을, 가운데 줄에 그 값과 앞 종가 대비 등락률을 등락률 색으로 적는다.
@@ -1749,7 +1749,7 @@
       return {
         box: c.box,
         show,
-        // 지수의 날짜별 프리장·정규장 값(`r/premarket.json`)과 애프터장 값(`r/afterhours.json`)을 받아, 리포트 날짜 값을 받은 시각이 바뀌었으면 카드를 다시 그린다.
+        // 지수의 날짜별 프리장·정규장 값(실시간 값 `premarket`)과 애프터장 값(실시간 값 `afterhours`)을 받아, 리포트 날짜 값을 받은 시각이 바뀌었으면 카드를 다시 그린다.
         // 지난 날짜를 고르면 그날의 프리장 값을 쓴다.
         live(days, afters) {
           const found = days?.[date], tail = afters?.[data.base_date]?.ratio != null ? afters[data.base_date] : null;
@@ -1903,8 +1903,8 @@
     const show = (frame) => parts.forEach(([part]) => part.show(frame));
     show(data);
     // 머리 상자 시세는 위 줄에 기준 가격 날짜의 정규장 종가를, 아래 줄에 리포트 날짜 판단의 기준 가격을 쓴다. 사전 리포트는 아래 줄을 두지 않는다.
-    // `quote(early, afters)`는 리포트 날짜의 프리장 값(`r/premarket.json`)의 앞 세션이 기준 가격 날짜이고 지수 ETF 체결가가 있으면, 아래 줄에 기준 가격 대신
-    // 정규장 종가에 지수 ETF의 프리장 등락 비율을 곱한 프리마켓 가격과 그 등락률을 쓴다. 그 값이 정규장 값이면 아래 줄을 두지 않고, 위 줄에 같은 방법으로 옮긴 정규장 가격과 그 등락률을 쓴다. 사전 리포트는 프리장 값이 없을 때 지수의 애프터장 값(`r/afterhours.json`)에서
+    // `quote(early, afters)`는 리포트 날짜의 프리장 값(실시간 값 `premarket`)의 앞 세션이 기준 가격 날짜이고 지수 ETF 체결가가 있으면, 아래 줄에 기준 가격 대신
+    // 정규장 종가에 지수 ETF의 프리장 등락 비율을 곱한 프리마켓 가격과 그 등락률을 쓴다. 그 값이 정규장 값이면 아래 줄을 두지 않고, 위 줄에 같은 방법으로 옮긴 정규장 가격과 그 등락률을 쓴다. 사전 리포트는 프리장 값이 없을 때 지수의 애프터장 값(실시간 값 `afterhours`)에서
     // 기준 가격 날짜의 지수 ETF 등락 비율을 정규장 종가에 곱한 애프터마켓 가격과 그 등락률을 쓴다. 위 줄 등락률은 반올림한 값으로 색을 정해 0.00%를 칠하지 않는다.
     const at = dates.indexOf(data.base_date), rate = (ratio) => Math.round(ratio * 1e4) / 100;
     const day = rate(hist[at] / hist[at - 1] - 1);
@@ -3135,7 +3135,7 @@
   // 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 앞 종가 대비 등락률을 쓴다. 그 종가가 고른 기간 밖이면 그 종가가 드는 가장 짧은 기간으로 넓히고,
   // + 단추로는 그 종가가 빠지는 기간까지 줄이지 않는다. 지난 날짜에는 세션 단추를 두지 않고, 다시 고르는 마지막 종가 날짜는 처음과 같은 세션을 고른다.
   // 카드 맨 위 줄에는 기준일 글씨를 쓰고, 그 아래 이름 줄에 종목 이름과 티커를 쓴다.
-  // 마지막 종가 날짜의 애프터장 체결가(`r/market.json` 지도 값, 없으면 `r/afterhours.json`의 체결가)나 그 다음 프리장 체결가(`r/premarket.json`)가 있으면 이름 줄 오른쪽에
+  // 마지막 종가 날짜의 애프터장 체결가(`r/market.json` 지도 값, 없으면 실시간 값 `afterhours`의 체결가)나 그 다음 프리장 체결가(실시간 값 `premarket`)가 있으면 이름 줄 오른쪽에
   // 정규장·애프터장이나 정규장·프리장 단추를 둔다. 두 값이 다 있으면 프리장 값을 쓴다.
   // 정규장 다음 단추를 고르면 값과 등락률을 그 체결가와 마지막 종가 대비 등락률로 바꿔 회색으로 쓰고, 그림에 그 체결가를 점선으로 잇는다.
   // 처음 고르는 세션은 주소의 `session`이고, 주소에 없으면 가장 늦은 세션이다.
@@ -3448,7 +3448,7 @@
   // 머리 상자 오른쪽 끝에 달력 단추를 단다. `listing`은 `r/index.json`이다. 달력은 보고 있는 리포트의 지수와 달부터 보여 주고, 단추를 누르거나 달력을 옆으로 밀어 그림 넘기기와 같은 속도와 곡선으로 달을 넘기고,
   // 고른 지수의 리포트가 있는 첫 달과 마지막 달 밖으로는 넘기지 않는다. 리포트가 있는 지수가 둘 이상이면 달 이름 위의 두 칸 단추로 지수를 바꾸고, 보던 달이 그 지수의 달 범위 밖이면 범위 안의 가장 가까운 달을 보여 준다.
   // 리포트가 있는 날짜를 누르면 고른 지수의 그날 리포트를 연다. 달력이 떠 있는 동안 달력 단추를 다시 누르면 달력을 닫는다. 정규장 등락률이 `null`이면 `—`로 적는다.
-  // 전날 정규장이 열릴 때 만든 사전 리포트(목록 항목의 `live`)의 날짜에는 그 정규장 값(`r/premarket.json`)의 앞 종가 대비 등락률을 적고, 정규장 값이 없으면 `—`로 적는다.
+  // 전날 정규장이 열릴 때 만든 사전 리포트(목록 항목의 `live`)의 날짜에는 그 정규장 값(실시간 값 `premarket`)의 앞 종가 대비 등락률을 적고, 정규장 값이 없으면 `—`로 적는다.
   const CALENDAR = '<svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">'
     + '<rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M3 8.5h14M7 2.8v3M13 2.8v3"/></svg>';
   const CHEVRON = (d) => `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
@@ -3616,16 +3616,19 @@
   const marketed = fetch("r/market.json", { cache }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   // `r/candles.json`은 build.py가 지수마다 날짜별로 적는 [시가, 고가, 저가] ÷ 종가 비율이다. 주가와 예측 카드가 봉 그림을 그릴 때 그날 종가에 곱한다.
   const candled = fetch("r/candles.json", { cache }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
-  // `r/premarket.json`은 build.py `premarket`이 뉴욕 프리장부터 정규장 마감까지 10분마다 지수마다 적는 그날 프리장이나 정규장의 마지막 체결가이고, `r/afterhours.json`은
+  // 실시간 값 `premarket`·`afterhours`·`progress`는 claude-svr의 build.py가 Cloudflare KV에 쓰고 invest-live Worker(`LIVE_URL`)가 `GET /{이름}`으로 돌려주는 값이다.
+  // Worker가 답하지 않으면 빈 값으로 보고, 화면은 리포트에 적힌 값으로 그린다.
+  // `premarket`은 build.py `premarket`이 뉴욕 프리장부터 정규장 마감까지 10분마다 지수마다 적는 그날 프리장이나 정규장의 마지막 체결가이고, `afterhours`는
   // build.py `afterhours`가 사전 리포트를 올린 뒤 애프터장이 끝날 때까지 10분마다 지수마다 적는 그날 애프터장의 마지막 체결가다. 머리 상자, 지도, 주가와 예측 카드,
   // 종목 상세의 주가 카드가 쓴다. `onLive(hook)`은 두 값을 `{ early, after, regular }`로 묶어 `hook`을 부르고, 가장 늦은 리포트를 보는 동안 화면이 보이면 5분마다,
   // 화면이 다시 보일 때마다 새로 받아 다시 부른다.
   // 정규장 값은 그 세션이 열릴 때 만든 다음날 사전 리포트(목록 항목의 `live`가 그 세션 날짜인 리포트)만 그린다. 그 리포트는 `early`에서 그 값을
   // 리포트 날짜 키로 받고, 다른 리포트는 정규장 값 대신 그날 프리장의 마지막 값(`pre`)을 받는다. `regular`는 지수마다 뉴욕 날짜별 정규장 값이다.
+  const LIVE_URL = "https://invest-live.wonwooshik.workers.dev";
+  const liveValue = (name) => fetch(`${LIVE_URL}/${name}`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   const hooks = [];
   let lived = null;
-  const live = () => (lived = Promise.all([...["premarket", "afterhours"].map((name) =>
-    fetch(`r/${name}.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}))), listed]).then(([found, after, listing]) => {
+  const live = () => (lived = Promise.all([...["premarket", "afterhours"].map(liveValue), listed]).then(([found, after, listing]) => {
     const own = listing[key], early = {}, regular = {};
     Object.entries(found).forEach(([index, days]) => {
       early[index] = {};
@@ -3694,15 +3697,15 @@
       const stage = entry.stage || "done";
       const pill = day.appendChild(Object.assign(document.createElement("span"), { className: `stage ${stage}`,
         textContent: { pre: "분석 전", running: "분석 중", done: "분석 완료" }[stage] }));
-      // 분석 중이면 화면이 보이는 동안 1분마다, 화면이 다시 보일 때마다 `r/progress.json`과 `r/index.json`을 새로 받는다.
-      // `r/progress.json`은 build.py `progress`가 판단 배치 동안 10분마다 지수마다 적는 단계(`step`)와 그 단계에 닿은 시각(`since`), 단계마다 그 단계에 닿기까지
+      // 분석 중이면 화면이 보이는 동안 1분마다, 화면이 다시 보일 때마다 실시간 값 `progress`와 `r/index.json`을 새로 받는다.
+      // `progress`는 build.py `progress`가 판단 배치 동안 10분마다 지수마다 적는 단계(`step`)와 그 단계에 닿은 시각(`since`), 단계마다 그 단계에 닿기까지
       // 걸리는 분(`plan`)이다. 진척률은 지금 단계의 누적 분에 그 단계에 머문 분을 다음 단계의 몫까지만 더해 마지막 누적 분으로 나눈 값이고, 줄지 않으며 99%에서 멈춘다.
       // `r/index.json`의 항목에서 `stage`가 없어지면 본 리포트가 올라온 것이므로 미니 앱을 다시 연다.
       if (stage === "running") {
         let shown = 0;
         const watch = () => {
           if (document.visibilityState !== "visible") return;
-          Promise.all(["progress", "index"].map((name) => fetch(`r/${name}.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}))))
+          Promise.all([liveValue("progress"), fetch("r/index.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}))])
             .then(([progressed, indexed]) => {
               if (indexed[key] && !indexed[key].stage) return location.reload();
               const own = progressed.date === entry.date && progressed.indexes?.[entry.index], plan = progressed.plan || [];
