@@ -651,18 +651,18 @@
   :is(.asset-sum, .asset-item, .asset-cards .val, .trade) .down { color: #5b9bff; }
   /* 내 자산 그림 카드는 선 이름을 적지 않으므로 그림 아래 줄을 두지 않는다. */
   .asset-cards .gauge .foot { display: none; }
-  /* 거래 내역 화면은 날짜마다 블록 하나를 맨 위가 최신이 되게 쌓는다. 블록 위 줄 왼쪽에 날짜를, 오른쪽 끝에 상태 글씨를 쓴다. 체결한 블록의 상태 글씨는
-     "23:31 체결 성공"처럼 마지막 체결의 서울 시각을 앞에 쓴다. 그 아래 배율 변화를 쓰고, 주문 이유는 옅은 바탕의 둥근 상자에 담아 블록의 다른 글씨와 가른다.
-     체결이 있으면 체결을, 없으면 보낸 주문을 종목 줄로 쓴다. 종목 줄은 왼쪽 위에 종목과 그 오른쪽 매수·매도를, 그 아래 수량을 쓰고, 오른쪽 위에 거래 금액을,
-     그 아래 체결은 주당 가격을, 주문은 달러 금액을 쓴다. 집행 시각 전의 집행 요청 블록은 거래 내역 절 위에 따로 두고, 맨 아래에 집행 안내와 취소·승인 단추를 둔다.
-     고른 결정의 단추는 눌린 모양으로 두고, 집행 시각이 지나면 두 단추를 모두 끈다. 결정을 기다리는 상태 글씨는 지수색으로 칠한다. */
+  /* 거래 내역 화면은 날짜마다 블록 하나를 맨 위가 최신이 되게 쌓는다. 블록 위 줄 왼쪽에 날짜를, 오른쪽 끝에 상태 표식을 쓴다. 그 아래 배율 변화를 쓰고,
+     주문 이유는 옅은 바탕의 둥근 상자에 담아 블록의 다른 글씨와 가른다. 체결이 있으면 체결을, 없으면 보낸 주문을 종목 줄로 쓴다. 종목 줄은 왼쪽 위에 종목과
+     그 오른쪽 매수·매도를, 그 아래 수량을 쓰고, 오른쪽 위에 거래 금액을, 그 아래 체결은 체결한 서울 시각을, 주문은 달러 금액을 쓴다. 집행 시각 전의 집행 요청
+     블록은 거래 내역 절 위에 따로 두고, 맨 아래에 집행 안내와 취소·승인 단추를 둔다. 고른 결정의 단추는 눌린 모양으로 두고, 집행 시각이 지나면 두 단추를
+     모두 끈다. 결정을 기다리는 상태 표식은 지수색으로 칠한다. */
   .trade { margin: 0 0 10px; padding: 14px 16px 6px; border-radius: 14px; background: rgba(255, 255, 255, .05); }
   .trade .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .trade .top b { font-size: 15.5px; font-weight: 700; color: var(--accent); }
-  .trade .state { flex: none; font-size: 13px; font-weight: 600; color: var(--hint); }
-  .trade .state.wait { color: var(--index); }
-  .trade .state.done { color: var(--text); }
-  .trade .state.off { color: var(--dim); }
+  .trade .badge { flex: none; padding: 2px 8px; border-radius: 6px; background: rgba(255, 255, 255, .08); font-size: 12px; font-weight: 700; color: var(--hint); }
+  .trade .badge.wait { background: color-mix(in srgb, var(--index) 18%, transparent); color: var(--index); }
+  .trade .badge.done { color: var(--text); }
+  .trade .badge.off { color: var(--dim); }
   .trade .side { margin-left: 6px; font-size: 13px; font-weight: 600; }
   .trade .lev { margin-top: 4px; font-size: 13px; color: var(--dim); }
   .trade .why { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, .05); font-size: 13.5px; line-height: 1.5; color: var(--hint); }
@@ -4332,7 +4332,7 @@
   // 받아 둔 계좌 요약이 있으면 그 값부터 그리고, 화면을 열 때와 미니 앱으로 돌아올 때마다 새로 받는다.
   const TRADE_STATE = {
     pending: ["결정 대기", "wait"], approved: ["승인", "wait"], rejected: ["취소", "off"], auto_approved: ["무응답 승인", "done"],
-    filled: ["체결 성공", "done"], unfilled: ["체결 실패", "off"], not_required: ["주문 없음", "off"],
+    filled: ["체결", "done"], unfilled: ["미체결", "off"], not_required: ["주문 없음", "off"],
   };
   function tradesPage(index) {
     const title = `${INDEX_NAME[index]} 거래 내역`;
@@ -4355,9 +4355,8 @@
         const state = live ? ({ approve: "approved", cancel: "rejected" }[decided] || asked.sectors[index].status) : b.state;
         const running = !live && b.run_at && ["pending", "approved"].includes(state) && now >= due(b.run_at);
         const [label, kind] = running ? ["집행 중", "wait"] : TRADE_STATE[state] || [state, "off"];
-        const at = state === "filled" && b.fills?.length ? `${b.fills.map((f) => f.at.slice(11, 16)).sort().at(-1)} ` : "";
         const rows = b.fills?.length
-          ? b.fills.map((f) => assetRow(`${f.symbol}${side(f.side)}`, assetShares(f.quantity), `$${figure(f.amount)}`, `주당 $${figure(f.price)}`))
+          ? b.fills.map((f) => assetRow(`${f.symbol}${side(f.side)}`, assetShares(f.quantity), `$${figure(f.amount)}`, `${f.at.slice(11, 16)} 체결`))
           : (b.orders || []).map((o) => assetRow(`${o.symbol}${side(o.side)}`, o.shares != null ? `약 ${assetShares(o.shares)}` : "", assetMoney(o.krw, "KRW"),
             o.usd != null ? `약 $${figure(o.usd)}` : ""));
         const act = live ? `<p class="note">${{ approved: `${clock(asked.run_at)}에 집행한다. 그 전까지 취소할 수 있다.`,
@@ -4365,7 +4364,7 @@
           + `<div class="act"><button type="button" data-decision="cancel"${state === "rejected" ? ' class="on" disabled' : ""}>${state === "rejected" ? "취소함" : "취소"}</button>`
           + `<button type="button" data-decision="approve" class="go${state === "approved" ? ' on" disabled' : '"'}>${state === "approved" ? "승인함" : "승인"}</button></div>` : "";
         return `<div class="trade" data-date="${b.date}"><div class="top"><b>${assetDay(b.date)} (${WEEK[new Date(`${b.date}T12:00:00Z`).getUTCDay()]})</b>`
-          + `<span class="state ${kind}">${at}${label}</span></div>`
+          + `<span class="badge ${kind}">${label}</span></div>`
           + (b.current != null && b.target != null ? `<div class="lev">현재 ${b.current.toFixed(3)}배 → 목표 ${b.target.toFixed(3)}배</div>` : "")
           + (b.reason ? `<p class="why">${assetText(b.reason)}</p>` : "") + (rows.length ? `<div class="rows">${rows.join("")}</div>` : "") + act + "</div>";
       };
