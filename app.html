@@ -643,23 +643,38 @@
   body { overflow-x: clip; }
   #report { display: flow-root; }
   #report > .page { padding-bottom: 36px; }
-  /* 내 자산 페이지는 첫 카드에 원화로 합친 총자산과 총 수익·오늘 손익·투자 원금·환율을, 다음 두 카드에 원화·달러 계좌를, 마지막 카드에 보유 종목을 평가액이 큰 순서로 적는다.
-     종목마다 왼쪽에 이름과 수량·현재가·오늘 등락률을, 오른쪽에 평가액과 수익·수익률을 쓴다. 손익과 등락률은 오르면 빨간색, 내리면 파란색으로 쓴다. */
-  .asset { margin-bottom: 12px; padding: 16px 18px; border-radius: 16px; background: rgba(255, 255, 255, .035); font-variant-numeric: tabular-nums; }
-  .asset .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; color: var(--dim); }
-  .asset .top b { font-size: 17px; font-weight: 700; color: var(--accent); }
-  .asset .sub { margin-top: 2px; font-size: 12.5px; color: var(--dim); text-align: right; }
-  .asset .total { margin: 4px 0 10px; font-size: 28px; font-weight: 800; color: var(--accent); letter-spacing: -.5px; }
-  .asset .row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 5px 0; font-size: 14px; color: var(--hint); }
-  .asset .row b { font-weight: 600; color: var(--text); text-align: right; }
-  .asset .item { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid rgba(255, 255, 255, .06); }
-  .asset .top + .item { margin-top: 6px; border-top: 0; }
-  .asset .item:last-child { padding-bottom: 2px; }
-  .asset .item strong { display: block; font-size: 15px; font-weight: 700; color: var(--text); }
-  .asset .item small { display: block; margin-top: 3px; font-size: 12.5px; color: var(--dim); }
-  .asset .item > :last-child { flex: none; text-align: right; }
-  .asset :is(b, span, small).up { color: #ff5c5c; }
-  .asset :is(b, span, small).down { color: #5b9bff; }
+  /* 내 자산 페이지는 토스증권 앱의 내 계좌 화면 순서를 따른다. 맨 위에 원화·달러 계좌의 주문 가능 현금을 두 칸에 쓰고, 그 아래 보유 종목 평가금 합계(내 투자)와 수익·수익률을 크게 쓴다.
+     그 아래 줄에 종목 정렬 선택과 달러·원화 표시 단추를 두고, 종목은 국내주식·해외주식 묶음마다 이름과 수량, 평가금과 수익·수익률을 쓴다. 손익은 오르면 빨간색, 내리면 파란색으로 쓴다. */
+  #report > .page > h2.asset-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .asset-head small { font-size: 13px; font-weight: 500; }
+  .asset-cash { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .asset-cash div { padding: 16px 18px; border-radius: 18px; background: rgba(255, 255, 255, .05); font-size: 14px; color: var(--hint); }
+  .asset-cash b { display: block; margin-top: 4px; font-size: 18px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+  .asset-sum { margin: 34px 0 0; font-size: 17px; font-weight: 700; color: var(--text); }
+  .asset-sum b { display: block; margin: 8px 0 4px; font-size: 30px; font-weight: 800; letter-spacing: -.6px; color: #fff; font-variant-numeric: tabular-nums; }
+  .asset-sum span { font-size: 15.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .asset-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 22px 0 8px; }
+  .asset-sort { position: relative; display: flex; align-items: center; height: 36px; border-radius: 10px; background: rgba(255, 255, 255, .05); color: var(--hint); }
+  .asset-sort select { appearance: none; -webkit-appearance: none; height: 100%; padding: 0 32px 0 12px; border: 0; background: none; font: inherit; font-size: 14px;
+                       font-weight: 600; color: inherit; cursor: pointer; }
+  .asset-sort select option { background: #222226; color: var(--text); }
+  .asset-sort svg { position: absolute; right: 10px; pointer-events: none; }
+  .asset-bar .seg { display: flex; gap: 2px; padding: 3px; border-radius: 10px; background: rgba(255, 255, 255, .05); }
+  .asset-bar .seg button { width: 38px; height: 30px; padding: 0; border: 0; border-radius: 8px; background: none; font: inherit; font-size: 14px; font-weight: 600;
+                           color: var(--dim); cursor: pointer; }
+  .asset-bar .seg button.on { background: rgba(255, 255, 255, .16); color: #fff; font-weight: 700; }
+  .asset-group > button { display: flex; align-items: center; gap: 8px; width: 100%; margin: 18px 0 2px; padding: 8px 0; border: 0; background: none; font: inherit;
+                          font-size: 15.5px; font-weight: 600; color: var(--hint); text-align: left; cursor: pointer; font-variant-numeric: tabular-nums; }
+  .asset-group > button svg { margin-left: auto; transform: rotate(180deg); transition: transform .2s ease; }
+  .asset-group.shut > button svg { transform: none; }
+  .asset-group.shut .asset-item { display: none; }
+  .asset-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 13px 0; font-variant-numeric: tabular-nums; }
+  .asset-item strong { display: block; font-size: 17px; font-weight: 600; color: var(--text); }
+  .asset-item small { display: block; margin-top: 4px; font-size: 14px; color: var(--dim); }
+  .asset-item > :last-child { flex: none; text-align: right; }
+  .asset-item > :last-child strong { font-weight: 700; }
+  :is(.asset-sum, .asset-group, .asset-item) .up { color: #ff5c5c; }
+  :is(.asset-sum, .asset-group, .asset-item) .down { color: #5b9bff; }
   #report > .page.off { height: 0; padding: 0; overflow: hidden; visibility: hidden; }
   #report.flow { display: grid; grid-template-columns: minmax(0, 1fr); overflow: visible clip; pointer-events: none; }
   #report.flow > .page { grid-area: 1 / 1; background: var(--bg); }
@@ -4072,35 +4087,65 @@
       place(on ? [page, ...pages] : pages, on ? [ASSET, ...names] : names, still ? (at === ASSET && !on ? null : at) : name, still);
       if (still && (on || at !== ASSET)) scrollTo(0, y);
     };
+    // 정렬 기준, 금액 단위, 접은 묶음은 기기에 적어 두고 다음에 열 때도 그대로 쓴다.
+    const view = { sort: "value", unit: "KRW", shut: [] };
+    try { Object.assign(view, JSON.parse(localStorage.getItem("asset-view"))); } catch {}
+    const remember = () => { try { localStorage.setItem("asset-view", JSON.stringify(view)); } catch {} };
+    const SORTS = { value: "평가금 높은 순", rate: "수익률 높은 순", profit: "수익금 높은 순", name: "이름 순" };
+    const GROUPS = { KRW: "국내주식", USD: "해외주식" };
+    const chevron = (size) => `<svg width="${size}" height="${size}" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6l4.5 4.5L12.5 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    let last = null;
     const fill = (data) => {
       if (!data || data.error) {
-        if (!data || !page.querySelector(".asset")) page.innerHTML = `<h2>내 자산</h2><p class="status">${data ? "계좌를 불러오지 못했다. 미니 앱을 다시 열면 새로 받는다." : "계좌를 불러오는 중이다."}</p>`;
+        if (!data || !page.querySelector(".asset-sum")) page.innerHTML = `<h2>내 자산</h2><p class="status">${data ? "계좌를 불러오지 못했다. 미니 앱을 다시 열면 새로 받는다." : "계좌를 불러오는 중이다."}</p>`;
         return;
       }
-      const { rate, accounts: { KRW: won, USD: usd } } = data;
+      last = data;
+      const { rate, accounts } = data, unit = view.unit;
+      // 금액은 고른 단위로 바꿔 쓴다. 다른 통화 금액은 요약을 만든 시각의 환율로 바꾼다.
+      const into = (v, currency) => (currency === unit ? v : unit === "KRW" ? v * rate : v / rate);
       const sign = (v) => (v > 0 ? "+" : v < 0 ? "−" : "");
-      const money = (v, currency, signed) => `${signed ? sign(v) : v < 0 ? "−" : ""}${currency === "USD" ? `$${figure(Math.abs(v))}` : `${Math.round(Math.abs(v)).toLocaleString("ko-KR")}원`}`;
-      const percent = (r) => `${sign(r)}${Math.abs(r * 100).toFixed(2)}%`;
-      const change = (v, r, currency) => `<b class="${tone(v)}">${money(v, currency, true)} (${percent(r)})</b>`;
-      const row = (label, value) => `<div class="row"><span>${label}</span>${value.startsWith("<b") ? value : `<b>${value}</b>`}</div>`;
+      const money = (v, currency, bare) => currency === "USD" ? `$${figure(Math.abs(v))}` : `${Math.round(Math.abs(v)).toLocaleString("ko-KR")}${bare ? "" : "원"}`;
+      const share = (r) => `${Math.abs(r * 100).toFixed(1)}%`;
+      const change = (v, r, bare) => `<span class="${tone(v)}">${sign(v)}${money(v, unit, bare)} (${share(r)})</span>`;
       const text = (value) => Object.assign(document.createElement("span"), { textContent: value }).innerHTML;
+      const total = (key) => Object.entries(accounts).reduce((sum, [currency, held]) => sum + into(held[key], currency), 0);
       const [, month, day, clock] = data.time.match(/^\d{4}-(\d{2})-(\d{2})T(\d{2}:\d{2})/);
-      const total = won.value + won.cash + (usd.value + usd.cash) * rate;
-      const card = (title, currency, held) => `<div class="asset"><div class="top"><span>${title}</span><b>${money(held.value + held.cash, currency)}</b></div>`
-        + (currency === "USD" ? `<div class="sub">${money((held.value + held.cash) * rate)}</div>` : "")
-        + (held.purchase ? row("평가액", money(held.value, currency)) + row("수익", change(held.profit, held.profit / held.purchase, currency)) : "")
-        + row("주문 가능 현금", money(held.cash, currency)) + "</div>";
-      const items = data.items.map((item) => `<div class="item"><div><strong>${text(item.name)}</strong>`
-        + `<small>${item.name === item.symbol ? "" : `${text(item.symbol)} · `}${item.quantity.toLocaleString("en-US", { maximumFractionDigits: 6 })}주 · `
-        + `${money(item.price, item.currency)} <span class="${tone(item.dailyRate)}">${percent(item.dailyRate)}</span></small></div>`
-        + `<div><strong>${money(item.value, item.currency)}</strong><small class="${tone(item.profit)}">${money(item.profit, item.currency, true)} (${percent(item.rate)})</small></div></div>`).join("");
-      page.innerHTML = `<h2>내 자산</h2><div class="asset"><div class="top"><span>총자산</span><span>${+month}.${+day} ${clock} 기준</span></div>`
-        + `<div class="total">${money(total)}</div>`
-        + row("총 수익", change(won.profit + usd.profit * rate, data.profitRate)) + row("오늘", change(won.daily + usd.daily * rate, data.dailyRate))
-        + row("투자 원금", money(won.purchase + usd.purchase * rate)) + row("환율", `${figure(rate)}원`) + "</div>"
-        + card("원화 계좌", "KRW", won) + card("달러 계좌", "USD", usd)
-        + (items ? `<div class="asset"><div class="top"><span>보유 종목</span></div>${items}</div>` : "");
+      const profit = total("profit"), purchase = total("purchase");
+      const order = { value: (a, b) => b.value - a.value, rate: (a, b) => b.rate - a.rate, profit: (a, b) => b.profit - a.profit,
+                      name: (a, b) => a.name.localeCompare(b.name) }[view.sort] || ((a, b) => b.value - a.value);
+      const groups = Object.keys(GROUPS).map((currency) => {
+        const items = data.items.filter((item) => item.currency === currency)
+          .map((item) => ({ ...item, value: into(item.value, currency), profit: into(item.profit, currency), purchase: into(item.purchase, currency) })).sort(order);
+        if (!items.length) return "";
+        const bought = items.reduce((sum, item) => sum + item.purchase, 0), gain = items.reduce((sum, item) => sum + item.profit, 0), r = bought ? gain / bought : 0;
+        return `<div class="asset-group${view.shut.includes(currency) ? " shut" : ""}" data-group="${currency}">`
+          + `<button type="button" aria-label="${GROUPS[currency]} 접고 펴기">${GROUPS[currency]} <span class="${tone(r)}">${sign(r)}${share(r)}</span>${chevron(18)}</button>`
+          + items.map((item) => `<div class="asset-item"><div><strong>${text(item.name)}</strong><small>${item.quantity.toLocaleString("en-US", { maximumFractionDigits: 6 })}주</small></div>`
+            + `<div><strong>${money(item.value, unit)}</strong><small>${change(item.profit, item.rate, true)}</small></div></div>`).join("") + "</div>";
+      }).join("");
+      page.innerHTML = `<h2 class="asset-head">내 계좌<small>${+month}.${+day} ${clock} 기준</small></h2>`
+        + `<div class="asset-cash"><div>원화<b>${money(accounts.KRW.cash, "KRW")}</b></div><div>달러<b>${money(accounts.USD.cash, "USD")}</b></div></div>`
+        + `<div class="asset-sum">내 투자<b>${money(total("value"), unit)}</b>${change(profit, purchase ? profit / purchase : 0)}</div>`
+        + `<div class="asset-bar"><label class="asset-sort"><select aria-label="종목 정렬">`
+        + Object.entries(SORTS).map(([key, label]) => `<option value="${key}"${key === view.sort ? " selected" : ""}>${label}</option>`).join("")
+        + `</select>${chevron(14)}</label><div class="seg">`
+        + [["USD", "$"], ["KRW", "원"]].map(([key, label]) => `<button type="button" data-unit="${key}"${key === unit ? ' class="on"' : ""}>${label}</button>`).join("")
+        + `</div></div>` + groups;
     };
+    page.addEventListener("change", (event) => {
+      if (!event.target.matches(".asset-sort select")) return;
+      view.sort = event.target.value; remember(); fill(last);
+    });
+    page.addEventListener("click", (event) => {
+      const unit = event.target.closest("[data-unit]"), group = event.target.closest(".asset-group > button")?.parentElement;
+      if (unit && unit.dataset.unit !== view.unit) { feelSlide(); view.unit = unit.dataset.unit; remember(); fill(last); }
+      if (!group) return;
+      feelPress();
+      const shut = group.classList.toggle("shut");
+      view.shut = shut ? [...view.shut, group.dataset.group] : view.shut.filter((currency) => currency !== group.dataset.group);
+      remember();
+    });
     fill(saved);
     if (flagged) show(true, false);
     else place(pages, names, name, false);
