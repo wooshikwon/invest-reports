@@ -1,0 +1,755 @@
+/* 토스 앱과 같은 짙은 회색 바탕에 그리고, 텔레그램 테마 색은 쓰지 않는다. 본문 글자는 눈부시지 않게 채도를 낮춘 색을 쓰고, 제목과 강조는 지수와 관계없이 흰색에 회색을 조금 섞은 색으로 쓴다. */
+:root {
+  color-scheme: dark;
+  --glide: .3s cubic-bezier(.33, 1, .68, 1);
+  --bg: #171719;
+  --text: #e7edf3;
+  --hint: #A7ABB0;
+  --accent: #EAEAEA;
+  /* 절 제목, 선택되지 않은 날짜는 본문보다 연한 회색 하나로 쓴다. */
+  --dim: #7A828C;
+  --index: var(--hint);
+  --index-to: var(--hint);
+  /* 지수색 글자와 별은 왼쪽의 짙은 옆 색상에서 오른쪽의 지수색으로 천천히 옮겨 가는 그라데이션으로 칠한다.
+     옆 색상은 글자 폭 밖(-25%)에 두어 글자 왼쪽 끝에서 옆 색상이 4분의 3 남짓 섞이고, 뒤 15%는 지수색 그대로 둔다. */
+  --index-ink: linear-gradient(100deg, var(--index-to) -25%, var(--index) 85%);
+  /* 중요도 표식: 네 꼭짓점이 뾰족하고 변이 안쪽으로 휜 별 */
+  --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 0Q5.7 4.3 10 5Q5.7 5.7 5 10Q4.3 5.7 0 5Q4.3 4.3 5 0Z'/%3E%3C/svg%3E");
+  --line: #3A3F4A;
+  --soft: #111318;
+  --band: #0D0D0E;
+  /* 전체화면에서 상태 표시줄과 텔레그램의 닫기·메뉴 단추가 차지하는 위쪽 높이. 텔레그램 앱이 아니거나 전체화면이 아니면 0이다. */
+  --top-inset: calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px));
+  /* 본문의 좌우 여백. 화면 끝까지 넓히는 띠와 그림은 이 여백만큼 바깥으로 늘린다. */
+  --gutter: 20px;
+  /* 좌우 여백이 16px보다 넓어진 만큼의 폭. 바탕을 칠한 상자는 안쪽 좌우 여백을 이만큼 줄여, 상자 안의 글과 그림을 여백이 16px일 때의 자리에 둔다. */
+  --inset: calc(var(--gutter) - 16px);
+  /* 과거 리포트 띠의 높이. 가장 늦은 리포트를 보고 있으면 띠가 없으므로 0이다. 머리 상자와 본문은 위쪽 높이(`--top-edge`) 아래에서 시작한다. */
+  --past: 0px;
+  --top-edge: calc(var(--top-inset) + var(--past));
+}
+/* 단추를 빠르게 두 번 눌러도 화면을 확대하지 않는다. 두 손가락 확대와 스크롤은 그대로 되고, 따로 touch-action을 정한 요소는 그 값을 쓴다. */
+* { box-sizing: border-box; touch-action: manipulation; }
+/* 누를 수 있는 요소(`PRESSABLE`)는 누르고 있는 동안 3% 줄인다. 자리를 옮기는 transform을 쓰는 요소는 그 규칙에서 옮김과 줄임을 함께 적는다. */
+:where(button, summary, .issue-list .pick, .gauge .evbox .t.go) { transition: transform .1s ease-out; -webkit-tap-highlight-color: transparent; }
+.pressed { transform: scale(.97); }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body {
+  font: 15px/1.7 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  word-break: keep-all; overflow-wrap: anywhere; -webkit-text-size-adjust: 100%;
+}
+/* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다. */
+main { position: relative; max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-edge)) var(--gutter) calc(40px + var(--offscreen, 0px)); }
+/* 문서 맨 위에는 리포트 날짜와 요일, 리포트가 보이는 값을 마지막으로 바꾼 서울 시각을 절 제목과 같은 회색의 작은 글씨로 쓰고(`#day`), 그 아래에 머리 상자(`#masthead`)를 둔다.
+   날짜 줄은 본문과 함께 화면 위로 지나간다.
+   날짜 오른쪽에는 그날 판단 배치의 단계를 작은 알약(`.stage`)으로 쓴다. 알약 왼쪽에는 점을 찍는다. 사전 리포트는 회색 "분석 전", 판단 배치가 도는 동안은 노란 "분석 중 NN%"와 깜박이는 점이다. 진척률 숫자는 자리 폭이 같은 숫자로 쓴다.
+   본 리포트는 지수색 그라데이션 점과 글자, 옅은 지수색 바탕으로 "분석 완료"를 쓴다.
+   머리 상자는 32px 높이의 위 줄과 18px 높이의 아래 줄(`header`)이고, 왼쪽에 시세(`#ticker`)를, 오른쪽 끝의 세로 가운데에 지수 단추를 쓴다. 날짜 줄이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
+   시세에 아래 줄이 없으면(애프터장 값이 아직 없는 사전 리포트, 정규장이 열린 뒤) 머리 상자를 위 줄 높이로 줄인다.
+   시세 위 줄은 "나스닥 $27,940 −1.22%"처럼 지수색 그라데이션 글씨의 지수 이름, 리포트 판단의 기준 가격 날짜의 정규장 종가, 그 종가의 앞 거래일 종가 대비 등락률을 쓴다.
+   아래 줄은 지수 이름과 같은 왼쪽 끝에서 "애프터마켓 $27,712 −0.83%"처럼 리포트 판단의 기준 가격과 기준 가격의 정규장 종가 대비 등락률을 쓴다. 기준 가격은 정규장 뒤 애프터마켓 거래까지 반영한 마지막 가격이다.
+   사전 리포트는 애프터장 값이 오면 아래 줄에 정규장 종가를 지수 ETF의 애프터장 체결가로 옮긴 가격과 그 등락률을 쓰고, 값은 애프터장이 끝날 때까지 10분마다 바뀐다.
+   리포트 날짜에 뉴욕 프리장이 열려 프리장 값이 오면 아래 줄을 "프리마켓 $27,850 +0.50%"처럼 정규장 종가를 지수 ETF의 프리장 체결가로 옮긴 가격과 그 등락률로 바꾼다.
+   정규장이 열리면 그 정규장의 값은 그때 만든 다음날 사전 리포트가 그리고, 앞 리포트의 아래 줄은 프리장 마지막 값에서 멈춘다. 다음날 사전 리포트는 정규장 값이 오면 아래 줄을 지우고,
+   위 줄을 "나스닥 $27,850 +0.50%"처럼 같은 방법으로 옮긴 정규장 가격과 그 등락률로 바꾸며, 장이 끝나면 마감 값에서 멈춘다.
+   지수 이름과 정규장 가격은 절 제목과 같은 크기로, 정규장 등락률은 그보다 작은 13px로 쓴다. 아래 줄은 모두 13px의 굵은 글씨로 쓴다.
+   정규장 가격과 정규장 등락률은 정규장 등락률이 오르면 빨강, 내리면 파랑으로 칠한다. 아래 줄의 세션 이름과 가격, 등락률은 다음 정규장 전의 임시 값이므로 모두 회색으로 쓴다.
+   상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 페이지 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
+   흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
+#day { display: flex; align-items: center; margin: 0; font-size: 12.5px; font-weight: 600; line-height: 20px; color: var(--dim); }
+#day:empty { display: none; }
+#day .stage { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 0 6px; border-radius: 6px;
+              background: rgba(255, 255, 255, .08); color: var(--hint); font-size: 10.5px; font-weight: 700; line-height: 16px; }
+#day .stage::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+#day .stage.done::before { background: var(--index-ink); }
+#day .stage.done { background: var(--index-ink), linear-gradient(100deg, color-mix(in srgb, var(--index-to) 16%, transparent), color-mix(in srgb, var(--index) 16%, transparent));
+                   -webkit-background-clip: text, padding-box; background-clip: text, padding-box; color: transparent; }
+#day .stage.running { background: rgba(255, 200, 87, .14); color: #ffc857; font-variant-numeric: tabular-nums; }
+#day .stage.running::before { animation: stage-blink 1.2s ease-in-out infinite; }
+@keyframes stage-blink { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { #day .stage.running::before { animation: none; } }
+/* 문서 맨 위에서 화면을 아래로 끌면 본문(`main`)이 손가락을 따라 내려오고, 위쪽 높이와 본문 사이에 벌어진 틈의 가운데에 새로고침 표시(`#pull`)가 나타난다.
+   표시는 바로가기 알약과 같은 반투명 유리 원이고, 안에 끈 거리만큼 길어지는 얇은 호를 회색으로 그린다. 호가 4분의 3 원까지 자라면 흰색으로 바뀌어 돌기 시작하고(`spin`),
+   새로고침이 끝날 때까지 돈다. 새로고침이 끝나면(`done`) 호가 온전한 원으로 닫히고, 원 둘레에서 흰 고리가 한 번 퍼지며 사라진 뒤 표시가 올라가며 닫힌다.
+   덜 끌고 떼거나 옆으로 밀면 본문과 표시가 0.65초에 걸쳐 서서히 제자리로 돌아간다.
+   웹뷰가 문서 끝에서 스스로 튕기면 본문이 표시보다 먼저 올라가므로, 문서의 세로 튕김을 끄고 문서 끝의 튕김은 스크립트가 본문을 옮겨 그린다.
+   본문은 미리 따로 그려 둔 층을 변환(`transform`)으로 옮기므로, 옮기는 동안 레이아웃과 그리기를 다시 하지 않는다. 변환은 화면 위에 붙은 머리 상자도 함께 옮기므로,
+   머리 상자는 본문이 옮긴 만큼 반대로 옮겨 제자리에 둔다. */
+html { overscroll-behavior-y: none; }
+main { will-change: transform; }
+main.pulling, main.pulling #masthead { transition: transform .65s cubic-bezier(.22, .61, .36, 1); }
+main.pulling.slow, main.pulling.slow #masthead { transition: transform .45s cubic-bezier(.4, 0, .4, 1); }
+#pull { position: fixed; top: calc(var(--top-edge) - 7px); left: 50%; z-index: 8; width: 30px; height: 30px; margin-left: -15px; border-radius: 50%;
+        display: grid; place-items: center; color: var(--dim); opacity: 0; pointer-events: none;
+        background: color-mix(in srgb, var(--bg) 40%, transparent); box-shadow: 0 4px 12px rgba(0, 0, 0, .25);
+        -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: blur(3px) saturate(150%); }
+#pull::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+                background: linear-gradient(150deg, rgba(255, 255, 255, .42), rgba(255, 255, 255, .08) 28%, rgba(255, 255, 255, 0) 55%,
+                            rgba(255, 255, 255, .06) 80%, rgba(255, 255, 255, .22));
+                -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+                -webkit-mask-composite: xor; mask-composite: exclude; }
+#pull svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+#pull.ready { color: #fff; }
+#pull.back { transition: transform .65s cubic-bezier(.22, .61, .36, 1), opacity .65s cubic-bezier(.22, .61, .36, 1); }
+#pull.back.slow { transition: transform .45s cubic-bezier(.4, 0, .4, 1), opacity .45s cubic-bezier(.4, 0, .4, 1); }
+#pull.spin svg { animation: pull-spin .8s linear infinite; }
+@keyframes pull-spin { to { transform: rotate(360deg); } }
+#pull::after { content: ""; position: absolute; inset: 0; border-radius: inherit; border: 1.5px solid rgba(255, 255, 255, .7); opacity: 0; pointer-events: none; }
+#pull.done { color: #fff; }
+#pull.done::after { animation: pull-wave .7s ease-out; }
+@keyframes pull-wave { from { transform: scale(1); opacity: .8; } to { transform: scale(2.6); opacity: 0; } }
+main.veil { opacity: 0; }
+main.unveil { animation: unveil .2s ease-out; }
+@keyframes unveil { from { opacity: 0; } }
+#berth { height: 4px; }
+#masthead { position: sticky; top: calc(5px + var(--top-edge)); z-index: 4; height: 50px; }
+#masthead:has(#ticker .row):not(:has(#ticker small)) { height: 32px; }
+#ticker { position: absolute; top: 0; left: 0; right: 38px; overflow: hidden; margin: 0; font-size: 13px; line-height: 32px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#ticker:empty { display: none; }
+#ticker .row { display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; column-gap: 6px; }
+#ticker .row > span { font-size: 15.5px; font-weight: 700; background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
+#ticker .row small { grid-column: 1 / -1; font-size: inherit; font-weight: 700; line-height: 18px; color: var(--hint); }
+#ticker b { font-weight: 700; color: var(--accent); }
+#ticker b.price { font-size: 15.5px; }
+#ticker b.up { color: #ff5c5c; }
+#ticker b.down { color: #5b9bff; }
+#masthead::before { content: ""; position: absolute; inset: calc(-5px - var(--top-edge)) calc(-1 * var(--gutter)) -9px; z-index: -1;
+                background: color-mix(in srgb, var(--bg) 40%, transparent);
+                border-bottom: 1px solid rgba(255, 255, 255, .06);
+                -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: blur(3px) saturate(150%);
+                opacity: 0; transition: opacity .15s; pointer-events: none; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #masthead::before { background: var(--bg); } }
+#masthead.stuck::before { opacity: 1; }
+/* 전체화면 위쪽 높이를 머리 상자의 띠와 같은 유리로 덮는다. 머리 상자가 고정되면 띠가 이 높이까지 함께 덮으므로 이 유리는 감춘다. */
+#top-glass { position: fixed; top: 0; left: 0; right: 0; z-index: 4; height: var(--top-inset); pointer-events: none;
+             background: color-mix(in srgb, var(--bg) 40%, transparent);
+             -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: blur(3px) saturate(150%); transition: opacity .15s; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #top-glass { background: var(--bg); } }
+body:has(#masthead.stuck) #top-glass { opacity: 0; }
+#masthead.stuck { cursor: pointer; }
+/* 가장 늦은 리포트가 아닌 리포트를 보고 있으면, 전체화면 위쪽 높이 바로 아래에 등락률 줄 높이의 빨간 띠를 화면에 고정해 두고 가운데에 흰 글씨로 "3일 전 리포트 탐색 중"처럼 오늘(한국 시각)에서 리포트 날짜까지의 날수를 쓴다.
+   띠는 화면을 넘겨도 늘 보인다. */
+:root.past { --past: 22px; }
+#past { display: none; }
+:root.past #past { display: block; position: fixed; top: var(--top-inset); left: 0; right: 0; z-index: 7; height: var(--past);
+                   background: #d9363e; color: #fff; font-size: 12px; font-weight: 700; line-height: var(--past); text-align: center; }
+/* 이슈 화면(`:root.issue`)은 머리 상자, 과거 리포트 띠, 페이지 바로가기 알약 없이 이슈 하나만 보인다.
+   대신 머리 상자의 유리 띠와 같은 색·흐림의 한 줄 띠(`#issue-bar`)를 화면 맨 위에 고정하고, 가운데에 보고 있는 이슈의 제목을 작은 회색 글씨 한 줄로 쓴다. 줄을 넘는 제목은 말줄임표로 줄인다.
+   이 띠가 전체화면 위쪽 높이까지 덮으므로 위쪽 높이의 유리는 감춘다. */
+:root.issue { --past: 0px; --issue-bar: 38px; }
+:root.issue :is(#day, #berth, #masthead, #past, #top-glass) { display: none; }
+#issue-bar { display: none; }
+:root.issue #issue-bar { display: block; position: fixed; top: 0; left: 0; right: 0; z-index: 4; padding: var(--top-inset) var(--gutter) 0;
+                         background: color-mix(in srgb, var(--bg) 40%, transparent); border-bottom: 1px solid rgba(255, 255, 255, .06);
+                         -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: blur(3px) saturate(150%);
+                         height: calc(var(--top-inset) + var(--issue-bar)); font-size: 13px; font-weight: 600; line-height: var(--issue-bar);
+                         color: var(--dim); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { :root.issue #issue-bar { background: var(--bg); } }
+:root.issue main { padding-top: calc(16px + var(--issue-bar) + var(--top-edge)); }
+:root.issue #report > h2:first-child { margin-top: 0; }
+/* 이슈 화면의 새로고침 표시는 맨 위 유리 띠 아래에 벌어지는 틈에 나타난다. */
+:root.issue #pull { top: calc(var(--top-edge) + var(--issue-bar) - 7px); }
+/* 지수 단추는 머리 상자 오른쪽 끝, 머리 상자 높이의 가운데에 두는 토글 스위치다. 예측 단추와 같은 가로 47px, 세로 26px의 알약 모양 바탕 위에 지름 22px의 흰 원 손잡이를 둔다.
+   바탕은 보고 있는 리포트 지수의 지수색 그라데이션으로 칠한다. 그라데이션은 손잡이 쪽 끝에 지수색을, 반대쪽 끝에 `INDEX`의 둘째 색(나스닥은 연보라, 바이오는 분홍)을 둔다.
+   나스닥 리포트는 손잡이를 왼쪽에 두고, 바이오 리포트는 손잡이를 오른쪽에 둔다. 두 그라데이션은 서로 좌우를 뒤집은 모양이다.
+   누르면 손잡이가 반대쪽 끝으로 0.28초에 걸쳐 옮겨 가고, 손잡이가 지나간 칸이 손잡이를 따라 바뀐 지수의 그라데이션으로 칠해진다. */
+.index-pick { position: absolute; top: 50%; right: 0; width: 47px; height: 26px; margin-top: -13px; padding: 0; overflow: hidden; border: 0; border-radius: 13px;
+              background: linear-gradient(to right, var(--left), var(--left-to)); cursor: pointer; }
+.index-pick i { position: absolute; }
+.index-pick .fill { inset: 0; background: linear-gradient(to left, var(--right), var(--right-to)); clip-path: inset(0 100% 0 0); transition: clip-path .28s ease-in-out; }
+.index-pick .bar { top: 2px; left: 2px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3);
+                   transition: transform .28s ease-in-out; }
+.index-pick.right .fill { clip-path: inset(0); }
+.index-pick.right .bar { transform: translateX(21px); }
+h2 { font-size: 15.5px; font-weight: 700; color: var(--dim); margin: 46px 0 10px; }
+:is(#report, #report > .page) > h2:first-child { margin-top: 28px; }
+/* 절과 절 사이에는 화면 폭 전체에 바탕보다 짙은 띠를 두어 절을 나눈다. 띠 위아래는 같은 폭으로 띄운다. */
+html { overflow-x: clip; }
+:is(#report, #report > .page) > h2:not(:first-child) { margin-top: 0; }
+:is(#report, #report > .page) > h2:not(:first-child)::before { content: ""; display: block; height: 12px; margin: 40px calc(50% - 50vw) 36px; background: var(--band); }
+h3, h4 { font-size: 15.5px; line-height: 1.5; margin: 22px 0 6px; color: var(--accent); }
+p { margin: 0 0 12px; }
+ul { padding-left: 1.2em; margin: 0 0 12px; }
+li { margin-bottom: 6px; }
+strong { color: var(--accent); }
+img { display: block; width: 100%; height: auto; margin: 12px 0; border-radius: 10px; background: var(--bg); cursor: zoom-in; }
+.viewer { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; overflow: hidden; touch-action: none;
+          background: rgba(23, 23, 25, .96); }
+.viewer img { margin: 0; border-radius: 0; transform-origin: 0 0; cursor: zoom-out; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.55; margin: 8px 0 16px; }
+th, td { text-align: left; vertical-align: top; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+th { color: var(--hint); font-weight: 600; font-size: 12.5px; }
+table.events th { color: var(--hint); }
+table.events td, table.events td.chance { color: var(--hint); }
+table.events td.branch { width: 34%; font-weight: 600; }
+table.events td.chance { width: 3.2em; text-align: right; font-weight: 700; white-space: nowrap; }
+table.judged td.chance { color: var(--accent); }
+/* 오늘과 이후 이벤트의 표는 확률이 가장 높은 갈래 줄의 글자만 굵게 쓰고, 나머지 줄의 확률 변화는 빨강과 파랑에 회색을 섞어 탁하게 쓴다. */
+table.events:not(.judged) tr.top td { font-weight: 700; }
+table.events:not(.judged) tr:not(.top) td.chance small.up { color: color-mix(in srgb, #ff5c5c 55%, var(--dim)); }
+table.events:not(.judged) tr:not(.top) td.chance small.down { color: color-mix(in srgb, #5b9bff 55%, var(--dim)); }
+table.events td.chance small.delta { display: block; font-size: 0.68em; font-weight: 600; line-height: 1.2; margin-top: 1px; }
+table.events td.chance small.up { color: #ff5c5c; }
+table.events td.chance small.down { color: #5b9bff; }
+table.events td.chance small.flat { color: var(--hint); font-weight: 500; }
+.status { color: var(--hint); text-align: center; padding: 48px 0; }
+/* 요약 소제목과 이슈 소제목 앞 말머리는 이벤트 발표 시각과 같은 지수색 글자로 소제목 위 한 줄에 둔다.
+   중요도가 낮은 이벤트의 발표 시각은 지수색 대신 회색으로 쓴다.
+   방향 표식은 제목 끝 오른쪽에 색을 채운 스티커로 그리고, 상승 요인과 하락 요인은 머리말 등락률의 상승·하락 색으로 칠한다.
+   제목 끝 줄에 스티커가 들어갈 폭이 없으면 스티커만 다음 줄 왼쪽 끝으로 넘긴다. 제목과 스티커 사이는 줄을 바꿀 수 있는 빈칸으로 띄운다. */
+mark, h3 .when { width: fit-content; background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
+mark { display: block; font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+/* 요약 소제목은 말머리 아래에 결론마다 한 줄씩 소제목 글씨로 쓰고, 번호 블록의 왼쪽 끝을 말머리의 왼쪽 끝에 맞추며, 줄 앞에 소제목마다 1부터 매긴 번호를 옅은 흰색 둥근 블록 안에 쓰고, 블록의 세로 가운데를 결론 첫 줄(줄 높이 23.25px)의 가운데에 맞춘다.
+   말머리와 첫 결론 사이는 4px, 마지막 줄 아래는 6px 더 띄운다. 펼친 문단은 결론 글자의 왼쪽 끝에 맞춰 들여 쓴다. */
+h3:has(> ul.heads) > mark { margin-bottom: 4px; }
+details.fold:has(> summary ul.heads) > .body { padding-left: 26px; }
+h3 > ul.heads { margin: 0 0 6px; padding: 0; list-style: none; counter-reset: head; }
+h3 > ul.heads li { position: relative; margin: 0; padding-left: 26px; counter-increment: head; }
+h3 > ul.heads li + li { margin-top: 4px; }
+h3 > ul.heads li::before { content: counter(head); position: absolute; left: 0; top: calc(23.25px / 2 - 9px); width: 18px; height: 18px; border-radius: 5px;
+                           background: rgba(255, 255, 255, .12); color: var(--text); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+                           font-variant-numeric: tabular-nums; }
+h3 code { font-family: inherit; font-size: 10.5px; font-weight: 700; color: #8b95a1; background: none; border: 1px solid;
+          border-radius: 999px; padding: 0.5px 7px; margin-right: 5px; white-space: nowrap; }
+h3 .gap { word-spacing: calc(8px - 0.25em); }
+h3 .tags { display: inline; vertical-align: 2px; line-height: 1; }
+h3:has(> .tags) { margin-bottom: 18px; }
+h3 code.tone-up, h3 code.tone-down, h3 code.tone-both { color: #fff; border: 0; padding: 1.5px 8px; }
+h3 code.tone-up { background: #ff5c5c; }
+h3 code.tone-down { background: #5b9bff; }
+h3 code.tone-both { background: #6f7984; }
+.carousel { margin: 12px 0 4px; }
+/* 한 번 넘기면 한 장씩 멈추고, 세로 움직임은 페이지가 받는다. */
+.carousel .track { display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory;
+                   overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.carousel .track::-webkit-scrollbar { display: none; }
+.carousel .slide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; }
+.carousel .slide img { margin: 0; }
+/* 날짜 슬라이더는 그림 폭의 48%로 가운데에 둔다. 처음에는 슬라이더 자리에 "기준 날짜 이동" 글자 단추(`open`)만 두고(`shut`), 글자 왼쪽에 시계를 거꾸로 돌리는 선 아이콘을 단다.
+   단추를 누르면 그 자리에 슬라이더를 띄운다. 슬라이더에 댄 손가락은 넘기기 묶음을 옆으로 밀지 않는다.
+   막대는 위아래 24px 칸(`bar`)으로만 손가락을 받아, 막대 근처에서 시작한 넘기기를 가로채지 않는다. 막대를 누르면 슬라이더를 닫는다.
+   레버는 레버 중심을 둘러싼 56px 칸(`grip`)으로 손가락을 받아, 레버에서 조금 벗어나게 눌러도 레버를 잡는다. */
+:is(.carousel, .issue-page) .rewind { position: relative; width: 60.7%; margin: 10px auto 12px; padding: 8px 0; }
+:is(.carousel, .issue-page) .rewind input { display: block; width: 100%; height: 24px; margin: 0; background: none; -webkit-appearance: none; appearance: none; pointer-events: none; }
+:is(.carousel, .issue-page) .rewind .bar { position: absolute; top: 8px; left: 0; right: 0; height: 24px; touch-action: none; }
+:is(.carousel, .issue-page) .rewind .grip { position: absolute; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; touch-action: none; }
+:is(.carousel, .issue-page) .rewind .open { position: absolute; inset: 8px 0; display: none; width: 100%; padding: 0; border: 0; background: none; color: var(--dim);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+:is(.carousel, .issue-page) .rewind.shut > :not(.open) { visibility: hidden; }
+:is(.carousel, .issue-page) .rewind.shut .open { display: flex; align-items: center; justify-content: center; gap: 5px; }
+:is(.carousel, .issue-page) .rewind .open svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+:is(.carousel, .issue-page) .rewind input { --track: linear-gradient(to right, rgba(58, 63, 74, .35) calc(9px + var(--from, 0) * (100% - 18px)), var(--line) 0); }
+:is(.carousel, .issue-page) .rewind input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--track); }
+:is(.carousel, .issue-page) .rewind input::-moz-range-track { height: 4px; border-radius: 2px; background: var(--track); }
+/* 레버는 누르고 있는 동안 1.4배로 키운다. */
+:is(.carousel, .issue-page) .rewind input::-webkit-slider-thumb { width: 18px; height: 10px; margin-top: -3px; border: 0; border-radius: 5px; background: var(--accent);
+  transition: transform .15s ease; -webkit-appearance: none; appearance: none; }
+:is(.carousel, .issue-page) .rewind input::-moz-range-thumb { width: 18px; height: 10px; border: 0; border-radius: 5px; background: var(--accent); transition: transform .15s ease; }
+:is(.carousel, .issue-page) .rewind.held input::-webkit-slider-thumb { transform: scale(1.4); }
+:is(.carousel, .issue-page) .rewind.held input::-moz-range-thumb { transform: scale(1.4); }
+:is(.carousel, .issue-page) .rewind span { position: absolute; bottom: calc(100% - 6px); padding: 3px 8px; border-radius: 6px; background: rgba(72, 78, 90, .72); color: #FFFFFF;
+  font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; transform: translateX(-50%);
+  opacity: 0; transition: opacity .15s ease; pointer-events: none; }
+:is(.carousel, .issue-page) .rewind span::after { content: ""; position: absolute; top: 100%; left: calc(50% + var(--tail, 0px)); margin-left: -5px; border: 5px solid transparent; border-top-color: rgba(72, 78, 90, .72); }
+:is(.carousel, .issue-page) .rewind.held span { opacity: 1; }
+/* 절 제목 아래 첫 요소는 절 제목의 아래 여백만큼 띄우고, 절 안의 항목 사이는 30px씩 띄운다.
+   지수와 예측 절의 세 소제목 사이는 이슈 문단 사이만큼 띄운다. */
+/* 지수와 예측 절의 세 문단은 소제목만 보이고, 상세 이슈 해설의 이슈 해설 문단과 이벤트 캘린더의 이벤트마다 표는 펼쳐 둔다.
+   소제목을 누르면 문단이나 표가 펼쳐지거나 접히고, 펼친 문단이나 표를 눌러도 접힌다. 펼친 소제목과 문단 사이는 표식이 없는 소제목의 아래 여백만큼 띄우고, 펼친 문단은 `--hint` 색으로 쓰고,
+   펼친 이벤트 표는 열 제목을 소제목 색, 칸 글자를 펼친 문단 색으로 쓴다. 펼치고 접을 때는 내용 높이가 이어서 바뀐다. */
+/* 상세 이슈 해설의 이슈 해설 문단은 소제목 없이 말머리 아래에 펼친 문단처럼 여백과 색을 쓴다. 이슈 해설 대신 현재 상태·주요 분기와 예측·종합 시나리오 소제목 세 개를 단 리포트는 세 문단을 접는다.
+   검토했지만 비중을 낮춘 이슈는 접지 않고, 굵은 이슈 이름은 소제목 색, 설명은 펼친 문단 색으로 쓴다.
+   AI 생성 그림은 이슈 문단의 이슈 제목과 이슈 해설 말머리 사이에 모서리를 둥글리지 않고 화면 좌우 끝까지 채워 싣는다. 그림 오른쪽 아래 구석에 AI 생성 이미지 표시를 얹고, 그림 아래에는 사진 설명을 좌우 여백을 두고 흐린 작은 글씨로 단다.
+   그림이 두 장 이상이면 그림과 사진 설명을 한 장씩 넘겨 보는 묶음에 싣고, 묶음 아래 가운데에 장마다 점 하나를 찍어 보고 있는 장의 점을 밝게 칠한다. 점을 누르면 그 장으로 넘긴다.
+   이슈 그래프는 이슈 해설 문단 사이에 미국 거시 지표 카드와 같은 모양으로 싣고, 그래프 설명은 카드 내용과 같은 좌우 여백을 두고 단다.
+   그림의 사진 설명과 그래프 설명 아래에서 다음 말머리나 문단까지는 위 문단에서 그래프 제목까지와 같은 28px을 띄운다. 히스토리 상자 아래 이슈 해설 말머리도 28px을 띄운다.
+   종목 상세의 대표 이미지는 같은 모양으로 절 제목 위, 화면 맨 위 이슈 띠 바로 아래에 붙여 싣고, 그림과 절 제목 사이에는 절 사이 띠를 두지 않는다. */
+.issue-page > h4 { margin-top: 15.5px; }
+.issue-page > :is(p, ul, ol) { color: var(--hint); }
+:is(.issue-page, #report) > figure.issue-image { margin: 12px calc(50% - 50vw) 0; }
+:is(.issue-page, #report) > figure.issue-image img { margin: 0; border-radius: 0; }
+:is(.issue-page, #report) > figure.issue-image .frame { position: relative; }
+:is(.issue-page, #report) > figure.issue-image .ai { position: absolute; right: 10px; bottom: 7px; color: rgba(255, 255, 255, .78); font-size: 11px; line-height: 1;
+                                       text-shadow: 0 0 4px rgba(0, 0, 0, .7); pointer-events: none; }
+:is(.issue-page, #report) > figure.issue-image figcaption { margin-top: 8px; padding: 0 var(--gutter); color: var(--dim); font-size: 12px; line-height: 1.5; }
+:is(.issue-page, #report) > figure.issue-image :is(figure.photo, .carousel) { margin: 0; }
+:is(.issue-page, #report) > figure.issue-image .dots { display: flex; justify-content: center; gap: 7px; margin-top: 12px; }
+:is(.issue-page, #report) > figure.issue-image .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background .2s ease; }
+:is(.issue-page, #report) > figure.issue-image .dots i.on { background: var(--hint); }
+.issue-page > figure.issue-image + * { margin-top: 28px; }
+#report > figure.issue-image { margin-top: -16px; }
+#report > figure.issue-image + h2:not(:first-child) { margin-top: 28px; }
+#report > figure.issue-image + h2:not(:first-child)::before { content: none; }
+.issue-page > figure.issue-chart { margin: 0 0 28px; }
+.issue-chart > figcaption { margin-top: 8px; padding: 0 18px; color: var(--dim); font-size: 12px; line-height: 1.5; }
+/* 같은 이슈를 다룬 앞 날짜 리포트가 있으면 이슈 그림과 이슈 해설 말머리 사이에 히스토리 말머리와 이슈 목록 상자 같은 연한 둥근 상자를 둔다. 상자에는 줄마다 날짜와
+   그날 이슈 해설 소제목을 오늘부터 앞 날짜 순으로 쓰고, 줄 사이에 옅은 선을 긋는다. 보고 있는 날짜의 줄은 본문 색 굵은 글씨로, 나머지 줄은 흐린 글씨로 쓴다. 누르고 있는 줄은 3% 줄인다.
+   최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝에 지수 색으로 칠하고 위로 갈수록 투명해지는 띠와 펼침 단추를 둔다. 펼치면 단추 글을 `이전 해설 숨기기`로
+   바꾸고 줄 목록의 높이를 다섯 줄까지 늘리며, 그보다 많은 줄(`long`)은 목록 안에서 스크롤해 본다. 줄이 다섯 이하면 목록을 스크롤 상자로 만들지 않는다. */
+.issue-page > div.history { margin-top: 8px; padding: 4px calc(18px - var(--inset)); border-radius: 16px; background: rgba(255, 255, 255, .035); overflow: hidden; }
+.issue-page > div.history + h4 { margin-top: 28px; }
+.history .rows { position: relative; overflow: hidden; }
+.history .rows.open.long { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.history .rows.open::-webkit-scrollbar { display: none; }
+.history .rows.shut > .entry:nth-child(n + 4) { display: none; }
+.history .unfold { position: relative; isolation: isolate; display: flex; align-items: center; justify-content: center; gap: 6px; width: calc(100% + 36px); margin: 0 -18px -4px;
+  padding: 14px 0 12px; border: 0; background: none; color: var(--dim); font: inherit; font-size: 13px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.history .unfold::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--index-ink); opacity: .2;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000); mask-image: linear-gradient(to bottom, transparent, #000); }
+.history .unfold svg { flex: none; }
+.history .entry { display: flex; gap: 12px; width: 100%; padding: 12px 0; border: 0; background: none; color: var(--dim); font: inherit; font-size: 14px;
+  line-height: 1.5; text-align: left; word-break: normal; cursor: pointer; }
+.history .entry + .entry { border-top: 1px solid rgba(255, 255, 255, .06); }
+.history .entry.on { color: var(--text); font-weight: 600; }
+.history .entry .day { flex: none; min-width: 40px; font-variant-numeric: tabular-nums; }
+/* 이슈 문단 끝에 앞 이슈와 다음 이슈로 가는 두 칸을 나란히 둔다. 칸마다 그 이슈 그림을 가로로 긴 띠로 흐리게 잘라 보이고, 그림 아래 모서리에 이동 방향 꼬리표를,
+   그림 아래에 이슈 제목을 두 줄까지 쓴다. 두 칸은 위끝을 맞춰 제목 줄 수가 달라도 그림 높이가 같다. 그림이 없는 이슈는 같은 크기의 빈 띠를 둔다. 앞 칸은 왼쪽에, 다음 칸은 오른쪽에 붙여 쓰고, 첫 이슈의 앞 칸과 마지막 이슈의 다음 칸은 비운다. 누르고 있는 칸은 3% 줄인다. */
+.issue-page > nav.step { display: flex; align-items: flex-start; gap: 12px; margin: 32px 0 8px; }
+.step > :is(button, span) { flex: 1; min-width: 0; }
+.step button { display: block; padding: 0; border: 0; background: none; color: var(--hint); font: inherit; text-align: left; cursor: pointer; }
+.step button.next { text-align: right; }
+.step .shot { position: relative; aspect-ratio: 16 / 7; border-radius: 10px; background: rgba(255, 255, 255, .04); overflow: hidden; }
+.step .shot .thumb { display: block; width: 100%; height: 100%; margin: 0; object-fit: cover; object-position: 50% 25%; opacity: .75; }
+.step .tag { display: inline-block; padding: 2px 7px; border-radius: 6px; background: rgba(255, 255, 255, .06); color: var(--dim); font-size: 11px; font-weight: 600; line-height: 1.5; }
+.step .shot .tag { position: absolute; bottom: 6px; background: rgba(0, 0, 0, .55); color: #fff; }
+.step .prev .shot .tag { left: 6px; }
+.step .next .shot .tag { right: 6px; }
+.step .title { display: -webkit-box; margin-top: 6px; font-size: 12.5px; line-height: 1.35; overflow: hidden; word-break: keep-all; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+details.fold > summary { list-style: none; cursor: pointer; }
+details.fold > summary::-webkit-details-marker { display: none; }
+details.fold { margin-top: 15.5px; }
+.carousel + details.fold { margin-top: 30px; }
+details.fold > summary :is(h3, h4) { margin: 0; }
+details.fold > .body { display: flow-root; padding-top: 6px; color: var(--hint); }
+details.fold > .body > * { margin-top: 0; }
+/* 이벤트 캘린더는 항목 하나씩 넘기고, 넘기기가 멈추면 높이를 그 항목에 맞춘다. */
+.carousel.fit .track { align-items: flex-start; transition: height .2s ease; }
+.carousel.fit.folding .track { transition: none; }
+.carousel.fit .slide :is(h3, ul):first-child { margin-top: 0; }
+/* 상세 이슈 해설은 이슈 제목 목록으로 시작한다. 이슈마다 아주 연한 둥근 상자에 왼쪽부터 순위 번호, 방향 표식을 끝에 붙인 제목을 놓고, 제목 아래에 이슈 해설(이전 리포트는 현재 상태)의 소제목을 흐린 글씨로 붙인다.
+   AI 생성 그림이 있는 이슈는 상자 오른쪽 끝에 그 그림의 썸네일을 둔다. 제목과 소제목은 같은 폭으로 쓴다.
+   번호와 제목 묶음은 위를 맞춰 한 묶음으로 두고, 그 묶음을 썸네일과 세로 가운데로 맞춘다. 제목 묶음이 썸네일보다 낮아도 번호는 제목 첫 줄에 놓인다.
+   소제목은 짧은 폭에서 줄 끝이 들쭉날쭉하지 않게 단어 대신 글자 단위로 줄을 바꾼다.
+   마지막 상자에는 "비중이 낮은 이슈 N건"을 제목으로, 앞 세 이슈의 이름을 소제목으로 쓴다. 상자를 누르면 목록 대신 그 이슈의 문단을 보이거나
+   검토했지만 비중을 낮춘 이슈를 보인다.
+   목록과 내용을 바꾸는 동안에는 두 쪽을 넘기기 장처럼 장 사이만큼 띄워 나란히 옆으로 옮기고, 묶음 밖으로 나간 부분은 가린다. */
+/* 상세 이슈 해설 절 제목과 이슈 목록 사이에는 이슈 해설을 쓴 판단 배치의 분석 완료 시각을 "11/17 11:43 KST"처럼 흐린 작은 글씨로 쓴다. */
+.issue-asof { margin: -4px 0 12px; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.issue-list .pick { display: flex; align-items: center; gap: 14px; padding: 18px calc(18px - var(--inset)); border-radius: 16px; background: rgba(255, 255, 255, .035); cursor: pointer; }
+/* 바로 앞 리포트의 이벤트 캘린더가 적은 이벤트의 결과를 다룬 이슈 상자는 지수색 그라데이션으로 외곽선을 두르고, 외곽선 위쪽 왼쪽에 "10월 CPI 결과"처럼
+   이벤트 이름표를 얹는다. 외곽선은 상자 가장자리 1.5px만 남기고 가린 그라데이션 층으로 그리고, 이름표 글자는 밝은 지수색 위에서 읽히도록 바탕색으로 쓴다.
+   날짜 띠의 별처럼, 다룬 이벤트가 모두 중요도 낮음이면 외곽선과 이름표를 지수색 대신 회색으로 칠한다. */
+.issue-list .pick[data-event] { position: relative; }
+.issue-list .pick[data-event]::after { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; pointer-events: none;
+  background: var(--index-ink); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude; }
+.issue-list .pick[data-event]::before { content: attr(data-event) " 결과"; position: absolute; z-index: 1; top: 0; left: 14px; transform: translateY(-50%); padding: 0 8px;
+  border-radius: 9px; background: var(--index-ink); color: var(--bg); font-size: 11px; font-weight: 700; line-height: 18px; white-space: nowrap; }
+.issue-list .pick[data-event-level="low"]::after, .issue-list .pick[data-event-level="low"]::before { background: var(--hint); }
+.issue-list .pick + .pick { margin-top: 10px; }
+/* 지난 리포트의 이벤트 캘린더 절은 절 제목부터 절 끝까지를 회색 막으로 덮고 색을 빼서 흐리게 보이고, 막이 누르기와 밀기를 받아 아래 날짜 띠와 묶음이 움직이지 않는다.
+   화면 위아래 스크롤은 막 위에서도 그대로 된다. 막 한가운데에는 가장 늦은 리포트로 가는 단추를 흰 글자와 오른쪽 꺽쇠로 띄운다.
+   단추 상자는 머리 상자·페이지 바로가기 알약과 같은 색·흐림의 유리 알약에 알약과 같은 1px 빛줄기를 두르고 그림자는 두지 않아, 아래 표 글자와 겹쳐도 읽힌다.
+   막과 단추는 머리 상자 아래에 둔다. 막을 절 내용보다 먼저 그리는 층으로 두어, 같은 층의 단추가 막 위에 그려진다. */
+.frozen { position: relative; }
+.frozen::before { content: ""; position: absolute; inset: -8px calc(-1 * var(--gutter)) 0; z-index: 3; background: rgba(110, 110, 118, .22);
+  -webkit-backdrop-filter: grayscale(1) brightness(.75); backdrop-filter: grayscale(1) brightness(.75); }
+.frozen .latest { position: absolute; z-index: 3; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 8px;
+                  padding: 12px 20px; border: 0; border-radius: 24px; background: color-mix(in srgb, var(--bg) 40%, transparent);
+                  -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: blur(3px) saturate(150%);
+                  color: #fff; font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.frozen .latest::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+                          background: linear-gradient(150deg, rgba(255, 255, 255, .42), rgba(255, 255, 255, .08) 28%, rgba(255, 255, 255, 0) 55%,
+                                      rgba(255, 255, 255, .06) 80%, rgba(255, 255, 255, .22));
+                          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+                          -webkit-mask-composite: xor; mask-composite: exclude; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .frozen .latest { background: var(--bg); } }
+.frozen .latest.pressed { transform: translate(-50%, -50%) scale(.97); }
+.frozen .latest svg { color: var(--dim); }
+.issue-list .pick .lead { flex: 1; display: flex; align-items: flex-start; gap: 14px; }
+.issue-list .pick .num { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px;
+                         min-width: 16px; color: var(--text); font-size: 15.5px; line-height: 1.5; font-weight: 700; }
+/* 이슈 목록의 방향 표식은 제목 끝 스티커 대신 번호 아래 등락 화살표로 그린다. 상승 요인은 오르내리다 오른쪽 위로, 하락 요인은 오른쪽 아래로 가고, 양방향은 가운데서 위아래로 갈라진다. */
+.issue-list .pick .num svg { margin: 0; display: block; }
+.issue-list .pick .num .tone-up { color: #ff5c5c; }
+.issue-list .pick .num .tone-down { color: #5b9bff; }
+.issue-list .pick .num .tone-both { color: #8b95a1; }
+.issue-list .pick .text { flex: 1; }
+.issue-list .pick h3 { margin: 0; }
+/* 목록 상자의 제목과 소제목 아래 왼쪽에 아주 작은 글씨로, 새로 쓴 이슈는 빨간 "NEW"를, 앞 리포트에서 옮겨 온 이슈는 흐린 "N일 전"을 쓴다. */
+.issue-list .pick .age { margin: 6px 0 0; color: var(--hint); font-size: 10px; font-weight: 700; line-height: 14px; letter-spacing: .02em; }
+.issue-list .pick .age.new { color: #ff5c5c; font-weight: 800; }
+/* 이슈 해설 말머리 아래, 본문 앞에 해설을 쓴 날짜를 흐린 글씨로 쓴다. */
+.issue-page .written { margin: -4px 0 10px; color: var(--hint); font-size: 12px; font-weight: 600; letter-spacing: .02em; }
+.issue-list .pick p { margin: 6px 0 0; color: var(--dim); font-size: 14px; line-height: 1.5; word-break: normal; }
+/* 썸네일은 제목부터 NEW·N일 전 줄까지 담은 상자 내용의 높이만큼 위아래로 늘려 상자 위·아래·오른쪽 여백을 같게 두고, 내용이 낮아도 96px 정사각형보다 작아지지 않는다.
+   크기 격리(contain: size)로 그림 비율이 상자 높이를 바꾸지 않게 한다. */
+.issue-list .pick .thumb { flex: none; align-self: stretch; contain: size; width: 96px; min-height: 96px; margin: 0; border-radius: 12px; object-fit: cover; cursor: inherit; }
+.issue-box { position: relative; margin-top: 12px; }
+.issue-box.moving { clip-path: inset(-100vh calc(50% - 50vw)); }
+.issue-box .leaving { display: block; position: absolute; top: 0; left: 0; right: 0; }
+.issue-page { display: none; }
+.issue-page > :first-child { margin-top: 0; }
+.issue-box.inside .issue-list:not(.leaving) { display: none; }
+.issue-box.inside .issue-page.on { display: block; }
+/* 이벤트 캘린더는 발표일마다 한 장이고, 위 날짜 띠의 날짜마다 별·날짜·요일을 테두리 없는 둥근 회색 상자에 담는다. 보고 있는 날짜는 상자를
+   진하게, 글자를 흰색으로 쓰고, 나머지 날짜는 상자를 연하게, 글자를 흐린 회색으로 쓴다. 리포트 날짜의 상자에는 절 제목 색의 얇은 회색 테두리를 두르고, 누르고 있는 상자는 조금 줄인다.
+   상자는 같은 폭이고 넘기기 장 사이만큼 띄운다.
+   띠는 아래 장 묶음과 따로 손가락으로 밀어 여러 날짜를 한 번에 지나가고, 스크롤 막대는 숨긴다. 장을 넘기면 보고 있는 날짜의 상자가
+   화면 가운데에 오도록 띠를 미끄러뜨리되, 띠의 첫 상자나 마지막 상자가 문단 끝에 닿으면 더 밀지 않는다. 띠는 화면 양 끝 여백까지 보인다. */
+/* 띠는 가로로 넘치는 부분을 잘라 내므로 날짜 상자의 위아래 끝도 띠 끝에서 잘린다. 띠 위아래에 12px 여백을 두어 상자 테두리와 리포트 날짜 상자 뒤의 빛이 잘리지 않게 한다. */
+.days-rail { position: relative; display: flow-root; }
+.days { position: relative; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; margin: -12px calc(-1 * var(--gutter)); padding: 12px var(--gutter); }
+.days::-webkit-scrollbar { display: none; }
+.days .strip { display: flex; gap: 10px; width: max-content; }
+.days button { appearance: none; border: 1px solid transparent; font: inherit; flex: 0 0 auto; padding: 4px 9px; border-radius: 8px;
+               background: rgba(255, 255, 255, .05); text-align: center; line-height: 1.25; color: var(--dim); cursor: pointer; }
+.days button.on { background: rgba(255, 255, 255, .16); }
+.days button b { display: block; font-size: 14px; font-variant-numeric: tabular-nums; }
+.days button small { display: block; font-size: 11px; }
+.days button.on { color: #fff; }
+.days button { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+/* 리포트 날짜 상자는 지수색 테두리만 그린다. 테두리는 그림자 대신 모든 상자에 투명하게 둔 1px 선으로 그려, 상자가 화소 사이에 걸려도 네 변의 두께가 같다.
+   띠를 밀어 그 상자가 모두 화면 밖으로 나가면, 나간 쪽 화면 끝에 날짜 상자 높이의 세로 빛줄기를 띄워 리포트 날짜가 그쪽에 있다고 알린다.
+   빛줄기는 선을 긋지 않고, 화면 끝의 세로 직선 전체에서 고른 세기로 나와 안쪽으로 10px 안에 옅어진다. 위아래 끝은 상자처럼 잘려 보이지 않도록 짧게만 옅어진다. */
+.days button.today { border-color: var(--index); }
+.days-rail .edge { position: absolute; top: 0; bottom: 0; width: 10px; pointer-events: none; opacity: 0; transition: opacity .25s ease;
+                   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+                   mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent); }
+.days-rail .edge.left { left: calc(-1 * var(--gutter)); background: linear-gradient(to right, color-mix(in srgb, var(--index) 45%, transparent),
+                        color-mix(in srgb, var(--index) 14%, transparent) 45%, transparent); }
+.days-rail .edge.right { right: calc(-1 * var(--gutter)); background: linear-gradient(to left, color-mix(in srgb, var(--index) 45%, transparent),
+                         color-mix(in srgb, var(--index) 14%, transparent) 45%, transparent); }
+.days-rail .edge.on { opacity: 1; }
+/* 날짜를 꾹 누르면 뜨는 말풍선은 달력 창과 같은 진한 회색 상자에 꼬리를 달고, 날짜 상자 위(자리가 없으면 아래)에 둔다. 누를 수 있는 단추는 흰 글자와
+   오른쪽 꺽쇠로, 안내 문장은 흐린 글자로 쓴다. 뜰 때 살짝 커지며 나타난다. */
+.bubble { position: absolute; z-index: 6; padding: 4px; border-radius: 12px; background: #2a2a2f; box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+          animation: bubble-in .16s ease-out; transform-origin: var(--tail) 100%; }
+.bubble.below { transform-origin: var(--tail) 0; }
+.bubble::after { content: ""; position: absolute; left: calc(var(--tail) - 6px); bottom: -5px; width: 12px; height: 12px; border-radius: 2px;
+                 background: inherit; transform: rotate(45deg); }
+.bubble.below::after { top: -5px; bottom: auto; }
+.bubble button { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: 0; border-radius: 9px;
+                 background: none; color: #fff; font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.bubble button svg { color: var(--dim); }
+.bubble p { position: relative; z-index: 1; margin: 0; padding: 10px 14px; color: var(--hint); font-size: 14px; white-space: nowrap; }
+@keyframes bubble-in { from { opacity: 0; transform: scale(.92); } }
+/* 단어표 용어는 본문 글자 그대로 두고 흐린 점선 밑줄만 긋는다. 누르면 날짜 말풍선과 같은 상자에 대표 표기를 굵게, 그 아래에 설명을 흐린 글자로 쓰고,
+   본문 폭을 넘지 않게 줄을 바꾼다. */
+button.term { display: inline; margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; line-height: inherit; text-align: inherit;
+              text-decoration: underline dotted color-mix(in srgb, currentColor 55%, transparent); text-decoration-thickness: 1.5px;
+              text-underline-offset: 3px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button.term.on { text-decoration-color: currentColor; }
+.bubble.gloss { width: min(320px, calc(100vw - 24px)); padding: 12px 14px; box-sizing: border-box; }
+.bubble.gloss b { position: relative; z-index: 1; display: block; margin-bottom: 4px; color: #fff; font-size: 14px; font-weight: 600; }
+.bubble.gloss p { padding: 0; font-size: 14px; line-height: 1.55; white-space: normal; }
+/* 지수와 예측 절의 그림 이름 탭은 날짜 상자와 같은 색으로 그리고, 고른 탭으로 줄을 옮기지 않는다. */
+.tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+.tabs button { appearance: none; border: 0; font: inherit; font-size: 14px; font-weight: 600; padding: 6px 12px; border-radius: 8px;
+               background: rgba(255, 255, 255, .05); color: var(--dim); cursor: pointer; }
+.tabs button.on { background: rgba(255, 255, 255, .16); color: #fff; }
+/* 날짜 위 별은 그날 이벤트마다 하나씩, 중요도 높음·보통은 지수색, 낮음은 회색으로 찍는다. 5개를 넘으면 색마다 별 하나와 개수를 적는다.
+   발표 시각 옆 별과 크기가 같다. */
+.days button i { display: flex; justify-content: center; align-items: center; gap: 2px; height: 8px; margin-bottom: 2px;
+                 font-style: normal; font-size: 8px; line-height: 1; color: var(--hint); }
+.days button i span { width: 6px; height: 6px; -webkit-mask: var(--star) center / contain no-repeat; mask: var(--star) center / contain no-repeat; }
+.days button i em { font-style: normal; margin: 0 2px 0 -1px; }
+.days button i .lv-key { background: var(--index-ink); }
+.days button i .lv-low { background: var(--hint); }
+.carousel.events .slide { display: flow-root; }
+.carousel.events .event + .event { margin-top: 30px; }
+.carousel.events .event { display: flow-root; }
+.carousel.events .event > h3 { margin: 0 0 6px; }
+.carousel.events .event > :not(h3) { margin-top: 0; color: var(--hint); }
+.carousel.events.fit .slide > :first-child { margin-top: 30px; }
+.carousel.events table { margin: 0; }
+h3 .when { display: block; margin-bottom: 2px; font-size: 13px; font-weight: 600; }
+h3[data-level="low"] .when { background: none; color: var(--hint); }
+/* 지난 이벤트의 표는 실제로 일어난 갈래 줄만 또렷하게 보이고 나머지 줄은 흐리다. */
+table.judged tbody tr { opacity: .28; }
+table.judged tbody tr.hit .outcome { color: var(--accent); }
+table.judged tbody tr.hit { opacity: 1; background: color-mix(in srgb, var(--accent) 13%, transparent);
+                            box-shadow: inset 3px 0 0 var(--accent); }
+/* 실제 갈래 줄 아래의 "자세히 보기" 줄은 실제 갈래 줄과 같은 바탕으로 이어 칠하고, 단추는 상자 없이 오른쪽 끝에 흰 글자와 꺽쇠로 쓴다. */
+table.judged tbody tr.hit:has(+ tr.more) td { border-bottom: 0; }
+table.judged tbody tr.more { opacity: 1; background: color-mix(in srgb, var(--accent) 13%, transparent);
+                             box-shadow: inset 3px 0 0 var(--accent); }
+table.judged tbody tr.more td { padding: 0 6px 6px; text-align: right; }
+table.judged tbody tr.more button { display: inline-flex; align-items: center; gap: 7px; padding: 4px 4px; border: 0; background: none;
+                                    color: #fff; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+table.judged tbody tr.more button svg { color: var(--dim); }
+.empty { border: 1px dashed var(--line); border-radius: 12px; padding: 22px 14px; text-align: center;
+         color: var(--hint); font-size: 14px; }
+/* 미국 거시 지표는 카드마다 한 장이고, 위 탭 띠는 그림 이름 탭과 같은 색으로 그린다. 탭이 화면 폭을 넘으면 보고 있는 탭이 문단 왼쪽 끝에
+   오도록 띠를 옆으로 밀고, 마지막 탭이 오른쪽 끝에 닿으면 더 밀지 않는다. 미국 거시 지표 카드 아래에는 점을 둔다. */
+.tabs.glide { display: block; overflow: hidden; margin: 0 calc(-1 * var(--gutter)) 12px; padding: 0 var(--gutter); }
+.tabs.glide .strip { display: flex; gap: 8px; width: max-content; transition: transform var(--glide); }
+.tabs.glide button { flex: 0 0 auto; }
+.gauge { padding: 16px calc(18px - var(--inset)); }
+.gauge .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.gauge .name { font-size: 15.5px; font-weight: 700; color: var(--accent); }
+.gauge .asof { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gauge .val { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; margin-top: 2px; }
+.gauge .val b { flex: none; white-space: nowrap; font-size: 30px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
+.gauge .val b small { font-size: 16px; font-weight: 700; margin-left: 1px; }
+.gauge .state { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.gauge .state i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.gauge .note { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; color: var(--dim);
+               font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* 그림은 모두 같은 높이의 칸에 가운데로 그려, 장마다 그림과 해설의 위치가 같다. */
+.gauge > svg { display: block; width: 100%; height: auto; margin: 10px 0 6px; overflow: visible; }
+.gauge p { margin: 20px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--hint); }
+/* 요약 절 그림 카드는 위 줄에 회색 맥락 글씨, 그 아래 이름 줄에 지수 이름, 가운데 줄에 값과 상태를 두고, 그림은 카드 폭에 맞춘 SVG로 그린다. 카드의 그림은 모두 높이와
+   가로축 높이가 같아, 카드를 넘겨도 가로축이 같은 높이에 있다. 카드의 상태 글씨와 점(`--card-color`)은 카드마다 정한 색으로 칠하고,
+   일정과 예측·권장 배율 카드(`ink`)는 큰 값을 절 제목 글씨와 같은 지수색 그라데이션(`--index-ink`)으로 칠하고, 주가와 예측 카드는 정규장 등락률 색(`up`·`down`)으로 칠한다.
+   범위 값의 물결표는 흐린 글씨로 띄어 쓴다. */
+.gauge .ctx { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.gauge.summary .state { color: var(--card-color); }
+.gauge.summary .state[hidden] { display: none; }
+.gauge.summary .state.up { color: #ff5c5c; }
+.gauge.summary .state.down { color: #5b9bff; }
+.gauge.ink .state i { background: var(--index-ink); }
+:is(.gauge.summary .val b.ink, .gauge.ink .state span) { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.gauge.summary .val b .sep { margin: 0 .28em; font-weight: 400; color: var(--dim); }
+.gauge .fig { margin: 10px 0 6px; }
+.gauge .fig svg { display: block; width: 100%; height: auto; overflow: visible; font-variant-numeric: tabular-nums; }
+/* 기간을 바꾸면 최고·최저 글씨는 그림이 멈춘 뒤 0.25초에 걸쳐 나타난다. */
+.gauge .marks { animation: marks-in .25s ease-out; }
+@keyframes marks-in { from { opacity: 0; } }
+/* 그림 아래 줄은 모든 카드가 같은 높이로 둔다. 주가와 예측 카드는 기간을 한 단계씩 줄이고 늘리는 단추와 다섯 단계 가운데 고른 단계의 점을,
+   일정과 예측 카드는 고른 번호의 일정을 둔다. 일정은 번호, 날짜, 이름을 한 줄에 왼쪽부터 적어 −와 + 단추와 같은 높이에 두고, 같은 날 일정은 쉼표로 잇는다.
+   한 줄을 넘는 이름은 말줄임표로 줄인다. 고른 단계는 점 대신 작은 돋보기로 그린다. 주가와 예측 카드와 종목 주가 카드는 그 줄 오른쪽 끝에 선·봉 단추를 둔다. */
+.gauge .foot { min-height: 28px; margin-top: 12px; }
+.gauge.summary { padding-bottom: 4px; }
+.gauge .zoom { position: relative; display: flex; justify-content: center; align-items: center; gap: 10px; }
+.gauge .zoom button { appearance: none; border: 0; padding: 0; width: 28px; height: 28px; background: transparent; color: var(--text);
+                      font: inherit; font-size: 22px; font-weight: 400; line-height: 28px; cursor: pointer; }
+.gauge .zoom button:disabled { color: var(--dim); opacity: .45; cursor: default; }
+.gauge .zoom .chart-kind { position: absolute; right: 0; top: 0; display: grid; place-items: center; }
+.gauge .zoom .steps { display: flex; align-items: center; gap: 5.78px; padding: 6px 4px; margin: -6px -4px; touch-action: none; -webkit-user-select: none; user-select: none; cursor: pointer; }
+.gauge .zoom .steps i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, .22); }
+/* 고른 기간의 돋보기는 + 쪽 기간일수록 크게 그린다. 차지하는 너비는 11px로 두어 크기가 바뀌어도 −, + 단추가 움직이지 않는다. */
+.gauge .zoom .steps i.on { --size: 12.1px; width: var(--size); height: var(--size); margin: 0 calc((11px - var(--size)) / 2); border-radius: 0; background: #fff;
+  -webkit-mask: var(--magnifier) center / contain no-repeat; mask: var(--magnifier) center / contain no-repeat;
+  --magnifier: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='6' cy='6' r='4.3'/%3E%3Cpath d='M9.2 9.2L12.6 12.6'/%3E%3C/svg%3E"); }
+.gauge .zoom .steps i.on:nth-child(1) { --size: 7.7px; }
+.gauge .zoom .steps i.on:nth-child(2) { --size: 9.9px; }
+.gauge .zoom .steps i.on:nth-child(4) { --size: 14.3px; }
+.gauge .zoom .steps i.on:nth-child(5) { --size: 16.5px; }
+/* 점 묶음을 누르고 있는 동안 돋보기를 키운다. */
+.gauge .zoom .steps i.on { transition: transform .15s ease; }
+.gauge .zoom .steps.held i.on { transform: scale(1.3); }
+.gauge .evbox { display: flex; align-items: center; gap: 4px; height: 28px; font-size: 13px; color: var(--text); white-space: nowrap; }
+.gauge .evbox button { flex: none; appearance: none; border: 0; padding: 0; width: 28px; height: 28px; background: transparent; color: var(--text);
+                       display: grid; place-items: center; cursor: pointer; }
+.gauge .evbox button:disabled { color: var(--dim); opacity: .45; cursor: default; }
+.gauge .evbox .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.gauge .evbox .d { margin-right: 8px; font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+/* 일정 이름은 누르면 이벤트 캘린더의 그날 일정으로 가므로 옅은 밑줄을 긋는다. 일정이 없는 예측 마지막 날은 긋지 않는다. */
+.gauge .evbox .t.go { cursor: pointer; }
+.gauge .evbox .t.go .n { text-decoration: underline; text-decoration-color: rgba(255, 255, 255, .35); text-underline-offset: 3px; }
+/* 표 카드는 그림 칸 대신 표를 싣는다. 첫 열 이름은 소제목 색, 강조 열(`focus`)은 카드 값처럼 굵은 흰 글씨, 나머지 칸은 흐린 글씨로 쓴다. */
+.gauge table { margin: 12px 0 4px; font-variant-numeric: tabular-nums; }
+.gauge th { color: var(--dim); font-size: 12px; }
+.gauge td { color: var(--dim); }
+.gauge td:first-child { color: var(--hint); font-weight: 600; }
+.gauge :is(th, td).focus { color: var(--accent); font-weight: 700; }
+.gauge tr:last-child td { border-bottom: 0; }
+/* 지수 지도는 본문 폭을 다 쓰고, 위 줄 왼쪽에 종가 날짜를 흐린 작은 글씨로 쓴다. 칸은 2px 틈을 두고 모서리를 둥글린 단추이고,
+   종목 이름을 굵은 글씨로, 그 아래에 등락률을 옅은 글씨로 가운데에 쓴다. 글씨는 흰색이다. 칸을 누르면 뜨는 말풍선은 날짜 말풍선과 같은 상자에
+   종목 이름을 굵게, 그 아래에 종가와 등락률을, 다음 줄에 종목 설명 첫 문장을 흐린 글자로 쓰고, 끝에 종목 상세로 가는 단추를 오른쪽에 붙인다.
+   등락률은 오르면 빨강, 내리면 파랑으로 칠한다. */
+.indexmap > .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 10px;
+               font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.indexmap .board { position: relative; }
+/* 세션 단추(`session`)는 정규장을 해, 애프터장을 초승달, 프리장을 언덕 위로 해가 오르는 새벽 그림으로 그리고, 그림의 닫힌 면(`f`)을 선과 같은 색으로 채운다.
+   고른 단추는 밝은 바탕에 세션 색으로 칠한다. 정규장은 노랑, 애프터장은 보라, 프리장은 주황이고, 등락률의 빨강·파랑과 겹치지 않는 색이다. 고르지 않은 단추는 회색이다.
+   지도와 카드의 기준 시각 글씨(`kind`)도 그 값의 세션 색으로 쓴다. 종가 글씨 "미국 11/17 정규장, 06:00 KST"는 정규장 색이다.
+   지도에서는 위 줄 오른쪽 끝에, 주가 카드와 주가와 예측 카드에서는 이름 줄 오른쪽 끝에 두되 그 줄 높이를 늘리지 않는다. 끈 단추(`disabled`)는 고른 칸 없이 회색으로 흐리게 쓴다.
+   애프터마켓·프리마켓 값을 고른 카드(`ext`)는 다음 정규장 전의 임시 값이므로 값과 등락률을 회색으로 쓴다. 리포트 날짜의 정규장 값을 그리는 카드는 정규장 단추 하나만 두고 회색으로 쓰지 않는다. */
+.session { display: flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, .06); }
+.session button { display: grid; place-items: center; width: 34px; height: 22px; padding: 0; border: 0; border-radius: 7px; background: none;
+                  color: var(--hint); cursor: pointer; }
+.session button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.session button svg .f { fill: currentColor; }
+[data-kind="regular"] { --kind: #ffc53d; }
+[data-kind="after"] { --kind: #a78bfa; }
+[data-kind="pre"] { --kind: #ff9f43; }
+.session button.on { background: rgba(255, 255, 255, .16); color: var(--kind); }
+.session button:disabled { background: none; color: var(--hint); opacity: .4; cursor: default; }
+:is(.indexmap > .top, .gauge) .kind { color: var(--kind); }
+.session button[hidden] { display: none; }
+:is(.indexmap > .top, .gauge .top) .session { flex: none; margin: -6px 0 -6px auto; align-self: center; }
+/* 요약 절 그림 카드와 종목 상세 주가 카드는 맨 위 줄에 흐린 작은 글씨를 쓰고, 그 아래 이름 줄에 지수나 종목 이름과 단추를 둔다. */
+.gauge .top.title { margin-top: 3px; }
+/* 주가와 예측 카드는 이름 줄의 세션 단추 왼쪽에 예측 단추(`aim`)를 둔다. 단추는 세션 단추 한 쌍과 같은 높이와 바탕에 "예측"을 쓰고, 켜면 바탕을 밝히고 글씨를 예측 선과 같은 지수색 그라데이션으로 칠한다. */
+.gauge .top .aim { flex: none; height: 26px; margin: -6px 0 -6px auto; padding: 0 11px; border: 0; border-radius: 9px; align-self: center;
+                   background: rgba(255, 255, 255, .06); color: var(--hint); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.gauge .top .aim.on { background: rgba(255, 255, 255, .16); }
+.gauge .top .aim.on span { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.gauge .top .aim + .session { margin-left: 0; }
+.gauge.ext .val b, .gauge.ext .state { color: var(--hint); }
+.indexmap .board > button { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+                          overflow: hidden; padding: 2px; border: 0; border-radius: 5px; color: #fff; font: inherit; line-height: 1.2; text-align: center;
+                          cursor: pointer; }
+.indexmap .board > button :is(b, span) { overflow-wrap: normal; }
+.indexmap .board > button b { font-weight: 700; }
+.indexmap .board > button span { white-space: nowrap; font-size: .86em; font-weight: 600; color: rgba(255, 255, 255, .78); font-variant-numeric: tabular-nums; }
+.indexmap .board > button.on { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .85); }
+.bubble.quote { padding: 12px 14px 6px; width: min(280px, calc(100vw - 48px)); box-sizing: border-box; }
+.bubble.quote b { position: relative; z-index: 1; display: block; color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap;
+                  overflow: hidden; text-overflow: ellipsis; }
+.bubble.quote p.price { display: flex; gap: 8px; padding: 2px 0 0; color: var(--accent); font-variant-numeric: tabular-nums; }
+.bubble.quote p.price .up { color: #ff5c5c; }
+.bubble.quote p.price .down { color: #5b9bff; }
+.bubble.quote p.lead { padding: 8px 0 4px; font-size: 13.5px; line-height: 1.5; white-space: normal; }
+.bubble.quote button { margin: 2px -14px 0 auto; padding: 8px 14px; gap: 4px; color: var(--accent); font-size: 13.5px; }
+.bubble.quote button svg { color: var(--accent); }
+/* 리포트 화면은 절을 예측 페이지와 이슈 페이지에 나눠 담고 한 페이지만 보여 준다. 가린 페이지는 높이를 0으로 줄여 숨기되 안의 요소는 자리를 그대로 잡아 두어,
+   넘기기 묶음이 보고 있던 장과 높이를 지킨다. 보이는 페이지 끝에는 바로가기 알약만큼 여백을 더해 마지막 줄이 알약에 가리지 않게 한다.
+   페이지를 바꾸는 동안(`flow`)에는 떠나는 페이지부터 여는 페이지까지를 한 자리에 겹쳐 쌓고 화면 폭씩 옆으로 늘어놓아 함께 옆으로 민다. 페이지마다 바탕색을 칠해 아래 글자가 비치지 않게 하고,
+   위아래로 맞춰 그린 페이지가 제목과 머리 상자를 덮지 않게 본문 위아래 밖은 자른다. 옆으로 늘어놓은 페이지가 문서 폭을 늘리면 휴대폰 웹뷰가 문서 폭에 맞춰 화면을 축소하므로,
+   문서 몸통(`body`)이 화면 폭 밖을 자른다.
+   본문 상자는 첫 절 제목의 위 여백을 안에 담아, 어느 페이지를 보이든 페이지를 바꾸는 동안이든 첫 절 제목이 머리 상자 아래 같은 높이에 서게 한다. */
+body { overflow-x: clip; }
+#report { display: flow-root; }
+#report > .page { padding-bottom: 36px; }
+/* 내 자산 페이지는 보고 있는 리포트의 지수(나스닥은 QQQ·QLD·TQQQ, 바이오는 IBB·BIB) 종목만 쓴다. 첫 절 내 투자는 제목 오른쪽에 달러·원화 표시 단추를 두고,
+   그 아래 그 지수 종목의 평가금 합계를 요약 절 그림 카드의 값과 같은 크기로 크게 쓴 뒤 수익·수익률을 쓴다. 합계와 수익·수익률은 처음에 가려 두고(`veil`)
+   그 자리에 합계와 같은 크기의 회색 글씨로 "평가 금액 보기"를 쓴다. 그 자리를 누를 때마다 가림을 벗기거나 다시 씌운다. 그 아래 배율·누적 수익률·초과 수익률 그림 카드 세 장을
+   넘기는 묶음과 집행 신호등 카드를 둔다. 수익·수익률과 그림 카드 묶음 사이는 24px 띄운다. 옵티마이저 게이트가 초록이면 신호등 카드에 지수색 테두리를 두르고 누를 수 있게 한다(`go`).
+   둘째 절 상세 보유 종목은 종목마다 이름과 수량, 평가금과 수익·수익률을 쓰고, 종목 줄 아래 12px 띄워 거래 내역 화면을 여는 긴 단추를 둔다. 맨 아래 절 내 계좌는 원화·달러 주문 가능 현금과
+   대기자금(SGOV)을 종목과 같은 줄 모양으로 쓴다. 종목 줄은 둘째 줄이 한쪽에만 있어도 양쪽 첫 줄의 위를 맞춘다. 표시 단추는 옅은 바탕에 고른 칸을 밝게 칠한다. 손익과 매수는 빨간색, 손실과 매도는 파란색으로 쓴다.
+   글씨는 다른 페이지와 같은 위계로 쓴다. 합계는 그림 카드의 값과 같은 30px 굵은 글씨, 거래 블록의 날짜는 그림 카드 이름과 같은 15.5px 굵은 글씨,
+   수익·수익률 줄과 종목 줄의 이름·값은 본문과 같은 15px, 종목 줄의 둘째 줄은 13px 회색으로 쓴다. 종목 줄의 값은 이름보다 굵게 쓴다.
+   표시 단추는 세션 단추 묶음과 같은 크기로, 칸마다 가로 34px, 세로 22px에 12px 글씨를 쓴다. */
+#report > .page > h2.asset-head { display: flex; justify-content: space-between; align-items: center; }
+.asset-head .seg { display: flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, .06); }
+.asset-head .seg button { width: 34px; height: 22px; padding: 0; border: 0; border-radius: 7px; background: none; font: inherit; font-size: 12px; font-weight: 600; line-height: 22px;
+                          color: var(--hint); cursor: pointer; }
+.asset-head .seg button.on { background: rgba(255, 255, 255, .16); color: #fff; font-weight: 700; }
+:is(.asset-sum, .asset-item, .trade) { line-height: 1.35; letter-spacing: -.2px; font-variant-numeric: tabular-nums; }
+.asset-sum { font-size: 15px; font-weight: 600; }
+.asset-sum { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.asset-sum b { display: block; margin-bottom: 3px; font-size: 30px; font-weight: 800; letter-spacing: -.5px; color: var(--accent); }
+.asset-sum b.veiled { color: var(--hint); }
+.asset-sum.veil > :not(.veiled), .asset-sum:not(.veil) > .veiled { display: none; }
+.asset-trades { display: flex; justify-content: space-between; align-items: center; width: 100%; height: 48px; margin: 12px 0 0; padding: 0 14px 0 16px; border: 0;
+                border-radius: 12px; background: rgba(255, 255, 255, .05); font: inherit; font-size: 15px; font-weight: 600; color: var(--text); cursor: pointer; }
+.asset-trades svg { color: var(--dim); }
+.signal { margin: 20px 0 8px; padding: 4px 16px; border-radius: 12px; background: rgba(255, 255, 255, .05); line-height: 1.4; letter-spacing: -.2px; }
+.signal.go { box-shadow: inset 0 0 0 1.5px var(--index); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.signal .gate { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; }
+.signal .gate .lamp { margin-top: 5px; }
+.signal .gate strong { display: block; font-size: 13px; font-weight: 600; color: var(--hint); }
+.signal .gate p { margin: 2px 0 0; font-size: 14px; color: var(--text); }
+.signal .lamp { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.signal .lamp.green { background: #30d158; box-shadow: 0 0 8px rgba(48, 209, 88, .55); }
+.signal .lamp.orange { background: #ff9f0a; box-shadow: 0 0 8px rgba(255, 159, 10, .55); }
+.signal .lamp.red { background: #ff453a; box-shadow: 0 0 8px rgba(255, 69, 58, .55); }
+.carousel.asset-cards { margin-top: 24px; }
+.asset-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 10px 0; }
+.asset-item strong { display: block; font-size: 15px; font-weight: 500; color: var(--text); }
+.asset-item small { display: block; margin-top: 2px; font-size: 13px; color: var(--dim); }
+.asset-item > :last-child { flex: none; text-align: right; }
+.asset-item > :last-child strong { font-weight: 700; color: var(--accent); }
+:is(.asset-sum, .asset-item, .asset-cards .val, .trade) .up { color: #ff5c5c; }
+:is(.asset-sum, .asset-item, .asset-cards .val, .trade) .down { color: #5b9bff; }
+/* 내 자산 그림 카드는 선 이름을 적지 않으므로 그림 아래 줄을 두지 않는다. */
+.asset-cards .gauge .foot { display: none; }
+/* 거래 내역 화면은 날짜마다 블록 하나를 맨 위가 최신이 되게 쌓는다. 블록 위 줄 왼쪽에 날짜를, 오른쪽 끝에 상태 표식을 쓴다. 그 아래 배율 변화를 쓰고,
+   주문 이유는 옅은 바탕의 둥근 상자에 담아 블록의 다른 글씨와 가른다. 토스에 낸 주문이 있으면 낸 주문마다, 없으면 보낼 주문을 종목 줄로 쓴다. 종목 줄은 왼쪽 위에 종목과
+   그 오른쪽 매수·매도를, 그 아래 수량을 쓰고, 오른쪽 위에 거래 금액을, 그 아래 낸 주문은 체결한 서울 시각 뒤 "체결"이나 주문한 서울 시각 뒤 "미체결"을, 보낼 주문은 달러 금액을 쓴다.
+   미체결 주문의 금액은 회색으로 쓴다. 토스에 주문을 낸 블록은 상태 표식을 두지 않는다. 집행 시각 전의 집행 요청
+   블록은 거래 내역 절 위에 따로 두고, 맨 아래에 집행 안내와 취소·승인 단추를 둔다. 고른 결정의 단추는 눌린 모양으로 두고, 집행 시각이 지나면 두 단추를
+   모두 끈다. 결정을 기다리는 상태 표식은 지수색으로 칠한다. */
+.trade { margin: 0 0 10px; padding: 14px 16px 6px; border-radius: 14px; background: rgba(255, 255, 255, .05); }
+.trade .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.trade .top b { font-size: 15.5px; font-weight: 700; color: var(--accent); }
+.trade .badge { flex: none; padding: 2px 8px; border-radius: 6px; background: rgba(255, 255, 255, .08); font-size: 12px; font-weight: 700; color: var(--hint); }
+.trade .badge.wait { background: color-mix(in srgb, var(--index) 18%, transparent); color: var(--index); }
+.trade .badge.done { color: var(--text); }
+.trade .badge.off { color: var(--dim); }
+.trade .side { margin-left: 6px; font-size: 13px; font-weight: 600; }
+.trade .lev { margin-top: 4px; font-size: 13px; color: var(--dim); }
+.trade .why { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, .05); font-size: 13.5px; line-height: 1.5; color: var(--hint); }
+.trade .rows { margin-top: 8px; }
+.trade > :is(.top, .lev, .why):last-child { margin-bottom: 8px; }
+.trade .asset-item { padding: 8px 0; }
+.trade .asset-item.miss > :last-child strong { color: var(--hint); }
+.trade .note { margin: 8px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--dim); }
+.trade .act { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 10px; }
+.trade .act button { height: 44px; border: 0; border-radius: 10px; background: rgba(255, 255, 255, .08); font: inherit; font-size: 15px; font-weight: 700;
+                     color: var(--text); cursor: pointer; }
+.trade .act button.go { background: var(--index-ink); color: var(--bg); }
+.trade .act button.on:not(.go) { background: rgba(255, 255, 255, .16); color: #fff; }
+.trade .act button:disabled { opacity: .4; cursor: default; }
+.trade .act button.on:disabled { opacity: 1; }
+#report > .page.off { height: 0; padding: 0; overflow: hidden; visibility: hidden; }
+#report.flow { display: grid; grid-template-columns: minmax(0, 1fr); overflow: visible clip; pointer-events: none; }
+#report.flow > .page { grid-area: 1 / 1; background: var(--bg); }
+/* 화면 아래 가운데에 페이지마다 바로가기를 가로로 긴 반투명 유리 알약 하나에 담아 띄운다. 알약 뒤 본문은 흐리게 비친다. 알약 위의 손길은 화면을 움직이지 않고 레버를 끄는 데 쓴다. */
+nav.jump { position: fixed; z-index: 5; left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
+           display: flex; padding: 5px; border-radius: 27px; touch-action: none; user-select: none; -webkit-user-select: none;
+           background: color-mix(in srgb, var(--bg) 40%, transparent);
+           box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+           -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: blur(3px) saturate(150%); }
+/* 알약 가장자리에 1px 빛줄기를 그린다. 왼쪽 위 모서리가 가장 밝고 가운데로 갈수록 사라지며, 오른쪽 아래 모서리에서 약하게 다시 밝아진다. */
+nav.jump::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+                   background: linear-gradient(150deg, rgba(255, 255, 255, .42), rgba(255, 255, 255, .08) 28%, rgba(255, 255, 255, 0) 55%,
+                               rgba(255, 255, 255, .06) 80%, rgba(255, 255, 255, .22));
+                   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+                   -webkit-mask-composite: xor; mask-composite: exclude; }
+/* 단추마다 위에 선 아이콘을, 아래에 작은 페이지 이름을 둔다. 보고 있는 페이지의 단추는 흰색으로, 나머지는 회색으로 쓴다. */
+nav.jump button { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; width: 64px; padding: 6.8px 0 4.8px;
+                  appearance: none; border: 0; background: none; font: inherit; font-size: 11px; font-weight: 600; line-height: 1.3; color: var(--hint); cursor: pointer; }
+nav.jump button svg { width: 26.4px; height: 26.4px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* 망원경 끝의 별과 불꽃의 불똥은 아이콘이 움직일 때만 잠깐 보이고, 불꽃은 밑동 가운데를 축으로 흔든다. */
+nav.jump button svg :is(.star, .spark) { opacity: 0; fill: currentColor; stroke: none; transform-box: fill-box; transform-origin: center; }
+nav.jump button svg .flame { transform-box: fill-box; transform-origin: 50% 100%; }
+nav.jump button.on { color: #fff; }
+/* 보고 있는 페이지의 단추 뒤에 밝은 레버를 깔고, 페이지를 바꾸면 레버를 그 단추로 미끄러뜨린다. 끄는 동안 레버는 손가락을 바로 따라가고 조금 밝아진다. */
+nav.jump .lever { position: absolute; top: 5px; bottom: 5px; left: 0; border-radius: 22px; pointer-events: none;
+                  background: rgba(255, 255, 255, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+                  transition: transform .25s ease, width .25s ease, background-color .2s ease; }
+nav.jump .lever.drag { transition: background-color .2s ease; background: rgba(255, 255, 255, .18); }
+/* 설명이 있는 절 제목과 지표 카드 이름은 글자 바로 뒤에 원 안 물음표 단추를 둔다. 단추를 누르면 화면 가운데에 설명 상자를 띄우고, 닫기 단추나 상자 바깥을 누르면 닫는다. */
+.help { display: inline-grid; place-items: center; vertical-align: top; width: 26px; height: 1lh; margin-left: 2px; padding: 0; border: 0; font: inherit;
+           background: none; color: var(--dim); cursor: pointer; }
+/* 이슈 화면과 종목 상세는 화면 왼쪽 아래에 바로가기 알약과 같은 높이, 같은 아래 여백의 동그란 유리 단추를 띄우고 가운데에 왼쪽 꺽쇠를 그린다.
+   바탕색·흐림·그림자·가장자리 빛줄기는 알약과 같다. 본문 끝에는 단추만큼 여백을 더해 마지막 줄이 단추에 가리지 않게 한다.
+   화면을 내용의 아래쪽으로 내리면 단추를 바로 감추고(`hide`), 내용의 위쪽으로 올리면 0.4초에 걸쳐 다시 띄운다. 감춘 단추는 누를 수 없다. */
+:root.issue #report { padding-bottom: 36px; }
+button.back { position: fixed; z-index: 5; left: var(--gutter); bottom: calc(12px + env(safe-area-inset-bottom) + var(--offscreen, 0px));
+              display: grid; place-items: center; width: 65px; height: 65px; padding: 0; border: 0; border-radius: 50%; color: var(--text); cursor: pointer;
+              background: color-mix(in srgb, var(--bg) 40%, transparent);
+              box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+              -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: blur(3px) saturate(150%);
+              transition: transform .1s ease-out, opacity .4s ease, visibility 0s; }
+button.back.hide { opacity: 0; visibility: hidden; transition: none; }
+button.back::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+                      background: linear-gradient(150deg, rgba(255, 255, 255, .42), rgba(255, 255, 255, .08) 28%, rgba(255, 255, 255, 0) 55%,
+                                  rgba(255, 255, 255, .06) 80%, rgba(255, 255, 255, .22));
+                      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+                      -webkit-mask-composite: xor; mask-composite: exclude; }
+/* 왼쪽 끝 뒤로 가기 띠는 보이지 않고, 미는 동안 손가락 높이에 반투명 원과 왼쪽 꺽쇠가 따라 나온다. 돌아갈 거리를 넘기면 원을 희게 칠한다. */
+.back-edge { position: fixed; top: 0; bottom: 0; left: 0; z-index: 6; width: 18px; touch-action: pan-y; }
+/* iOS는 띠 아래에 놓인 스크롤 상자(날짜 띠, 넘기기 묶음)가 띠의 가로 밀기를 그 상자의 스크롤로 가져가 뒤로 가기를 끊는다.
+   띠를 누르고 있는 동안(`edging`)은 이 상자들의 스크롤을 멈춘다. 스크롤을 멈춰도 보던 위치는 그대로다. */
+:root.edging :is(.days, .carousel .track) { overflow: hidden; }
+.back-ring { position: fixed; top: 0; left: 0; z-index: 6; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+             border-radius: 50%; background: rgba(60, 60, 66, .85); color: #fff; opacity: 0; pointer-events: none;
+             -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); transition: background .15s ease, color .15s ease; }
+.back-ring.rest { transition: transform .2s ease, opacity .2s ease, background .15s ease, color .15s ease; }
+.back-ring.ready { background: #fff; color: #171719; }
+.help-card { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 24px;
+             background: rgba(0, 0, 0, .55); }
+.help-card .card { box-sizing: border-box; width: 100%; max-width: 360px; max-height: 70vh; overflow: auto; padding: 20px 20px 22px;
+                   border-radius: 16px; background: #222226; box-shadow: 0 12px 32px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .06); }
+.help-card h3 { display: flex; justify-content: space-between; align-items: center; margin: 0 0 12px; color: var(--text); }
+.help-card h3 button { margin-right: -6px; padding: 2px 6px; border: 0; background: none; color: var(--dim); font-size: 18px; line-height: 1; cursor: pointer; }
+.help-card ul { margin: 0; padding-left: 18px; color: var(--hint); font-size: 13.5px; line-height: 1.65; }
+.help-card li + li { margin-top: 8px; }
+.help-card li b { display: block; margin-bottom: 2px; color: var(--text); font-weight: 600; }
+.help-card p { margin: 0; color: var(--hint); font-size: 13.5px; line-height: 1.65; }
+.help-card p + p { margin-top: 8px; }
