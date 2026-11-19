@@ -259,7 +259,7 @@
      단추를 누르면 그 자리에 슬라이더를 띄운다. 슬라이더에 댄 손가락은 넘기기 묶음을 옆으로 밀지 않는다.
      막대는 위아래 24px 칸(`bar`)으로만 손가락을 받아, 막대 근처에서 시작한 넘기기를 가로채지 않는다. 막대를 누르면 슬라이더를 닫는다.
      레버는 레버 중심을 둘러싼 56px 칸(`grip`)으로 손가락을 받아, 레버에서 조금 벗어나게 눌러도 레버를 잡는다. */
-  :is(.carousel, .issue-page) .rewind { position: relative; width: 52.8%; margin: 10px auto 12px; padding: 8px 0; }
+  :is(.carousel, .issue-page) .rewind { position: relative; width: 60.7%; margin: 10px auto 12px; padding: 8px 0; }
   :is(.carousel, .issue-page) .rewind input { display: block; width: 100%; height: 24px; margin: 0; background: none; -webkit-appearance: none; appearance: none; pointer-events: none; }
   :is(.carousel, .issue-page) .rewind .bar { position: absolute; top: 8px; left: 0; right: 0; height: 24px; touch-action: none; }
   :is(.carousel, .issue-page) .rewind .grip { position: absolute; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; touch-action: none; }
@@ -1156,15 +1156,15 @@
     box.prepend(bar);
   }
 
-  // 되감기 슬라이더가 보여 주는 날짜 수와, 리포트 날짜 `date`에서 그 앞 30일의 첫날을 0으로 센 `day`의 자리.
+  // 되감기 슬라이더가 보여 주는 날짜 수와, 리포트 날짜 `date`에서 그 앞 90일의 첫날을 0으로 센 `day`의 자리.
   // "기준 날짜 이동" 단추의 아이콘이다. 시계 둘레의 화살이 10시에서 반시계 방향으로 나아간다.
 // 꺾쇠의 두 날개는 90°로 벌어지고, 두 날개 끝이 시계 둘레에서 같은 거리만큼 안팎으로 떨어지도록 꺾쇠를 돌려 둔다.
   const REWIND_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.07 8A8 8 0 1 1 4.48 14.74"/><path d="M8.44 7.64L5.07 8L4.71 4.63"/>'
     + '<path d="M12 8v4.2l2.8 1.8"/></svg>';
-  const REWIND_SPAN = 30, rewindOffset = (day, date) => Math.round((Date.parse(day) - Date.parse(date)) / 864e5) + REWIND_SPAN;
+  const REWIND_SPAN = 90, rewindOffset = (day, date) => Math.round((Date.parse(day) - Date.parse(date)) / 864e5) + REWIND_SPAN;
 
   // `box` 끝에 지난 판단 날짜를 고르는 슬라이더를 둔다. `days`는 고를 수 있는 날짜(오름차순)이고 `start`번 날짜에서 시작한다.
-  // 슬라이더는 리포트 날짜와 그 앞 30일을 늘 같은 폭으로 보여 주고, 레버는 `days`의 날짜에만 선다. 레버가 선 날짜가 정해질 때마다 그 번호로 `pick`을 부른다.
+  // 슬라이더는 리포트 날짜와 그 앞 90일을 늘 같은 폭으로 보여 주고, 레버는 `days`의 날짜에만 선다. 레버가 선 날짜가 정해질 때마다 그 번호로 `pick`을 부른다.
   // 슬라이더는 "기준 날짜 이동" 단추를 누르면 열리고, 레버 밖의 막대를 누르면 닫힌다. 날짜는 레버를 잡고 옮길 때만 바뀌고, 닫아도 고른 날짜는 그대로 둔다.
   function dial(box, date, days, start, pick) {
     const offset = (day) => rewindOffset(day, date);
@@ -1485,6 +1485,7 @@
     // 봉 그림이면 리포트 날짜에 고른 정규장 다음 세션 값을 다음 거래일이 든 기간의 흐린 잠정 봉(`candleLate`)으로 그린다.
     // 카드는 되감기 슬라이더가 고른 날짜와 관계없이 종가를 마지막 정규장 종가까지 그리고, 고른 날짜의 값에 '현재' 표시(`nowMark`)를 찍는다.
     // '현재' 표시는 고른 날짜 판단의 기준 가격 날짜 종가에 찍고, 봉 그림이면 그 종가가 든 봉의 고가 위에 찍는다.
+    // 그 종가가 예측을 켠 그림 왼쪽 끝 밖에 있으면 그 종가가 드는 가장 짧은 기간으로 넓히고, + 단추로는 그 종가가 빠지는 기간까지 줄이지 않는다.
     // 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 정규장 등락률 색(`tone`)의 점과 글씨로 적는다.
     // 기준 가격 날짜 다음 세션 값이 있으면 이름 줄 오른쪽 끝에 정규장·애프터장이나 정규장·프리장 단추를 둔다. 지난 날짜의 다음 세션 값은 그날 프리장 값이 있으면 그 값이고, 없으면 그날 판단의 기준 가격이다.
     // 애프터장 값은 본 리포트의 기준 가격이고, 사전 리포트는 정규장 종가에 지수 ETF의 애프터장 등락 비율(`r/afterhours.json`)을 곱한 값이다.
@@ -1539,12 +1540,14 @@
       let stop = last, ahead = 0, seen = 0, head = () => {};
       const xmax = (r) => last + 1 + 24 * r, start = (k, r) => Math.max(0, xmax(r) - 1 - DAYS[k]);
       let span = DAYS.length - 1, frame = null, raf = 0, ratios = null;
+      // 고른 날짜의 종가가 예측을 켠 그림 안에 드는 가장 짧은 기간의 번호다.
+      const most = () => { let k = DAYS.length - 1; while (k > 0 && stop < start(k, 1)) k--; return k; };
       const zoom = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
       zoom.innerHTML = `<button type="button" aria-label="기간 늘리기">−</button><span class="steps">${"<i></i>".repeat(DAYS.length)}</span><button type="button" aria-label="기간 줄이기">+</button>`;
       const [wider, narrower] = zoom.querySelectorAll("button");
       const level = () => {
         wider.disabled = span === 0;
-        narrower.disabled = span === DAYS.length - 1;
+        narrower.disabled = span >= most();
         zoom.querySelectorAll(".steps i").forEach((dot, i) => dot.classList.toggle("on", i === span));
       };
       level();
@@ -1662,7 +1665,7 @@
       };
       const move = (by) => {
         const from = span;
-        span = Math.max(0, Math.min(DAYS.length - 1, span + by));
+        span = Math.max(0, Math.min(most(), span + by));
         if (span === from) return;
         level();
         animate(from, seen);
@@ -1687,6 +1690,8 @@
         cancelAnimationFrame(raf);
         const now = f.day === date;
         stop = now ? last : at(f);
+        span = Math.min(span, most());
+        level();
         const session = Math.round((hist[stop] / hist[stop - 1] - 1) * 1e4) / 100, shown = extra(f), regular = shown?.[2] === "regular";
         if (!chosen || regular) late = !!shown && now && (regular || !document.documentElement.classList.contains("past"));
         ext = shown && late ? shown : null;
@@ -3072,8 +3077,9 @@
   // 그림 아래 −·+ 단추로 1년, 6개월, 3개월 가운데 기간을 골라 일별 종가 선을 다시 그린다. 종가가 기간보다 짧으면 있는 종가를 모두 그리고, 같은 그림이 되는 기간은 하나만 둔다.
   // 단추 사이의 점 묶음은 누른 채 끌어 기간을 바로 고른다(`zoomDrag`). 봉 비율(`candles`)이 있으면 그 줄 오른쪽 끝에 선·봉 단추(`kindButton`)를 두고, 봉 그림이면 종가 선 대신 1년은 주봉, 6개월·3개월은 일봉을 그린다.
   // 처음에는 가장 짧은 기간을 그린다.
-  // 카드 끝에는 마지막 종가 날짜와 그 앞 30일 안의 종가 날짜로 되감는 슬라이더(`dial`)를 둔다. 날짜를 고르면 그림은 그대로 두고 그 종가 점에 '현재' 표시를 옮겨 찍으며,
-  // 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 앞 종가 대비 등락률을 쓴다. 지난 날짜에는 세션 단추를 두지 않고, 다시 고르는 마지막 종가 날짜는 처음과 같은 세션을 고른다.
+  // 카드 끝에는 마지막 종가 날짜와 그 앞 90일 안의 종가 날짜로 되감는 슬라이더(`dial`)를 둔다. 날짜를 고르면 그림은 그대로 두고 그 종가 점에 '현재' 표시를 옮겨 찍으며,
+  // 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 앞 종가 대비 등락률을 쓴다. 그 종가가 고른 기간 밖이면 그 종가가 드는 가장 짧은 기간으로 넓히고,
+  // + 단추로는 그 종가가 빠지는 기간까지 줄이지 않는다. 지난 날짜에는 세션 단추를 두지 않고, 다시 고르는 마지막 종가 날짜는 처음과 같은 세션을 고른다.
   // 카드 맨 위 줄에는 기준일 글씨를 쓰고, 그 아래 이름 줄에 종목 이름과 티커를 쓴다.
   // 마지막 종가 날짜의 애프터장 체결가(`r/market.json` 지도 값, 없으면 `r/afterhours.json`의 체결가)나 그 다음 프리장 체결가(`r/premarket.json`)가 있으면 이름 줄 오른쪽에
   // 정규장·애프터장이나 정규장·프리장 단추를 둔다. 두 값이 다 있으면 프리장 값을 쓴다.
@@ -3127,8 +3133,9 @@
       // `after`는 마지막 종가 날짜의 애프터장 마지막 체결가(`r/market.json` 지도 값)이고, `tail`은 그 체결가가 아직 없을 때 쓰는 애프터장 값이며,
       // `early`는 그 다음 프리장이나 정규장 값이다. 없으면 null이다.
       const asked = query.get("session"), date = `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
-      // `stop`은 되감기 슬라이더가 고른 종가 번호다.
+      // `stop`은 되감기 슬라이더가 고른 종가 번호이고, `most()`는 그 종가가 그림 안에 드는 가장 짧은 기간의 번호다.
       let late = asked !== "regular", after = null, tail = null, early = null, stop = last;
+      const most = () => { let k = SPAN.length - 1; while (k > 0 && stop < closes.length - SPAN[k]) k--; return k; };
       // 정규장 다음 세션의 종류와 [체결가, 기준 시각 글씨, 세션 종류]. 없으면 null이다.
       const kindOf = () => (early ? (early.regular ? "regular" : "pre") : "after");
       const extra = () => stop < last ? null : early ? [early.price, sessionAt(early.regular ? "정규장" : "프리마켓", early.time), kindOf()]
@@ -3162,11 +3169,11 @@
       const [wider, narrower] = zoom.querySelectorAll("button");
       const level = () => {
         wider.disabled = span === 0;
-        narrower.disabled = span === SPAN.length - 1;
+        narrower.disabled = span >= most();
         zoom.querySelectorAll(".steps i").forEach((dot, i) => dot.classList.toggle("on", i === span));
       };
       const move = (by) => {
-        const next = Math.max(0, Math.min(SPAN.length - 1, span + by));
+        const next = Math.max(0, Math.min(most(), span + by));
         if (next === span) return;
         span = next;
         card.querySelector(":scope > svg").replaceWith(plot());
@@ -3183,6 +3190,8 @@
       dial(card, day, back.map(([d]) => d), back.length - 1, (i) => {
         if (back[i][1] === stop) return;
         stop = back[i][1];
+        span = Math.min(span, most());
+        level();
         late = asked !== "regular";
         if (!frame) frame = requestAnimationFrame(() => { frame = 0; repaint(); });
       });
