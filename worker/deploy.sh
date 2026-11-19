@@ -1,6 +1,6 @@
 #!/bin/bash
 # deploy.sh — invest-live Worker(live.js)를 Cloudflare에 올린다.
-# Cloudflare API 토큰·계정 ID와 실시간 값 KV namespace ID(CLOUDFLARE_LIVE_NAMESPACE), 쓰기 비밀 값(LIVE_SECRET)은 ~/.cloudflare_env에서 읽는다.
+# Cloudflare API 토큰·계정 ID와 쓰기 비밀 값(LIVE_SECRET)은 ~/.cloudflare_env에서 읽는다.
 # SQLite Durable Object `Live`는 첫 배포의 이전 단계(migration `v1`)가 만들고, 그 뒤 배포는 이전 단계 없이 올린다.
 set -euo pipefail
 source "$HOME/.cloudflare_env"
@@ -21,10 +21,9 @@ tag=$(cf "$SCRIPTS" | jq -r --arg name "$NAME" '.result[] | select(.id == $name)
 umask 077
 metadata=$(mktemp)
 trap 'rm -f "$metadata"' EXIT
-jq -nc --arg ns "$CLOUDFLARE_LIVE_NAMESPACE" --arg secret "$LIVE_SECRET" --arg tag "$tag" --arg migration "$MIGRATION" \
+jq -nc --arg secret "$LIVE_SECRET" --arg tag "$tag" --arg migration "$MIGRATION" \
     '{main_module: "live.js", compatibility_date: "2026-11-01",
-      bindings: [{type: "kv_namespace", name: "LIVE", namespace_id: $ns},
-                 {type: "durable_object_namespace", name: "LIVE_DO", class_name: "Live"},
+      bindings: [{type: "durable_object_namespace", name: "LIVE_DO", class_name: "Live"},
                  {type: "secret_text", name: "LIVE_SECRET", text: $secret}]}
      + (if $tag == $migration then {} else {migrations: {new_tag: $migration, new_sqlite_classes: ["Live"]}} end)' > "$metadata"
 cf -X PUT "$API" -F "metadata=<$metadata;type=application/json" \

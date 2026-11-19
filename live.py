@@ -7,7 +7,7 @@ cron(`~/scripts/cron/invest-live-tick.sh`)이 1분마다 `tick()`을 부른다. 
 그 체결가는 invest-live에 쓰지 않고 invest-account Worker의 DO에 `POST /live`로만 쓴다. 토스가 답하지 않거나 빠뜨린 심볼만 야후 `v7/finance/spark`에서 받는다.
 토스가 체결 시각 없이 준 심볼은 체결이 없는 것으로 보고 야후에 묻지 않는다. 토큰은 toss-trader와 함께 쓰는 캐시 파일만 쓴다.
 
-값의 스키마는 build.py `premarket`·`afterhours`와 같다. `premarket`은 프리장(`PREMARKET_OPEN`)부터 정규장이 닫힐 때까지 1분마다 그 분의 값을 쓰고,
+값의 스키마는 build.py 머리 설명의 `premarket`·`afterhours` 값과 같다. `premarket`은 프리장(`PREMARKET_OPEN`)부터 정규장이 닫힐 때까지 1분마다 그 분의 값을 쓰고,
 정규장이 닫히고 `CLOSE_WAIT`가 지난 첫 회차가 마감 시각까지 끝난 1분봉으로 마감 값을 한 번 더 받아 고정한다.
 `afterhours`는 `AFTER_OPEN`과 마감 고정 회차 가운데 늦은 쪽부터 `AFTER_CLOSE`까지 1분마다 쓴다.
 체결가는 `premarket`이면 오늘 `PREMARKET_OPEN` 뒤, `afterhours`이면 오늘 정규장 마감 뒤 체결만 쓴다. 그 체결이 없으면 앞 회차 값을 두고,
@@ -17,9 +17,6 @@ cron(`~/scripts/cron/invest-live-tick.sh`)이 1분마다 `tick()`을 부른다. 
 앞 세션 날짜와 정규장 마감 시각은 세션마다 한 번 `exchange_calendars`에서, 지수 ETF의 앞 세션 종가는 그 세션의 첫 장중 회차에 토스 일봉에서 받아
 `~/data/invest-reports/live/session-{YYYY-MM-DD}.json`에 둔다. 앞 회차 값은 DO에 쓴 값과 같은 `{이름}.json`에 두고 다시 읽는다.
 회차마다 가격 없는 기록(`tick-{날짜}.log`)과, DO에 쓴 그날 값(`snap-{날짜}.jsonl`)을 남긴다.
-
-`--compare`는 KV의 오늘 값을 같은 분과 1분 앞의 live.py 값과 견주어 null 집합 일치, `COMPARE_TOLERANCE` 안 종목 비율, 토스 호출 수를
-가격 없이 `compare-{날짜}.log`에 적는다. KV 경로와 병행하는 동안 cron이 10분마다 부른다.
 """
 from __future__ import annotations
 
@@ -63,8 +60,6 @@ RETRY_WAIT = 2
 ATTEMPTS = 3
 CLOSE_WAIT = dt.timedelta(minutes=5)  # 마감 체결이 1분봉에 실리기를 기다리는 시간
 KEEP_DAYS = 7  # `DATA`의 날짜 붙은 파일을 남기는 날 수
-COMPARE_TOLERANCE = 0.003  # `--compare`가 같은 값으로 보는 상대 차이
-COMPARE_EVERY = 10  # `--compare`를 부르는 간격(분). 토스 호출 수를 이 동안의 회차에서 센다
 NAMES = ("premarket", "afterhours")
 
 
@@ -254,7 +249,7 @@ def calendar_day(day: dt.date) -> dict:
     edge = (day - dt.timedelta(days=KEEP_DAYS)).isoformat()
     for old in DATA.iterdir():
         stem = old.name.split("-", 1)
-        if stem[0] in ("session", "tick", "snap", "compare") and len(stem) > 1 and stem[1][:10] < edge:
+        if stem[0] in ("session", "tick", "snap") and len(stem) > 1 and stem[1][:10] < edge:
             old.unlink()
     return found
 
@@ -383,63 +378,9 @@ def tick(now: dt.datetime | None = None) -> dict[str, dict]:
     return written
 
 
-def near(entry: dict, snap: dict) -> str:
-    """두 값에서 함께 가격이 있는 종목 가운데 `COMPARE_TOLERANCE` 안인 종목 수와 비율."""
-    both = [symbol for symbol, price in entry["stocks"].items() if price is not None and snap["stocks"].get(symbol) is not None]
-    count = sum(abs(snap["stocks"][symbol] / entry["stocks"][symbol] - 1) <= COMPARE_TOLERANCE for symbol in both)
-    return f"{count}/{len(both)} ({100 * count / len(both) if both else 0:.1f}%)"
-
-
-def compare(now: dt.datetime | None = None) -> list[str]:
-    """KV의 오늘 값마다 같은 분의 live.py 값과 견준 줄을 `compare-{날짜}.log`에 적고 돌려준다. 가격은 적지 않는다.
-
-    KV의 체결가는 `price_source.batch_time_price`가 끝 시각의 1분 전에 끝난 토스 1분봉에서 받는다. 그래서 1분 앞 live.py 값과 견준 비율도 함께 적는다.
-    """
-    now = now or dt.datetime.now(NEW_YORK)
-    today = now.date().isoformat()
-    snaps = {}
-    for line in (DATA / f"snap-{today}.jsonl").read_text(encoding="utf-8").splitlines() if (DATA / f"snap-{today}.jsonl").exists() else []:
-        found = json.loads(line)
-        snaps[(found["name"], found["index"], found["time"])] = found
-    lines = []
-    for name in NAMES:
-        for index, days in sorted(build.read_live(name).items()):
-            if not (entry := days.get(today)):
-                continue
-            head = f"{now:%H:%M} {name} {index} KV {entry['time'][11:16]}"
-            if not (snap := snaps.get((name, index, entry["time"]))):
-                lines.append(f"{head} 같은 분의 live 값 없음")
-                continue
-            kv_null = {symbol for symbol, price in entry["stocks"].items() if price is None}
-            live_null = {symbol for symbol, price in snap["stocks"].items() if price is None}
-            earlier = (dt.datetime.fromisoformat(entry["time"]) - dt.timedelta(minutes=1)).isoformat()
-            shown = [f"구간 {entry.get('phase', 'after')}/{snap.get('phase', 'after')}",
-                     f"null 집합 {'같음' if kv_null == live_null else '다름'}(KV {len(kv_null)}·live {len(live_null)})",
-                     f"0.3% 안 {near(entry, snap)}"]
-            if before := snaps.get((name, index, earlier)):
-                shown.append(f"1분 앞 live와 0.3% 안 {near(entry, before)}")
-            ratio = ("둘 다 null" if entry["ratio"] is None and snap["ratio"] is None else "한쪽 null" if None in (entry["ratio"], snap["ratio"])
-                     else "0.3% 안" if abs(snap["ratio"] / entry["ratio"] - 1) <= COMPARE_TOLERANCE else "0.3% 밖")
-            lines.append(f"{head} {' '.join(shown)} 지수 비율 {ratio}")
-    since = now - dt.timedelta(minutes=COMPARE_EVERY)
-    ticks = [record for line in ((DATA / f"tick-{today}.log").read_text().splitlines() if (DATA / f"tick-{today}.log").exists() else [])
-             if dt.datetime.fromisoformat((record := json.loads(line))["at"]) > since]
-    lines.append(f"{now:%H:%M} 토스 호출 최근 {COMPARE_EVERY}분 {len(ticks)}회차 · 회차당 시세 조회 최대 {max((t['calls']['prices'] for t in ticks), default=0)}회"
-                 f" · 1분봉·일봉 조회 합계 {sum(t['calls']['candles'] for t in ticks)}회")
-    DATA.mkdir(parents=True, exist_ok=True)
-    with open(DATA / f"compare-{today}.log", "a", encoding="utf-8") as log:
-        log.write("\n".join(lines) + "\n")
-    return lines
-
-
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--compare", action="store_true", help="1분 회차 대신 KV 값과 같은 분의 live.py 값을 견준다")
-    args = parser.parse_args()
-    if args.compare:
-        print("\n".join(compare()))
-    else:
-        print(" ".join(tick()))
+    argparse.ArgumentParser(description=__doc__.split("\n")[0]).parse_args()
+    print(" ".join(tick()))
     return 0
 
 

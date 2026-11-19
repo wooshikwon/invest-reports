@@ -86,14 +86,13 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `invest-reports` 미니 앱의 시장 페이지는 리포트 지수의 값으로 맨 위 `한 눈에 보기` 절에 시가총액을 칸 넓이로, 전 거래일 대비 등락률을 칸 색으로 쓴 지도를 그리고,
 슬라이더로 지난 석 달의 리포트 날짜를 고르면 그 날짜 전날의 종가로 지도를 다시 그린다. 그 날짜 전날의 애프터장 값이 있으면 절 제목 오른쪽의
 `정규장 | 애프터마켓` 단추로 칸 값과 색을 애프터장 체결가와 정규장 종가 대비 등락률로 바꾼다.
-프리장·정규장 값, 애프터장 값, 판단 배치 진척률 세 실시간 값은 저장소에 커밋하지 않고 Cloudflare KV(`CLOUDFLARE_LIVE_NAMESPACE`)의
-`premarket`·`afterhours`·`progress` 키에 쓴다. 앞 회차 값도 같은 키에서 읽는다(`read_live`, `write_live`).
-미니 앱은 invest-live Worker(`worker/live.js`)의 `GET /{키}`로 세 값을 받는다. `progress`는 Worker의 DO에도 쓰고(`post_live`),
-DO의 `premarket`·`afterhours`는 live.py가 1분마다 쓴다. Worker의 `GET /`는 DO의 세 값을 한 응답으로 돌려준다.
-`premarket` 키에는 지수마다 리포트 날짜와 같은 뉴욕 날짜를 키로 그날 프리장과 정규장의 마지막 체결가를 적는다(`premarket`). 값은 지수 ETF의
+프리장·정규장 값, 애프터장 값, 판단 배치 진척률 세 실시간 값은 저장소에 커밋하지 않고 invest-live Worker(`worker/live.js`)의 DO에
+`premarket`·`afterhours`·`progress` 이름으로 쓴다. `premarket`·`afterhours`는 live.py가 1분마다 쓰고, `progress`는 `--progress`가 쓴다(`post_live`).
+미니 앱과 이 모듈은 Worker의 `GET /`로 세 값을 한 응답으로 받는다(`read_live`).
+`premarket` 값에는 지수마다 리포트 날짜와 같은 뉴욕 날짜를 키로 그날 프리장과 정규장의 마지막 체결가를 적는다. 값은 지수 ETF의
 앞 세션 정규장 종가 대비 비율(`ratio`), 지도 종목마다의 체결가(`stocks`), 값을 받은 시각(`time`), 앞 세션 날짜(`session`)와 그 시각의 세션(`phase`)이다.
-cron이 프리장이 열릴 때부터 정규장이 닫힐 때까지 부른다. 프리장 값은 10분마다 받고, 정규장이 열리면 첫 회차가 프리장 값을 정규장 값으로 덮은 뒤
-정시와 30분에만 정규장 값을 다시 받으며, 정규장이 닫힌 뒤에는 마감 값을 한 번 받아 그대로 둔다. 덮기 전 프리장 마지막 값은 정규장 값의 `pre`에 옮긴다.
+live.py는 프리장이 열릴 때부터 정규장이 닫힐 때까지 1분마다 값을 쓰고, 정규장이 열리면 첫 회차가 프리장 값을 정규장 값으로 덮으며,
+정규장이 닫힌 뒤에는 마감 값을 한 번 받아 그대로 둔다. 덮기 전 프리장 마지막 값은 정규장 값의 `pre`에 옮긴다.
 미니 앱은 프리장 값이면 그 날짜 리포트의 머리 상자 아래 줄을 프리마켓 값으로 바꾸고,
 지도의 단추를 `정규장 | 다음날 프리마켓`으로 바꿔 애프터장 값 자리에 프리장 체결가와 정규장 종가 대비 등락률을 쓴다.
 요약 절의 주가와 예측 카드와 종목 상세 페이지의 주가 카드도 같은 값으로 위 줄 오른쪽에 `정규장 | 애프터마켓`이나 `정규장 | 프리마켓` 단추를 두고,
@@ -101,8 +100,8 @@ cron이 프리장이 열릴 때부터 정규장이 닫힐 때까지 부른다. �
 정규장 값은 그 정규장이 열릴 때 만든 다음날 사전 리포트(목록 항목의 `live`)만 그리고, 앞 리포트는 정규장 값 대신 `pre`의 프리장 마지막 값을 쓴다.
 다음날 사전 리포트는 지도와 두 카드, 종목 상세 주가 카드의 단추를 정규장 단추 하나로 바꿔 그 체결가와 앞 세션 종가 대비 등락률을 쓰고,
 머리 상자 위 줄과 달력의 그 날짜 칸도 정규장 값으로 바꾼다. 날짜 줄의 시각은 값을 받은 시각을 리포트 날짜 0시부터 센 서울 시각으로 쓰므로 `-00:30`처럼 시작한다.
-`afterhours` 키에는 지수마다 뉴욕 세션 날짜를 키로 그날 애프터장의 마지막 체결가를 같은 모양(`ratio`, `stocks`, `time`)으로 적는다(`afterhours`).
-cron이 사전 리포트를 올린 16:30 ET부터 애프터장이 닫히는 20:00 ET까지 10분마다 부르고, 지도 날짜보다 앞 날짜의 값은 지운다.
+`afterhours` 값에는 지수마다 뉴욕 세션 날짜를 키로 그날 애프터장의 마지막 체결가를 같은 모양(`ratio`, `stocks`, `time`)으로 적는다.
+live.py가 정규장 마감 값을 고정한 회차부터 애프터장이 닫히는 20:00 ET까지 1분마다 쓰고, 지도 날짜보다 앞 날짜의 값은 지운다.
 미니 앱은 사전 리포트의 머리 상자 아래 줄에 정규장 종가를 지수 ETF 비율로 옮긴 애프터마켓 값을, 오른쪽 아래에 값을 받은 서울 시각을 쓴다.
 지도와 종목 상세 페이지는 `r/market.json`의 애프터장 체결가가 아직 없는 종목에 이 체결가를 쓰고, 주가와 예측 카드는 사전 리포트의 애프터장 값으로 쓴다.
 지도 칸을 누르면 칸 위 말풍선에 종목 이름, 종가와 등락률, 설명 첫 문장을 적고, 말풍선의 `자세히 보기` 단추는 `?stock=심볼` 종목 상세 페이지를 연다.
@@ -141,7 +140,7 @@ ETF 눈금을 지수 눈금으로 늘려 적는다(`card_scale`). 공개본이 �
 `invest-reports` 미니 앱은 `stage`가 없는 항목을 분석 완료로 그린다. 날짜 줄 끝에는 `updated`와 리포트 날짜의 프리장 값, 리포트 날짜 앞 세션의
 애프터장 값의 체결 시각 가운데 가장 늦은 시각을 적는다. 미니 앱은 `상세 이슈 해설` 절의 이슈 목록 위에 분석 완료 시각을 "11/17 11:43 KST"처럼 적는다.
 본 리포트는 자기 항목의 `written`을, 사전 리포트는 이슈를 옮겨 온 앞 본 리포트 항목의 `written`을 쓴다.
-`progress` 키에는 `stage`가 `running`인 그날 지수마다 판단 배치가 닿은 단계(`step`), 그 단계에 닿은 시각(`since`), 배치를 시작한 시각(`start`)을 적는다(`progress`).
+`progress` 값에는 `stage`가 `running`인 그날 지수마다 판단 배치가 닿은 단계(`step`), 그 단계에 닿은 시각(`since`), 배치를 시작한 시각(`start`)을 적는다(`progress`).
 단계는 `PROGRESS_MARKS`의 파일이 그날 지수 폴더에 생긴 차례로 정하고, `plan`에는 지난 `PROGRESS_SESSIONS`개 세션의 도구 호출 요약에서 잰 단계마다 걸린 분의
 중앙값을 시작부터 누적해 적는다(`progress_plan`). cron이 판단 배치 동안 10분마다 부르고, 값이 바뀐 회차만 쓴다.
 미니 앱은 분석 중 스티커에 지금 단계의 누적 분과 그 단계에 머문 분으로 `분석 중 NN%`를 적고, 단계의 몫을 넘기지 않으며 99%에서 멈춘다.
@@ -197,7 +196,6 @@ STOCK_DAYS = 366  # 종목 상세 페이지의 주가 카드가 그리는 종가
 OIL_TICKER = "CL=F"  # 미국 거시 지표 유가 카드의 WTI 선물 야후 심볼
 AFTER_OPEN, AFTER_CLOSE = dt.time(16), dt.time(20)  # 뉴욕 애프터장이 열리고 닫히는 시각. 지도와 머리 상자의 애프터장 값은 닫히는 시각까지의 마지막 체결가다
 PREMARKET_OPEN, PREMARKET_CLOSE = dt.time(4), dt.time(9, 30)  # 뉴욕 프리장이 열리고 닫히는 시각. 끝 시각이 닫히는 시각 뒤인 `premarket` 값은 정규장 값이다
-REGULAR_EVERY = 30  # 정규장 값을 다시 받는 간격(분). 정규장이 열린 뒤 첫 회차와 마감 값은 이 간격과 관계없이 받는다
 # 판단 배치의 진척률 단계. [단계에 닿으면 그날 지수 폴더에 생기는 파일, 지난 세션 도구 호출 요약에서 그 단계의 첫 Main 호출]이다.
 # 차례로 입력 렌더링, ④ Main 읽기의 결과 초안, ⑥ 판정, ⑧ 리포트, ⑧ 교정, ⑨ 이슈 이미지와 그래프, 세션 끝, 리포트 게시다.
 PROGRESS_MARKS = [("input-manifest.json", None), ("system/form-draft.md", r"^Write\s.*/form-draft\.md"), ("scratchpad.md", r"^Write\s.*/scratchpad\.md"),
@@ -589,40 +587,11 @@ def market(vault: Path, out: Path) -> Path:
     return target
 
 
-def live_request(name: str, **options) -> urllib.request.Request:
-    """실시간 값 KV의 `name` 키에 보내는 Cloudflare API 요청. 자격증명은 ~/.cloudflare_env의 환경변수로만 받는다."""
-    missing = [key for key in ("CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_LIVE_NAMESPACE") if not os.environ.get(key)]
-    if missing:
-        raise EnvironmentError(f"환경변수 없음: {', '.join(missing)}")
-    return urllib.request.Request(
-        f"https://api.cloudflare.com/client/v4/accounts/{os.environ['CLOUDFLARE_ACCOUNT_ID']}/storage/kv/namespaces/"
-        f"{os.environ['CLOUDFLARE_LIVE_NAMESPACE']}/values/{name}",
-        headers={"Authorization": f"Bearer {os.environ['CLOUDFLARE_API_TOKEN']}"}, **options)
-
-
-def read_live(name: str) -> dict:
-    """실시간 값 KV의 `name` 키 값을 읽는다. 키에 값이 없으면 빈 dict다."""
-    try:
-        with urllib.request.urlopen(live_request(name), timeout=30) as answer:
-            return json.loads(answer.read())
-    except urllib.error.HTTPError as error:
-        if error.code == 404:
-            return {}
-        raise
-
-
-def write_live(name: str, value: dict) -> None:
-    """실시간 값 KV의 `name` 키에 `value`를 덮어쓴다. Cloudflare가 성공을 답하지 않으면 RuntimeError를 낸다.
-
-    `progress`는 invest-live DO에도 쓴다(`post_live`). DO의 `premarket`·`afterhours`는 live.py가 1분마다 쓴다.
-    """
-    request = live_request(name, data=json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode(), method="PUT")
+def read_live() -> dict:
+    """invest-live Worker의 `GET /`가 돌려주는 세 실시간 값 `{premarket, afterhours, progress}`. Worker에 값이 없는 이름은 빠진다."""
+    request = urllib.request.Request(f"{LIVE_URL}/", headers={"User-Agent": "invest-reports"})
     with urllib.request.urlopen(request, timeout=30) as answer:
-        result = json.loads(answer.read())
-    if not result.get("success"):
-        raise RuntimeError(f"KV 쓰기 실패: {result.get('errors')}")
-    if name == "progress":
-        post_live(name, value)
+        return json.loads(answer.read())
 
 
 def post_live(name: str, value: dict) -> None:
@@ -642,103 +611,6 @@ def post_live(name: str, value: dict) -> None:
         status = error.code
     if status != 204:
         raise RuntimeError(f"DO 쓰기 실패: {name} {status}")
-
-
-def premarket(vault: Path, out: Path) -> dict | None:
-    """실시간 값 `premarket`에 지수마다 오늘 뉴욕 프리장과 정규장의 지금까지 마지막 체결가를 오늘 날짜를 키로 쓴다.
-
-    값은 지수 ETF(`SECTOR_DB_TICKERS`)의 앞 세션 정규장 종가 대비 비율(`ratio`)과 `r/market.json` 지도 종목마다의 체결가(`stocks`)이고,
-    앞 세션 날짜(`session`), 체결가를 받은 끝 시각(`time`, 뉴욕 시각), 끝 시각의 세션(`phase`)을 함께 적는다. `phase`는 끝 시각이 `PREMARKET_CLOSE`
-    뒤이면 `regular`, 아니면 `pre`다. 체결가는 그 시각까지의 마지막 체결가를 토스 1분봉에서, 답하지 않으면 야후 1분봉에서 받는다
-    (`price_source.batch_time_price`). 마지막 체결이 오늘 `PREMARKET_OPEN` 전이면 오늘 체결이 없으므로 null이다.
-    끝 시각은 지금과 오늘 정규장이 닫히는 시각(`exchange_calendars`의 마감 시각, 조기 폐장일은 그날의 마감 시각) 가운데 이른 쪽이라,
-    정규장이 열리면 프리장 값을 정규장 값으로 덮고, 정규장이 닫힌 뒤에는 정규장 마지막 체결가가 남는다. 정규장 값에는 덮기 전 프리장 마지막 값의
-    `time`, `ratio`, `stocks`를 `pre`로 옮겨 둔다.
-    정규장 값은 정규장이 열린 뒤 첫 회차와 끝 시각의 분이 `REGULAR_EVERY`로 나누어떨어지는 회차, 마감 값을 받는 회차에만 쓴다.
-    마감 체결이 1분봉에 실리도록 마감 뒤 5분 동안은 쓰지 않는다.
-    오늘이 뉴욕 정규장 세션이 아니거나, 지금이 `PREMARKET_OPEN` 전이거나, 마감 뒤 5분 안이거나, 정규장 값을 다시 받을 회차가 아니거나, 오늘 값을 정규장 마감까지 이미 받았으면 `None`이다.
-    지도의 첫 날짜보다 앞선 날짜의 값은 지운다. 새 값을 돌려주고, KV에는 `main`이 쓴다.
-    """
-    now = dt.datetime.now(NEW_YORK)
-    today = now.date()
-    xnys = exchange_calendars.get_calendar("XNYS")
-    if not xnys.is_session(today.isoformat()) or now.time() < PREMARKET_OPEN:
-        return None
-    closed = xnys.session_close(today.isoformat()).to_pydatetime().astimezone(NEW_YORK)
-    if closed <= now < closed + dt.timedelta(minutes=5):
-        return None
-    board = json.loads((out / "r" / "market.json").read_text(encoding="utf-8"))["map"]
-    kept = read_live("premarket")
-    end = min(now, closed).replace(second=0, microsecond=0)
-    if all(kept.get(index, {}).get(today.isoformat(), {}).get("time") == end.isoformat() for index in board):
-        return None
-    session = xnys.previous_session(today.isoformat()).date().isoformat()
-    opened = dt.datetime.combine(today, PREMARKET_OPEN, NEW_YORK)
-    phase = "regular" if end > dt.datetime.combine(today, PREMARKET_CLOSE, NEW_YORK) else "pre"
-    if phase == "regular" and end < closed and end.minute % REGULAR_EVERY and all(kept.get(index, {}).get(today.isoformat(), {}).get("phase") == "regular" for index in board):
-        return None
-    source, etfs = render_inputs(vault).price_source, predictions_chart(vault).path_bands.SECTOR_DB_TICKERS
-
-    @functools.cache
-    def trade(symbol: str) -> dict | None:
-        try:
-            found = source.batch_time_price(symbol, session, end.isoformat())
-        except RuntimeError as error:
-            print(f"{'정규장' if phase == 'regular' else '프리장'} 체결가를 받지 못함: {error}", file=sys.stderr)
-            return None
-        return found if dt.datetime.fromisoformat(found["time"]) > opened else None
-
-    for index, found in board.items():
-        etf = trade(etfs[index])
-        own = kept.setdefault(index, {})
-        before = own.get(today.isoformat())
-        dawn = before and (before.get("pre") if before["phase"] == "regular" else {name: before[name] for name in ("time", "ratio", "stocks")})
-        own[today.isoformat()] = {"session": session, "time": end.isoformat(), "phase": phase, "ratio": etf and round(etf["ratio"], 6),
-                                  "stocks": {stock["symbol"]: (got := trade(stock["symbol"])) and round(got["price"], 2) for stock in found["stocks"]}}
-        if phase == "regular" and dawn:
-            own[today.isoformat()]["pre"] = dawn
-        for day in [day for day in own if day < found["dates"][0]]:
-            del own[day]
-    return kept
-
-
-def afterhours(vault: Path, out: Path) -> dict | None:
-    """실시간 값 `afterhours`에 지수마다 오늘 뉴욕 애프터장의 지금까지 마지막 체결가를 오늘 날짜를 키로 쓴다.
-
-    값은 지수 ETF(`SECTOR_DB_TICKERS`)의 오늘 정규장 종가 대비 비율(`ratio`)과 `r/market.json` 지도 종목마다의 체결가(`stocks`)이고,
-    체결가를 받은 끝 시각(`time`, 뉴욕 시각)을 함께 적는다. 체결가는 그 시각까지의 마지막 체결가를 토스 1분봉에서, 답하지 않으면 야후 1분봉에서
-    받는다(`price_source.batch_time_price`). 정규장이 끝난 뒤 체결이 없거나 두 출처가 모두 답하지 않은 값은 null이다.
-    끝 시각은 지금과 애프터장이 끝나는 `AFTER_CLOSE` 가운데 이른 쪽이라, 애프터장이 끝난 뒤에는 마지막 체결가가 남는다.
-    오늘이 뉴욕 정규장 세션이 아니거나, 지금이 `AFTER_OPEN` 전이거나, 오늘 값을 `AFTER_CLOSE`까지 이미 받았으면 `None`이다.
-    지도의 첫 날짜보다 앞선 날짜의 값은 지운다. 새 값을 돌려주고, KV에는 `main`이 쓴다.
-    """
-    now = dt.datetime.now(NEW_YORK)
-    today = now.date()
-    if not exchange_calendars.get_calendar("XNYS").is_session(today.isoformat()) or now.time() < AFTER_OPEN:
-        return None
-    board = json.loads((out / "r" / "market.json").read_text(encoding="utf-8"))["map"]
-    kept = read_live("afterhours")
-    end = min(now, dt.datetime.combine(today, AFTER_CLOSE, NEW_YORK)).replace(second=0, microsecond=0)
-    if all(kept.get(index, {}).get(today.isoformat(), {}).get("time") == end.isoformat() for index in board):
-        return None
-    source, etfs = render_inputs(vault).price_source, predictions_chart(vault).path_bands.SECTOR_DB_TICKERS
-
-    @functools.cache
-    def trade(symbol: str) -> dict | None:
-        try:
-            return source.batch_time_price(symbol, today.isoformat(), end.isoformat())
-        except RuntimeError as error:
-            print(f"애프터장 체결가를 받지 못함: {error}", file=sys.stderr)
-            return None
-
-    for index, found in board.items():
-        etf = trade(etfs[index])
-        own = kept.setdefault(index, {})
-        own[today.isoformat()] = {"time": end.isoformat(), "ratio": etf and round(etf["ratio"], 6),
-                                  "stocks": {stock["symbol"]: (got := trade(stock["symbol"])) and round(got["price"], 2) for stock in found["stocks"]}}
-        for day in [day for day in own if day < found["dates"][0]]:
-            del own[day]
-    return kept
 
 
 def progress_plan(vault: Path, entries: dict, today: dt.date) -> list[int]:
@@ -778,14 +650,14 @@ def progress(vault: Path, out: Path) -> dict | None:
     늦게 바뀐 파일만 세고, 세션 끝에 쓰는 도구 호출 요약은 다른 단계 파일보다 늦게 바뀌었을 때만 센다. 같은 날 세션을 다시 돌리면
     앞 세션의 파일이 남기 때문이다. 단계에 닿은 시각은 단계가 바뀐 회차에 그 단계 파일이 바뀐 시각을 적고, 단계가 그대로면 앞 회차 값을 둔다.
     판단 배치의 시작 시각(`start`)은 입력이 바뀐 시각이다. 단계마다 그 단계에 닿기까지 걸리는 분(`plan`)을 함께 적는다(`progress_plan`).
-    오늘 분석 중인 리포트가 없거나 값이 앞 회차와 같으면 `None`이다. 새 값을 돌려주고, KV에는 `main`이 쓴다.
+    앞 회차 값은 invest-live Worker에서 읽는다(`read_live`). 오늘 분석 중인 리포트가 없거나 값이 앞 회차와 같으면 `None`이다. 새 값을 돌려주고, DO에는 `main`이 쓴다(`post_live`).
     """
     today = dt.datetime.now(SEOUL).date()
     entries = published_entries(out)
     running = sorted(entry["index"] for entry in entries.values() if entry["date"] == today.isoformat() and entry.get("stage") == "running")
     if not running:
         return None
-    written = read_live("progress")
+    written = read_live().get("progress", {})
     kept = written.get("indexes", {}) if written.get("date") == today.isoformat() else {}
     stamp = lambda path: dt.datetime.fromtimestamp(path.stat().st_mtime, SEOUL).replace(microsecond=0)
     found = {}
@@ -1747,21 +1619,18 @@ def main() -> int:
     parser.add_argument("--vault", default=str(Path.home() / "obsidian-vault"))
     parser.add_argument("--out", default=str(ROOT))
     parser.add_argument("--stage", choices=("pre", "running"), help="본 리포트 대신 사전 리포트를 만들거나(pre) 사전 리포트를 분석 중으로 바꾼다(running)")
-    parser.add_argument("--premarket", action="store_true", help="리포트 대신 오늘 프리장·정규장 값(KV `premarket`)만 쓴다")
-    parser.add_argument("--afterhours", action="store_true", help="리포트 대신 오늘 애프터장 값(KV `afterhours`)만 쓴다")
-    parser.add_argument("--progress", action="store_true", help="리포트 대신 오늘 판단 배치의 진척 단계(KV `progress`)만 쓴다")
+    parser.add_argument("--progress", action="store_true", help="리포트 대신 오늘 판단 배치의 진척 단계(invest-live DO `progress`)만 쓴다")
     args = parser.parse_args()
     vault, out = Path(args.vault).expanduser(), Path(args.out)
-    # 세 실시간 값은 새 값을 KV에 쓴 회차에 키 이름을, 쓰지 않은 회차에 빈 줄을 찍는다.
-    live = "premarket" if args.premarket else "afterhours" if args.afterhours else "progress" if args.progress else None
-    if live:
-        value = {"premarket": premarket, "afterhours": afterhours, "progress": progress}[live](vault, out)
+    # `--progress`는 새 값을 DO에 쓴 회차에 `progress`를, 쓰지 않은 회차에 빈 줄을 찍는다.
+    if args.progress:
+        value = progress(vault, out)
         if value is not None:
-            write_live(live, value)
-        print(live if value is not None else "")
+            post_live("progress", value)
+        print("progress" if value is not None else "")
         return 0
     if not (args.date and args.index):
-        parser.error("--premarket, --afterhours, --progress가 아니면 --date와 --index가 필요하다")
+        parser.error("--progress가 아니면 --date와 --index가 필요하다")
     if args.stage == "pre":
         print(pre(args.date, args.index, vault, out))
     elif args.stage == "running":
