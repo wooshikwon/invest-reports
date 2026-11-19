@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """build — 판단 리포트 공개본을 `invest-reports` `invest-reports` 미니 앱(`app.html`)이 읽는 HTML 조각으로 만든다. `run-with-notify.sh`의 `publish_miniapp`이 만든 조각을 게시한다.
 
-사용법: python3 build.py --date 2026-10-19 --index nasdaq [--vault ~/obsidian-vault] [--out .] [--stage pre|running]
+사용법: python3 build.py --date 2026-10-19 --index nasdaq [--vault ~/obsidian-vault] [--out .]
 
-`r/{YYYYMMDD}-{지수}/`에 `report.html`과 그림, 이슈 과거 맥락 `history.json`과 요약 카드 값 `cards.json`을 쓰고 `r/index.json`의 목록을 갱신한다. `invest-reports` 미니 앱은
+`r/{YYYYMMDD}-{지수}/`에 `report.html`과 그림, 이슈 과거 맥락 `history.json`, 요약 카드 값 `cards.json`, 1개월 예측 설명 `outlook.json`을 쓰고 `r/index.json`의 목록을 갱신한다. `invest-reports` 미니 앱은
 `start_param`으로 받은 `{YYYYMMDD}-{지수}`를 열어 그 조각을 그리고, 키 없이 열리면 목록에서 가장 늦은 나스닥 리포트를 연다.
 
 공개본이 끝나는 자리와 공개본에 남으면 안 되는 말은 invest-report `report_pdf.py`의 값을 그대로 쓴다.
@@ -69,11 +69,13 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 리포트가 판정 뒤에 바뀌어 찾지 못한 자리는 감싸지 않고 표준 오류로 알린다. `invest-reports` 미니 앱은 단추에 점선 밑줄을 긋고,
 누르면 용어 아래에 대표 표기와 설명을 담은 말풍선을 연다.
 
-`r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 본 리포트를 처음 만든 시각(`written`), 항목을 마지막으로 쓴 시각(`updated`)을 서울 시각으로 적는다.
+`r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 리포트를 처음 만든 시각(`written`), 항목을 마지막으로 쓴 시각(`updated`)을 서울 시각으로 적는다.
+항목에는 판단의 날짜 지점(`point`)도 적는다. 날짜 지점은 리포트 폴더 `path-bands.json`의 `price_base_date` 다음 뉴욕 정규장 세션 날짜이고(`judgment_point`),
+한국 토요일 리포트와 월요일 리포트는 같은 날짜 지점을 갖는다.
 앞 날짜 리포트의 이슈가 뒤 리포트 이슈의 히스토리에 들면, 앞 날짜 리포트 항목의 `later`에 그 이슈 번호를 키로 히스토리를 가진
 가장 늦은 리포트의 `리포트 키/이슈 번호`를 적는다. 미니 앱의 "자세히 보기" 단추는 이 값으로 이슈의 가장 늦은 히스토리를 연다. `invest-reports` 미니 앱은 제목 위
 작은 글씨로 날짜 줄을 그린다. 같은 리포트를 다시 만들어도 처음 만든 시각은 그대로 둔다.
-`parts`에는 그 리포트 폴더에 쓴 `history`·`cards` JSON의 이름을 적는다. 미니 앱은 `parts`에 적힌 JSON만 받고, `parts`가 없는 지난 리포트에서는
+`parts`에는 그 리포트 폴더에 쓴 `history`·`cards`·`outlook` JSON의 이름을 적는다. 미니 앱은 `parts`에 적힌 JSON만 받고, `parts`가 없는 지난 리포트에서는
 `report.html` 안의 `issue-history` 템플릿과 `<script type="application/json" id="cards">` 조각에서 같은 값을 읽는다.
 `invest-reports` 미니 앱의 달력은 같은 목록에서 그 지수의 리포트 날짜를 찾아 흰 글자로 쓰고, 날짜 아래에 `moves`의 `session`을 적는다.
 달력 위 `나스닥 | 바이오` 단추로 지수를 바꾸면 달력은 그 지수의 리포트 날짜로 다시 그려지고, 날짜를 누르면 그 날짜의 그 지수 리포트가 열린다.
@@ -128,26 +130,20 @@ live.py가 나스닥 값의 `ratio`를 애프터장 마지막 비율 × NQ=F 등
 그날 25·50·75% 가격, 10~90% 수익률 분위수와 사안 일정, 체류 적분 밀도를 담는다(`summary_cards`). 종가와 가격은 예측을 계산한
 ETF 눈금을 지수 눈금으로 늘려 적는다(`card_scale`). 공개본이 있는 그 지수 리포트
 가운데 가장 늦은 날짜에서 `REWIND_DAYS`일 안의 카드 값 리포트는 되감기 날짜가 되고, `r/rewind-{지수}/cards.json`에 날짜마다
-같은 판단 값과 그날 기준 가격 뒤의 실제 종가 수익률(%)을 쓴다. `invest-reports` 미니 앱은 카드 값으로 그림 카드를
+같은 판단 값과 그날 기준 가격 뒤의 실제 종가 수익률(%)을 쓴다. 프레임마다 날짜 지점(`point`)을 적고, 같은 날짜 지점의 리포트가 둘이면
+늦은 리포트의 프레임 하나만 둔다. `invest-reports` 미니 앱은 카드 값으로 그림 카드를
 그리고, 슬라이더를 옮기면 그날 판단 값으로 세 카드를 다시 그린다.
 
-`--stage pre`는 판단 배치가 돌기 전에 그날 리포트 키로 사전 리포트를 만든다. cron은 전날 뉴욕 정규장이 열릴 때 한 번, 닫힌 뒤에 한 번 부른다.
-정규장 중에는 그 앞 세션까지의 종가로 만들고 목록 항목의 `live`에 전날 날짜를 적으며, 닫힌 뒤에는 전날까지의 종가로 다시 만들고 `live`를 지운다.
-사전 리포트는 그 지수의 가장 늦은 본 리포트 공개본에서
-`1개월 지수 방향 예측` 절의 본문과 카드 값을 빼고, 이슈 소제목의 `data-new`를 지우고 `data-age`를 그날 기준으로 다시 단다. 앞 리포트의 `history.json`은 그대로 옮겨 적는다.
-`미국 거시 지표` 카드 값은 그 시각까지 `reference.db`에 적재한 값으로 판단 배치와 같은 `render_inputs.py` 함수가 만든 입력에서 다시 뽑고,
-지표 소제목 뒤의 해설은 지운다.
-카드 값은 `pre`를 참으로 두고 전날까지 `PRICE_YEARS`년 종가를 담는다.
-`invest-reports` 미니 앱은 주가와 예측 카드 한 장만 종가 선으로 그리고, 그날 종가의 등락률을 등락 색으로 적는다.
-되감기 슬라이더는 앞 날짜의 판단과 사전 리포트의 종가를 고르게 하고, 일정·권장 배율 카드와 주가와 예측 카드의 예측 단추는 두지 않는다. 이벤트 캘린더와 이슈 그림은 앞 리포트의 것을 그대로 쓴다.
-`r/index.json` 항목에는 `stage: "pre"`와 전날 정규장 `session`·`close`만 적은 `moves`를 쓰고(정규장 중에는 둘 다 `null`), 앞 날짜의 사전 리포트 항목과 폴더는 지운다.
-전날이 뉴욕 정규장 세션이 아니거나 전날 정규장이 아직 열리지 않았으면 종료 코드 3, 그날 본 리포트가 이미 있거나, 정규장 중 사전 리포트가 있는데 정규장이 닫히기 전에 다시 부르면 종료 코드 4로 끝내고 아무것도 쓰지 않는다.
-끝낼 세션의 종가가 `reference.db`에 아직 없으면 실패로 끝낸다.
-`--stage running`은 그날 사전 리포트 항목의 `stage`를 `running`으로 바꾸고, 판단 배치가 애프터장이 끝난 뒤 시작하므로 `r/market.json`을 다시 써서 전날 애프터장 값을 단다. 본 리포트를 만들면 같은 키의 항목을 새로 쓰므로 `stage`가 없어지고,
-`invest-reports` 미니 앱은 `stage`가 없는 항목을 분석 완료로 그린다. 날짜 줄 끝에는 `updated`와 리포트 날짜의 프리장 값, 리포트 날짜 앞 세션의
-애프터장 값의 체결 시각 가운데 가장 늦은 시각을 적는다. 미니 앱은 `상세 이슈 해설` 절의 이슈 목록 위에 분석 완료 시각을 "11/17 11:43 KST"처럼 적는다.
-본 리포트는 자기 항목의 `written`을, 사전 리포트는 이슈를 옮겨 온 앞 본 리포트 항목의 `written`을 쓴다.
-`progress` 값에는 `stage`가 `running`인 그날 지수마다 판단 배치가 닿은 단계(`step`), 그 단계에 닿은 시각(`since`), 배치를 시작한 시각(`start`)을 적는다(`progress`).
+`1개월 지수 방향 예측` 절에 `OUTLOOK_SECTIONS`의 세 소제목(현재 상태, 주요 분기와 예측, 종합 시나리오)이 모두 있으면
+`r/{키}/outlook.json`에 날짜 지점(`point`)과 세 절의 HTML(`sections`)을 적는다(`outlook_sections`). 절마다 소제목부터 다음 소제목 앞까지의
+공개본 HTML을 그대로 옮기고, 세 소제목 가운데 하나라도 없는 리포트에는 파일을 쓰지 않는다.
+
+`--market`은 리포트를 만들지 않고 시장 페이지와 종목 상세 페이지의 값(`r/market.json`·`r/stocks/`·`r/candles.json`)만 다시 쓴다.
+cron은 뉴욕 정규장이 닫힌 뒤 한 번 불러 지도와 종목 상세 페이지의 종가를 판단 배치 전에 그날 세션까지 늘린다.
+그 회차는 애프터장이 끝나기 전에 돌므로 마지막 날짜의 애프터장 체결가는 리포트를 만들 때 단다.
+날짜 줄 끝에는 `updated`와 리포트 날짜의 프리장 값, 리포트 날짜 앞 세션의 애프터장 값의 체결 시각 가운데 가장 늦은 시각을 적는다.
+미니 앱은 `상세 이슈 해설` 절의 이슈 목록 위에 분석 완료 시각을 "11/17 11:43 KST"처럼 적고, 그 시각에는 리포트 항목의 `written`을 쓴다.
+`progress` 값에는 그날 지수 폴더에 판단 배치의 입력(`input-manifest.json`)이 있고 `r/index.json`에 그날 리포트 항목이 아직 없는 지수마다 판단 배치가 닿은 단계(`step`), 그 단계에 닿은 시각(`since`), 배치를 시작한 시각(`start`)을 적는다(`progress`).
 단계는 `PROGRESS_MARKS`의 파일이 그날 지수 폴더에 생긴 차례로 정하고, `plan`에는 지난 `PROGRESS_SESSIONS`개 세션의 도구 호출 요약에서 잰 단계마다 걸린 분의
 중앙값을 시작부터 누적해 적는다(`progress_plan`). cron이 판단 배치 동안 10분마다 부르고, 값이 바뀐 회차만 쓴다.
 미니 앱은 분석 중 스티커에 지금 단계의 누적 분과 그 단계에 머문 분으로 `분석 중 NN%`를 적고, 단계의 몫을 넘기지 않으며 99%에서 멈춘다.
@@ -213,6 +209,8 @@ STOCK_IMAGES = Path.home() / "data" / "invest-reports" / "stock-images"  # inves
 TICK_STEP = 5  # 일정과 예측 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
 ISSUES_TITLE = "상세 이슈 해설"
+OUTLOOK_TITLE = "1개월 지수 방향 예측"
+OUTLOOK_SECTIONS = ("현재 상태", "주요 분기와 예측", "종합 시나리오")  # `outlook.json`에 옮기는 설명 세 절의 말머리
 HISTORY_RE = re.compile(r'<template class="issue-history">.*?</template>\s*', re.DOTALL)
 THUMB = 264
 UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#ffffff"  # 오름·내림·중립 색. 오름·내림 색은 `app.html`의 등락 색과 같다
@@ -320,6 +318,15 @@ def moves(vault: Path, index: str, date: str) -> dict | None:
             "close": round(close, 2), "base": round(float(bands["price_base"]), 2)}
 
 
+def judgment_point(folder: Path) -> str:
+    """리포트 폴더 `folder` 판단의 날짜 지점(뉴욕 세션 날짜). `path-bands.json`의 `price_base_date` 다음 XNYS 세션이고, 경로 밴드의 1일째(`days[1]`)와 같다.
+
+    한국 토요일 판단과 월요일 판단은 둘 다 금요일 세션 뒤에 출발하므로 같은 날짜 지점(뉴욕 월요일)을 갖는다.
+    """
+    bands = json.loads((folder / "path-bands.json").read_text(encoding="utf-8"))
+    return exchange_calendars.get_calendar("XNYS").next_session(bands["price_base_date"]).date().isoformat()
+
+
 def card_frame(date: str, folder: Path, scale: float) -> dict | None:
     """그날 판단의 그림 카드 값. `system/simulation.json`의 `quantiles`에 5% 값이 없는 리포트는 `None`이다.
 
@@ -393,6 +400,7 @@ def summary_cards(index: str, date: str, folder: Path, vault: Path) -> dict | No
 def rewind(index: str, vault: Path, out: Path) -> Path | None:
     """`r/rewind-{지수}/`에 되감기 날짜마다 요약 절 카드 값(`cards.json`)과 지표 카드 값(`indicators.json`)을 쓴다.
 
+    `cards.json`의 프레임에는 판단의 날짜 지점(`point`, `judgment_point`)을 적고, 같은 날짜 지점의 판단이 둘이면 늦은 리포트 날짜의 프레임 하나만 남긴다.
     한쪽 값이 하나도 없으면 그 파일을 지우고, 두 파일이 모두 없으면 폴더를 지운다.
     """
     target = out / "r" / f"rewind-{index}"
@@ -400,8 +408,13 @@ def rewind(index: str, vault: Path, out: Path) -> Path | None:
                        for p in (out / "r").glob(f"*-{index}") if p.name[:8].isdigit())
     days = [day for day in published if published[-1] - day < dt.timedelta(days=REWIND_DAYS)]
     scale = card_scale(index, vault)
-    frames = [frame for day in days
-              if (frame := card_frame(day.isoformat(), vault / f"routine/invest/{day:%Y-%m}/{day}/{index}", scale))]
+    points = {}
+    for day in days:
+        folder = vault / f"routine/invest/{day:%Y-%m}/{day}/{index}"
+        if (frame := card_frame(day.isoformat(), folder, scale)):
+            point = judgment_point(folder)
+            points[point] = {"point": point, **frame}
+    frames = list(points.values())
     if frames:
         chart = predictions_chart(vault)
         until = frames[-1]["base_date"]
@@ -624,11 +637,11 @@ def progress_plan(vault: Path, entries: dict, today: dt.date) -> list[int]:
     """판단 배치가 시작한 뒤 `PROGRESS_MARKS`의 단계마다 그 단계에 닿기까지 걸리는 분을 지난 세션 기록으로 잰다.
 
     세션마다 도구 호출 요약(`system/invest-report-{지수}-tools.log`)의 첫 줄 시각부터 `pattern`에 맞는 첫 Main 호출까지, 세션 끝 시각까지,
-    `r/index.json`의 본 리포트를 처음 만든 시각(`written`)까지를 잰다. 모든 단계를 지난 세션 가운데 오늘 전 `PROGRESS_SESSIONS`개에서
+    `r/index.json`의 리포트를 처음 만든 시각(`written`)까지를 잰다. 모든 단계를 지난 세션 가운데 오늘 전 `PROGRESS_SESSIONS`개에서
     앞 단계부터 다음 단계까지 걸린 분의 중앙값을 차례로 더한다. 첫 값은 0이고 마지막 값은 리포트 게시까지 걸린 분이다.
     """
     gaps = []
-    for entry in sorted((entry for entry in entries.values() if not entry.get("stage") and entry.get("written") and entry["date"] < today.isoformat()),
+    for entry in sorted((entry for entry in entries.values() if entry.get("written") and entry["date"] < today.isoformat()),
                         key=lambda entry: entry["date"], reverse=True):
         log = vault / f"routine/invest/{entry['date'][:7]}/{entry['date']}/{entry['index']}/system/invest-report-{entry['index']}-tools.log"
         lines = log.read_text(encoding="utf-8", errors="replace").splitlines() if log.exists() else []
@@ -653,15 +666,17 @@ def progress_plan(vault: Path, entries: dict, today: dt.date) -> list[int]:
 def progress(vault: Path, out: Path) -> dict | None:
     """실시간 값 `progress`에 오늘 분석 중인 지수마다 판단 배치가 닿은 단계(`step`)와 그 단계에 닿은 시각(`since`)을 쓴다.
 
+    분석 중인 지수는 그날 지수 폴더에 판단 배치의 입력(`input-manifest.json`)이 있고 `r/index.json`에 그날 리포트 항목이 아직 없는 지수다.
     단계는 `PROGRESS_MARKS`에서 그날 지수 폴더에 있는 가장 늦은 단계 파일로 정한다. 단계 파일은 판단 배치의 입력(`input-manifest.json`)보다
     늦게 바뀐 파일만 세고, 세션 끝에 쓰는 도구 호출 요약은 다른 단계 파일보다 늦게 바뀌었을 때만 센다. 같은 날 세션을 다시 돌리면
     앞 세션의 파일이 남기 때문이다. 단계에 닿은 시각은 단계가 바뀐 회차에 그 단계 파일이 바뀐 시각을 적고, 단계가 그대로면 앞 회차 값을 둔다.
     판단 배치의 시작 시각(`start`)은 입력이 바뀐 시각이다. 단계마다 그 단계에 닿기까지 걸리는 분(`plan`)을 함께 적는다(`progress_plan`).
-    앞 회차 값은 invest-live Worker에서 읽는다(`read_live`). 오늘 분석 중인 리포트가 없거나 값이 앞 회차와 같으면 `None`이다. 새 값을 돌려주고, DO에는 `main`이 쓴다(`post_live`).
+    앞 회차 값은 invest-live Worker에서 읽는다(`read_live`). 분석 중인 지수가 없거나 값이 앞 회차와 같으면 `None`이다. 새 값을 돌려주고, DO에는 `main`이 쓴다(`post_live`).
     """
     today = dt.datetime.now(SEOUL).date()
     entries = published_entries(out)
-    running = sorted(entry["index"] for entry in entries.values() if entry["date"] == today.isoformat() and entry.get("stage") == "running")
+    running = sorted(path.parent.name for path in (vault / f"routine/invest/{today:%Y-%m}/{today}").glob(f"*/{PROGRESS_MARKS[0][0]}")
+                     if f"{today:%Y%m%d}-{path.parent.name}" not in entries)
     if not running:
         return None
     written = read_live().get("progress", {})
@@ -670,8 +685,6 @@ def progress(vault: Path, out: Path) -> dict | None:
     found = {}
     for index in running:
         folder = vault / f"routine/invest/{today:%Y-%m}/{today}/{index}"
-        if not (folder / PROGRESS_MARKS[0][0]).exists():
-            continue
         start = stamp(folder / PROGRESS_MARKS[0][0])
         times = [stamp(folder / name.format(index=index)) if (folder / name.format(index=index)).exists() else None for name, _ in PROGRESS_MARKS[:-1]]
         times = [moment if moment and moment >= start else None for moment in times]
@@ -680,8 +693,6 @@ def progress(vault: Path, out: Path) -> dict | None:
         step = max(position for position, moment in enumerate(times) if moment)
         since = kept[index]["since"] if kept.get(index, {}).get("step") == step else times[step].isoformat()
         found[index] = {"step": step, "since": since, "start": start.isoformat()}
-    if not found:
-        return None
     value = {"date": today.isoformat(), "plan": progress_plan(vault, entries, today), "indexes": found}
     return None if value == written else value
 
@@ -1008,18 +1019,6 @@ def batch_data(vault: Path, index: str, day: dt.date) -> tuple[dict, dict] | Non
     return found, json.loads(macro.read_text(encoding="utf-8")) if macro.is_file() else {}
 
 
-def stored_data(vault: Path, index: str) -> tuple[dict, dict]:
-    """지금까지 `reference.db`에 적재한 값으로 만든 (`market-data.json`, `macro-data.json`) 내용. 판단 배치의 입력 준비와 같은 `render_inputs.py` 함수로 만든다."""
-    inputs = render_inputs(vault)
-    store = inputs.store
-    con = store.connect(store.DB_PATH)
-    try:
-        source = inputs.Source(con, store.as_cutoff(dt.datetime.now(SEOUL).isoformat(timespec="seconds")))
-        return inputs.render_market(source, index, store.DB_PATH), inputs.render_macro(source, store.DB_PATH)
-    finally:
-        con.close()
-
-
 def readings(market: dict, macro: dict) -> dict[str, tuple[str, dict]]:
     """`report-template.md` `미국 거시 지표` 표의 지표 이름마다 (기준일, 원값). 값을 수집하지 못한 지표는 뺀다.
 
@@ -1112,12 +1111,9 @@ def indicator_card(name: str, date: str, value: dict, weeks: list[tuple[str, dic
             "figure": {"type": "diverge", "rows": rows, "max": RATE_RANGE_BP, "step": RATE_STEP_BP}}
 
 
-def indicator_cards(vault: Path, index: str, date: dt.date, current: tuple[dict, dict] | None = None) -> dict[str, dict]:
-    """그날 리포트의 지표 이름마다 카드 값. 앞 `WEEKS`주 리포트의 값을 기준일마다 모아 주마다 마지막 값을 함께 넘긴다.
-
-    `current`를 받으면 그날 지수 폴더의 JSON 대신 그 값을 그날 값으로 쓴다.
-    """
-    current = current or batch_data(vault, index, date)
+def indicator_cards(vault: Path, index: str, date: dt.date) -> dict[str, dict]:
+    """그날 리포트의 지표 이름마다 카드 값. 앞 `WEEKS`주 리포트의 값을 기준일마다 모아 주마다 마지막 값을 함께 넘긴다."""
+    current = batch_data(vault, index, date)
     if not current:
         return {}
     found: dict[str, dict[str, dict]] = {}
@@ -1391,6 +1387,27 @@ def history_sections(body: str, history: dict[str, list[tuple[dt.date, int, str]
     return sections
 
 
+def outlook_sections(body: str, point: str) -> dict | None:
+    """`outlook.json` 값. `1개월 지수 방향 예측` 절에서 말머리가 `OUTLOOK_SECTIONS`인 소제목마다 소제목부터 다음 소제목 앞까지의 HTML을 그대로 담는다.
+
+    세 절 가운데 하나라도 없는 리포트는 `None`이다.
+    """
+    head = re.search(rf'<h2 id="[^"]*">{OUTLOOK_TITLE}</h2>', body)
+    if not head:
+        return None
+    end = body.find("<h2", head.end())
+    section = body[head.end():len(body) if end < 0 else end]
+    starts = [found.start() for found in re.finditer(r"<h3\b", section)] + [len(section)]
+    sections = {}
+    for start, stop in zip(starts, starts[1:]):
+        title = re.match(r"<h3[^>]*><mark>([^<]*)</mark>", section[start:])
+        if title and title[1] in OUTLOOK_SECTIONS:
+            sections[title[1]] = section[start:stop].strip()
+    if len(sections) < len(OUTLOOK_SECTIONS):
+        return None
+    return {"point": point, "sections": {name: sections[name] for name in OUTLOOK_SECTIONS}}
+
+
 def link_later(entries: dict, key: str, history: dict[str, list[tuple[dt.date, int, str]]], bundles: Path) -> None:
     """`key` 리포트 이슈의 히스토리에 든 앞 날짜 이슈마다, 그 리포트 목록 항목의 `later`에 이슈 번호를 키로 `key/이슈 번호`를 적는다.
     이미 더 늦은 리포트를 적은 번호는 그대로 둔다."""
@@ -1445,7 +1462,8 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     body = mark_issue_charts(body, source.parent / "system" / "issue-charts.json")
     body = mark_issue_carry(body, source.parent / "system" / "issues.json", index, out)
     history = issue_history(vault, index, day, out)
-    parts = write_parts(target, {"history": history_sections(body, history, day), "cards": card})
+    point = judgment_point(source.parent)
+    parts = write_parts(target, {"history": history_sections(body, history, day), "cards": card, "outlook": outlook_sections(body, point)})
     (target / "report.html").write_text(body, encoding="utf-8")
 
     entries = published_entries(out)
@@ -1455,7 +1473,8 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     now = dt.datetime.now(SEOUL).strftime("%Y-%m-%d %H:%M")
     written = entries.get(key, {}).get("written") or now
     later = entries.get(key, {}).get("later")
-    entries[key] = {"title": heading.group(1), "day": heading.group(2), "written": written, "updated": now, "date": date, "index": index}
+    entries[key] = {"title": heading.group(1), "day": heading.group(2), "written": written, "updated": now, "date": date, "index": index,
+                    "point": point}
     if parts:
         entries[key]["parts"] = parts
     if later:
@@ -1487,148 +1506,19 @@ def write_entries(out: Path, entries: dict) -> None:
                                          encoding="utf-8")
 
 
-def pre_issues(body: str, day: dt.date) -> str:
-    """`상세 이슈 해설` 절의 이슈 소제목에서 `data-new`를 지우고, 이슈 해설을 쓴 날짜(`data-written`)부터 `day`까지의 날 수를 `data-age`로 다시 단다.
-    `issue-history` 템플릿 안의 앞 날짜 이슈는 그대로 둔다."""
-    head = re.search(rf'<h2 id="[^"]*">{ISSUES_TITLE}</h2>', body)
-    if not head:
-        return body
-    end = body.find("<h2", head.end())
-    end = len(body) if end < 0 else end
-
-    def heading(match: re.Match) -> str:
-        if match.group(1):
-            return match.group(1)
-        attrs = re.sub(r'\s+data-(?:new|age="[^"]*")(?=\s|$)', "", match.group(2))
-        written = re.search(r'data-written="([^"]*)"', attrs)
-        if written:
-            attrs += f' data-age="{(day - dt.date.fromisoformat(written.group(1))).days}"'
-        return f"<h3{attrs}>"
-
-    section = re.sub(r'(<template class="issue-history">.*?</template>)|<h3([^>]*)>', heading, body[head.end():end], flags=re.DOTALL)
-    return body[:head.end()] + section + body[end:]
-
-
-def pre_indicators(body: str) -> str:
-    """`미국 거시 지표` 절에서 소제목만 남기고 소제목 뒤의 해설을 지운다. 첫 소제목 앞의 노드는 그대로 둔다."""
-    head = re.search(rf'<h2 id="[^"]*">{INDICATORS_TITLE}</h2>', body)
-    if not head:
-        return body
-    end = body.find("<h2", head.end())
-    end = len(body) if end < 0 else end
-    section = body[head.end():end]
-    first = section.find("<h3")
-    if first < 0:
-        return body
-    headings = "".join(f"{h3}\n" for h3 in re.findall(r"<h3[^>]*>.*?</h3>", section[first:], flags=re.DOTALL))
-    return body[:head.end()] + section[:first] + headings + body[end:]
-
-
-def pre(date: str, index: str, vault: Path, out: Path) -> str:
-    """리포트 날짜 `date`의 사전 리포트를 그 지수의 가장 늦은 본 리포트 공개본으로 만든다. 목록 항목의 `stage`는 `pre`이고,
-    이미 `running`으로 바꾼 사전 리포트를 다시 만들면 `running`을 그대로 둔다.
-
-    전날 뉴욕 정규장이 열린 뒤 닫히기 전에 부르면 그 앞 세션까지의 종가로 만들고, 목록 항목의 `live`에 전날 날짜를 적는다.
-    미니 앱은 `live`가 있는 리포트에 전날 정규장의 실시간 값을 그린다. 전날 정규장이 닫힌 뒤에 부르면 전날까지의 종가로 다시 만들고 `live`를 지운다.
-    전날이 뉴욕 정규장 세션이 아니거나 전날 정규장이 아직 열리지 않았으면 만들지 않고 종료 코드 3으로 끝낸다.
-    그날 본 리포트가 이미 있거나, `live`가 있는 사전 리포트가 있는데 정규장이 닫히기 전에 다시 부르면 종료 코드 4로 끝낸다. 끝낼 세션의 종가가 `reference.db`에 아직 없으면 실패로 끝낸다.
-    """
-    day = dt.date.fromisoformat(date)
-    key = f"{date.replace('-', '')}-{index}"
-    entries = published_entries(out)
-    if key in entries and "stage" not in entries[key]:
-        print(f"본 리포트가 이미 있다: {key}", file=sys.stderr)
-        sys.exit(4)
-    session = day - dt.timedelta(days=1)
-    xnys = exchange_calendars.get_calendar("XNYS")
-    if not xnys.is_session(session.isoformat()):
-        print(f"전날 뉴욕 정규장이 열리지 않았다: {session}", file=sys.stderr)
-        sys.exit(3)
-    now = dt.datetime.now(NEW_YORK)
-    if now < xnys.session_open(session.isoformat()).to_pydatetime():
-        print(f"전날 뉴욕 정규장이 아직 열리지 않았다: {session}", file=sys.stderr)
-        sys.exit(3)
-    live = now < xnys.session_close(session.isoformat()).to_pydatetime()
-    if live and entries.get(key, {}).get("live"):
-        print(f"정규장 중 사전 리포트가 이미 있다: {key}", file=sys.stderr)
-        sys.exit(4)
-    last = xnys.previous_session(session.isoformat()).date() if live else session
-    chart = predictions_chart(vault)
-    con = sqlite3.connect(f"file:{chart.path_bands.REFERENCE_DB_PATH}?mode=ro", uri=True)
-    try:
-        history = con.execute(
-            "SELECT price_date, close FROM market_price WHERE ticker=? AND price_date BETWEEN ? AND ? ORDER BY price_date",
-            (chart.path_bands.SECTOR_DB_TICKERS[index], (day - dt.timedelta(days=round(365.25 * PRICE_YEARS) + 1)).isoformat(),
-             last.isoformat())).fetchall()
-    finally:
-        con.close()
-    if not history or history[-1][0] != last.isoformat():
-        raise SystemExit(f"{last} 정규장 종가가 reference.db에 없다: {index} 마지막 종가 {history[-1][0] if history else '없음'}")
-    for name in [name for name, entry in entries.items()
-                 if entry["index"] == index and entry.get("stage") and entry["date"] < date]:
-        del entries[name]
-        shutil.rmtree(out / "r" / name, ignore_errors=True)
-    previous = max((name for name, entry in entries.items()
-                    if entry["index"] == index and "stage" not in entry and entry["date"] < date), default=None)
-    if not previous:
-        raise SystemExit(f"앞 본 리포트가 없다: {index}")
-
-    body = (out / "r" / previous / "report.html").read_text(encoding="utf-8")
-    body = re.sub(r'<script type="application/json" id="cards">.*?</script>\n?', "", body, flags=re.DOTALL)
-    outlook = re.search(r'<h2 id="[^"]*">1개월 지수 방향 예측</h2>', body)
-    if outlook:
-        end = body.find("<h2", outlook.end())
-        body = body[:outlook.end()] + "\n" + body[end if end >= 0 else len(body):]
-    body = pre_issues(body, day)
-    body = mark_indicators(pre_indicators(body), indicator_cards(vault, index, day, stored_data(vault, index)))
-    scale = card_scale(index, vault)
-    closes = [round(close * scale, 2) for _, close in history]
-    dates = [d for d, _ in history]
-    card = {"pre": True, "dates": dates, "history": closes, "day": date, "base_date": history[-1][0], "base": closes[-1]}
-    carried = out / "r" / previous / "history.json"
-    target = out / "r" / key
-    if target.exists():
-        shutil.rmtree(target)
-    target.mkdir(parents=True)
-    parts = write_parts(target, {"history": json.loads(carried.read_text(encoding="utf-8")) if carried.is_file() else None, "cards": card})
-    (target / "report.html").write_text(body, encoding="utf-8")
-
-    close, before = history[-1][1], history[-2][1]
-    entries[key] = {"title": entries[previous]["title"], "day": f"{date} ({'월화수목금토일'[day.weekday()]})", "date": date,
-                    "index": index, "stage": entries.get(key, {}).get("stage", "pre"), "updated": dt.datetime.now(SEOUL).strftime("%Y-%m-%d %H:%M"),
-                    "moves": {"session": None if live else round((close / before - 1) * 100, 2) + 0.0, "after": None,
-                              "close": None if live else round(close, 2), "base": None}, "parts": parts}
-    if live:
-        entries[key]["live"] = session.isoformat()
-    write_entries(out, entries)
-    market(vault, out)
-    return key
-
-
-def running(date: str, index: str, vault: Path, out: Path) -> str | None:
-    """리포트 날짜 `date`의 사전 리포트 목록 항목의 `stage`를 `running`으로, `updated`를 지금 시각으로 바꾸고, 시장 페이지의 지도와 종목 상세 페이지의 값(`market`)을
-    다시 써서 지도에 전날 애프터장 값을 단다. 사전 리포트가 없으면 `None`이다."""
-    key = f"{date.replace('-', '')}-{index}"
-    entries = published_entries(out)
-    if entries.get(key, {}).get("stage") != "pre":
-        return None
-    market(vault, out)
-    entries[key]["stage"] = "running"
-    entries[key]["updated"] = dt.datetime.now(SEOUL).strftime("%Y-%m-%d %H:%M")
-    write_entries(out, entries)
-    return key
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="판단 리포트 공개본을 `invest-reports` 미니 앱 조각으로 만든다")
     parser.add_argument("--date", help="리포트 날짜 YYYY-MM-DD")
     parser.add_argument("--index", help="지수 폴더 이름 (nasdaq, biotech)")
     parser.add_argument("--vault", default=str(Path.home() / "obsidian-vault"))
     parser.add_argument("--out", default=str(ROOT))
-    parser.add_argument("--stage", choices=("pre", "running"), help="본 리포트 대신 사전 리포트를 만들거나(pre) 사전 리포트를 분석 중으로 바꾼다(running)")
+    parser.add_argument("--market", action="store_true", help="리포트 대신 시장 페이지의 지도와 종목 상세 페이지의 값(`r/market.json`·`r/stocks/`·`r/candles.json`)만 다시 쓴다")
     parser.add_argument("--progress", action="store_true", help="리포트 대신 오늘 판단 배치의 진척 단계(invest-live DO `progress`)만 쓴다")
     args = parser.parse_args()
     vault, out = Path(args.vault).expanduser(), Path(args.out)
+    if args.market:
+        print(market(vault, out))
+        return 0
     # `--progress`는 새 값을 DO에 쓴 회차에 `progress`를, 쓰지 않은 회차에 빈 줄을 찍는다.
     if args.progress:
         value = progress(vault, out)
@@ -1637,13 +1527,8 @@ def main() -> int:
         print("progress" if value is not None else "")
         return 0
     if not (args.date and args.index):
-        parser.error("--progress가 아니면 --date와 --index가 필요하다")
-    if args.stage == "pre":
-        print(pre(args.date, args.index, vault, out))
-    elif args.stage == "running":
-        print(running(args.date, args.index, vault, out) or "")
-    else:
-        print(build(args.date, args.index, vault, out))
+        parser.error("--market이나 --progress가 아니면 --date와 --index가 필요하다")
+    print(build(args.date, args.index, vault, out))
     return 0
 
 
