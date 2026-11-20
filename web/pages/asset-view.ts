@@ -6,6 +6,7 @@ import { INDEX_NAME } from "../shared/chrome";
 import { figure, signed, tone } from "../shared/format";
 import { slider } from "../shared/motion";
 import { dial, rewindFrames, rewindOffset } from "../shared/rewind";
+import { roll } from "../shared/roll";
 import { key, visit } from "../shared/route";
 import { DIMS, nowMark, shape } from "../shared/svg";
 import { feelPress, feelSlide, tg } from "../shared/telegram";
@@ -30,7 +31,7 @@ export const assetSignal = (signal, index) => {
   const go = optimizer.color === "green" ? ' go" role="button" tabindex="0' : "";
   return `<div class="signal${go}"><div class="gate"><i class="lamp ${value.color}"></i><div><strong>${name}</strong><p>${assetText(value.reason)}</p></div></div></div>`;
 };
-// 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 카드 이름과 상자 목록(`cards`)과 다시 그리는 함수(`show`)를 돌려준다.
+// 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 지수(`index`)는 큰 값을 굴리는 자리 이름에 쓴다. 카드 이름과 상자 목록(`cards`)과 다시 그리는 함수(`show`)를 돌려준다.
 // 카드 순서는 누적 수익률, 초과 수익률, 배율이다. 누적 수익률 카드는 첫날 대비 고정 배율·판단·집행 누적 수익률을,
 // 초과 수익률 카드는 판단과 집행의 누적 수익률에서 고정 배율 누적 수익률을 뺀 값을 날짜 지점 축에 그린다. 큰 값은 집행 선의 값이다.
 // 축은 정산한 거래일마다 한 점이고, Worker가 1분마다 다시 셈한 최신 날짜 지점의 값(`returns.now`)이 있으면 그 날짜 점을 하나 더 둔다.
@@ -40,18 +41,18 @@ export const assetSignal = (signal, index) => {
 // `show(past)`는 `past`가 없으면 받은 값으로 그린다. 지난 날짜면 수익률 카드는 선을 줄이지 않고 그날 기준 가격 날짜(`past.base_date`) 점에 '현재' 표시(`nowMark`)를 찍어
 // 큰 값을 그 점의 값으로 쓴다. 그 점이 첫날이면 큰 값에 "기록 없음"을 쓴다. 배율 카드는 그날 판단의 배율 분포(`past.chart`)에 그날 현재·목표 배율(`past.current`, `past.target`)을 긋고,
 // 그날 현재 배율을 모르면 현재 배율 선을 긋지 않고 큰 값에 "기록 없음"을 쓴다.
-export function assetCards(perf) {
+export function assetCards(perf, index) {
   const W = 320, H = 236, B = 212, L = 6, R = W - 6, T = 22, color = indexInk(W), NOW = "#FF9F1C", BASE = "#A7ABB0";
   const big = (text, unit) => [text, Object.assign(document.createElement("small"), { textContent: unit })];
   const cards = [], draws = [];
   const lev = perf?.leverage;
   let lever = null;
   if (lev?.today?.length > 1) {
-    const c = gaugeCard("", W, H), s = c.svg;
+    const c = gaugeCard("", W, H, `${index}-lever`), s = c.svg;
     draws.push((past) => {
       const den = past ? { ...past.chart, anchor: lev.anchor, current: past.current, target: past.target ?? lev.anchor * (1 + past.chart.mean) } : lev, n = den.today.length;
-      c.head("", den.current == null ? "기록 없음" : big(den.current.toFixed(3), "배"), `목표 ${den.target.toFixed(3)}배`);
       c.value.className = "";
+      c.head("", den.current == null ? "기록 없음" : big(den.current.toFixed(3), "배"), `목표 ${den.target.toFixed(3)}배`);
       c.value.style.color = den.current == null ? DIMS : NOW;
       const xs = Array.from({ length: n }, (_, i) => den.anchor * (1 + den.low + (den.high - den.low) * i / (n - 1)));
       const X = (v) => Math.min(R, Math.max(L, L + (v - xs[0]) / (xs[n - 1] - xs[0]) * (R - L))), peak = Math.max(...den.today, ...den.quiet);
@@ -95,11 +96,11 @@ export function assetCards(perf) {
   };
   // 고른 날짜 점이 첫날이면 그림은 그리되 큰 값에 "기록 없음"을 쓴다.
   const figureOf = (c, v, unit) => {
-    if (v == null) { c.head("", "기록 없음"); c.value.className = ""; return; }
-    c.head("", big(signed(v * 100, 2), unit)); c.value.className = tone(v);
+    c.value.className = v == null ? "" : tone(v);
+    c.head("", v == null ? "기록 없음" : big(signed(v * 100, 2), unit));
   };
   if (ret?.days?.length > 1) {
-    const cum = gaugeCard(`첫날 ${assetDay(ret.days[0])} 대비 집행 누적 수익률`, W, H), over = gaugeCard("고정 배율 대비 집행 초과 수익률", W, H);
+    const cum = gaugeCard(`첫날 ${assetDay(ret.days[0])} 대비 집행 누적 수익률`, W, H, `${index}-cum`), over = gaugeCard("고정 배율 대비 집행 초과 수익률", W, H, `${index}-over`);
     const now = ret.now && ret.now.day > ret.days.at(-1) ? ret.now : null;
     const days = now ? [...ret.days, now.day] : ret.days;
     const anchor = now ? [...ret.anchor, now.anchor] : ret.anchor, realized = now ? [...ret.realized, now.realized] : ret.realized, target = ret.target;
@@ -150,7 +151,8 @@ export function assetPage(page) {
       + (mine.length ? mine.map((it) => item(it, assetShares(it.quantity))).join("") : `<p class="status">${INDEX_NAME[index]} 종목을 들고 있지 않다.</p>`)
       + `<button type="button" class="asset-trades">거래 내역${chevron}</button><h2>내 계좌</h2>` + assetRow("원화", "주문 가능", assetMoney(accounts.KRW.cash, "KRW")) + assetRow("달러", "주문 가능", assetMoney(accounts.USD.cash, "USD"))
       + (waiting ? item({ ...waiting, name: "대기자금" }, `${waiting.symbol} ${assetShares(waiting.quantity)}`) : "");
-    const perf = data.performance?.sectors?.[index], { cards, show } = assetCards(perf);
+    roll(page.querySelector(".asset-sum b:not(.veiled)"), `${index}-sum-${unit}`);
+    const perf = data.performance?.sectors?.[index], { cards, show } = assetCards(perf, index);
     if (!cards.length) return page.querySelector(".asset-sum").insertAdjacentHTML("afterend", '<p class="status">그림 값이 아직 없다.</p>');
     const bar = document.createElement("div");
     bar.className = "tabs";
@@ -177,10 +179,13 @@ export function assetPage(page) {
         const frame = frames.find((f) => f.day === day), block = blocks.find((b) => b.date === day);
         return { chart: frame.chart, base_date: frame.base_date, current: block?.current ?? null, target: block?.target ?? null };
       };
+      // 슬라이더가 알린 날짜가 이미 그린 날짜면 다시 그리지 않는다. 슬라이더는 만들 때 처음 날짜를 한 번 알리므로, 새 계좌 요약으로 그린 최신 날짜의 굴림이 끊기지 않는다.
       const at = days.indexOf(chosen);
-      let frame = 0;
+      let frame = 0, drawn = latest;
       dial(box, latest, days, at < 0 ? days.length - 1 : at, (i) => {
         chosen = days[i];
+        if (chosen === drawn) return;
+        drawn = chosen;
         if (!frame) frame = requestAnimationFrame(() => { frame = 0; show(past(chosen)); });
       });
     });
@@ -235,6 +240,7 @@ export function tradesView(page, index) {
       + [["all", "전체"], ...Object.entries(TRADE_SOURCE)].map(([name, label]) => `<button type="button" data-filter="${name}"${name === filter ? ' class="on"' : ""}>${label}</button>`).join("")
       + `</div></h2><div class="asset-sum trade-sum"><b>${assetSign(invested)}${assetMoney(invested, "USD")}</b>기간 투자액</div>`
       + (past.length ? past.map((b) => block(b)).join("") : '<p class="status">거래 내역이 없다.</p>');
+    roll(page.querySelector(".trade-sum b"), `${index}-trade-${filter}`);
     if (open) timer = setTimeout(() => render(last), due(asked.run_at) - now + 1000);
   };
   page.addEventListener("click", async (event) => {

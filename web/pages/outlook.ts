@@ -7,6 +7,7 @@ import { tone } from "../shared/format";
 import { subscribe } from "../shared/live";
 import { slider } from "../shared/motion";
 import { cardRewind } from "../shared/rewind";
+import { rolled } from "../shared/roll";
 import { key, report } from "../shared/route";
 import { SESSION_NAME, afterEnd, closeAt, sessionAt, sessionSeg, sessionTag } from "../shared/session";
 import { DIMS, PRICE, candleGroups, candleLate, candleOn, candleUnit, drawCandles, ease, kindButton, nowMark, shape, zoomDrag } from "../shared/svg";
@@ -521,7 +522,7 @@ export function summaryCards(data, date, view) {
     return `<span class="row"><span>${INDEX_NAME[key.split("-")[1]]}</span><b class="price ${tone(move)}">${fmt(value)}</b>`
       + `<b class="${tone(move)}">${signed(move, 2)}%</b>${tail}${idx || ""}</span>`;
   };
-  // `live(all, index)`는 실시간 값 전체(`all`)에서 지수(`index`)의 지점별 값과 지수 1분 값을 받아, 값을 받은 시각이 바뀌었으면 고른 날짜로 카드를 다시 그린다.
+  // `live(all, index)`는 실시간 값 전체(`all`)에서 지수(`index`)의 지점별 값과 지수 1분 값을 받아, 값을 받은 시각이 바뀌었으면 고른 날짜로 카드를 다시 그리고 바뀐 큰 글씨 숫자를 굴린다.
   const SYMBOL = { nasdaq: "^NDX", biotech: "^NBI" };
   const live = (all, index) => {
     const next = all.points?.[index] ?? {}, tick = all.index?.[SYMBOL[index]] ?? null;
@@ -529,7 +530,7 @@ export function summaryCards(data, date, view) {
     loaded = tick;
     found = next;
     if (!changed) return;
-    show(frame);
+    rolled(() => show(frame));
   };
   return { names: parts.map(([, name]) => name), slides: parts.map(([part]) => [part.box]), show, quote, live, label: () => price.label?.(), pending: () => !!frame.pending };
 }

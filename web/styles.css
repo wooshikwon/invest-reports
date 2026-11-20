@@ -477,6 +477,11 @@ table.judged tbody tr.more button svg { color: var(--dim); }
 .gauge .val { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; margin-top: 2px; }
 .gauge .val b { flex: none; white-space: nowrap; font-size: 30px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
 .gauge .val b small { font-size: 16px; font-weight: 700; margin-left: 1px; }
+/* 굴리는 숫자 자리(`roll.ts`). 숨긴 새 숫자가 자리 폭과 줄 높이를 잡고, 이전 숫자부터 새 숫자까지 쌓은 띠를 자리 높이로 잘라 한 줄씩 옮긴다. */
+.roll { position: relative; display: inline-block; clip-path: inset(0 -.15em); }
+.roll .d { visibility: hidden; }
+.roll .strip { position: absolute; top: 0; left: 0; right: 0; height: 100%; text-align: center; }
+.roll .strip span { display: block; height: 100%; }
 .gauge .state { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; white-space: nowrap; }
 .gauge .state i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .gauge .note { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; color: var(--dim);

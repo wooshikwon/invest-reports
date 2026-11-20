@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { ASSET, ASSET_FLAG, account, assetSaved } from "../shared/account";
 import { beat } from "../shared/live";
+import { rolled } from "../shared/roll";
 import { life, report } from "../shared/route";
 // 리포트 화면의 페이지(`pages`, 이름은 `names`)를 `place`로 묶고 `name` 페이지를 연다. 본인 계정이면 내 자산 페이지를 맨 앞에 더한다.
 // Worker가 계좌 요약을 건네면 기기의 `localStorage`에 표시(`ASSET_FLAG`)를 적는다. 표시가 있는 기기는 리포트 화면을 열자마자 내 자산 페이지를 맨 앞에 두고,
@@ -24,24 +25,24 @@ export function assets(pages, names, place, name) {
   // 계좌 요약을 그리는 글씨와 그림은 내 자산 조각(`asset-view.ts`)에 있고, Worker가 계좌 요약을 건넨 뒤에야 조각을 불러온다.
   const { signal } = life;
   let drawn = false, seen = null, paint = null;
-  const fill = (data) => {
+  const fill = (data, roll = false) => {
     if (!data || data.error) {
       if (!data || !drawn) page.innerHTML = `<h2>내 투자</h2><p class="status">${data ? "계좌를 불러오지 못했다. 미니 앱을 다시 열면 새로 받는다." : "계좌를 불러오는 중이다."}</p>`;
       return;
     }
     drawn = true;
     seen = JSON.stringify(data);
-    (paint ||= import("./asset-view").then((chunk) => chunk.assetPage(page))).then((draw) => signal.aborted || draw(data));
+    (paint ||= import("./asset-view").then((chunk) => chunk.assetPage(page))).then((draw) => signal.aborted || (roll ? rolled(() => draw(data)) : draw(data)));
   };
   fill(assetSaved());
   if (flagged) show(true, false);
   else place(pages, names, name, false);
-  // 받은 계좌 요약이 앞에 그린 값과 같으면 다시 그리지 않는다.
+  // 받은 계좌 요약이 앞에 그린 값과 같으면 다시 그리지 않고, 다르면 바뀐 큰 글씨 숫자를 굴려 다시 그린다.
   const load = () => account().then((data) => {
     if (signal.aborted) return;
     store(localStorage, data && "1");
     store(sessionStorage, data && JSON.stringify(data));
-    if (data && JSON.stringify(data) !== seen) fill(data);
+    if (data && JSON.stringify(data) !== seen) fill(data, true);
     if (!!data !== shown) show(!!data, true);
   }, () => signal.aborted || fill({ error: true }));
   load();
