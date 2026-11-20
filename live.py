@@ -4,7 +4,8 @@
 cron(`~/scripts/cron/invest-live-tick.sh`)이 1분마다 `tick()`을 부른다. 회차마다 장 시간을 판정하고, 토스 `GET /api/v1/prices`를 한 번 불러
 공개 종목과 보유 종목의 마지막 체결가를 받고, `premarket`·`afterhours` 값을 조립해 `POST /write/{이름}`으로 쓴다.
 공개 종목은 `r/market.json` 지도 종목과 지수 ETF(`SECTOR_DB_TICKERS`)다. 보유 종목은 `~/data/invest-account/holdings.json`(심볼만)에서 읽고,
-그 체결가는 invest-live에 쓰지 않고 invest-account Worker의 DO에 `POST /live`로만 쓴다. 토스가 답하지 않거나 빠뜨린 심볼만 야후 `v7/finance/spark`에서 받는다.
+그 체결가는 invest-live에 쓰지 않고 invest-account Worker의 DO에 `POST /live`로만 쓴다. 보유하지 않은 기준 묶음 ETF의 체결가와 선물 추정에 쓰는 배율도
+`~/data/invest-account/etfs.json`(account_push가 쓰는 비공개 파일)에서 읽어 같은 길로만 쓴다. 토스가 답하지 않거나 빠뜨린 심볼만 야후 `v7/finance/spark`에서 받는다.
 토스가 체결 시각 없이 준 심볼은 체결이 없는 것으로 보고 야후에 묻지 않는다. 토큰은 toss-trader와 함께 쓰는 캐시 파일만 쓴다.
 
 값의 스키마는 build.py 머리 설명의 `premarket`·`afterhours`·`index` 값과 같다. `premarket`은 프리장(`PREMARKET_OPEN`)부터 정규장이 닫힐 때까지 1분마다 그 분의 값을 쓰고,
@@ -18,6 +19,8 @@ cron(`~/scripts/cron/invest-live-tick.sh`)이 1분마다 `tick()`을 부른다. 
 선물 시간대 회차는 토스를 부르지 않는다. 나스닥 선물(`FUTURES`)이 애프터장 마지막 체결 뒤 새 1분봉을 내면, 앞 세션의 나스닥 `afterhours` 값을
 애프터장 마지막 비율 × (선물 마지막 체결가 ÷ 애프터장 마지막 체결 시각까지 끝난 선물 1분봉 종가)로 바꾸고 `basis`·`futures_time`을 단다.
 애프터장 마지막 비율과 그 시각의 선물 종가는 선물 시간대 첫 회차에 `futures-{앞 세션}.json`에 둔다. 바이오 값은 바꾸지 않는다.
+선물 시간대에도 계좌 가격은 invest-account에 쓴다. 앞 정규 회차가 `account.json`에 남긴 마지막 체결가에서 나스닥 ETF만 `× (1 + 배율 × 선물 등락)`으로 바꾸고,
+바이오와 그 밖의 보유 종목은 마지막 체결가 그대로 쓴다.
 장 밖과 휴장일 가운데 선물 시간대가 아닌 회차, 마감 뒤 `CLOSE_WAIT` 안, 그날 값을 이미 다 받은 회차는 아무것도 부르지 않고 끝난다.
 
 회차마다 지수(`INDEX_SYMBOLS`)를 야후 spark 묶음 요청 한 번으로 받는다. 선물 시간대에는 선물 심볼도 같은 묶음에 넣는다.
@@ -54,6 +57,7 @@ from path_bands import SECTOR_DB_TICKERS, SECTOR_INDEX_TICKERS  # noqa: E402  �
 
 DATA = Path.home() / "data" / "invest-reports" / "live"
 HOLDINGS = Path.home() / "data" / "invest-account" / "holdings.json"  # account_push가 쓰는 보유 종목 심볼 목록(0600)
+ETFS = Path.home() / "data" / "invest-account" / "etfs.json"  # account_push가 쓰는 지수마다 ETF와 배율(0600). 종목과 배율은 공개 저장소에 두지 않는다
 TOSS = "https://openapi.tossinvest.com"
 ACCOUNT_URL = "https://invest-account.wonwooshik.workers.dev"  # 계좌 Worker 주소. `POST /live`가 보유 종목 체결가를 DO에 쓴다
 TOSS_ENV = Path.home() / ".toss_env"
@@ -408,6 +412,27 @@ def holding_symbols() -> list[str]:
     return load(HOLDINGS, [])
 
 
+def etf_table() -> dict[str, dict[str, float]]:
+    """지수마다 {ETF 심볼: 배율}. 파일이 없으면 빈 값이다."""
+    return load(ETFS, {})
+
+
+def futures_prices(base: dict, quotes: dict[str, dict], end: dt.datetime) -> dict[str, float]:
+    """선물 시간대 계좌 가격. 앞 정규 회차가 남긴 마지막 체결가(`account.json`)에서, 선물이 있는 지수의 ETF만 `체결가 × (1 + 배율 × 선물 등락)`으로 바꾼다.
+
+    선물 등락은 `futures_value`와 같은 기준(`base`)에서 `end`까지 끝난 마지막 선물 1분봉 종가까지의 비율이고, 새 봉이 없으면 0이다.
+    선물이 없는 지수(바이오)와 지수 밖 보유 종목은 마지막 체결가 그대로다. 마지막 체결가가 없으면 빈 값이다.
+    """
+    prices = load(DATA / "account.json", {})
+    for index, symbol in FUTURES.items():
+        last = ended(quotes.get(symbol) or {}, end)
+        move = last[1] / base[index]["base"][1] - 1 if last and index in base and last[0] > base[index]["base"][0] else 0.0
+        for etf, leverage in etf_table().get(index, {}).items():
+            if etf in prices:
+                prices[etf] = prices[etf] * (1 + leverage * move)
+    return prices
+
+
 def post_account(now: dt.datetime, prices: dict[str, float]) -> None:
     """invest-account Worker의 DO에 보유 종목 체결가를 `POST /live`로 덮어쓴다. 비밀 값은 ~/.cloudflare_env의 `ACCOUNT_SECRET`으로만 받는다.
 
@@ -473,7 +498,8 @@ def pointed(name: str, value: dict) -> dict:
 def tick(now: dt.datetime | None = None, toss: Toss | None = None) -> dict[str, dict]:
     """1분 회차. 장 시간 판정, 일괄 조회, 값 조립, invest-live 쓰기, invest-account 쓰기를 차례로 부르고, invest-live에 쓴 값을 이름마다 돌려준다.
 
-    선물 시간대 구간 회차는 토스와 invest-account를 부르지 않고 지수 묶음 요청만 부른다.
+    선물 시간대 구간 회차는 토스를 부르지 않고 지수 묶음 요청만 부르며, 앞 회차가 남긴 마지막 체결가에 선물 등락을 걸어 invest-account에 쓴다.
+    계좌 가격은 invest-account에만 쓰고 invest-live에는 쓰지 않는다.
     """
     now = now or dt.datetime.now(NEW_YORK)
     toss = toss or Toss()
@@ -494,13 +520,15 @@ def tick(now: dt.datetime | None = None, toss: Toss | None = None) -> dict[str, 
         base = futures_base(window[0], kept["afterhours"], quotes)
         if (value := futures_value(kept["afterhours"], base, quotes, end, window[0])) is not None:
             written["afterhours"] = value
+        if prices := futures_prices(base, quotes, end):
+            post_account(now, prices)
     else:
         board = public_board()
         if "base" not in day:
             day["base"] = base_closes(day["session"], toss)
             save(DATA / f"session-{today}.json", day)
         public = sorted({stock["symbol"] for found in board.values() for stock in found["stocks"]} | set(SECTOR_DB_TICKERS.values()))
-        held = holding_symbols()
+        held = sorted({*holding_symbols(), *(etf for etfs in etf_table().values() for etf in etfs)})
         trades = public_prices(sorted(set(public) | set(held)), toss)
         if not any(symbol in trades for symbol in public):
             raise RuntimeError("토스와 야후 모두 체결가를 주지 않음")
@@ -520,6 +548,7 @@ def tick(now: dt.datetime | None = None, toss: Toss | None = None) -> dict[str, 
                 save(DATA / f"session-{today}.json", day)
         if prices := {symbol: trades[symbol][0] for symbol in held if symbol in trades}:
             post_account(now, prices)
+            save(DATA / "account.json", {**load(DATA / "account.json", {}), **prices})
     if (value := index_value(kept["index"], quotes, now)) is not None:
         written["index"] = value
     snap = DATA / f"snap-{today}.jsonl"

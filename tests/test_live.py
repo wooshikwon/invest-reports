@@ -72,6 +72,7 @@ def market(tmp_path, monkeypatch):
     monkeypatch.setattr(live, "DATA", tmp_path)
     monkeypatch.setattr(live, "public_board", lambda: BOARD)
     monkeypatch.setattr(live, "holding_symbols", lambda: [])
+    monkeypatch.setattr(live, "ETFS", tmp_path / "etfs.json")
     monkeypatch.setattr(live.Toss, "token", lambda self, dead=None: "token")
     monkeypatch.setattr(live.requests, "get", found.toss_get)
     monkeypatch.setattr(live.chrome, "get", found.yahoo_get)
@@ -377,3 +378,60 @@ def test_main_prints_only_toss_rounds(market, monkeypatch, capsys):
     monkeypatch.setattr(live, "tick", lambda toss: tick(at("2026-11-23", "05:01:05"), toss))
     live.main()
     assert capsys.readouterr().out.split() == ["premarket"]
+
+
+ETF_TABLE = {"nasdaq": {"SAMPA": 1.0, "SAMPB": 2.0}, "biotech": {"SAMPC": 1.0}}  # 지어낸 심볼과 배율
+
+
+def test_etf_table_reads_private_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(live, "ETFS", tmp_path / "etfs.json")
+    assert live.etf_table() == {}
+    (tmp_path / "etfs.json").write_text(live.json.dumps(ETF_TABLE))
+    assert live.etf_table() == ETF_TABLE
+
+
+def test_futures_round_posts_account_prices_from_last_trades(market, monkeypatch):
+    """선물 시간대: 나스닥 ETF 가격은 마지막 체결가 × (1 + 배율 × 선물 등락), 바이오와 그 밖의 보유 종목은 마지막 체결가 그대로다."""
+    (live.ETFS).write_text(live.json.dumps(ETF_TABLE))
+    monkeypatch.setattr(live, "holding_symbols", lambda: ["SAMPB", "SAMPC", "SAMPD"])
+    traded(market, "2026-11-20", "15:59:30")
+    market.prices.update({symbol: (price, kst("2026-11-20", "15:59:30")) for symbol, price in (("SAMPA", 100.0), ("SAMPB", 50.0), ("SAMPC", 20.0), ("SAMPD", 100.0))})
+    live.tick(at("2026-11-20", "16:05:05"))
+    traded(market, "2026-11-20", "19:59:50", 1.01)
+    market.prices.update({symbol: (price, kst("2026-11-20", "19:59:50")) for symbol, price in (("SAMPA", 100.0), ("SAMPB", 50.0), ("SAMPC", 20.0), ("SAMPD", 100.0))})
+    live.tick(at("2026-11-20", "20:00:10"))
+    assert set(market.accounts[-1][1]) == {"SAMPA", "SAMPB", "SAMPC", "SAMPD"}  # 보유하지 않은 기준 묶음 ETF도 받는다
+    market.accounts.clear()
+    market.toss.clear()
+    market.spark = {"NQ=F": [(at("2026-11-20", "16:58"), 1000.0), (at("2026-11-20", "16:59"), 1002.0),
+                             (at("2026-11-22", "18:00"), 1010.0), (at("2026-11-22", "18:59"), 1020.0), (at("2026-11-22", "19:00"), 1030.0)]}
+    market.written.clear()
+    live.tick(at("2026-11-22", "19:00:05"))
+    (when, prices), = market.accounts
+    move = 1020.0 / 1002.0 - 1
+    assert when == "2026-11-22T19:00:05-05:00"
+    assert prices["SAMPA"] == pytest.approx(100.0 * (1 + move)) and prices["SAMPB"] == pytest.approx(50.0 * (1 + 2.0 * move))
+    assert prices["SAMPC"] == 20.0 and prices["SAMPD"] == 100.0  # 바이오와 나스닥이 아닌 보유 종목은 마지막 체결가 그대로다
+    assert market.toss == []  # 선물 시간대에는 토스를 부르지 않는다
+    live.tick(at("2026-11-22", "19:00:35"))  # 새 선물 봉이 없어도 마지막 체결가로 계속 쓴다
+    assert len(market.accounts) == 2 and market.accounts[-1][1]["SAMPA"] == prices["SAMPA"]
+    published = str(market.written) + (live.DATA / "afterhours.json").read_text()
+    assert not any(symbol in published for symbol in ("SAMPA", "SAMPB", "SAMPC", "SAMPD"))  # invest-live 값에는 계좌 값이 없다
+
+
+def test_futures_round_without_last_trades_posts_nothing(market):
+    (live.ETFS).write_text(live.json.dumps(ETF_TABLE))
+    traded(market, "2026-11-20", "19:59:50")
+    live.tick(at("2026-11-20", "20:00:10"))
+    market.spark = {"NQ=F": [(at("2026-11-20", "16:59"), 1000.0), (at("2026-11-22", "18:30"), 1010.0)]}
+    live.tick(at("2026-11-22", "19:00:05"))
+    assert market.accounts == []
+
+
+def test_regular_round_also_prices_etfs_not_held(market, monkeypatch):
+    (live.ETFS).write_text(live.json.dumps(ETF_TABLE))
+    monkeypatch.setattr(live, "holding_symbols", lambda: ["SAMPB"])
+    market.prices = {"QQQ": (501.0, kst("2026-11-19", "09:40:00")), "SAMPA": (100.0, None), "SAMPB": (50.0, None), "SAMPC": (20.0, None)}
+    live.tick(at("2026-11-19", "09:41:05"))
+    assert market.accounts == [("2026-11-19T09:41:05-05:00", {"SAMPA": 100.0, "SAMPB": 50.0, "SAMPC": 20.0})]
+    assert all("SAMP" not in str(value) for _, value in market.written)
