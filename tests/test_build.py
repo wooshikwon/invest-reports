@@ -177,7 +177,11 @@ created: 2026-11-20
 
 ### 1. 엔비디아 칩 수출 허가
 
-#### <mark>이슈 해설</mark> 상무부 심사에 의문
+- 상무부 심사에 의문이 커졌다
+- 허가 물량은 지난해의 절반이다
+- 엔비디아는 **다른 고객**으로 물량을 돌린다
+
+#### <mark>이슈 해설</mark>
 
 리드 문단이다.
 
@@ -215,10 +219,12 @@ def article_folder(tmp_path: Path, charts: list[dict]) -> Path:
 def test_issue_articles_read_each_article(tmp_path):
     folder = article_folder(tmp_path, [{"issue": 1, "after": 3}])
     found = build.issue_articles(folder / "news.md", folder, Path.home() / "obsidian-vault")
-    assert [(item["issue"], item["title"], item["headline"]) for item in found] == [
-        (1, "엔비디아 칩 수출 허가", "상무부 심사에 의문"), (2, "연준 회의", "금리 동결 전망")]
+    assert [(item["issue"], item["title"], item["headline"]) for item in found] == [(1, "엔비디아 칩 수출 허가", ""), (2, "연준 회의", "금리 동결 전망")]
+    assert found[0]["subheads"] == ["상무부 심사에 의문이 커졌다", "허가 물량은 지난해의 절반이다", "엔비디아는 다른 고객으로 물량을 돌린다"]
+    assert found[1]["subheads"] == []  # 제목과 말머리 사이에 목록이 없는 기사
     first = found[0]["html"]
-    assert first.startswith("<p>리드 문단이다.</p>")  # 머리 줄 뒤 본문만 담는다
+    assert first.startswith("<p>리드 문단이다.</p>")  # 말머리 뒤 본문만 담는다
+    assert "<ul>" not in first
     assert [line for line in first.splitlines() if line.startswith("<h5")] == ["<h5>허가 물량</h5>", "<h5>엔비디아의 답</h5>"]
     assert ' id="' not in first
     assert first.count('<button class="term"') == 1 and first.count('class="issue-chart"') == 1

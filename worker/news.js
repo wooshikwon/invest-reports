@@ -7,7 +7,7 @@
 // 공개 읽기는 네 경로다. 목록은 회차 시작 시각(`{날짜}-06`은 그날 06:00 KST)이 늦은 기사부터 돌려준다.
 // - `GET /list?index={nasdaq|biotech}&days={1~7}`: 회차 시작 시각이 지금부터 그 일수 안인 지수의 기사
 // - `GET /list?ticker={티커}&limit={1~10}`: 그 종목을 단 최신 기사
-// - `GET /articles/{ID}`: 기사 한 편
+// - `GET /articles/{ID}`: 기사 한 편. 소제목 줄(`subheads`)이 없이 올린 기사는 빈 목록을 돌려준다
 // - `GET /images/{이름}`: 그림
 // 쓰기와 관리 요청은 비밀 헤더 `X-News-Secret`이 비밀 값 `NEWS_SECRET`과 같을 때만 받고, 다르면 401이다.
 // - `POST /articles`: 기사 한 편을 올린다. 같은 ID를 다시 올리면 덮어쓴다
@@ -25,6 +25,8 @@ const TICKER = /^[A-Z0-9][A-Z0-9.-]{0,11}$/;
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const TYPE = /^image\/[a-z0-9.+-]+$/;
 const INDICES = new Set(["nasdaq", "biotech"]);
+// 기사 제목 아래 소제목 줄 수의 상한.
+const SUBHEADS = 3;
 // SQLite Durable Object는 값 하나와 행 하나를 2MB까지 받는다. 기사 요청 본문과 그림 본문을 이 크기로 막는다.
 const LIMIT = 2_000_000;
 const DAY = 86400000;
@@ -49,12 +51,13 @@ const text = (value) => typeof value === "string";
 // `POST /articles` 본문을 저장할 기사로 고른다. 항목이 하나라도 형식에 맞지 않으면 null이다.
 function article(value) {
   if (!value || typeof value !== "object") return null;
-  const { id, round, indices, tickers, title, headline, html, images = [], charts = [], terms = [], sources, previous = null } = value;
+  const { id, round, indices, tickers, title, subheads, headline, html, images = [], charts = [], terms = [], sources, previous = null } = value;
   const when = started(round);
   const valid = text(id) && ID.test(id) && when
     && Array.isArray(indices) && indices.length && indices.every((name) => INDICES.has(name))
     && Array.isArray(tickers) && tickers.length && tickers.every((ticker) => text(ticker) && TICKER.test(ticker))
     && text(title) && title.trim() && text(headline) && text(html)
+    && Array.isArray(subheads) && subheads.length >= 1 && subheads.length <= SUBHEADS && subheads.every((line) => text(line) && line.trim())
     && Array.isArray(images) && images.every((image) => image && text(image.name) && NAME.test(image.name) && (image.caption === undefined || text(image.caption)))
     && Array.isArray(sources) && sources.every((source) => source && text(source.url) && /^https?:\/\//.test(source.url) && text(source.time))
     && (previous === null || (text(previous) && ID.test(previous)));
@@ -63,11 +66,11 @@ function article(value) {
     id, round, start: when.start, title, headline,
     indices: [...new Set(indices)], tickers: [...new Set(tickers)],
     images: images.map(({ name, caption = "" }) => ({ name, caption })),
-    body: { html, charts, terms, sources: sources.map(({ url, time }) => ({ url, time })), previous },
+    body: { subheads, html, charts, terms, sources: sources.map(({ url, time }) => ({ url, time })), previous },
   };
 }
 
-// 기사와 목록 정보. 목록과 관리 요청에 쓰는 제목·머리 줄·종목·지수는 열로, 본문 HTML·이슈 그래프 카드·단어표 용어·근거 기사·앞 기사는 `body` JSON으로 둔다.
+// 기사와 목록 정보. 목록과 관리 요청에 쓰는 제목·머리 줄·종목·지수는 열로, 소제목 줄·본문 HTML·이슈 그래프 카드·단어표 용어·근거 기사·앞 기사는 `body` JSON으로 둔다.
 // 지수와 종목으로 기사를 찾는 표, 기사에 단 그림의 순서와 사진 설명을 적는 표, 그림 이름마다 올린 달을 적는 표를 따로 둔다.
 export class News extends DurableObject {
   constructor(ctx, env) {
@@ -299,7 +302,7 @@ async function open(request, env, url, path) {
     const body = JSON.parse(row.body);
     return reply({
       id: row.id, round: row.round, time: started(row.round).time, indices: JSON.parse(row.indices), tickers: JSON.parse(row.tickers),
-      title: row.title, headline: row.headline, html: body.html,
+      title: row.title, subheads: body.subheads ?? [], headline: row.headline, html: body.html,
       images: row.images.map(({ name, caption }) => ({ url: address(url.origin, name), caption })),
       charts: body.charts, terms: body.terms, sources: body.sources, previous: body.previous,
     }, 200, fresh);

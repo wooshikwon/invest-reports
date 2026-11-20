@@ -85,7 +85,8 @@ const get = async (path) => {
 
 function sample(id, round, overrides = {}) {
   return {
-    id, round, indices: ["nasdaq"], tickers: ["SAMPA"], title: `SAMPLE 제목 ${id}`, headline: "SAMPLE 머리 줄",
+    id, round, indices: ["nasdaq"], tickers: ["SAMPA"], title: `SAMPLE 제목 ${id}`,
+    subheads: ["SAMPLE 첫 소제목이다", "SAMPLE 둘째 소제목이다", "SAMPLE 셋째 소제목이다"], headline: "SAMPLE 첫 소제목이다",
     html: "<p>SAMPLE 본문</p><h5>SAMPLE 소제목</h5><p>SAMPLE 문단</p>", images: [],
     charts: [{ kind: "line", title: "SAMPLE 카드" }], terms: [{ term: "SAMPLE 용어" }],
     sources: [{ url: "https://news.example/sample", time: "2026-11-20T05:10:00+09:00" }], previous: null, ...overrides,
@@ -131,11 +132,20 @@ test("올린 기사는 지수 목록, 종목 목록, 기사 읽기에 보인다"
   assert.deepEqual(ids(await get("/list?ticker=SAMPA&limit=3")), ["a1"]);
   assert.deepEqual(await get("/articles/a1"), {
     id: "a1", round: "2026-11-20-06", time: "2026-11-20T06:00:00+09:00", indices: ["nasdaq"], tickers: ["SAMPA"],
-    title: item.title, headline: item.headline, html: item.html, images: [],
+    title: item.title, subheads: item.subheads, headline: item.headline, html: item.html, images: [],
     charts: item.charts, terms: item.terms, sources: item.sources, previous: "a0",
   });
   assert.deepEqual(await get("/list?index=biotech&days=7"), { articles: [] });
   assert.deepEqual(await get("/list?ticker=SAMPB&limit=10"), { articles: [] });
+  assert.equal((await post(sample("a2", "2026-11-20-06", { subheads: ["SAMPLE 소제목 한 줄이다"] }))).status, 200);
+  assert.deepEqual((await get("/articles/a2")).subheads, ["SAMPLE 소제목 한 줄이다"]);
+});
+
+test("소제목 줄 없이 저장된 기사는 기사 읽기에서 빈 소제목 줄을 돌려준다", async () => {
+  const { subheads, html, charts, terms, sources, previous, ...item } = sample("old", "2026-11-20-06");
+  env.NEWS_DO.get("news").save({ ...item, start: Date.parse("2026-11-20T06:00:00+09:00"), images: [], body: { html, charts, terms, sources, previous } });
+  const read = await get("/articles/old");
+  assert.deepEqual([read.subheads, read.headline, read.html], [[], item.headline, html]);
 });
 
 test("3일 목록에 4일 전 회차 기사가 없고 7일 목록에는 있으며, 목록은 늦은 회차부터 나온다", async () => {
@@ -253,6 +263,12 @@ test("형식에 맞지 않는 기사, 그림, 목록 요청은 400이고 너무 
     JSON.stringify(sample("a1", "2026-11-20-06", { images: [{ name: "../x" }] })),
     JSON.stringify(sample("a1", "2026-11-20-06", { sources: [{ url: "file:///etc/passwd", time: "x" }] })),
     JSON.stringify(sample("a1", "2026-11-20-06", { previous: 3 })),
+    JSON.stringify(sample("a1", "2026-11-20-06", { subheads: undefined })),
+    JSON.stringify(sample("a1", "2026-11-20-06", { subheads: [] })),
+    JSON.stringify(sample("a1", "2026-11-20-06", { subheads: ["가다", "나다", "다다", "라다"] })),
+    JSON.stringify(sample("a1", "2026-11-20-06", { subheads: ["가다", " "] })),
+    JSON.stringify(sample("a1", "2026-11-20-06", { subheads: ["가다", 3] })),
+    JSON.stringify(sample("a1", "2026-11-20-06", { subheads: "가다" })),
   ];
   for (const body of bad) assert.equal((await call("POST", "/articles", { body, headers: secret })).status, 400, body.slice(0, 80));
   assert.equal((await post(sample("a1", "2026-11-20-06", { html: "x".repeat(2_000_001) }))).status, 413);

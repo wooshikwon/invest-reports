@@ -31,10 +31,14 @@ LIST = "() => [...document.querySelectorAll('.news-box .pick h3')].filter((h) =>
 ROWS = "() => [...document.querySelectorAll('.headlines .entry')].filter((row) => row.offsetParent).map((row) => row.querySelector('.title').textContent.trim())"
 BAR = """() => { const bar = document.querySelector('h2.tabbed .bar').getBoundingClientRect(), on = document.querySelector('h2.tabbed .tabline > button.on');
   const box = on.getBoundingClientRect(); return { tab: on.textContent, bar: [bar.left, bar.width, bar.bottom], on: [box.left, box.width, box.bottom] }; }"""
-# 보이는 뉴스 상세 문단. 제목, 종목 스티커, 그림 수, 이슈 해설 말머리 뒤 글(머리 줄은 목록에만 있어 비어야 한다), 소제목, 그려진 그래프 카드 수, 용어 단추 수, 이전·다음 칸 제목.
+# 보이는 뉴스 상세 문단. 제목, 종목 스티커, 소제목 줄과 그 글자 굵기, 제목·소제목 줄·그림·말머리의 차례, 그림 수, 이슈 해설 말머리 뒤 글(비어야 한다), 본문 소제목,
+# 그려진 그래프 카드 수, 용어 단추 수, 이전·다음 칸 제목.
 PAGE = """() => { const page = document.querySelector('.issue-page.on'), h3 = page.querySelector(':scope > h3'), lead = page.querySelector(':scope > h4');
   const cell = (side) => page.querySelector(`nav.step .${side} .title`)?.textContent.trim() ?? null;
+  const lines = [...page.querySelectorAll(':scope > ul.subheads > li')];
+  const order = [...page.children].map((n) => n.matches('h3') ? 'h3' : n.matches('ul.subheads') ? 'subheads' : n.matches('figure.issue-image') ? 'image' : n.matches('h4') ? 'h4' : null).filter(Boolean);
   return { title: h3.firstChild.textContent.trim(), tickers: [...h3.querySelectorAll('.tags code')].map((c) => c.textContent), bar: document.getElementById('issue-bar').textContent,
+    subheads: lines.map((li) => li.textContent), weights: lines.map((li) => getComputedStyle(li).fontWeight), order,
     photos: page.querySelectorAll(':scope > figure.issue-image figure.photo').length, mark: lead?.querySelector('mark')?.textContent,
     headline: lead ? [...lead.childNodes].filter((n) => n.nodeName !== 'MARK').map((n) => n.textContent).join('').trim() : null,
     h5: [...page.querySelectorAll(':scope > h5')].map((h) => h.textContent.trim()), charts: page.querySelectorAll(':scope > figure.issue-chart svg').length,
@@ -87,6 +91,8 @@ def main() -> int:
         check("나스닥 리포트는 3일 안의 나스닥 기사만 최신순으로 보인다", shown == NASDAQ_3, " | ".join(shown))
         check("나스닥 리포트에서 바이오 종목 기사가 보이지 않는다", not set(shown) & set(BIOTECH_7))
         parts = page.evaluate("() => ['.news-box .pick', '.news-box .pick code', '.news-box .pick .thumb', '.news-box .pick .age'].map((q) => document.querySelectorAll(q).length)")
+        lead = page.evaluate("() => document.querySelector('.news-box .pick .text > p')?.textContent")
+        check("목록 블록의 머리 줄은 첫 소제목이다", lead == fixtures.NEWS_SUBHEADS[0], str(lead))
         check("기사 블록마다 회차 시각이 있고 종목 스티커와 썸네일은 없다", parts[1] == parts[2] == 0 and parts[3] == parts[0] > 0, str(parts))
         stamp = page.evaluate("() => document.querySelector('.news-box > .issue-asof')?.textContent")
         check("종목 뉴스 탭 첫 줄에 가장 최근 회차의 마지막 업데이트 시각이 있다", bool(stamp and re.fullmatch(r"마지막 업데이트 \d{1,2}/\d{1,2} \d\d:\d\d KST", stamp)), str(stamp))
@@ -114,6 +120,7 @@ def main() -> int:
         capture.settle(page)
         found = page.evaluate(PAGE)
         check("종목 뉴스 탭에서 연 뉴스 상세의 앞뒤 기사는 지수 목록의 앞뒤 기사다", found["title"] == TITLES[2] and found["prev"] == TITLES[1] and found["next"] == TITLES[3], str(found))
+        check("소제목 줄 없이 올린 기사의 뉴스 상세에는 소제목 목록이 없다", found["subheads"] == [] and found["order"] == ["h3", "image", "h4"], str(found["order"]))
         page.locator("button.back").click()
         capture.settle(page)
         state = page.evaluate("() => [document.querySelector('h2.tabbed .tabline > button.on')?.textContent, location.search]")
@@ -127,6 +134,9 @@ def main() -> int:
               found["title"] == TITLES[0] and found["tickers"] == ["엔비디아"] and found["bar"] == TITLES[0] and found["photos"] == 2
               and found["mark"] == "이슈 해설" and found["headline"] == "" and found["h5"] == ["공급사 수율이 오른 덕분", "주가는 장 마감 뒤 올라"]
               and found["charts"] == 1 and found["terms"] == 1 and found["prev"] is None and found["next"] == TITLES[1], str(found))
+        check("뉴스 상세는 제목 아래, 그림 위에 소제목 세 줄을 굵지 않은 불릿으로 그린다",
+              found["subheads"] == fixtures.NEWS_SUBHEADS and found["order"] == ["h3", "subheads", "image", "h4"]
+              and all(int(weight) < 600 for weight in found["weights"]), f"{found['order']} {found['weights']}")
         page.screenshot(path=str(shots / "news-detail.png"))
         run.close()
 

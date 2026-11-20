@@ -71,7 +71,7 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 누르면 용어 아래에 대표 표기와 설명을 담은 말풍선을 연다.
 `상세 이슈 해설` 절은 리포트의 다른 절과 따로 `issue_section`이 HTML로 바꾼다. 이 함수는 기사 문서(`report.md`나 종목 뉴스 세션 폴더의 `news.md`)와 그 폴더를 받아
 용어 단추와 이슈 그래프 카드를 넣고, 공개본 금지어는 검사하지 않는다. 기사 본문의 소제목(`#####`)은 이슈 본문 안의 `h5`가 된다.
-종목 뉴스 배치는 `issue_articles`로 기사마다 번호, 제목, 머리 줄, 머리 줄 뒤 본문 HTML을 받아 뉴스 Worker에 올린다.
+종목 뉴스 배치는 `issue_articles`로 기사마다 번호, 제목, 제목과 이슈 해설 말머리 사이 목록의 소제목 줄, 머리 줄, 머리 줄 뒤 본문 HTML을 받아 뉴스 Worker에 올린다.
 `invest-reports` 미니 앱은 `h5`를 이슈 본문의 소제목으로 그리고, 이슈 목록 상자의 미리보기 글에는 쓰지 않는다.
 
 `r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 리포트를 처음 만든 시각(`written`), 항목을 마지막으로 쓴 시각(`updated`)을 서울 시각으로 적는다.
@@ -1317,20 +1317,24 @@ def issue_section(document: Path, folder: Path, vault: Path) -> str:
 
 
 def issue_articles(document: Path, folder: Path, vault: Path) -> list[dict]:
-    """기사 문서의 `상세 이슈 해설` 절에서 번호 붙은 기사마다 번호(`issue`), 제목(`title`), 머리 줄(`headline`), 머리 줄 뒤 본문 HTML(`html`).
-    제목은 `###` 줄에서 번호와 끝의 표식을 뺀 글이다. 본문의 `id` 속성은 지운다. 미니 앱이 여러 기사를 한 화면에 그릴 때 겹치기 때문이다."""
+    """기사 문서의 `상세 이슈 해설` 절에서 번호 붙은 기사마다 번호(`issue`), 제목(`title`), 소제목 줄(`subheads`), 머리 줄(`headline`), 머리 줄 뒤 본문 HTML(`html`).
+    제목은 `###` 줄에서 번호와 끝의 표식을 뺀 글이다. 소제목 줄은 제목과 이슈 해설 말머리 사이 목록의 항목 글이고, 목록이 없으면 빈 목록이다.
+    본문의 `id` 속성은 지운다. 미니 앱이 여러 기사를 한 화면에 그릴 때 겹치기 때문이다."""
     body = issue_section(document, folder, vault)
     found = []
     for start, stop in issue_segments(body):
         segment = body[start:stop]
-        heading = re.match(r"<h3[^>]*>(.*?)</h3>", segment, re.DOTALL).group(1)
-        title = html.unescape(re.sub(r"<[^>]+>", "", re.sub(r"(?:\s*<code[^>]*>.*?</code>)+\s*$", "", heading))).strip()
+        heading = re.match(r"<h3[^>]*>(.*?)</h3>", segment, re.DOTALL)
+        title = html.unescape(re.sub(r"<[^>]+>", "", re.sub(r"(?:\s*<code[^>]*>.*?</code>)+\s*$", "", heading.group(1)))).strip()
         number = re.match(r"(\d+)\.\s+", title)
         if not number:
             continue
-        cut = segment.find("</h4>")
-        cut = cut + len("</h4>") if cut >= 0 else segment.find("</h3>") + len("</h3>")
-        found.append({"issue": int(number.group(1)), "title": title[number.end():], "headline": explainer_title(segment),
+        lead = segment.find("<h4")
+        items = re.search(r"<ul>(.*?)</ul>", segment[heading.end():lead], re.DOTALL) if lead >= 0 else None
+        subheads = [html.unescape(re.sub(r"<[^>]+>", "", item)).strip()
+                    for item in re.findall(r"<li>(.*?)</li>", items.group(1), re.DOTALL)] if items else []
+        cut = segment.find("</h4>", lead) + len("</h4>") if lead >= 0 else heading.end()
+        found.append({"issue": int(number.group(1)), "title": title[number.end():], "subheads": subheads, "headline": explainer_title(segment),
                       "html": re.sub(r'\sid="[^"]*"', "", segment[cut:]).strip()})
     return found
 

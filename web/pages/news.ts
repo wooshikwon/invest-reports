@@ -10,7 +10,7 @@ import { gallery, viewer } from "../shared/viewer";
 import { NEWS_HELP, question } from "../shared/help";
 // 종목 뉴스를 그린다. 기사는 종목 뉴스 배치가 뉴스 Worker(`NEWS_URL`, `worker/news.js`)에 올린 것이고, 앱은 공개 읽기 세 경로만 쓴다.
 // `GET /list?index={지수}&days={일수}`와 `GET /list?ticker={티커}&limit={편수}`는 기사마다 ID, 회차 시작 시각(`time`), 종목, 제목, 머리 줄, 첫 그림 주소(`image`)를 최신순으로 주고,
-// `GET /articles/{ID}`는 기사 한 편의 본문 HTML(`html`), 그림 주소와 사진 설명(`images`)을 더 준다. 본문 HTML은 build.py `issue_articles`가 만든 이슈 본문과 같은 조각이라
+// `GET /articles/{ID}`는 기사 한 편의 소제목 세 줄(`subheads`), 본문 HTML(`html`), 그림 주소와 사진 설명(`images`)을 더 준다. 목록의 머리 줄은 첫 소제목이다. 본문 HTML은 build.py `issue_articles`가 만든 이슈 본문과 같은 조각이라
 // 본문 소제목(`h5`), 이슈 그래프 카드(`figure.issue-chart`), 단어표 용어 단추(`button.term`)가 들어 있다.
 // 리포트 화면의 상세 이슈 해설 절은 "상세 이슈 해설"과 "종목 뉴스" 두 탭을 두고(`newsTab`), 종목 상세는 공시 상세 위에 주요뉴스 절을 둔다(`headlines`).
 // 기사를 누르면 주소의 `news`에 기사 ID를 적어 뉴스 상세를 연다. 종목 상세에서 열면 `ticker`에 그 티커도 적는다.
@@ -43,7 +43,7 @@ const heading = (item, named) => {
 // 상세 이슈 해설 탭이면 오른쪽에 절 제목의 물음표 단추를 둔다. 상세 이슈 해설 탭은 분석 완료 시각과 이슈 목록을, 종목 뉴스 탭은 보고 있는 리포트 지수(`index`)의 종목 기사 목록을 보인다. 고른 탭 아래 막대는 다른 탭을 고르면 그 탭 아래로 옮겨 간다.
 // 기사 목록은 종목 뉴스 탭을 처음 고를 때 7일 치를 한 번 받아, 회차 시작 시각이 지금부터 3일 안인 기사를 먼저 보이고 "더 보기"를 누르면 7일 치를 모두 보인다.
 // 날짜 슬라이드로 지난 리포트를 열어도 지금 기준 최신 기사를 보인다. 고른 탭과 더 보기 여부는 `history.state`에 적어, 뉴스 상세에서 뒤로 돌아와도 그대로 연다.
-// 종목 뉴스 탭의 마지막 업데이트 시각은 받은 기사 가운데 가장 최근 회차의 시작 시각이다. 목록 블록은 이슈 목록 상자와 같은 모양으로 제목과 머리 줄, 회차 시각을 쓴다.
+// 종목 뉴스 탭의 마지막 업데이트 시각은 받은 기사 가운데 가장 최근 회차의 시작 시각이다. 목록 블록은 이슈 목록 상자와 같은 모양으로 제목과 머리 줄(첫 소제목), 회차 시각을 쓴다.
 export function newsTab(index) {
   const { signal } = life;
   const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "상세 이슈 해설");
@@ -189,8 +189,8 @@ export function headlines(after, symbol) {
 }
 
 // 뉴스 상세를 이슈 화면과 같은 틀에 그린다. `data`는 `GET /articles/{ID}`의 기사이고, `ticker`가 있으면 종목 상세에서 연 기사다.
-// 절 제목은 "종목 뉴스"이고, 위쪽 한 줄 띠에는 기사 제목을 쓴다. 기사는 이슈 문단처럼 제목과 종목 스티커, 그림 묶음, 이슈 해설 말머리, 회차 시각, 본문을 차례로 쓰고,
-// 머리 줄은 목록 블록에서만 보인다.
+// 절 제목은 "종목 뉴스"이고, 위쪽 한 줄 띠에는 기사 제목을 쓴다. 기사는 이슈 문단처럼 제목과 종목 스티커, 소제목 줄, 그림 묶음, 이슈 해설 말머리, 회차 시각, 본문을 차례로 쓴다.
+// 소제목 줄은 제목 아래에 굵지 않은 동그라미 목록으로 쓰고, 소제목 줄 없이 올린 기사는 목록을 두지 않는다.
 // 본문의 이슈 그래프 카드와 그림은 이슈 화면의 그리기 함수로 그린다.
 // 기사 끝에는 들어온 목록의 앞 기사와 다음 기사로 가는 칸을 이슈 문단 끝의 칸과 같은 모양으로 둔다. 목록은 종목 상세에서 열었으면 그 종목의 최신 기사 열 편이고,
 // 아니면 보고 있는 리포트 지수의 7일 치 기사다. 칸을 누르면 진동을 내고 그 기사를 받아, 이슈를 넘길 때처럼 옆으로 옮겨 보이고 주소의 기사 ID를 바꾼다.
@@ -213,6 +213,10 @@ function newsDetail(data, ticker) {
   const page = (article) => {
     const node = Object.assign(document.createElement("div"), { className: "issue-page" });
     node.append(heading(article, named));
+    if (article.subheads?.length) {
+      const list = node.appendChild(Object.assign(document.createElement("ul"), { className: "subheads" }));
+      list.append(...article.subheads.map((line) => Object.assign(document.createElement("li"), { textContent: line })));
+    }
     if (article.images.length) {
       const figure = node.appendChild(Object.assign(document.createElement("figure"), { className: "issue-image" }));
       for (const { url, caption } of article.images) {

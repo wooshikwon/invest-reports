@@ -204,6 +204,8 @@ NEWS_CARD = {"issue": 1, "after": 2, "name": "차세대 칩 분기 출하 물량
              "state": ["앞 분기보다 31% 많다", "#ffffff"], "caption": "4분기 예상 출하 물량은 회사가 밝힌 공급 계획에서 셈했다."}
 
 NEWS_TERM = {"id": "guidance", "term": "가이던스", "desc": "기업이 직접 내놓은 다음 분기나 한 해의 실적 전망치다."}
+# 첫 기사의 소제목 세 줄. 첫 줄은 그 기사의 머리 줄과 같다. 나머지 기사는 소제목 줄 없이 올린 기사처럼 빈 목록이다.
+NEWS_SUBHEADS = [NEWS[0][4], "공급사의 기판 수율이 목표를 넘어 출하를 앞당겼다", "주가는 발표 뒤 시간외 거래에서 2% 올랐다"]
 
 
 def _news_body(title: str, rich: bool) -> str:
@@ -229,6 +231,7 @@ def _news_body(title: str, rich: bool) -> str:
 
 def news() -> list[dict]:
     """SAMPLE 기사마다 뉴스 Worker `GET /articles/{ID}`가 돌려주는 값과 회차 시작 시각(`start`). ID는 `{회차}-{지수}-1-{회차 안 순번}`이다.
+    첫 기사만 소제목 세 줄(`NEWS_SUBHEADS`)이 있다.
     그림 이름은 `sample-{첫 종목}-{순번}.webp`이고, `news_answer`가 리포트 자료의 `r/stocks/{종목}-{순번}.webp`로 답한다. 첫 기사만 그림이 두 장이다."""
     out, seen = [], {}
     for n, (name, index, tickers, title, headline) in enumerate(NEWS):
@@ -236,7 +239,8 @@ def news() -> list[dict]:
         time = f"{name[:10]}T{name[11:]}:00:00+09:00"
         images = [{"url": f"{NEWS_URL}/images/sample-{tickers[0]}-{k}.webp", "caption": f"{title} 관련 SAMPLE 그림 {k}"} for k in range(1, 3 if n == 0 else 2)]
         out.append({"id": f"{name}-{index}-1-{seen[(name, index)]}", "round": name, "time": time, "start": dt.datetime.fromisoformat(time),
-                    "indices": [index], "tickers": tickers, "title": title, "headline": headline, "html": _news_body(title, n == 0),
+                    "indices": [index], "tickers": tickers, "title": title, "subheads": NEWS_SUBHEADS if n == 0 else [], "headline": headline,
+                    "html": _news_body(title, n == 0),
                     "images": images, "charts": [NEWS_CARD] if n == 0 else [], "terms": [NEWS_TERM] if n == 0 else [], "sources": [{"url": f"https://example.com/news/{n}", "time": time}],
                     "previous": None})
     return out
