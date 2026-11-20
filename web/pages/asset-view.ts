@@ -2,11 +2,12 @@
 import "./asset-view.css";
 import { ASSET_URL } from "../shared/account";
 import { gaugeCard, indexInk } from "../shared/card";
-import { INDEX_NAME } from "../shared/chrome";
+import { INDEX_NAME, INDEX_TITLE } from "../shared/chrome";
 import { figure, signed, tone } from "../shared/format";
 import { slider } from "../shared/motion";
 import { dial, rewindFrames, rewindOffset } from "../shared/rewind";
 import { roll } from "../shared/roll";
+import { closeAt, sessionAt, sessionTag } from "../shared/session";
 import { key, visit } from "../shared/route";
 import { DIMS, nowMark, shape } from "../shared/svg";
 import { feelPress, feelSlide, tg } from "../shared/telegram";
@@ -41,28 +42,50 @@ export const assetSignal = (signal, index) => {
   const go = optimizer.color === "green" ? ' go" role="button" tabindex="0' : "";
   return `<div class="signal${go}"><div class="gate"><i class="lamp ${value.color}"></i><div><strong>${name}</strong><p>${assetText(value.reason)}</p></div></div></div>`;
 };
-// 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 지수(`index`)는 큰 값을 굴리는 자리 이름에 쓴다. 카드 이름과 상자 목록(`cards`)과 다시 그리는 함수(`show`)를 돌려준다.
+// 시각 `time`의 기준 시각 글씨. 요약 절의 그림 카드처럼 "미국 11/20 정규장, 23:43 KST"로 쓰고, 뉴욕 시각으로 세션을 정해 그 세션의 색으로 칠한다.
+// 04:00~09:30 ET는 프리마켓, 09:30~16:00 ET는 정규장, 16:00~20:00 ET는 애프터마켓이고, 그 밖은 주간거래다. 20:00 ET 뒤의 주간거래는 다음 날 세션의 날짜를 쓴다.
+const NY_CLOCK = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const stamp = (time) => {
+  const at = Date.parse(time), part = Object.fromEntries(NY_CLOCK.formatToParts(at).map(({ type, value }) => [type, value])), clock = +part.hour * 60 + +part.minute;
+  const [kind, name] = clock >= 240 && clock < 570 ? ["pre", "프리마켓"] : clock >= 570 && clock < 960 ? ["regular", "정규장"] : clock >= 960 && clock < 1200 ? ["after", "애프터마켓"] : ["day", "주간거래"];
+  const day = clock >= 1200 ? new Date(Date.UTC(+part.year, +part.month - 1, +part.day + 1)).toISOString().slice(0, 10) : `${part.year}-${part.month}-${part.day}`;
+  return sessionTag(kind, `미국 ${day.slice(5, 7)}/${day.slice(8, 10)} ${name}, ${new Date(at + 9 * 3600e3).toISOString().slice(11, 16)} KST`);
+};
+// 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 지수(`index`)는 이름 줄과 큰 값을 굴리는 자리 이름에 쓴다.
+// `times`는 체결가로 다시 평가한 시각(`live`)과 계좌 요약을 만든 시각(`summary`)이다. 카드 이름과 상자 목록(`cards`)과 다시 그리는 함수(`show`)를 돌려준다.
+// 카드는 요약 절의 그림 카드처럼 맨 위 줄에 값의 기준 시각을, 그 아래 이름 줄 왼쪽에 "나스닥 100"처럼 지수 이름을, 오른쪽에 큰 값의 기준을 흐린 글씨로 쓴다.
 // 카드 순서는 누적 수익률, 초과 수익률, 배율이다. 누적 수익률 카드는 첫날 대비 고정 배율·판단·집행 누적 수익률을,
 // 초과 수익률 카드는 판단과 집행의 누적 수익률에서 고정 배율 누적 수익률을 뺀 값을 날짜 지점 축에 그린다. 큰 값은 집행 선의 값이다.
 // 축은 정산한 거래일마다 한 점이고, Worker가 1분마다 다시 셈한 최신 날짜 지점의 값(`returns.now`)이 있으면 그 날짜 점을 하나 더 둔다.
 // 최신 날짜 점은 고정 배율과 집행 선에만 있고 판단 선은 마지막 정산일에서 끝난다.
-// 배율 카드는 위 줄에 목표 배율을, 큰 값에 현재 배율을 현재 배율 선과 같은 주황 글씨로 쓴다. 그림에는 오늘 가격 경로들의 배율 분포(지수색 면)와 이슈가 없을 때의 분포(회색 면)를 배율 축에 그리고,
+// 수익률 카드의 기준 시각은 최신 날짜 점이 있으면 체결가 시각, 없으면 마지막 거래일의 정규장 종가 시각이다.
+// 배율 카드는 이름 줄 오른쪽에 목표 배율을, 큰 값에 현재 배율을 현재 배율 선과 같은 주황 글씨로 쓰고, 기준 시각은 계좌 요약을 만든 시각이다. 그림에는 오늘 가격 경로들의 배율 분포(지수색 면)와 이슈가 없을 때의 분포(회색 면)를 배율 축에 그리고,
 // 목표 배율에 지수색 실선, 현재 배율에 주황 점선을 긋는다.
 // `show(past)`는 `past`가 없으면 받은 값으로 그린다. 지난 날짜면 수익률 카드는 선을 줄이지 않고 그날 기준 가격 날짜(`past.base_date`) 점에 '현재' 표시(`nowMark`)를 찍어
-// 큰 값을 그 점의 값으로 쓴다. 그 점이 첫날이면 큰 값에 "기록 없음"을 쓴다. 배율 카드는 그날 판단의 배율 분포(`past.chart`)에 그날 현재·목표 배율(`past.current`, `past.target`)을 긋고,
+// 큰 값을 그 점의 값으로 쓰고, 기준 시각을 그날 정규장 종가 시각으로 쓴다. 그 점이 첫날이면 큰 값에 "기록 없음"을 쓴다. 배율 카드는 그날 판단의 배율 분포(`past.chart`)에 그날 현재·목표 배율(`past.current`, `past.target`)을 긋고,
 // 그날 현재 배율을 모르면 현재 배율 선을 긋지 않고 큰 값에 "기록 없음"을 쓴다.
-export function assetCards(perf, index) {
+export function assetCards(perf, index, times = {}) {
   const W = 320, H = 236, B = 212, L = 6, R = W - 6, T = 22, color = indexInk(W), NOW = "#FF9F1C", BASE = "#A7ABB0";
   const big = (text, unit) => [text, Object.assign(document.createElement("small"), { textContent: unit })];
+  // 카드 틀에 이름 줄을 더한다. 이름 줄이 같은 높이를 차지해 카드를 넘겨도 값과 그림이 같은 높이에 있다.
+  const card = (slot) => {
+    const c = gaugeCard("", W, H, `${index}-${slot}`), title = c.box.insertBefore(Object.assign(document.createElement("div"), { className: "top title" }), c.value.parentNode);
+    c.side = Object.assign(document.createElement("span"), { className: "ctx" });
+    title.append(Object.assign(document.createElement("span"), { className: "name", textContent: INDEX_TITLE[index] || INDEX_NAME[index] }), c.side);
+    return c;
+  };
+  // 기준 시각 글씨. 지난 날짜(`day`)면 그날 정규장 종가 시각을 쓴다.
+  const settled = (day) => sessionTag("regular", sessionAt("정규장", closeAt(day)));
   const cards = [], draws = [];
   const lev = perf?.leverage;
   let lever = null;
   if (lev?.today?.length > 1) {
-    const c = gaugeCard("", W, H, `${index}-lever`), s = c.svg;
+    const c = card("lever"), s = c.svg;
     draws.push((past) => {
       const den = past ? { ...past.chart, anchor: lev.anchor, current: past.current, target: past.target ?? lev.anchor * (1 + past.chart.mean) } : lev, n = den.today.length;
       c.value.className = "";
-      c.head("", den.current == null ? "기록 없음" : big(den.current.toFixed(3), "배"), `목표 ${den.target.toFixed(3)}배`);
+      c.head("", den.current == null ? "기록 없음" : big(den.current.toFixed(3), "배"), past ? settled(past.base_date) : stamp(times.summary));
+      c.side.textContent = `목표 ${den.target.toFixed(3)}배`;
       c.value.style.color = den.current == null ? DIMS : NOW;
       const xs = Array.from({ length: n }, (_, i) => den.anchor * (1 + den.low + (den.high - den.low) * i / (n - 1)));
       const X = (v) => Math.min(R, Math.max(L, L + (v - xs[0]) / (xs[n - 1] - xs[0]) * (R - L))), peak = Math.max(...den.today, ...den.quiet);
@@ -105,20 +128,23 @@ export function assetCards(perf, index) {
     if (at != null) nowMark(s, X(at), Y(series.at(-1)[0][at]), "regular");
   };
   // 고른 날짜 점이 첫날이면 그림은 그리되 큰 값에 "기록 없음"을 쓴다.
-  const figureOf = (c, v, unit) => {
+  const figureOf = (c, v, unit, at) => {
     c.value.className = v == null ? "" : tone(v);
-    c.head("", v == null ? "기록 없음" : big(signed(v * 100, 2), unit));
+    c.head("", v == null ? "기록 없음" : big(signed(v * 100, 2), unit), at);
   };
   if (ret?.days?.length > 1) {
-    const cum = gaugeCard(`첫날 ${assetDay(ret.days[0])} 대비 집행 누적 수익률`, W, H, `${index}-cum`), over = gaugeCard("고정 배율 대비 집행 초과 수익률", W, H, `${index}-over`);
+    const cum = card("cum"), over = card("over");
+    cum.side.textContent = `첫날 ${assetDay(ret.days[0])} 대비 집행`;
+    over.side.textContent = "고정 배율 대비 집행";
     const now = ret.now && ret.now.day > ret.days.at(-1) ? ret.now : null;
     const days = now ? [...ret.days, now.day] : ret.days;
     const anchor = now ? [...ret.anchor, now.anchor] : ret.anchor, realized = now ? [...ret.realized, now.realized] : ret.realized, target = ret.target;
     const gap = (values) => values.map((v, i) => v - anchor[i]);
     draws.push((past) => {
       const at = past ? days.filter((day) => day <= past.base_date).length - 1 : days.length - 1, first = at < 1;
-      figureOf(cum, first ? null : realized[at], "%");
-      figureOf(over, first ? null : realized[at] - anchor[at], "%p");
+      const when = past ? settled(days[at]) : now ? stamp(times.live) : settled(days[at]);
+      figureOf(cum, first ? null : realized[at], "%", when);
+      figureOf(over, first ? null : realized[at] - anchor[at], "%p", when.cloneNode(true));
       const mark = past ? at : null;
       lines(cum, [[anchor, BASE, true], [target, color], [realized, NOW]], "%", false, days, mark ?? days.length - 1);
       lines(over, [[gap(target), color], [gap(realized), NOW]], "%p", true, days, mark ?? days.length - 1);
@@ -157,7 +183,7 @@ export function assetPage(page) {
       + `<button type="button" class="asset-trades">거래 내역${chevron}</button><h2>내 계좌</h2>` + assetRow("원화", "주문 가능", assetMoney(accounts.KRW.cash, "KRW")) + assetRow("달러", "주문 가능", assetMoney(accounts.USD.cash, "USD"))
       + (waiting ? item({ ...waiting, name: "대기자금" }, `${waiting.symbol} ${assetShares(waiting.quantity)}`) : "");
     roll(page.querySelector(".asset-sum b:not(.veiled)"), `${index}-sum-${unit}`);
-    const perf = data.performance?.sectors?.[index], { cards, show } = assetCards(perf, index);
+    const perf = data.performance?.sectors?.[index], { cards, show } = assetCards(perf, index, { live: data.live?.time, summary: data.time });
     if (!cards.length) return page.querySelector(".asset-sum").insertAdjacentHTML("afterend", '<p class="status">그림 값이 아직 없다.</p>');
     const bar = document.createElement("div");
     bar.className = "tabs";

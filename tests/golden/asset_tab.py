@@ -26,8 +26,10 @@ def check(name: str, ok: bool, detail=""):
 
 
 def sample() -> dict:
-    """최신 날짜 지점의 1분 값을 더한 계좌 요약. 마지막 거래일 다음 평일이 최신 날짜 지점이다."""
+    """최신 날짜 지점의 1분 값을 더한 계좌 요약. 마지막 거래일 다음 평일이 최신 날짜 지점이다.
+    Worker처럼 1분 값을 셈한 체결가 시각(`live.time`)을 요약 시각 30분 뒤로 적는다."""
     account = fixtures.account()
+    account["live"] = {"time": (dt.datetime.fromisoformat(account["time"]) + dt.timedelta(minutes=30)).isoformat()}
     for sector in account["performance"]["sectors"].values():
         ret = sector["returns"]
         day = dt.date.fromisoformat(ret["days"][-1])
@@ -116,6 +118,9 @@ def main():
         capture.turn(page, "자산")
         tab(page, 0)
         before = read(page, 0)
+        clock = dt.datetime.fromisoformat(account["live"]["time"]).strftime("%H:%M")
+        stamp = page.evaluate("(cards) => document.querySelector(cards + ' .slide .top .kind')?.textContent", CARDS)
+        check("A4 최신 날짜의 기준 시각은 체결가 시각", bool(stamp) and stamp.endswith(f"{clock} KST"), stamp)
         ret = account["performance"]["sectors"]["nasdaq"]["returns"]
         ret["now"]["realized"] += 0.02
         page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
