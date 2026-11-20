@@ -17,7 +17,7 @@ from pathlib import Path
 KST = dt.timezone(dt.timedelta(hours=9))
 NEW_YORK = dt.timezone(dt.timedelta(hours=-5))
 # 고정 시각은 리포트 날짜 2026-11-19의 뉴욕 정규장이 열린 직후다(KST 23:45, 뉴욕 09:45). 이 시각에 20261119 리포트가 가장 늦은 리포트이고,
-# 같은 세션이 열릴 때 만든 다음날 사전 리포트 20261120이 정규장 실시간 값을 그린다.
+# 그 리포트의 날짜 지점 `POINT`의 정규장 실시간 값을 그린다.
 NOW = dt.datetime(2026, 11, 19, 14, 45, tzinfo=dt.timezone.utc)
 TODAY = NOW.astimezone(KST).date().isoformat()
 SESSION = NOW.astimezone(NEW_YORK).date().isoformat()
