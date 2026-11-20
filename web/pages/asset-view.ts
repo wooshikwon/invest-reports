@@ -195,17 +195,14 @@ export function assetPage(page) {
   return fill;
 }
 
-// 거래 내역 화면의 집행 요청 절과 거래 내역 절. 상태 표식은 블록의 상태(`state`)마다 [글씨, 색]이고, 토스에 주문을 낸 블록(`executed`)은 표식을 두지 않는다.
-export const TRADE_STATE = {
-  pending: ["결정 대기", "wait"], approved: ["승인", "wait"], rejected: ["취소", "off"], auto_approved: ["무응답 승인", "done"],
-  executed: [], unfilled: ["미체결", "off"], not_required: ["주문 없음", "off"],
-};
-// 지수(`index`)의 거래 내역을 `page`에 그리는 `render`와, 집행 시각에 블록을 내리려고 걸어 둔 회차를 푸는 `stop`을 돌려준다.
-// 공개 화면 `trades.ts`가 Worker가 건넨 계좌 요약마다 `render`를 부른다.
+// 거래 내역 화면의 집행 요청 절과 거래 내역 절. 블록의 출처(`source`)마다 카드 오른쪽 위 스티커 글씨를 두고, 출처가 없는 옛 블록은 스티커를 두지 않는다.
+// 새 출처는 이 표와 서버의 출처 판정(`trades.py`)에만 더한다. 필터는 "전체"와 이 표의 출처 순서다.
+export const TRADE_SOURCE = { llm: "LLM 매수", manual: "일반 매수" };
 export function tradesView(page, index) {
   const WEEK = "일월화수목금토", clock = (runAt) => runAt.slice(11, 16), due = (runAt) => Date.parse(`${runAt}:00+09:00`);
   const side = (value) => (value === "BUY" ? '<span class="side up">매수</span>' : '<span class="side down">매도</span>');
-  let last = null, timer = null;
+  let last = null, timer = null, filter = "all";
+  const gap = (v) => `${assetSign(v)}${Math.abs(v).toFixed(3)}배`;
   const render = (data) => {
     last = data;
     clearTimeout(timer);
@@ -213,14 +210,12 @@ export function tradesView(page, index) {
     const asked = request && (request.sectors?.[index]?.order_count || 0) > 0 && now < due(request.run_at) ? request : null;
     const decided = data.decisions?.date === request?.date ? data.decisions.sectors?.[index]?.decision : null;
     const blocks = trades?.sectors?.[index] || [];
-    const open = asked && blocks.find((block) => block.date === asked.date);
+    const open = asked && blocks.find((block) => block.date === asked.date && block.source !== "manual");
     const block = (b, live) => {
       const state = live ? ({ approve: "approved", cancel: "rejected" }[decided] || asked.sectors[index].status) : b.state;
-      const running = !live && b.run_at && ["pending", "approved"].includes(state) && now >= due(b.run_at);
-      const [label, kind] = running ? ["집행 중", "wait"] : TRADE_STATE[state] || [state, "off"];
       const rows = b.executions?.length
         ? b.executions.map((e) => assetRow(`${e.symbol}${side(e.side)}`, e.quantity != null ? assetShares(e.quantity) : "", e.amount != null ? `$${figure(e.amount)}` : "",
-          `${e.at.slice(11, 16)} ${e.filled ? "체결" : "미체결"}`).replace('"asset-item"', e.filled ? '"asset-item"' : '"asset-item miss"'))
+          e.at.slice(11, 16)).replace('"asset-item"', e.filled ? '"asset-item"' : '"asset-item miss"'))
         : (b.orders || []).map((o) => assetRow(`${o.symbol}${side(o.side)}`, o.shares != null ? `약 ${assetShares(o.shares)}` : "", assetMoney(o.krw, "KRW"),
           o.usd != null ? `약 $${figure(o.usd)}` : ""));
       const act = live ? `<p class="note">${{ approved: `${clock(asked.run_at)}에 집행한다. 그 전까지 취소할 수 있다.`,
@@ -228,16 +223,28 @@ export function tradesView(page, index) {
         + `<div class="act"><button type="button" data-decision="cancel"${state === "rejected" ? ' class="on" disabled' : ""}>${state === "rejected" ? "취소함" : "취소"}</button>`
         + `<button type="button" data-decision="approve" class="go${state === "approved" ? ' on" disabled' : '"'}>${state === "approved" ? "승인함" : "승인"}</button></div>` : "";
       return `<div class="trade" data-date="${b.date}"><div class="top"><b>${assetDay(b.date)} (${WEEK[new Date(`${b.date}T12:00:00Z`).getUTCDay()]})</b>`
-        + (label ? `<span class="badge ${kind}">${label}</span>` : "") + "</div>"
-        + (b.current != null && b.target != null ? `<div class="lev">현재 ${b.current.toFixed(3)}배 → 목표 ${b.target.toFixed(3)}배</div>` : "")
+        + (TRADE_SOURCE[b.source] ? `<span class="badge ${b.source}">${TRADE_SOURCE[b.source]}</span>` : "") + "</div>"
+        + (b.target != null && b.after != null ? `<div class="lev">목표 배율 갭 ${gap(b.target - b.after)}</div>` : "")
         + (b.reason ? `<p class="why">${assetText(b.reason)}</p>` : "") + (rows.length ? `<div class="rows">${rows.join("")}</div>` : "") + act + "</div>";
     };
-    const past = blocks.filter((b) => b !== open);
+    const past = blocks.filter((b) => b !== open && (filter === "all" || b.source === filter));
+    // 기간 투자액은 체결한 행만 센다. 체결하지 못한 주문은 금액이 있어도 돈이 나가지 않았다.
+    const invested = past.reduce((sum, b) => sum + (b.executions || []).reduce((inner, e) => inner + (e.filled && e.amount != null ? (e.side === "BUY" ? e.amount : -e.amount) : 0), 0), 0);
     page.innerHTML = (open ? `<h2>집행 요청</h2>${block(open, true)}` : "")
-      + `<h2>거래 내역</h2>` + (past.length ? past.map((b) => block(b)).join("") : '<p class="status">거래 내역이 없다.</p>');
+      + `<h2 class="trade-head">거래 내역<div class="seg">`
+      + [["all", "전체"], ...Object.entries(TRADE_SOURCE)].map(([name, label]) => `<button type="button" data-filter="${name}"${name === filter ? ' class="on"' : ""}>${label}</button>`).join("")
+      + `</div></h2><div class="asset-sum trade-sum"><b>${assetSign(invested)}${assetMoney(invested, "USD")}</b>기간 투자액</div>`
+      + (past.length ? past.map((b) => block(b)).join("") : '<p class="status">거래 내역이 없다.</p>');
     if (open) timer = setTimeout(() => render(last), due(asked.run_at) - now + 1000);
   };
   page.addEventListener("click", async (event) => {
+    const pick = event.target.closest(".seg button[data-filter]");
+    if (pick) {
+      if (pick.dataset.filter === filter) return;
+      feelSlide();
+      filter = pick.dataset.filter;
+      return render(last);
+    }
     const button = event.target.closest(".act button:not(:disabled)");
     if (!button) return;
     feelPress();

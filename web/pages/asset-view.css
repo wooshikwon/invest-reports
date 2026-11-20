@@ -41,19 +41,23 @@
 :is(.asset-sum, .asset-item, .asset-cards .val, .trade) .down { color: #5b9bff; }
 /* 내 자산 그림 카드는 선 이름을 적지 않으므로 그림 아래 줄을 두지 않는다. */
 .asset-cards .gauge .foot { display: none; }
-/* 거래 내역 화면은 날짜마다 블록 하나를 맨 위가 최신이 되게 쌓는다. 블록 위 줄 왼쪽에 날짜를, 오른쪽 끝에 상태 표식을 쓴다. 그 아래 배율 변화를 쓰고,
-   주문 이유는 옅은 바탕의 둥근 상자에 담아 블록의 다른 글씨와 가른다. 토스에 낸 주문이 있으면 낸 주문마다, 없으면 보낼 주문을 종목 줄로 쓴다. 종목 줄은 왼쪽 위에 종목과
-   그 오른쪽 매수·매도를, 그 아래 수량을 쓰고, 오른쪽 위에 거래 금액을, 그 아래 낸 주문은 체결한 서울 시각 뒤 "체결"이나 주문한 서울 시각 뒤 "미체결"을, 보낼 주문은 달러 금액을 쓴다.
-   미체결 주문의 금액은 회색으로 쓴다. 토스에 주문을 낸 블록은 상태 표식을 두지 않는다. 집행 시각 전의 집행 요청
+/* 거래 내역 화면은 날짜와 출처마다 블록 하나를 맨 위가 최신이 되게 쌓는다. 거래 내역 절 제목 오른쪽에 전체·LLM 매수·일반 매수 단일 선택 필터를 두고, 제목 아래 기간 투자액을
+   평가금 합계와 같은 큰 글씨로 쓴다. 블록 위 줄 왼쪽에 날짜를, 오른쪽 끝에 출처 스티커(LLM 매수는 지수색, 일반 매수는 회색)를 쓴다. 그 아래 목표 배율 갭
+   (목표 배율 − 그 블록 거래 직후 배율)을 쓰고, 주문 이유는 옅은 바탕의 둥근 상자에 담아 블록의 다른 글씨와 가른다. 토스에 낸 주문이 있으면 낸 주문마다, 없으면 보낼 주문을
+   종목 줄로 쓴다. 종목 줄은 왼쪽 위에 종목과 그 오른쪽 매수·매도를, 그 아래 수량을 쓰고, 오른쪽 위에 거래 금액을, 그 아래 낸 주문은 체결하거나 주문한 서울 시각을,
+   보낼 주문은 달러 금액을 쓴다. 체결하지 못한 주문의 금액은 회색으로 쓴다. 집행 시각 전의 집행 요청
    블록은 거래 내역 절 위에 따로 두고, 맨 아래에 집행 안내와 취소·승인 단추를 둔다. 고른 결정의 단추는 눌린 모양으로 두고, 집행 시각이 지나면 두 단추를
-   모두 끈다. 결정을 기다리는 상태 표식은 지수색으로 칠한다. */
+   모두 끈다. */
 .trade { margin: 0 0 10px; padding: 14px 16px 6px; border-radius: 14px; background: rgba(255, 255, 255, .05); }
 .trade .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .trade .top b { font-size: 15.5px; font-weight: 700; color: var(--accent); }
 .trade .badge { flex: none; padding: 2px 8px; border-radius: 6px; background: rgba(255, 255, 255, .08); font-size: 12px; font-weight: 700; color: var(--hint); }
-.trade .badge.wait { background: color-mix(in srgb, var(--index) 18%, transparent); color: var(--index); }
-.trade .badge.done { color: var(--text); }
-.trade .badge.off { color: var(--dim); }
+.trade .badge.llm { background: color-mix(in srgb, var(--index) 18%, transparent); color: var(--index); }
+.trade-head { display: flex; justify-content: space-between; align-items: center; }
+.trade-head .seg { display: flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, .06); }
+.trade-head .seg button { height: 22px; padding: 0 9px; border: 0; border-radius: 7px; background: none; font: inherit; font-size: 12px; font-weight: 600; line-height: 22px; color: var(--hint); cursor: pointer; }
+.trade-head .seg button.on { background: rgba(255, 255, 255, .16); color: #fff; font-weight: 700; }
+.trade-sum { margin: 0 0 14px; cursor: default; }
 .trade .side { margin-left: 6px; font-size: 13px; font-weight: 600; }
 .trade .lev { margin-top: 4px; font-size: 13px; color: var(--dim); }
 .trade .why { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, .05); font-size: 13.5px; line-height: 1.5; color: var(--hint); }
