@@ -2,7 +2,7 @@
    그 아래 그 지수 종목의 평가금 합계를 요약 절 그림 카드의 값과 같은 크기로 크게 쓴 뒤 수익·수익률을 쓴다. 합계와 수익·수익률은 처음에 가려 두고(`veil`)
    그 자리에 합계와 같은 크기의 회색 글씨로 "평가 금액 보기"를 쓴다. 그 자리를 누를 때마다 가림을 벗기거나 다시 씌운다. 그 아래 배율·누적 수익률·초과 수익률 그림 카드 세 장을
    넘기는 묶음과 집행 신호등 카드를 둔다. 수익·수익률과 그림 카드 묶음 사이는 24px 띄운다. 옵티마이저 게이트가 초록이면 신호등 카드에 지수색 테두리를 두르고 누를 수 있게 한다(`go`).
-   둘째 절 상세 보유 종목은 종목마다 이름과 수량, 평가금과 수익·수익률을 쓰고, 종목 줄 아래 12px 띄워 거래 내역 화면을 여는 긴 단추를 둔다. 맨 아래 절 내 계좌는 원화·달러 주문 가능 현금과
+   둘째 절 상세 보유 종목은 종목마다 이름과 수량, 평가금과 수익·수익률을 쓰고, 종목 줄 아래 24px 띄워 거래 내역 화면을 여는 긴 단추를 둔다. 맨 아래 절 내 계좌는 원화·달러 주문 가능 현금과
    대기자금(SGOV)을 종목과 같은 줄 모양으로 쓴다. 종목 줄은 둘째 줄이 한쪽에만 있어도 양쪽 첫 줄의 위를 맞춘다. 표시 단추는 옅은 바탕에 고른 칸을 밝게 칠한다. 손익과 매수는 빨간색, 손실과 매도는 파란색으로 쓴다.
    글씨는 다른 페이지와 같은 위계로 쓴다. 합계는 그림 카드의 값과 같은 30px 굵은 글씨, 거래 블록의 날짜는 그림 카드 이름과 같은 15.5px 굵은 글씨,
    수익·수익률 줄과 종목 줄의 이름·값은 본문과 같은 15px, 종목 줄의 둘째 줄은 13px 회색으로 쓴다. 종목 줄의 값은 이름보다 굵게 쓴다.
@@ -18,7 +18,7 @@
 .asset-sum b { display: block; margin-bottom: 3px; font-size: 30px; font-weight: 800; letter-spacing: -.5px; color: var(--accent); }
 .asset-sum b.veiled { color: var(--hint); }
 .asset-sum.veil > :not(.veiled), .asset-sum:not(.veil) > .veiled { display: none; }
-.asset-trades { display: flex; justify-content: space-between; align-items: center; width: 100%; height: 48px; margin: 12px 0 0; padding: 0 14px 0 16px; border: 0;
+.asset-trades { display: flex; justify-content: space-between; align-items: center; width: 100%; height: 48px; margin: 24px 0 0; padding: 0 14px 0 16px; border: 0;
                 border-radius: 12px; background: rgba(255, 255, 255, .05); font: inherit; font-size: 15px; font-weight: 600; color: var(--text); cursor: pointer; }
 .asset-trades svg { color: var(--dim); }
 .signal { margin: 20px 0 8px; padding: 4px 16px; border-radius: 12px; background: rgba(255, 255, 255, .05); line-height: 1.4; letter-spacing: -.2px; }
