@@ -6,71 +6,106 @@ import { indicators } from "./macro";
 import { indexMap } from "./market";
 import { figures } from "./outlook";
 import { indexPick, latest } from "../shared/chrome";
-import { marketed } from "../shared/data";
+import { marketed, relist, reportPart } from "../shared/data";
 import { help } from "../shared/help";
 import { subscribe } from "../shared/live";
 import { motion, settle, settleStart } from "../shared/motion";
-import { key, life, query, report, returned } from "../shared/route";
-import { fold, heads, toneTags, trail } from "../shared/sections";
+import { key, life, query, report, reshow, returned } from "../shared/route";
+import { fold, notes, toneTags, trail } from "../shared/sections";
 import { feelPress, feelSlide } from "../shared/telegram";
 import { viewer } from "../shared/viewer";
 // 리포트 화면과 이슈 화면을 그린다. `body`는 `r/{키}/report.html`이고, `listing`은 `r/index.json`이다.
 // 리포트 화면과 이슈 화면은 `mount`로 그리고 `unmount`로 걷는다. 화면이 거는 손길과 받는 값은 수명(`life`)에 묶여 있고, `unmount`는 페이지를 여는 함수를 비운다.
-export const mount = (root, { body, listing, cards, history }) => reportPage(body, listing, cards, history);
+export const mount = (root, { body, listing, cards, history, outlook }) => reportPage(body, listing, cards, history, outlook);
 export const unmount = () => unturn();
-function reportPage(body, listing, cards, history) {
+// 판단이 올라와 화면을 그 자리에서 다시 그릴 때(`arrive`) 화면 위치와 예측 단추 상태를 다음 화면에 넘긴다.
+let carry = null;
+const OUTLOOK = ["현재 상태", "주요 분기와 예측", "종합 시나리오"];
+function reportPage(body, listing, cards, history, given) {
   const { signal } = life;
+  const kept = carry;
+  carry = null;
   settleStart();
-  const entry = listing[key];
+  const index = key.split("-")[1], entry = listing[key], isLatest = key === latest(listing, index);
+  // `pend`는 가장 늦은 리포트의 판단 날짜 지점(`entry.point`)보다 늦은 실시간 값의 날짜 지점이다. 그 지점의 판단은 아직 올라오지 않았다.
+  // 설명 세 절(`noted`)은 슬라이더에서 레버를 놓은 날짜 판단의 `outlook.json`으로 바꾸고, 예측 단추(`aimed`)가 켜져 있을 때만 보인다.
+  let pend = null, rewind = null, noted = null, aimed = !!kept?.aim, seq = 0;
+  const joined = (value) => (value ? Object.values(value.sections).join("") : "");
+  const load = (point) => {
+    const hit = Object.keys(listing).find((name) => listing[name].index === index && listing[name].point === point);
+    const mine = ++seq;
+    (hit ? reportPart(hit, "outlook", listing).catch(() => null) : Promise.resolve(null)).then((value) => {
+      if (signal.aborted || mine !== seq) return;
+      noted?.set(joined(value), value?.point ?? point);
+    });
+  };
+  const view = { aim: aimed, pending: () => pend, release: load, watch: (on) => { aimed = on; noted?.show(on); } };
   if (entry) {
     document.title = `${entry.title} ${entry.day}`;
-    // 머리 상자 위 날짜 줄은 "2026년 11월 13일 (금) 09:10 KST"처럼 쓰고, 오른쪽에 목록 항목의 `stage`로 판단 배치의 단계를 쓴다. `stage`가 없는 항목은 본 리포트다.
-    // 시각은 목록 항목을 쓴 시각(`updated`)과, 리포트 날짜의 프리장·정규장 값과 리포트 날짜 앞 세션의 애프터장 값의 체결 시각 가운데 가장 늦은 서울 시각이다.
-    // 시각은 리포트 날짜 0시(서울 시각)부터 센 시와 분으로 쓴다. 전날 정규장이 열릴 때 만든 사전 리포트처럼 0시 앞의 시각은 "-00:30 KST"처럼 앞에 -를 붙여 쓰고, 날짜는 리포트 날짜 그대로 둔다.
+    // 머리 상자 위 날짜 줄은 "2026년 11월 13일 (금) 09:10 KST"처럼 쓰고, 오른쪽에 판단 배치의 단계를 쓴다. 날짜와 단계 표시는 `entry.point`와 실시간 값의 날짜 지점으로 정한다.
+    // 가장 늦은 리포트의 판단이 아직 없으면 날짜는 그 날짜 지점이고 단계는 "분석 전"이며, 실시간 값의 `progress`가 그 지점의 단계를 적었으면 "분석 중 N%"다. 그 밖에는 "분석 완료"다.
+    // 시각은 목록 항목을 쓴 시각(`updated`)과, 보이는 날짜 지점의 프리장·정규장·애프터장 값의 체결 시각 가운데 가장 늦은 서울 시각이다. 판단이 없는 날짜는 실시간 값의 체결 시각만 쓴다.
+    // 시각은 보이는 날짜 0시(서울 시각)부터 센 시와 분으로 쓴다. 전날 정규장이 열릴 때 만든 판단처럼 0시 앞의 시각은 "-00:30 KST"처럼 앞에 -를 붙여 쓴다.
     // 실시간 값을 새로 받을 때마다 다시 쓴다.
-    const [year, month, mday] = entry.date.split("-");
     const day = document.getElementById("day");
-    day.textContent = `${+year}년 ${+month}월 ${+mday}일 (${"일월화수목금토"[new Date(entry.date).getUTCDay()]})`;
-    const clock = day.appendChild(document.createTextNode(""));
+    const dated = (text) => `${+text.slice(0, 4)}년 ${+text.slice(5, 7)}월 ${+text.slice(8, 10)}일 (${"일월화수목금토"[new Date(text).getUTCDay()]})`;
+    const label = day.appendChild(document.createTextNode("")), clock = day.appendChild(document.createTextNode(""));
     const updated = Date.parse(`${entry.updated.replace(" ", "T")}:00+09:00`);
-    const midnight = Date.parse(`${entry.date}T00:00:00+09:00`);
-    const stamp = (moment) => {
-      const minutes = Math.floor((moment - midnight) / 60e3), size = Math.abs(minutes);
-      clock.data = ` ${minutes < 0 ? "-" : ""}${String(Math.floor(size / 60)).padStart(2, "0")}:${String(size % 60).padStart(2, "0")} KST`;
+    const pill = day.appendChild(document.createElement("span"));
+    let shown = 0, shownFor = null;
+    const paint = (found) => {
+      const text = pend ?? entry.date, at = pend ?? entry.point ?? entry.date;
+      label.data = dated(text);
+      const times = Object.values(found?.points?.[index]?.[at] ?? {}).map((value) => Date.parse(value?.time)).filter(Number.isFinite);
+      const moments = pend ? times : [updated, ...times];
+      if (moments.length) {
+        const minutes = Math.floor((Math.max(...moments) - Date.parse(`${text}T00:00:00+09:00`)) / 60e3), size = Math.abs(minutes);
+        clock.data = ` ${minutes < 0 ? "-" : ""}${String(Math.floor(size / 60)).padStart(2, "0")}:${String(size % 60).padStart(2, "0")} KST`;
+      } else clock.data = "";
+      const progressed = found?.progress, own = pend && progressed?.date === pend && progressed.indexes?.[index], plan = progressed?.plan || [];
+      let state = pend ? "pre" : "done", name = pend ? "분석 전" : "분석 완료";
+      if (own && plan.length >= 2 && plan.at(-1)) {
+        // 진척률은 지금 단계의 누적 분에 그 단계에 머문 분을 다음 단계의 몫까지만 더해 마지막 누적 분으로 나눈 값이고, 줄지 않으며 99%에서 멈춘다.
+        const step = Math.min(own.step, plan.length - 2);
+        const inside = Math.min(Math.max((Date.now() - Date.parse(own.since)) / 60e3, 0), plan[step + 1] - plan[step]);
+        if (shownFor !== pend) { shownFor = pend; shown = 0; }
+        shown = Math.max(shown, Math.min(99, Math.floor((plan[step] + inside) / plan.at(-1) * 100)));
+        state = "running";
+        name = `분석 중 ${shown}%`;
+      }
+      pill.className = `stage ${state}`;
+      pill.textContent = name;
     };
-    stamp(updated);
+    paint(null);
+    // 판단이 올라왔는지는 날짜 지점이 있는 동안 실시간 값을 받는 회차마다 `r/index.json`을 다시 받아 본다. 지점의 항목이 생기면 `arrive`로 화면을 그 자리에서 다시 그린다.
+    let asking = false;
+    const arrive = (name) => {
+      carry = { aim: aimed, y: scrollY };
+      const params = new URLSearchParams(location.search);
+      params.set("r", name);
+      window.history.replaceState(window.history.state, "", `?${params}`);
+      reshow(false);
+    };
     subscribe((found) => {
-      const values = [found.early[entry.index]?.[entry.date],
-                      ...Object.entries(found.after[entry.index] || {}).filter(([session]) => session < entry.date).map(([, value]) => value)];
-      stamp(Math.max(updated, ...values.filter(Boolean).map((value) => Date.parse(value.time))));
-    });
-    const stage = entry.stage || "done";
-    const pill = day.appendChild(Object.assign(document.createElement("span"), { className: `stage ${stage}`,
-      textContent: { pre: "분석 전", running: "분석 중", done: "분석 완료" }[stage] }));
-    // 분석 중이면 실시간 값을 받는 회차마다 `progress`와 `r/index.json`을 새로 본다. 회차는 `shared/live.ts`의 `subscribe`가 정하고, 값이 같은 회차에도 부른다.
-    // `progress`는 build.py `progress`가 판단 배치 동안 10분마다 지수마다 적는 단계(`step`)와 그 단계에 닿은 시각(`since`), 단계마다 그 단계에 닿기까지
-    // 걸리는 분(`plan`)이다. 진척률은 지금 단계의 누적 분에 그 단계에 머문 분을 다음 단계의 몫까지만 더해 마지막 누적 분으로 나눈 값이고, 줄지 않으며 99%에서 멈춘다.
-    // `r/index.json`의 항목에서 `stage`가 없어지면 본 리포트가 올라온 것이므로 미니 앱을 다시 연다.
-    if (stage === "running") {
-      let shown = 0;
-      subscribe((found) => {
-        const progressed = found.progress;
-        fetch("r/index.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}))
-          .then((indexed) => {
-            if (signal.aborted) return;
-            if (indexed[key] && !indexed[key].stage) return location.reload();
-            const own = progressed.date === entry.date && progressed.indexes?.[entry.index], plan = progressed.plan || [];
-            if (!own || plan.length < 2 || !plan.at(-1)) return;
-            const step = Math.min(own.step, plan.length - 2);
-            const inside = Math.min(Math.max((Date.now() - Date.parse(own.since)) / 60e3, 0), plan[step + 1] - plan[step]);
-            shown = Math.max(shown, Math.min(99, Math.floor((plan[step] + inside) / plan.at(-1) * 100)));
-            pill.textContent = `분석 중 ${shown}%`;
-          });
-      }, true);
-    }
+      const next = isLatest && entry.point
+        ? Object.keys(found.points?.[index] || {}).filter((point) => point > entry.point).sort()[0] ?? null : null;
+      if (next !== pend) {
+        pend = next;
+        rewind?.refresh();
+      }
+      paint(found);
+      if (!pend || asking) return;
+      asking = true;
+      relist().then((fresh) => {
+        asking = false;
+        if (signal.aborted || !fresh) return;
+        const hit = Object.keys(fresh).find((name) => fresh[name].index === index && fresh[name].point === pend);
+        if (hit) arrive(hit);
+      });
+    }, true);
   }
   const date = entry ? entry.date : `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
-  if (key !== latest(listing, key.split("-")[1])) {
+  if (!isLatest) {
     const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
     document.getElementById("past").textContent = `${Math.max(1, Math.round((Date.parse(today) - Date.parse(date)) / 864e5))}일 전 리포트 탐색 중`;
     document.documentElement.classList.add("past");
@@ -82,7 +117,6 @@ function reportPage(body, listing, cards, history) {
   indexPick(listing);
   const focus = +query.get("issue") || 0;
   // 시장 페이지 첫 절인 한 눈에 보기 절의 제목을 미국 거시 지표 절 제목 앞에 둔다. 미국 거시 지표 절이 없으면 문서 끝에 둔다.
-  const index = key.split("-")[1];
   const glance = focus ? null : Object.assign(document.createElement("h2"), { textContent: "한 눈에 보기" });
   if (glance) {
     const macro = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "미국 거시 지표");
@@ -90,9 +124,19 @@ function reportPage(body, listing, cards, history) {
   }
   const pages = focus ? null : paginate();
   if (!focus) {
-    figures(date, cards);
-    heads("지수와 예측");
-    fold("지수와 예측");
+    // 설명 세 절은 리포트 본문에서 빼고 `outlook.json`으로 다시 붙인다. `outlook.json`이 없는 리포트는 설명 절을 보이지 않는다.
+    const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "지수와 예측");
+    for (let node = head?.nextElementSibling, drop = false; node && node.tagName !== "H2"; node = node.nextElementSibling) {
+      if (node.tagName === "H3") drop = OUTLOOK.includes(node.querySelector("mark")?.textContent.trim());
+      if (drop) node.dataset.drop = "";
+    }
+    report.querySelectorAll("[data-drop]").forEach((node) => node.remove());
+    rewind = figures(date, cards, view);
+    if (rewind?.box) {
+      noted = notes(rewind.box);
+      noted.set(joined(given), given?.point ?? "");
+      noted.show(aimed);
+    }
     indicators(date);
     marketed.then(({ map }) => {
       if (signal.aborted) return;
@@ -103,11 +147,8 @@ function reportPage(body, listing, cards, history) {
   issueCharts();
   toneTags(report);
   fold("상세 이슈 해설", 4, ["이슈 해설"]);
-  // 본 리포트의 이슈 해설은 그 리포트의 분석 완료 시각을 기준으로 하고, 사전 리포트의 이슈 해설은 앞 날짜의 가장 늦은 본 리포트에서 옮겨 왔으므로 그 리포트의 분석 완료 시각을 기준으로 한다.
-  const source = entry && !entry.stage ? entry : listing[Object.keys(listing)
-    .filter((name) => listing[name].index === index && !listing[name].stage && listing[name].date < date)
-    .sort((a, b) => listing[b].date.localeCompare(listing[a].date))[0]];
-  section("상세 이슈 해설", focus, query.get("at"), source?.written, history);
+  // 이슈 해설은 그 리포트의 분석 완료 시각(`written`)을 기준으로 한다.
+  section("상세 이슈 해설", focus, query.get("at"), entry?.written, history);
   // 번호 이슈 뒤 항목의 번호는 `section`이 먼저 붙인다.
   report.querySelectorAll("h3").forEach(trail);
   // 주소로 바로 연 이슈 화면과 종목 상세의 뒤로가기 단추로 연 리포트 화면(`land`)은 단추가 적은 페이지(이슈 화면은 이슈 페이지, 종목 상세는 시장 페이지)를
@@ -132,6 +173,7 @@ function reportPage(body, listing, cards, history) {
     assets(pages, PAGES.map(([name]) => name), place, land ? landPage : history.state?.page);
   }
   settle();
+  if (kept) scrollTo(0, kept.y);
   // 일정과 예측처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
   // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
   // 손가락을 움직이지 않고 한 번 누르면 닫는다.

@@ -15,12 +15,12 @@ import { feelPress } from "../shared/telegram";
 // Montecarlo 그림은 원래 이벤트 캘린더 절에 있으므로 그 자리에서는 뺀다. 12M + Predictions가 없는 리포트는 두 장을 넘긴다.
 // 묶음 위에는 그림 이름 탭을 둔다. 탭을 누르면 그 그림으로 넘기고, 넘기면 보고 있는 그림의 탭을 밝힌다.
 // 그림 카드 값(`given`, `build.py`가 쓴 `r/{키}/cards.json`. 그 파일이 없는 지난 리포트는 리포트 끝의 `#cards`)이 있는 리포트는 그림 대신 주가와 예측, 일정, 권장 배율 카드 세 장을 넘긴다.
-export function figures(date, given = null) {
+export function figures(date, given = null, view = { aim: false, pending: () => null, release() {}, watch() {} }) {
   const data = report.querySelector("#cards");
   data?.remove();
   const cards = given ?? (data && JSON.parse(data.textContent));
   if (cards) {
-    const set = summaryCards(cards, date);
+    const set = summaryCards(cards, date, view);
     ticker.innerHTML = set.quote();
     subscribe((found) => {
       set.live(found, key.split("-")[1]);
@@ -34,10 +34,11 @@ export function figures(date, given = null) {
       bar.appendChild(button);
     });
     const change = (i) => [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j));
-    const head = report.querySelector("h2"), box = slider(set.slides, head, { change, name: "cards", feel: true });
+    const head = report.querySelector("h2"), box = slider(set.slides, head, { change, name: "cards", feel: true,
+      lock: (i) => (i > 0 && set.pending() ? "아직 이전 정규장 분석이 완료되지 않았어요" : null) });
     box.prepend(bar);
-    cardRewind(box, date, set);
-    return;
+    const rewind = cardRewind(box, date, set, view);
+    return { box, refresh: () => rewind.update() };
   }
   const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
   const chart = pick("chart"), tree = pick("tree"), predict = pick("predict");
@@ -59,7 +60,7 @@ export function figures(date, given = null) {
 // 요약 절의 그림 카드 세 장(주가와 예측, 일정과 예측, 권장 배율)을 만든다. 카드 이름 탭에는 "주가와 예측", "일정", "권장 배율"로 쓴다. `data`는 `build.py` `summary_cards`의 값이다.
 // 돌려준 `show(frame)`은 되감기 슬라이더가 고른 날짜의 판단(`cards.json`의 프레임)으로 카드를 다시 그린다.
 // 주가와 예측 카드의 종가 바탕(날짜·종가·지난 예측)은 늘 리포트 날짜의 값이고, 고른 날짜의 판단만 그 위에 바꿔 그린다.
-export function summaryCards(data, date) {
+export function summaryCards(data, date, view) {
   // 카드는 모두 같은 높이(`H`)의 그림에 같은 높이(`B`)의 가로축을 긋는다.
   const dates = data.dates, hist = data.history, W = 320, H = 236, B = 212;
   // 예측 선과 면, 범위 값 글씨는 지수색 그라데이션(`color`)으로 칠한다.
@@ -81,7 +82,7 @@ export function summaryCards(data, date) {
   let found = {}, loaded = null;
   // 프레임 `f`의 판단에서 기준 가격 날짜 다음 지점의 값 [값, 위 줄 글씨, 세션(`pre`, `after`, `regular`), 체결 뉴욕 시각, 실시간 값]. 없으면 null이다.
   // 지점의 정규장 값(`regular`)이 있으면 그 값이고, 없으면 프리장 값(`pre`), 없으면 앞 세션의 애프터장 값(`after`)이며, 없으면 판단의 기준 가격(애프터장 마지막 값)이다.
-  // 값은 기준 가격 날짜 종가에 실시간 값의 비율을 곱한 값이다. 나스닥의 선물 시간대 애프터장 값(`basis`가 `futures`)은 위 줄 글씨에 "선물 가격"을 덧붙인다.
+  // 값은 기준 가격 날짜 종가에 실시간 값의 비율을 곱한 값이다. 나스닥의 선물 시간대 애프터장 값(`basis`가 `futures`)은 위 줄 글씨에 "선물 가격"을 덧붙이고 시각은 선물 체결 시각(`futures_time`)으로 쓴다. 머리 상자 아래 줄에는 "애프터마켓" 대신 "선물 가격"을 쓴다.
   // 리포트 날짜 판단의 종가가 이미 있는 지점(`dates`에 든 지점)에는 판단의 종가를 먼저 그리고 실시간 값을 쓰지 않는다. 지난 날짜의 판단은 그날 프리장 값만 쓴다.
   const nextOf = (f) => {
     const own = f.days[1], rec = f.day === date && dates.includes(own) ? {} : found[own] ?? {}, base = hist[dates.indexOf(f.base_date)];
@@ -89,7 +90,7 @@ export function summaryCards(data, date) {
     if (pick.regular?.ratio != null) return [base * pick.regular.ratio, sessionAt("정규장", pick.regular.time), "regular", pick.regular.time, pick.regular];
     if (pick.pre?.ratio != null) return [base * pick.pre.ratio, sessionAt("프리마켓", pick.pre.time), "pre", pick.pre.time, pick.pre];
     if (pick.after?.ratio != null) {
-      const text = sessionAt("애프터마켓", pick.after.time);
+      const text = sessionAt("애프터마켓", pick.after.time, pick.after.basis === "futures" ? pick.after.futures_time ?? pick.after.time : pick.after.time);
       return [base * pick.after.ratio, pick.after.basis === "futures" ? `${text} · 선물 가격` : text, "after", pick.after.time, pick.after];
     }
     return [f.base, sessionAt("애프터마켓", afterEnd(f.base_date)), "after", afterEnd(f.base_date), null];
@@ -126,7 +127,7 @@ export function summaryCards(data, date) {
   const price = (() => {
     const c = card(""), s = c.svg, clipId = "price-clip", title = c.title;
     c.box.querySelector(".val b").className = "";
-    let late = false, chosen = false, ext = null, aim = false;
+    let late = false, chosen = false, ext = null, aim = false, want = !!view.aim, first = true;
     // 고른 날짜 값의 정규장 다음 세션 [값, 위 줄 글씨, 세션(`pre`, `after`, `regular`)]. 없으면 null이다. 리포트 날짜는 `upcoming()`이고,
     // 지난 날짜의 정규장 다음 세션은 그날 프리장 값의 앞 세션이 그날 판단의 기준 가격 날짜이면 그 프리장 값이고, 아니면 그날 판단의 기준 가격인 애프터장 값이다.
     const extra = (f) => nextOf(f);
@@ -280,12 +281,21 @@ export function summaryCards(data, date) {
     wider.addEventListener("click", () => move(-1));
     narrower.addEventListener("click", () => move(1));
     zoomDrag(zoom.querySelector(".steps"), () => span, (i) => move(i - span));
-    toggle.addEventListener("click", () => {
-      feelPress();
-      aim = !aim;
+    // 예측 단추를 누른 상태(`want`)는 카드를 넘겨도 그대로 두고, 판단이 없는 날짜(`frame.pending`)에서만 단추를 막고 예측을 끈다. `aim`은 그린 상태다.
+    // 켠 상태가 바뀔 때마다 설명 절을 보이거나 숨기도록 `view.watch`를 부른다.
+    const sync = () => {
+      aim = want && !frame.pending;
       ahead = aim ? 1 : 0;
+      if (first) { first = false; seen = ahead; }
+      toggle.disabled = !!frame.pending;
       toggle.classList.toggle("on", aim);
       toggle.setAttribute("aria-pressed", aim);
+      view.watch(aim);
+    };
+    toggle.addEventListener("click", () => {
+      feelPress();
+      want = !want;
+      sync();
       const from = span;
       settle();
       animate(from, seen);
@@ -321,13 +331,14 @@ export function summaryCards(data, date) {
     const show = (f) => {
       if (f !== frame) chosen = false;
       frame = f;
+      sync();
       const from = span;
       settle();
-      // 고른 날짜의 종가가 그림 밖으로 나가 기간을 넓혔으면 − 단추처럼 그림을 이어 옮긴다. 기간을 옮기는 도중이면 다음 장면이 고른 날짜로 그린다.
-      if (span !== from) animate(from, seen);
+      // 고른 날짜의 종가가 그림 밖으로 나가 기간을 넓혔거나 예측을 켜고 끈 상태가 바뀌었으면 − 단추처럼 그림을 이어 옮긴다. 기간을 옮기는 도중이면 다음 장면이 고른 날짜로 그린다.
+      if (span !== from || ahead !== seen) animate(from, seen);
       else if (!raf) tween(span, span, 1);
     };
-    return { box: c.box, show };
+    return { box: c.box, show, pending: () => !!frame?.pending };
   })();
 
   // 일정과 예측: 등락률 분위수의 10~90% 옅은 면과 25~75% 면, 50% 실선을 주가와 예측 카드의 예측과 같은 지수색으로 그린다. 위쪽 번호는 이슈 일정이 있는 날이고,
@@ -497,7 +508,7 @@ export function summaryCards(data, date) {
     const next = upcoming();
     const line = (name, value) => `<small>${name} ${fmt(value)} ${signed(rate(value / hist[close] - 1), 2)}%</small>`;
     const open = next[2] === "regular", value = open ? next[0] : hist[close], move = open ? rate(next[0] / hist[close] - 1) : day;
-    const tail = open ? "" : line(next[2] === "pre" ? "프리마켓" : "애프터마켓", next[0]);
+    const tail = open ? "" : line(next[2] === "pre" ? "프리마켓" : next[4]?.basis === "futures" ? "선물 가격" : "애프터마켓", next[0]);
     const idx = loaded && `<small class="loaded">지수 ${fmt(loaded.price)} · ${clock(loaded.loaded)} KST 로드</small>`;
     return `<span class="row"><span>${INDEX_NAME[key.split("-")[1]]}</span><b class="price ${tone(move)}">${fmt(value)}</b>`
       + `<b class="${tone(move)}">${signed(move, 2)}%</b>${tail}${idx || ""}</span>`;
@@ -512,5 +523,5 @@ export function summaryCards(data, date) {
     if (!changed) return;
     show(frame);
   };
-  return { names: parts.map(([, name]) => name), slides: parts.map(([part]) => [part.box]), show, quote, live };
+  return { names: parts.map(([, name]) => name), slides: parts.map(([part]) => [part.box]), show, quote, live, pending: () => !!frame.pending };
 }

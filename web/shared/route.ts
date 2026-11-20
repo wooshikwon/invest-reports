@@ -115,17 +115,19 @@ export function present() {
       return fetch(`r/stocks/${symbol}.json`, { cache }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then((data) => mount(stockScreen, { data }));
     }
-    // 리포트 화면은 요약 카드 값을 받은 뒤 그리고, 이슈 과거 맥락은 그린 뒤 받아 붙인다. 이슈 화면은 이슈 과거 맥락을 받은 뒤 그리고 요약 카드 값은 받지 않는다.
+    // 리포트 화면은 요약 카드 값과 설명 세 절(`outlook`)을 받은 뒤 그리고, 이슈 과거 맥락은 그린 뒤 받아 붙인다. 이슈 화면은 이슈 과거 맥락을 받은 뒤 그리고 요약 카드 값은 받지 않는다.
     const text = reportText(key), issue = !!query.get("issue");
     return listed.then((listing) => {
       const history = reportPart(key, "history", listing).catch(() => null);
-      return Promise.all([text, issue ? null : reportPart(key, "cards", listing), issue ? history : null]).then(([body, cards, past]) => {
+      const outlook = issue ? null : reportPart(key, "outlook", listing).catch(() => null);
+      return Promise.all([text, issue ? null : reportPart(key, "cards", listing), issue ? history : null, outlook]).then(([body, cards, past, notes]) => {
         delete texts[found];
         delete parts[`${found}/history`];
         delete parts[`${found}/cards`];
+        delete parts[`${found}/outlook`];
         if (signal.aborted) return;
         arrive();
-        mount(reportScreen, { body, listing, cards, history: issue ? past : history });
+        mount(reportScreen, { body, listing, cards, history: issue ? past : history, outlook: notes });
       });
     });
   }).catch(() => {

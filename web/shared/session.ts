@@ -6,10 +6,10 @@ export const usZone = (day) => NEW_YORK.formatToParts(new Date(`${day}T17:00:00Z
 // 그림의 가로축은 거래일 번호이고, 정규장 종가(16:00 ET)를 그날 번호에 놓는다. 한 거래일은 다음 종가까지의 24시간이다.
 // 판단의 기준 가격은 애프터장이 닫히는 20:00 ET의 체결가이므로 일정과 예측 카드는 기준 가격을 종가에서 `BASE_AFTER` 거래일 뒤에 놓는다.
 export const BASE_AFTER = 4 / 24;
-// 기준 시각 글씨는 "미국 11/17 애프터마켓, 08:15 KST"처럼 "미국" 뒤에 세션의 뉴욕 날짜, 세션 이름을 쓰고 쉼표 뒤에 체결 시각의 서울 시각을 쓴다(`sessionAt(name, time)`).
+// 기준 시각 글씨는 "미국 11/17 애프터마켓, 08:15 KST"처럼 "미국" 뒤에 세션의 뉴욕 날짜, 세션 이름을 쓰고 쉼표 뒤에 체결 시각의 서울 시각을 쓴다(`sessionAt(name, time)`). 세 번째 값 `clock`을 주면 서울 시각을 `time` 대신 `clock`으로 쓴다.
 // `time`은 뉴욕 시각 글씨이므로 앞 열 글자가 세션의 뉴욕 날짜다. 종가의 기준 시각은 정규장이 닫히는 16:00 ET(`closeAt(day)`)이고,
 // `afterEnd(day)`는 그날 애프터장이 닫히는 20:00 ET의 뉴욕 시각 글씨다.
-export const sessionAt = (name, time) => `미국 ${time.slice(5, 7)}/${time.slice(8, 10)} ${name}, ${new Date(Date.parse(time) + 9 * 3600e3).toISOString().slice(11, 16)} KST`;
+export const sessionAt = (name, time, clock = time) => `미국 ${time.slice(5, 7)}/${time.slice(8, 10)} ${name}, ${new Date(Date.parse(clock) + 9 * 3600e3).toISOString().slice(11, 16)} KST`;
 export const nyAt = (day, clock) => `${day}T${clock}:00${usZone(day) === "EDT" ? "-04:00" : "-05:00"}`;
 export const closeAt = (day) => nyAt(day, "16:00"), afterEnd = (day) => nyAt(day, "20:00");
 // 기준 시각 글씨를 `kind` 세션(`regular`, `after`, `pre`)의 색으로 쓰는 글씨 조각이다.

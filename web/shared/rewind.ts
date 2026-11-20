@@ -10,8 +10,9 @@ export const REWIND_SPAN = 90, rewindOffset = (day, date) => Math.round((Date.pa
 
 // `box` 끝에 지난 판단 날짜를 고르는 슬라이더를 둔다. `days`는 고를 수 있는 날짜(오름차순)이고 `start`번 날짜에서 시작한다.
 // 슬라이더는 리포트 날짜와 그 앞 90일을 늘 같은 폭으로 보여 주고, 레버는 `days`의 날짜에만 선다. 레버가 선 날짜가 정해질 때마다 그 번호로 `pick`을 부른다.
+// 손을 떼거나 손길이 끊기면 레버가 선 날짜의 번호로 `release`를 한 번 부른다(날짜마다 부르는 `pick`과 별개다).
 // 슬라이더는 "기준 날짜 이동" 단추를 누르면 열리고, 레버 밖의 막대를 누르면 닫힌다. 날짜는 레버를 잡고 옮길 때만 바뀌고, 닫아도 고른 날짜는 그대로 둔다.
-export function dial(box, date, days, start, pick) {
+export function dial(box, date, days, start, pick, release = null) {
   const offset = (day) => rewindOffset(day, date);
   const control = document.createElement("div");
   control.className = "rewind shut";
@@ -61,7 +62,7 @@ export function dial(box, date, days, start, pick) {
     range.value = Math.round(Math.min(1, Math.max(0, (x - 9) / (range.clientWidth - 18))) * REWIND_SPAN);
     range.dispatchEvent(new Event("input"));
   });
-  ["pointerup", "pointercancel"].forEach((type) => grip.addEventListener(type, hold(false)));
+  ["pointerup", "pointercancel"].forEach((type) => grip.addEventListener(type, () => { hold(false)(); release?.(wanted); }));
   box.appendChild(control);
   show(start);
 }
@@ -73,20 +74,38 @@ export const rewindFrames = (index) => (rewinds[index] ??= fetch(`r/rewind-${ind
   .then((r) => (r.ok ? r.json() : Promise.reject())).then((data) => data.frames).catch(() => { delete rewinds[index]; return null; }));
 // 그림 카드 묶음 아래에 지난 판단 날짜로 되감는 슬라이더를 둔다(build.py `r/rewind-{지수}/cards.json`). 리포트 날짜와 그 앞 날짜만
 // 고를 수 있고, 리포트 날짜가 되감기 범위에 없으면 슬라이더를 두지 않는다. 날짜를 고르면 그날 판단으로 카드를 다시 그린다.
-// 사전 리포트는 그 카드 값(`own`)을 리포트 날짜 자리에 두고, 앞 날짜의 판단과 함께 고르게 한다.
-export function cardRewind(box, date, set, own) {
-  rewindFrames(key.split("-")[1]).then((all) => {
-    if (!all) return;
-    const frames = all.filter((frame) => (own ? frame.day < date : frame.day <= date) && rewindOffset(frame.day, date) >= 0)
-      .concat(own ? [own] : []);
-    const start = frames.findIndex((frame) => frame.day === date);
-    if (start < 0) return;
-    let drawn = start, frame = 0;
-    const draw = () => { frame = 0; set.show(frames[drawn]); };
-    dial(box, date, frames.map((f) => f.day), start, (i) => {
+// `view.pending()`이 날짜 지점을 주면 그 지점의 판단이 아직 없으므로, 슬라이더 끝에 판단 없는 날짜(`pending: true`인 프레임, 가장 늦은 판단의 값에 날짜 지점 `point`만 바꾼 값이다)를 하나 더 두고 그 날짜에서 시작한다.
+// 사용자가 레버를 옮기기 전에는 `update()`가 늘 끝 날짜(판단 없는 날짜가 있으면 그 날짜)에 선다. `view.release(point)`는 레버에서 손을 뗀 날짜의 지점을 한 번 알린다. 돌려준 `update()`는 `view.pending()`이 바뀐 뒤 슬라이더를 다시 짓는다. 고른 날짜는 그대로 둔다.
+export function cardRewind(box, date, set, view) {
+  const at = (frame) => (frame.pending ? frame.point : frame.day);
+  let frames = null, touched = false, drawn = 0, raf = 0, latest = null, wait = null;
+  const draw = () => {
+    raf = 0;
+    set.show(frames[drawn]);
+    if (frames[drawn].pending) box.go(0);
+  };
+  const build = (keep) => {
+    box.querySelector(".rewind")?.remove();
+    wait = view.pending();
+    const top = wait ?? date;
+    const list = all.filter((frame) => frame.day <= date && rewindOffset(frame.day, top) >= 0);
+    frames = wait ? [...list, { ...latest, point: wait, pending: true }] : list;
+    const found = frames.findIndex((frame) => at(frame) === keep);
+    drawn = found < 0 ? frames.length - 1 : found;
+    set.show(frames[drawn]);
+    dial(box, top, frames.map(at), drawn, (i) => {
       if (i === drawn) return;
+      touched = true;
       drawn = i;
-      if (!frame) frame = requestAnimationFrame(draw);
-    });
+      if (!raf) raf = requestAnimationFrame(draw);
+    }, (i) => view.release(frames[i].point ?? frames[i].day));
+  };
+  let all = null;
+  rewindFrames(key.split("-")[1]).then((got) => {
+    if (!got) return;
+    all = got;
+    latest = all.find((frame) => frame.day === date);
+    if (latest) build(null);
   }).catch(() => {});
+  return { update() { if (frames && view.pending() !== wait) build(touched ? at(frames[drawn]) : null); } };
 }

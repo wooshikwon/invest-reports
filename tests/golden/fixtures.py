@@ -205,5 +205,10 @@ def split(data_root: Path, overlay: dict) -> dict:
         for name in parts:
             out[f"r/{key}/{name}.json"] = (json.dumps(values[name], ensure_ascii=False) + "\n").encode()
         entries[key]["parts"] = parts
+    # 다시 만든 자료의 `updated`는 다시 만든 시각이라 `NOW`보다 늦을 수 있다. 머리 상자 시각이 리포트 날짜 0시보다 하루 넘게 늦은 값으로 나오지 않도록 `written`으로 되돌린다.
+    cap = NOW.astimezone(KST).strftime("%Y-%m-%d %H:%M")
+    for entry in entries.values():
+        if entry.get("updated", "") > cap:
+            entry["updated"] = entry["written"]
     out["r/index.json"] = (json.dumps(entries, ensure_ascii=False, indent=1) + "\n").encode()
     return out

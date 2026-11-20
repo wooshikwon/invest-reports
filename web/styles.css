@@ -682,3 +682,10 @@ button.back::before { content: ""; position: absolute; inset: 0; border-radius: 
 .help-card li b { display: block; margin-bottom: 2px; color: var(--text); font-weight: 600; }
 .help-card p { margin: 0; color: var(--hint); font-size: 13.5px; line-height: 1.65; }
 .help-card p + p { margin-top: 8px; }
+
+/* 잠금으로 이동이 막히면 화면 아래에 뜨는 짧은 알림. 누르는 동작을 가로채지 않는다. */
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 20; max-width: calc(100vw - 48px); padding: 10px 16px;
+         border-radius: 12px; background: #2a2a2f; color: #fff; font-size: 14px; line-height: 1.4; text-align: center; transform: translateX(-50%);
+         box-shadow: 0 8px 24px rgba(0, 0, 0, .45); pointer-events: none; animation: toast-in .16s ease-out; }
+@keyframes toast-in { from { opacity: 0; } }
+.fold[hidden] { display: none; }

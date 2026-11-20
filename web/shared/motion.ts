@@ -22,7 +22,8 @@ export const glide = (from, to, set, done) => {
 // `fit`이면 넘기기가 멈춘 뒤와 슬라이드 높이가 바뀐 뒤 묶음 높이를 보고 있는 슬라이드에 맞춘다. `change`가 있으면 보고 있는
 // 슬라이드가 바뀔 때마다 그 번호로 `change`를 부른다. `start`번 슬라이드부터 보여 준다.
 // `feel`이면 보고 있는 슬라이드가 바뀔 때마다 선택 변경 진동을 낸다. 상자의 `go(i)`는 i번 슬라이드로 넘기고, `go(i, true)`는 넘기는 움직임 없이 바로 옮긴다.
-export function slider(slides, after, { fit = false, start = 0, change = null, name = "", area = null, feel = false } = {}) {
+// `lock(i)`이 알림 문구를 돌려주면 i번 슬라이드로 옮기지 못한다. 밀어서 넘기면 손을 뗀 뒤 보던 슬라이드로 튕겨 돌아오고, `go(i)`는 움직이지 않으며, 두 경우 모두 그 문구로 짧은 알림(`toast`)을 띄운다.
+export function slider(slides, after, { fit = false, start = 0, change = null, name = "", area = null, feel = false, lock = null } = {}) {
   const box = document.createElement("div");
   box.className = ["carousel", fit && "fit", name].filter(Boolean).join(" ");
   box.innerHTML = '<div class="track"></div>';
@@ -39,7 +40,7 @@ export function slider(slides, after, { fit = false, start = 0, change = null, n
   const fitHeight = () => { if (fit) track.style.height = `${track.children[current()].offsetHeight}px`; };
   // 손가락을 뗀 뒤 넘기기가 멈추면, 손을 댄 장에서 민 방향으로 지나간 장의 폭 1/5을 넘긴 만큼 장을 넘기고, 1/5을 넘기지 못하면
   // 손을 댄 장으로 맞춘다. 맞추는 동안 손을 다시 대면 맞추기를 그 위치에서 멈추고 새로 민 거리로 다시 정한다.
-  let timer, shown = start, felt = start, from = null, touching = false, aligning = null;
+  let timer, shown = start, felt = start, from = null, touching = false, aligning = null, rest = start;
   // 장을 옮기는 동안에는 한 장씩 멈추기를 끄고 `glide`로 옮긴다. 켜 두면 브라우저가 매 프레임 가까운 장으로 끌어당긴다.
   const stop = () => { aligning?.(); aligning = null; track.style.scrollSnapType = ""; };
   const slide = (i) => {
@@ -54,7 +55,12 @@ export function slider(slides, after, { fit = false, start = 0, change = null, n
   }, { passive: true });
   const settle = () => {
     if (touching) return;
-    const goal = target();
+    let goal = target();
+    const why = goal !== rest && lock?.(goal);
+    if (why) {
+      toast(why);
+      goal = rest;
+    } else rest = goal;
     if (Math.abs(track.scrollLeft - goal * step()) > 1) {
       from = goal;
       if (!aligning) slide(goal);
@@ -105,6 +111,9 @@ export function slider(slides, after, { fit = false, start = 0, change = null, n
   }
   box.go = (i, now = false) => {
     const goal = Math.min(slides.length - 1, Math.max(0, i));
+    const why = goal !== rest && lock?.(goal);
+    if (why) return toast(why);
+    rest = goal;
     if (!now) return slide(goal);
     stop();
     track.scrollLeft = goal * step();
@@ -139,6 +148,18 @@ export function slider(slides, after, { fit = false, start = 0, change = null, n
   if (change) later(() => change(start));
   return box;
 }
+// 화면 아래에 짧은 알림을 2.4초 동안 띄운다. 알림이 떠 있는 동안 다시 띄우면 문구만 바꾸고 시간을 새로 센다.
+let note = null, noted = 0;
+export const toast = (text) => {
+  if (!note?.isConnected) {
+    note = Object.assign(document.createElement("div"), { className: "toast" });
+    note.setAttribute("role", "status");
+    document.body.append(note);
+  }
+  note.textContent = text;
+  clearTimeout(noted);
+  noted = setTimeout(() => { note.remove(); note = null; }, 2400);
+};
 // `later(fn)`은 리포트를 짓는 동안이면 `fn`을 `settle` 때까지 미루고, 아니면 바로 부른다. 화면 위치를 재는 첫 표시에 쓴다.
 export let settling = null;
 export const settleStart = () => { settling = { sizes: [], after: [] }; };

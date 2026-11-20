@@ -20,6 +20,9 @@ export const reportPart = (name, part, listing) => (listing[name]?.parts?.includ
     .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
     .catch((error) => { delete parts[`${name}/${part}`]; throw error; }))
   : Promise.resolve(null));
+// 판단이 올라왔는지 볼 때 목록을 다시 받아 `listed`를 새 목록으로 바꾼다. 받지 못하면 받아 둔 목록을 그대로 둔다.
+export const relist = () => fetch("r/index.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+  .then((fresh) => { if (fresh) listed = Promise.resolve(fresh); return fresh; });
 export function initData() {
   listed = fetch("r/index.json", { cache }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   marketed = fetch("r/market.json", { cache }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));

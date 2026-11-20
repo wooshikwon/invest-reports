@@ -25,16 +25,40 @@ export function trail(h3) {
   h3.childNodes.forEach((node) => { if (node.nodeType === 3) node.textContent = node.textContent.replace(/\s+$/, ""); });
 }
 
-// 말머리만 단 요약 소제목 바로 아래의 목록은 그 소제목의 결론이므로, 접기 전에 목록을 소제목 안으로 옮긴다.
-export function heads(title) {
-  const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title);
-  for (let node = head?.nextElementSibling; node && node.tagName !== "H2"; node = node.nextElementSibling) {
+// 말머리만 단 요약 소제목 바로 아래의 목록은 그 소제목의 결론이므로, 접기 전에 목록을 소제목 안으로 옮긴다. `first`는 훑기 시작할 노드다.
+export function lift(first) {
+  for (let node = first; node && node.tagName !== "H2"; node = node.nextElementSibling) {
     const list = node.nextElementSibling;
     if (node.tagName === "H3" && node.textContent.trim() === node.querySelector("mark")?.textContent.trim() && list?.tagName === "UL") {
       list.className = "heads";
       node.append(list);
     }
   }
+}
+export function heads(title) {
+  lift([...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title)?.nextElementSibling);
+}
+// `anchor` 바로 뒤에 `outlook.json`의 설명 절(현재 상태·주요 분기와 예측·종합 시나리오)을 접기 상자로 붙인다.
+// `set(html, point)`은 절을 통째로 바꾸고, `show(on)`은 절을 보이거나 숨긴다. 절에는 설명 날짜를 `data-point`로 단다.
+export function notes(anchor) {
+  let nodes = [], on = false, at = "";
+  const apply = () => nodes.forEach((node) => { node.hidden = !on; node.dataset.point = at; });
+  return {
+    set(html, point = "") {
+      nodes.forEach((node) => node.remove());
+      const temp = document.createElement("div");
+      temp.innerHTML = html;
+      toneTags(temp);
+      lift(temp.firstElementChild);
+      wrap([...temp.children].filter((node) => level(node) === 3), 3);
+      temp.querySelectorAll("h3").forEach(trail);
+      nodes = [...temp.children];
+      at = point;
+      anchor.after(...nodes);
+      apply();
+    },
+    show(value) { on = value; apply(); },
+  };
 }
 // 절 안의 `###`(depth 3)이나 `####`(depth 4) 소제목마다 접기 상자를 만든다. 말머리가 `keep`에 든 소제목은 접지 않는다.
 export const level = (node) => (/^H\d$/.test(node.tagName) ? +node.tagName[1] : 9);

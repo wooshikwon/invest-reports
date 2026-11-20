@@ -82,7 +82,7 @@ export const GAUGES = {
   // 달이 바뀌는 점마다 달 이름을 적는다. 달 이름과 선 굵기는 주가와 예측 카드가 같은 기간을 그릴 때와 같게 정한다.
   // 기간 안 최고·최저 점에 점을 찍어 글자를 적고, 오늘 점에는 '현재' 표시(`nowMark`)를 찍는다. 세로축은 값의 최저에서 최고까지이고,
   // 최저 글자가 들어가게 최저 점 아래에 20px을 비운다. 그림 높이(`height`)를 받으면 가로축을 그 높이의 24px 위에 긋는다.
-  // 가로축은 마지막 점 오른쪽 `reach` 거래일까지 담는다. 정규장 다음 세션의 값(`extra`)을 받으면 다음 거래일 자리에 값을 '현재' 표시로 찍고
+  // 가로축은 마지막 점 오른쪽 `reach` 거래일까지 담는다. 정규장 다음 세션의 값(`extra`)과 그 값의 날짜 지점(`point`)을 받으면 다음 거래일 자리에 값을 '현재' 표시로 찍고
   // 마지막 점에서 점선으로 잇는다. 세로축은 그 값까지 담는다. '현재' 표시의 색은 `extra`의 세션(`kind`)으로 고른다.
   // 봉 비율과 봉 하나가 묶는 기간과 값 글자(`candle`, `{ ratios, unit, label }`)를 받으면 선 대신 봉을 그리고, 세로축을 봉의 고가와 저가까지 담는다.
   // 최고·최저 글자는 가장 높은 고가와 가장 낮은 저가를 봉 위아래에 적고, 정규장 다음 세션 값은 다음 거래일이 든 기간의 흐린 잠정 봉(`candleLate`)으로 그린다.
@@ -91,7 +91,7 @@ export const GAUGES = {
   // `stop`번 점이 그림 왼쪽 끝 앞이면 '현재' 표시를 찍지 않는다.
   // 그림 왼쪽 끝은 `start`번 점(소수 값이면 두 점 사이)이고, 그 앞 점은 그리지 않는다. 세로 범위(`bounds`, [아래, 위])를 받으면 그 범위로 그리고,
   // 받지 않으면 `dailyBounds`로 정한다. `marks`가 거짓이면 최고·최저 글자를 적지 않는다. 기간을 옮기는 동안 그 사이 그림을 이 세 값으로 그린다.
-  daily({ points, extra = null, kind = "regular", reach = 0, candle = null, height = FIGURE, stop = points.length - 1, start = 0, bounds = null, marks = true }) {
+  daily({ points, extra = null, point = null, kind = "regular", reach = 0, candle = null, height = FIGURE, stop = points.length - 1, start = 0, bounds = null, marks = true }) {
     const L = 4, R = 312, T = 22, B = height - 24, s = frame(height), values = points.map(([, v]) => v), days = points.map(([day]) => day), last = points.length - 1;
     const i0 = Math.max(0, Math.floor(start)), seen = values.slice(i0);
     const groups = candle && candleGroups(days, values, candle.ratios, candle.unit, last).filter((group) => group[1] >= i0);
@@ -111,13 +111,13 @@ export const GAUGES = {
     });
     s.append(shape("line", { x1: L, x2: R, y1: B, y2: B, stroke: DIMS, "stroke-width": 1 }));
     if (groups) {
-      const bars = extra != null ? candleLate(groups, days, candle.unit, extra) : groups, centers = drawCandles(g, bars, X, Y, (R - L) / span, R + 3);
+      const late = extra != null && point != null, bars = late ? candleLate(groups, days, candle.unit, extra, point) : groups, centers = drawCandles(g, bars, X, Y, (R - L) / span, R + 3);
       const high = groups.reduce((a, b) => (b[3] > a[3] ? b : a)), lowest = groups.reduce((a, b) => (b[4] < a[4] ? b : a));
       if (marks) [[high, high[3], -5, "최고"], [lowest, lowest[4], 13, "최저"]].forEach(([[a, b], v, dy, text]) => {
         s.append(shape("text", { x: Math.min(Math.max(X((a + b) / 2), L + 36), R - 36), y: Y(v) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${candle.label(v)}`));
       });
-      const at = extra != null ? bars.length - 1 : bars.findLastIndex(([a]) => a <= stop);
-      if (extra != null || stop >= i0) nowMark(s, centers[at], Y(bars[at][3]) - 5, extra != null ? kind : "regular");
+      const at = late ? bars.length - 1 : bars.findLastIndex(([a]) => a <= stop);
+      if (late || stop >= i0) nowMark(s, centers[at], Y(bars[at][3]) - 5, late ? kind : "regular");
       return s;
     } else {
       g.append(shape("path", { d: `M${seen.map((v, k) => `${X(i0 + k)} ${Y(v)}`).join("L")}`, fill: "none", stroke: PRICE,

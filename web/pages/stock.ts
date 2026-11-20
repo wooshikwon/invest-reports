@@ -84,15 +84,16 @@ function stockDetail(data) {
     const most = () => { let k = SPAN.length - 1; while (k > 0 && stop < closes.length - SPAN[k]) k--; return k; };
     // 정규장 다음 세션의 종류와 [체결가, 기준 시각 글씨, 세션 종류]. 없으면 null이다.
     const kindOf = () => (early ? (early.regular ? "regular" : "pre") : "after");
-    const extra = () => stop < last ? null : early ? [early.price, sessionAt(early.regular ? "정규장" : "프리마켓", early.time), kindOf()]
-      : after != null ? [after, sessionAt("애프터마켓", afterEnd(day)), "after"]
-      : tail ? [tail.price, sessionAt("애프터마켓", tail.time), "after"] : null;
+    // 네 번째 값은 그 값의 날짜 지점이다. 실시간 값이 없어 지도 값(`after`)만 있으면 지점을 모르므로 null이다.
+    const extra = () => stop < last ? null : early ? [early.price, sessionAt(early.regular ? "정규장" : "프리마켓", early.time), kindOf(), early.point]
+      : after != null ? [after, sessionAt("애프터마켓", afterEnd(day)), "after", tail?.point ?? null]
+      : tail ? [tail.price, sessionAt("애프터마켓", tail.time), "after", tail.point] : null;
     // 가로축은 단추와 관계없이 다음 세션 값이 있으면 다음 거래일까지 담아, 단추를 바꿔도 종가 선이 움직이지 않는다.
     // 기간(`SPAN`)마다 그림 왼쪽 끝(`begin`)은 마지막 종가에서 그 거래일 수만큼 앞의 종가 번호다.
     const begin = (k) => closes.length - SPAN[k];
     const figure = (start) => {
       const shown = extra();
-      return { points, extra: late && shown ? shown[0] : null, kind: shown?.[2], reach: shown ? 1 : 0, candle: candle(), height: PLOT, stop, start };
+      return { points, extra: late && shown ? shown[0] : null, point: shown?.[3] ?? null, kind: shown?.[2], reach: shown ? 1 : 0, candle: candle(), height: PLOT, stop, start };
     };
     const draw = (start = begin(span), bounds = null, marks = true) => {
       card.querySelector(":scope > svg").replaceWith(GAUGES.daily({ ...figure(start), bounds, marks }));
@@ -172,8 +173,8 @@ function stockDetail(data) {
       const own = found.early[data.index]?.[date], value = own?.session === day ? own.stocks[data.symbol] ?? null : null;
       const behind = found.after[data.index]?.[day], price = behind?.stocks[data.symbol] ?? null;
       if (value === early?.price && own?.time === early?.time && price === tail?.price && behind?.time === tail?.time) return;
-      early = value == null ? null : { price: value, time: own.time, regular: own.phase === "regular" };
-      tail = price == null ? null : { price, time: behind.time };
+      early = value == null ? null : { price: value, time: own.time, regular: own.phase === "regular", point: own.point };
+      tail = price == null ? null : { price, time: behind.time, point: behind.point };
       repaint();
     });
   }
