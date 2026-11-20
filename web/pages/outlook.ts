@@ -354,10 +354,11 @@ export function summaryCards(data, date, view) {
   // 마지막 거래일에는 일정이 없어도 번호를 달고, 처음에는 첫 번호를 고른다. 번호를 누르면 위 값을 그날의 25~75% 등락률로 바꾸고
   // 세로선과 범위 끝이 만나는 곳에 그날의 등락률을 적는다. 그림 아래 줄 가운데에는 고른 일정의 날짜와 이름을 적고, 이름이 줄을 넘으면 말줄임표로 줄인다.
   // 그 줄 양옆의 꺽쇠를 누르면 앞뒤 일정을 고르고, 일정 이름을 누르면 같은 페이지 아래의 이벤트 캘린더에서 같은 거래일을 연다(`toCalendar`).
-  // 지난 날짜를 고르면 그날 기준 가격 뒤의 실제 종가 등락률을 흰 선으로 그린다. 등락률은 고른 날짜 판단의 기준 가격 대비 값이다.
-  // 선의 끝은 리포트 날짜를 고르면 기준 가격 날짜의 정규장 종가이고, 지난 날짜를 고르면 실제 종가 선이 기준 가격 날짜까지 닿을 때 그 선의 끝이다.
-  // 리포트 날짜 판단의 기준 가격 날짜 다음 세션 값(`upcoming()`)이 있으면 그 끝 종가 점에서 세션 값까지 점선으로 잇고 세션 값에 '현재' 표시를 찍는다.
-  // 세션 값은 정규장 종가(16:00 ET)에서 체결 뉴욕 시각까지 지난 시간만큼 거래일 자리를 옮겨 놓는다. 세션 값이 없으면 끝 종가에 정규장 '현재' 표시를 찍는다.
+  // 그림의 왼쪽 끝은 판단의 날짜 지점(`days[1]`)이고, 등락률은 고른 날짜 판단의 기준 가격 대비 값이다.
+  // 리포트 날짜를 고르면 리포트 날짜 판단의 날짜 지점 세션 값(`upcoming()`)에 '현재' 표시를 왼쪽 끝에 찍는다. 1분 값이 바뀌면 표시가 왼쪽 끝에서 위아래로 옮겨 간다.
+  // 세션 값이 없으면 기준 가격 날짜의 정규장 종가에 정규장 '현재' 표시를 찍는다.
+  // 지난 날짜를 고르면 그날 날짜 지점부터 실제 종가 등락률을 흰 선으로 그린다. 선이 리포트 날짜 판단의 기준 가격 날짜까지 닿고 세션 값이 있으면
+  // 선의 끝 종가에서 리포트 날짜 판단의 날짜 지점에 놓은 세션 값까지 점선으로 잇고 세션 값에 '현재' 표시를 찍는다.
   // 세션 값은 늘 리포트 날짜의 가장 늦은 값이므로 고른 날짜와 관계없이 같은 값을 그리고, 세션 단추를 두지 않는다.
   const tree = (() => {
     const c = card("25거래일 뒤 범위"), s = c.svg;
@@ -415,14 +416,14 @@ export function summaryCards(data, date, view) {
       // 선의 끝 종가 [거래일, 등락률]과 세션 값 [거래일, 등락률, 세션]이다. 끝 종가가 기준 가격 날짜가 아니면 둘 다 없다.
       const end = f.day === date ? [0, (hist[close] / f.base - 1) * 100]
         : actual.length && f.days[actual.length - 1] === data.base_date ? [actual.length - 1, actual.at(-1)] : null;
-      // 세션 값은 리포트 날짜 판단의 기준 가격 날짜 다음 날짜 지점(`point`)에 놓는다. 그 지점은 프레임의 `days`에서 찾고, 프레임이 지점에 닿지 않으면 세션 값이 없다.
+      // 세션 값은 리포트 날짜 판단의 날짜 지점(`point`)에 놓는다. 그 지점은 프레임의 `days`에서 찾고, 프레임이 지점에 닿지 않으면 세션 값이 없다.
       const here = f.days.indexOf(point), shown = end && here > 0 ? nextOf(data) : null;
       const tail = shown ? [here, (shown[0] / f.base - 1) * 100, shown[2]] : null;
       const reach = Math.max(15, ...[pct["10"], pct["90"], actual].flat().map(Math.abs), ...[end, tail].filter(Boolean).map((v) => Math.abs(v[1])));
       const top = Math.ceil(reach / 5) * 5;
-      // 날짜 지점의 가로 자리다. 분위수 선의 0번째 값은 1번째 값과 같은 날짜 지점(`days[1]`)에 놓으므로 분위수의 가로 자리(`Q`)는 0번째를 1번째에 둔다.
-      const X = (d) => L + d / n * (R - L), Q = (d) => X(Math.max(1, d)), Y = (v) => B - (Math.max(-top, Math.min(top, v)) + top) / (2 * top) * (B - T);
-      const band = (a, b, opacity) => shape("path", { d: `${path(pct[a].map((v, d) => [Q(d), Y(v)]))}L${pct[b].slice().reverse().map((v, d) => `${Q(n - d)} ${Y(v)}`).join("L")}Z`, fill: color, opacity });
+      // 거래일의 가로 자리다. 날짜 지점(1번째 거래일)을 왼쪽 끝에 두고, 기준 가격 날짜(0번째)도 왼쪽 끝에 둔다.
+      const X = (d) => L + Math.max(0, d - 1) / (n - 1) * (R - L), Y = (v) => B - (Math.max(-top, Math.min(top, v)) + top) / (2 * top) * (B - T);
+      const band = (a, b, opacity) => shape("path", { d: `${path(pct[a].map((v, d) => [X(d), Y(v)]))}L${pct[b].slice().reverse().map((v, d) => `${X(n - d)} ${Y(v)}`).join("L")}Z`, fill: color, opacity });
       s.append(band("10", "90", .14));
       s.append(shape("line", { x1: L, x2: R, y1: Y(0), y2: Y(0), stroke: "rgba(122, 130, 140, .55)" }));
       // 이웃 번호와 16px보다 가까운 번호는 한 줄 위에 그린다.
@@ -444,18 +445,22 @@ export function summaryCards(data, date, view) {
       });
       s.append(shape("line", { x1: L, x2: R, y1: B, y2: B, stroke: DIMS }));
       f.tree.ticks.forEach(([t, day]) => s.append(shape("text", { x: X(t), y: B + 17, "font-size": 11, fill: DIMS, "text-anchor": t === 0 ? "start" : t === n ? "end" : "middle" }, day)));
-      s.append(shape("path", { d: `${path(pct["25"].map((v, d) => [Q(d), Y(v)]))}L${pct["75"].slice().reverse().map((v, d) => `${Q(n - d)} ${Y(v)}`).join("L")}Z`, fill: color, opacity: .22 }));
-      s.append(shape("path", { d: path(pct["50"].map((v, d) => [Q(d), Y(v)])), fill: "none", stroke: color, "stroke-width": 1.4, "stroke-linejoin": "round" }));
-      if (actual.length) {
-        const points = actual.map((v, d) => [X(d), Y(v)]), lineStyle = { fill: "none", "stroke-linejoin": "round", "stroke-linecap": "round" };
+      s.append(shape("path", { d: `${path(pct["25"].map((v, d) => [X(d), Y(v)]))}L${pct["75"].slice().reverse().map((v, d) => `${X(n - d)} ${Y(v)}`).join("L")}Z`, fill: color, opacity: .22 }));
+      s.append(shape("path", { d: path(pct["50"].map((v, d) => [X(d), Y(v)])), fill: "none", stroke: color, "stroke-width": 1.4, "stroke-linejoin": "round" }));
+      // 실제 종가 선은 날짜 지점의 종가부터 긋는다.
+      const points = actual.map((v, d) => [X(d), Y(v)]).slice(1);
+      if (points.length) {
+        const lineStyle = { fill: "none", "stroke-linejoin": "round", "stroke-linecap": "round" };
         s.append(shape("path", { d: path(points), ...lineStyle, stroke: "rgba(0, 0, 0, .6)", "stroke-width": 3.2 }));
         s.append(shape("path", { d: path(points), ...lineStyle, stroke: PRICE, "stroke-width": 1.6 }));
         if (!end) s.append(shape("circle", { cx: points.at(-1)[0], cy: points.at(-1)[1], r: 2.5, fill: PRICE }));
       }
       if (end) {
         const from = [X(end[0]), Y(end[1])], to = tail && [X(tail[0]), Y(tail[1])];
-        if (to) s.append(shape("path", { d: path([from, to]), fill: "none", stroke: PRICE, "stroke-width": 1.6, "stroke-linecap": "round", "stroke-dasharray": "2 2" }));
-        if (to) s.append(shape("circle", { cx: from[0], cy: from[1], r: 2.5, fill: PRICE }));
+        if (to && points.length) {
+          s.append(shape("path", { d: path([from, to]), fill: "none", stroke: PRICE, "stroke-width": 1.6, "stroke-linecap": "round", "stroke-dasharray": "2 2" }));
+          s.append(shape("circle", { cx: from[0], cy: from[1], r: 2.5, fill: PRICE }));
+        }
         nowMark(s, ...(to ?? from), tail?.[2] ?? "regular");
       }
       // 0% 글씨는 종가 선과 '현재' 표시가 시작하는 왼쪽 끝을 비우도록 그림 오른쪽 끝에 둔다.
