@@ -59,7 +59,7 @@ export let life = new AbortController();
 // 뒤로 가기로 돌아온 화면이면 `returned`가 참이다. 처음 연 문서는 브라우저가 알려 주는 이동 종류로, 그 자리에서 다시 그린 화면은 기록 이동(`popstate`)인지로 정한다.
 export let returned = performance.getEntriesByType("navigation")[0]?.type === "back_forward";
 // 지수 단추와 뒤로 가기는 문서를 다시 열지 않고 그 자리에서 화면을 다시 그린다(`reshow`). 리포트 키와 깊이는 바뀐 기록에서 다시 읽는다.
-// 앞 화면은 새 화면을 그리기 직전에 걷는다(`leave`). 날짜 줄과 지수 단추, 과거 리포트 띠, 시세 줄, 바로가기 알약, 뒤로 가기 띠, 말풍선, 그림 카드의 지수색 칠을 지우고,
+// 앞 화면은 새 화면을 그리기 직전에 걷는다(`leave`). 지수 단추, 과거 리포트 띠, 시세 줄, 바로가기 알약, 뒤로 가기 띠, 말풍선, 그림 카드의 지수색 칠을 지우고,
 // 실시간 값을 받는 곳을 비운 뒤 화면을 맨 위로 옮긴다.
 export const leave = () => {
   forget();
@@ -70,7 +70,6 @@ export const leave = () => {
   document.documentElement.classList.remove("past", "edging");
   masthead.classList.remove("stuck");
   report.classList.remove("flow");
-  document.getElementById("day").textContent = "";
   document.getElementById("past").textContent = "";
   ticker.textContent = "";
   scrollTo(0, 0);

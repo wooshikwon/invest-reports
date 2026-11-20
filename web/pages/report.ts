@@ -18,7 +18,7 @@ import { viewer } from "../shared/viewer";
 // 리포트 화면과 이슈 화면은 `mount`로 그리고 `unmount`로 걷는다. 화면이 거는 손길과 받는 값은 수명(`life`)에 묶여 있고, `unmount`는 페이지를 여는 함수를 비운다.
 export const mount = (root, { body, listing, cards, history, outlook }) => reportPage(body, listing, cards, history, outlook);
 export const unmount = () => unturn();
-// 판단이 올라와 화면을 그 자리에서 다시 그릴 때(`arrive`) 화면 위치와 예측 단추 상태를 다음 화면에 넘긴다.
+// 판단이 올라와 화면을 그 자리에서 다시 그릴 때(`arrive`) 보던 페이지와 화면 위치, 예측 단추 상태를 다음 화면에 넘긴다.
 let carry = null;
 const OUTLOOK = ["현재 상태", "주요 분기와 예측", "종합 시나리오"];
 function reportPage(body, listing, cards, history, given) {
@@ -31,48 +31,30 @@ function reportPage(body, listing, cards, history, given) {
   // 설명 세 절(`noted`)은 화면을 그릴 때 받은 가장 늦은 판단의 `outlook.json`(`given`)으로 채우고, 날짜 슬라이드의 선택을 받지 않는다. 예측 단추(`aimed`)가 켜져 있을 때만 보인다.
   let pend = null, rewind = null, noted = null, aimed = !!kept?.aim;
   const joined = (value) => (value ? Object.values(value.sections).join("") : "");
-  const view = { aim: aimed, pending: () => pend, watch: (on) => { aimed = on; noted?.show(on); } };
+  // 예측 단추의 글자는 판단 배치의 단계(`stage`)로 정하고, 단계 판정은 여기서 하며 `outlook.ts`는 받은 글자와 상태만 그린다.
+  // 단계는 가장 늦은 리포트를 보는 동안만 정한다. 실시간 값의 `progress`가 보는 리포트의 날짜(`entry.date`)보다 늦은 날짜에 이 지수의 단계를 적었으면 판단 배치가 도는 중이라 "예측 중 N%"(`running`)이고,
+  // 그렇지 않은데 다음 날짜 지점의 값(`pend`)이 들어왔으면 배치가 시작하기 전이라 "예측 전"(`pre`)이다. 그 밖에는 "예측"(`done`)이다.
+  // 진척률은 지금 단계의 누적 분에 그 단계에 머문 분을 다음 단계의 몫까지만 더해 마지막 누적 분으로 나눈 값이고, 줄지 않으며 99%에서 멈춘다.
+  let stage = { state: "done", text: "예측" }, shown = 0, shownFor = null;
+  const view = { aim: aimed, pending: () => pend, stage: () => stage, watch: (on) => { aimed = on; noted?.show(on); } };
   if (entry) {
     document.title = `${entry.title} ${entry.day}`;
-    // 머리 상자 위 날짜 줄은 "2026년 11월 13일 (금) 09:10 KST"처럼 쓰고, 오른쪽에 판단 배치의 단계를 쓴다. 날짜와 단계 표시는 `entry.point`와 실시간 값의 날짜 지점으로 정한다.
-    // 가장 늦은 리포트의 판단이 아직 없으면 날짜는 그 날짜 지점이고 단계는 "분석 전"이며, 실시간 값의 `progress`가 그 지점의 단계를 적었으면 "분석 중 N%"다. 그 밖에는 "분석 완료"다.
-    // 시각은 목록 항목을 쓴 시각(`updated`)과, 보이는 날짜 지점의 프리장·정규장·애프터장 값의 체결 시각 가운데 가장 늦은 서울 시각이다. 판단이 없는 날짜는 실시간 값의 체결 시각만 쓴다.
-    // 시각은 보이는 날짜 0시(서울 시각)부터 센 시와 분으로 쓴다. 전날 정규장이 열릴 때 만든 판단처럼 0시 앞의 시각은 "-00:30 KST"처럼 앞에 -를 붙여 쓴다.
-    // 실시간 값을 새로 받을 때마다 다시 쓴다.
-    const day = document.getElementById("day");
-    const dated = (text) => `${+text.slice(0, 4)}년 ${+text.slice(5, 7)}월 ${+text.slice(8, 10)}일 (${"일월화수목금토"[new Date(text).getUTCDay()]})`;
-    const label = day.appendChild(document.createTextNode("")), clock = day.appendChild(document.createTextNode(""));
-    const updated = Date.parse(`${entry.updated.replace(" ", "T")}:00+09:00`);
-    const pill = day.appendChild(document.createElement("span"));
-    let shown = 0, shownFor = null;
-    const paint = (found) => {
-      const text = pend ?? entry.date, at = pend ?? entry.point ?? entry.date;
-      label.data = dated(text);
-      const times = Object.values(found?.points?.[index]?.[at] ?? {}).map((value) => Date.parse(value?.time)).filter(Number.isFinite);
-      const moments = pend ? times : [updated, ...times];
-      if (moments.length) {
-        const minutes = Math.floor((Math.max(...moments) - Date.parse(`${text}T00:00:00+09:00`)) / 60e3), size = Math.abs(minutes);
-        clock.data = ` ${minutes < 0 ? "-" : ""}${String(Math.floor(size / 60)).padStart(2, "0")}:${String(size % 60).padStart(2, "0")} KST`;
-      } else clock.data = "";
-      const progressed = found?.progress, own = pend && progressed?.date === pend && progressed.indexes?.[index], plan = progressed?.plan || [];
-      let state = pend ? "pre" : "done", name = pend ? "분석 전" : "분석 완료";
+    const judge = (found) => {
+      const progressed = found?.progress, own = isLatest && progressed?.date > entry.date && progressed.indexes?.[index], plan = progressed?.plan || [];
       if (own && plan.length >= 2 && plan.at(-1)) {
-        // 진척률은 지금 단계의 누적 분에 그 단계에 머문 분을 다음 단계의 몫까지만 더해 마지막 누적 분으로 나눈 값이고, 줄지 않으며 99%에서 멈춘다.
         const step = Math.min(own.step, plan.length - 2);
         const inside = Math.min(Math.max((Date.now() - Date.parse(own.since)) / 60e3, 0), plan[step + 1] - plan[step]);
-        if (shownFor !== pend) { shownFor = pend; shown = 0; }
+        if (shownFor !== progressed.date) { shownFor = progressed.date; shown = 0; }
         shown = Math.max(shown, Math.min(99, Math.floor((plan[step] + inside) / plan.at(-1) * 100)));
-        state = "running";
-        name = `분석 중 ${shown}%`;
+        return [{ state: "running", text: `예측 중 ${shown}%` }, true];
       }
-      pill.className = `stage ${state}`;
-      pill.textContent = name;
+      return [pend ? { state: "pre", text: "예측 전" } : { state: "done", text: "예측" }, !!pend];
     };
-    paint(null);
-    // 판단이 올라왔는지는 날짜 지점이 있는 동안 실시간 값을 받는 회차마다 `r/index.json`을 다시 받아 본다. 지점의 항목이 생기면 `arrive`로 화면을 그 자리에서 다시 그린다.
+    // 판단이 올라왔는지는 판단 배치가 돌거나 다음 날짜 지점의 값이 있는 동안 실시간 값을 받는 회차마다 `r/index.json`을 다시 받아 본다.
+    // 이 지수의 목록 항목 가운데 날짜가 보는 리포트보다 늦은 것이 생기면 `arrive`로 화면을 그 자리에서 다시 그린다. 토요일 배치와 월요일 배치는 날짜 지점이 앞 리포트와 같거나 앞서 있어도 날짜로 알아본다.
     let asking = false;
     const arrive = (name) => {
-      carry = { aim: aimed, y: scrollY };
+      carry = { aim: aimed, y: scrollY, page: window.history.state?.page };
       const params = new URLSearchParams(location.search);
       params.set("r", name);
       window.history.replaceState(window.history.state, "", `?${params}`);
@@ -81,17 +63,17 @@ function reportPage(body, listing, cards, history, given) {
     subscribe((found) => {
       const next = isLatest && entry.point
         ? Object.keys(found.points?.[index] || {}).filter((point) => point > entry.point).sort()[0] ?? null : null;
-      if (next !== pend) {
-        pend = next;
-        rewind?.refresh();
-      }
-      paint(found);
-      if (!pend || asking) return;
+      const moved = next !== pend;
+      pend = next;
+      const [now, waiting] = judge(found);
+      stage = now;
+      if (moved) rewind?.refresh?.(); else rewind?.label?.();
+      if (!waiting || asking) return;
       asking = true;
       relist().then((fresh) => {
         asking = false;
         if (signal.aborted || !fresh) return;
-        const hit = Object.keys(fresh).find((name) => fresh[name].index === index && fresh[name].point === pend);
+        const hit = Object.keys(fresh).filter((name) => fresh[name].index === index && fresh[name].date > entry.date).sort((a, b) => fresh[b].date.localeCompare(fresh[a].date))[0];
         if (hit) arrive(hit);
       });
     }, true);
@@ -162,7 +144,7 @@ function reportPage(body, listing, cards, history, given) {
       turn(Math.max(0, names.indexOf(name)), null, still);
     };
     settle();
-    assets(pages, PAGES.map(([name]) => name), place, land ? landPage : history.state?.page);
+    assets(pages, PAGES.map(([name]) => name), place, land ? landPage : kept?.page ?? window.history.state?.page);
   }
   settle();
   if (kept) scrollTo(0, kept.y);
@@ -177,7 +159,7 @@ function reportPage(body, listing, cards, history, given) {
     Promise.all([...report.querySelectorAll("img")].map((img) => img.complete
       || new Promise((done) => { img.addEventListener("load", done, { once: true }); img.addEventListener("error", done, { once: true }); })))
       .then(() => {
-        const y = history.state?.y;
+        const y = window.history.state?.y;
         if (signal.aborted || scrollY !== 0 || !y) return;
         let placed = 0;
         const place = () => {

@@ -72,10 +72,9 @@ def state(page):
     return page.evaluate("""() => ({
       date: document.querySelector('.carousel.cards .rewind span')?.textContent ?? null,
       notes: [...document.querySelectorAll('[data-point]')].map((n) => [n.dataset.point, n.hidden]),
-      aim: (() => { const b = document.querySelector('button.aim'); return b && { disabled: b.disabled, on: b.classList.contains('on') }; })(),
+      aim: (() => { const b = document.querySelector('button.aim'); return b && { disabled: b.disabled, on: b.classList.contains('on'), text: b.textContent.trim() }; })(),
       tab: [...document.querySelectorAll('.carousel.cards .tabs button')].findIndex((b) => b.classList.contains('on')),
       toast: document.querySelector('.toast')?.textContent ?? null,
-      pill: document.querySelector('main')?.innerText.replace(/\\s+/g, ' ').slice(0, 160) ?? null,
     })""")
 
 
@@ -142,8 +141,8 @@ def main():
         w = World(p, data, {})
         page = w.open()
         s = state(page)
-        check("a1 판단 전 최신: 날짜 줄이 날짜 지점", "11월 20일" in (s["pill"] or ""), s["pill"])
-        check("a1 판단 전 최신: 예측 단추가 꺼지고 막힘", s["aim"] == {"disabled": True, "on": False}, s["aim"])
+        check("a1 판단 전 최신: 머리 줄(#day)이 없음", page.evaluate("document.getElementById('day') === null"))
+        check("a1 판단 전 최신: 예측 단추가 꺼져 있고 단계 글자를 보임", s["aim"] == {"disabled": False, "on": False, "text": "예측 중 25%"}, s["aim"])
         check("a1 판단 전 최신: 설명 절이 숨음", all(h for _, h in s["notes"]), s["notes"])
         page.screenshot(path=str(shots / "a1-before-latest-top.png"))
         to_cards(page)
@@ -155,7 +154,7 @@ def main():
         page.locator("button.aim").first.click()
         capture.settle(page, 600)
         s = state(page)
-        check("a2 판단 전 지난 날짜: 예측 단추를 누를 수 있음", s["aim"] == {"disabled": False, "on": True}, s["aim"])
+        check("a2 판단 전 지난 날짜: 예측 단추를 누를 수 있음", s["aim"] and s["aim"]["on"] and not s["aim"]["disabled"], s["aim"])
         check("a2 판단 전 지난 날짜: 설명 절이 보이고 가장 늦은 판단의 날짜", s["notes"] and all(not h for _, h in s["notes"]) and {pt for pt, _ in s["notes"]} == {"2026-11-19"}, s["notes"])
         page.screenshot(path=str(shots / "a2-before-past-cards.png"))
         page.locator(".fold, h2").first.scroll_into_view_if_needed()

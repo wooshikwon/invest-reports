@@ -4,7 +4,7 @@ import { beat } from "../shared/live";
 import { life, report } from "../shared/route";
 // 리포트 화면의 페이지(`pages`, 이름은 `names`)를 `place`로 묶고 `name` 페이지를 연다. 본인 계정이면 내 자산 페이지를 맨 앞에 더한다.
 // Worker가 계좌 요약을 건네면 기기의 `localStorage`에 표시(`ASSET_FLAG`)를 적는다. 표시가 있는 기기는 리포트 화면을 열자마자 내 자산 페이지를 맨 앞에 두고,
-// 열 페이지가 정해지지 않았으면 예측 페이지를 연다. 받은 계좌 요약은 `sessionStorage`에 두어 같은 세션에서 다시 연 리포트 화면은 받은 값부터 그리고,
+// 열 페이지가 정해지지 않았으면 내 자산 페이지를 연다. 표시가 없는 기기는 열 페이지가 정해지지 않았으면 첫 페이지인 예측 페이지를 연다. 받은 계좌 요약은 `sessionStorage`에 두어 같은 세션에서 다시 연 리포트 화면은 받은 값부터 그리고,
 // 리포트 화면을 열 때와 미니 앱으로 돌아올 때, 내 자산 페이지가 보이는 동안 1분마다 새로 받는다. 본인 계정이 아니거나 Worker가 403을 답하면 표시와 받아 둔 값을 지우고 내 자산 페이지를 뺀다.
 export function assets(pages, names, place, name) {
   const store = (area, value) => { try { if (value == null) area.removeItem(ASSET_FLAG); else area.setItem(ASSET_FLAG, value); } catch {} };
@@ -16,7 +16,7 @@ export function assets(pages, names, place, name) {
     shown = on;
     const y = scrollY, at = history.state?.page;
     if (on) report.prepend(page); else page.remove();
-    place(on ? [page, ...pages] : pages, on ? [ASSET, ...names] : names, still ? (at === ASSET && !on ? null : at) : name || names[0], still);
+    place(on ? [page, ...pages] : pages, on ? [ASSET, ...names] : names, still ? (at === ASSET && !on ? null : at) : name || (on ? ASSET : names[0]), still);
     if (still && (on || at !== ASSET)) scrollTo(0, y);
     arm();
   };

@@ -15,7 +15,7 @@ import { feelPress } from "../shared/telegram";
 // Montecarlo 그림은 원래 이벤트 캘린더 절에 있으므로 그 자리에서는 뺀다. 12M + Predictions가 없는 리포트는 두 장을 넘긴다.
 // 묶음 위에는 그림 이름 탭을 둔다. 탭을 누르면 그 그림으로 넘기고, 넘기면 보고 있는 그림의 탭을 밝힌다.
 // 그림 카드 값(`given`, `build.py`가 쓴 `r/{키}/cards.json`. 그 파일이 없는 지난 리포트는 리포트 끝의 `#cards`)이 있는 리포트는 그림 대신 주가와 예측, 일정, 권장 배율 카드 세 장을 넘긴다.
-export function figures(date, given = null, view = { aim: false, pending: () => null, watch() {} }) {
+export function figures(date, given = null, view = { aim: false, pending: () => null, stage: () => ({ state: "done", text: "예측" }), watch() {} }) {
   const data = report.querySelector("#cards");
   data?.remove();
   const cards = given ?? (data && JSON.parse(data.textContent));
@@ -38,7 +38,7 @@ export function figures(date, given = null, view = { aim: false, pending: () => 
       lock: (i) => (i > 0 && set.pending() ? "아직 이전 정규장 분석이 완료되지 않았어요" : null) });
     box.prepend(bar);
     const rewind = cardRewind(box, date, set, view);
-    return { box, refresh: () => rewind.update() };
+    return { box, refresh: () => { rewind.update(); set.label(); }, label: () => set.label() };
   }
   const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
   const chart = pick("chart"), tree = pick("tree"), predict = pick("predict");
@@ -133,6 +133,15 @@ export function summaryCards(data, date, view) {
     const extra = (f) => nextOf(f);
     const toggle = Object.assign(document.createElement("button"), { type: "button", className: "aim", innerHTML: "<span>예측</span>" });
     title.append(toggle);
+    // 단추 글자와 단계 상태(`pre`·`running`)는 `view.stage()`가 준 값을 그대로 그린다. 단계는 눌러서 예측을 켜는 동작에 영향을 주지 않는다.
+    const label = () => {
+      const now = view.stage?.() ?? { state: "done", text: "예측" };
+      const span = toggle.firstChild;
+      if (span.textContent !== now.text) span.textContent = now.text;
+      toggle.classList.toggle("pre", now.state === "pre");
+      toggle.classList.toggle("running", now.state === "running");
+    };
+    label();
     toggle.setAttribute("aria-pressed", "false");
     const seg = sessionSeg((on) => { late = on; chosen = true; show(frame); });
     // `stop`은 '현재' 표시를 찍는 고른 날짜의 거래일 번호다. `ahead`는 예측 단추를 켠 정도(끄면 0, 켜면 1)이고, 단추를 누르는 동안 그 사이 값을 받는다.
@@ -281,13 +290,12 @@ export function summaryCards(data, date, view) {
     wider.addEventListener("click", () => move(-1));
     narrower.addEventListener("click", () => move(1));
     zoomDrag(zoom.querySelector(".steps"), () => span, (i) => move(i - span));
-    // 예측 단추를 누른 상태(`want`)는 카드를 넘겨도 그대로 두고, 판단이 없는 날짜(`frame.pending`)에서만 단추를 막고 예측을 끈다. `aim`은 그린 상태다.
+    // 예측 단추를 누른 상태(`want`)는 카드를 넘겨도 그대로 두고, 판단이 없는 날짜(`frame.pending`)에서도 켠 채로 둔다. 그 날짜는 가장 늦은 판단의 예측을 보인다. `aim`은 그린 상태다.
     // 켠 상태가 바뀔 때마다 설명 절을 보이거나 숨기도록 `view.watch`를 부른다.
     const sync = () => {
-      aim = want && !frame.pending;
+      aim = want;
       ahead = aim ? 1 : 0;
       if (first) { first = false; seen = ahead; }
-      toggle.disabled = !!frame.pending;
       toggle.classList.toggle("on", aim);
       toggle.setAttribute("aria-pressed", aim);
       view.watch(aim);
@@ -338,7 +346,7 @@ export function summaryCards(data, date, view) {
       if (span !== from || ahead !== seen) animate(from, seen);
       else if (!raf) tween(span, span, 1);
     };
-    return { box: c.box, show, pending: () => !!frame?.pending };
+    return { box: c.box, show, label, pending: () => !!frame?.pending };
   })();
 
   // 일정과 예측: 등락률 분위수의 10~90% 옅은 면과 25~75% 면, 50% 실선을 주가와 예측 카드의 예측과 같은 지수색으로 그린다. 위쪽 번호는 이슈 일정이 있는 날이고,
@@ -523,5 +531,5 @@ export function summaryCards(data, date, view) {
     if (!changed) return;
     show(frame);
   };
-  return { names: parts.map(([, name]) => name), slides: parts.map(([part]) => [part.box]), show, quote, live, pending: () => !!frame.pending };
+  return { names: parts.map(([, name]) => name), slides: parts.map(([part]) => [part.box]), show, quote, live, label: () => price.label?.(), pending: () => !!frame.pending };
 }
