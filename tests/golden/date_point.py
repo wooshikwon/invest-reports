@@ -143,7 +143,7 @@ def main():
         s = state(page)
         check("a1 판단 전 최신: 머리 줄(#day)이 없음", page.evaluate("document.getElementById('day') === null"))
         check("a1 판단 전 최신: 예측 단추가 꺼져 있고 단계 글자를 보임", s["aim"] == {"disabled": False, "on": False, "text": "예측 중 25%"}, s["aim"])
-        check("a1 판단 전 최신: 설명 절이 숨음", all(h for _, h in s["notes"]), s["notes"])
+        check("a1 판단 전 최신: 예측 단추가 꺼져도 설명 절이 보이고 가장 늦은 판단의 날짜", s["notes"] and all(not h for _, h in s["notes"]) and {pt for pt, _ in s["notes"]} == {"2026-11-19"}, s["notes"])
         page.screenshot(path=str(shots / "a1-before-latest-top.png"))
         to_cards(page)
         page.screenshot(path=str(shots / "a1-before-latest-cards.png"))

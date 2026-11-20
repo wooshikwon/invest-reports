@@ -292,7 +292,7 @@ export function summaryCards(data, date, view) {
     narrower.addEventListener("click", () => move(1));
     zoomDrag(zoom.querySelector(".steps"), () => span, (i) => move(i - span));
     // 예측 단추를 누른 상태(`want`)는 카드를 넘겨도 그대로 두고, 판단이 없는 날짜(`frame.pending`)에서도 켠 채로 둔다. 그 날짜는 가장 늦은 판단의 예측을 보인다. `aim`은 그린 상태다.
-    // 켠 상태가 바뀔 때마다 설명 절을 보이거나 숨기도록 `view.watch`를 부른다.
+    // 켠 상태가 바뀔 때마다 `view.watch`로 알린다. 리포트 화면은 그 상태를 판단이 올라와 화면을 다시 그릴 때 넘긴다.
     const sync = () => {
       aim = want;
       ahead = aim ? 1 : 0;

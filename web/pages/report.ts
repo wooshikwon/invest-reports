@@ -28,7 +28,7 @@ function reportPage(body, listing, cards, history, given) {
   settleStart();
   const index = key.split("-")[1], entry = listing[key], isLatest = key === latest(listing, index);
   // `pend`는 가장 늦은 리포트의 판단 날짜 지점(`entry.point`)보다 늦은 실시간 값의 날짜 지점이다. 그 지점의 판단은 아직 올라오지 않았다.
-  // 설명 세 절(`noted`)은 화면을 그릴 때 받은 가장 늦은 판단의 `outlook.json`(`given`)으로 채우고, 날짜 슬라이드의 선택을 받지 않는다. 예측 단추(`aimed`)가 켜져 있을 때만 보인다.
+  // 설명 세 절(`noted`)은 화면을 그릴 때 받은 가장 늦은 판단의 `outlook.json`(`given`)으로 채우고, 날짜 슬라이드의 선택과 예측 단추(`aimed`)의 상태를 받지 않고 늘 보인다.
   let pend = null, rewind = null, noted = null, aimed = !!kept?.aim;
   const joined = (value) => (value ? Object.values(value.sections).join("") : "");
   // 예측 단추의 글자는 판단 배치의 단계(`stage`)로 정하고, 단계 판정은 여기서 하며 `outlook.ts`는 받은 글자와 상태만 그린다.
@@ -36,7 +36,7 @@ function reportPage(body, listing, cards, history, given) {
   // 그렇지 않은데 다음 날짜 지점의 값(`pend`)이 들어왔으면 배치가 시작하기 전이라 "예측 전"(`pre`)이다. 그 밖에는 "예측"(`done`)이다.
   // 진척률은 지금 단계의 누적 분에 그 단계에 머문 분을 다음 단계의 몫까지만 더해 마지막 누적 분으로 나눈 값이고, 줄지 않으며 99%에서 멈춘다.
   let stage = { state: "done", text: "예측" }, shown = 0, shownFor = null;
-  const view = { aim: aimed, pending: () => pend, stage: () => stage, watch: (on) => { aimed = on; noted?.show(on); } };
+  const view = { aim: aimed, pending: () => pend, stage: () => stage, watch: (on) => { aimed = on; } };
   if (entry) {
     document.title = `${entry.title} ${entry.day}`;
     const judge = (found) => {
@@ -109,7 +109,6 @@ function reportPage(body, listing, cards, history, given) {
     if (rewind?.box) {
       noted = notes(rewind.box);
       noted.set(joined(given), given?.point ?? "");
-      noted.show(aimed);
     }
     indicators(date);
     marketed.then(({ map }) => {

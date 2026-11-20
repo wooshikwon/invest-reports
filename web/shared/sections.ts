@@ -39,10 +39,9 @@ export function heads(title) {
   lift([...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title)?.nextElementSibling);
 }
 // `anchor` 바로 뒤에 `outlook.json`의 설명 절(현재 상태·주요 분기와 예측·종합 시나리오)을 접기 상자로 붙인다.
-// `set(html, point)`은 절을 통째로 바꾸고, `show(on)`은 절을 보이거나 숨긴다. 절에는 설명 날짜를 `data-point`로 단다.
+// `set(html, point)`은 절을 통째로 바꾼다. 절에는 설명 날짜를 `data-point`로 단다.
 export function notes(anchor) {
-  let nodes = [], on = false, at = "";
-  const apply = () => nodes.forEach((node) => { node.hidden = !on; node.dataset.point = at; });
+  let nodes = [];
   return {
     set(html, point = "") {
       nodes.forEach((node) => node.remove());
@@ -53,11 +52,9 @@ export function notes(anchor) {
       wrap([...temp.children].filter((node) => level(node) === 3), 3);
       temp.querySelectorAll("h3").forEach(trail);
       nodes = [...temp.children];
-      at = point;
+      nodes.forEach((node) => { node.dataset.point = point; });
       anchor.after(...nodes);
-      apply();
     },
-    show(value) { on = value; apply(); },
   };
 }
 // 절 안의 `###`(depth 3)이나 `####`(depth 4) 소제목마다 접기 상자를 만든다. 말머리가 `keep`에 든 소제목은 접지 않는다.

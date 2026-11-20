@@ -181,6 +181,8 @@ def main():
                                 else (got["text"] == text and got["pre"]) if stage == "pre"
                                 else (got["text"].startswith("예측 중 ") and got["text"].endswith("%") and got["running"]))
                 check(f"p2 {case['name']} {stage}: 단추 글자", bool(good), got)
+                notes = page.evaluate("() => [...document.querySelectorAll('[data-point]')].map((n) => [n.dataset.point, n.hidden])")
+                check(f"p2 {case['name']} {stage}: 예측을 켜기 전에도 설명 절이 보임", bool(notes and all(not h for _, h in notes)), notes)
                 # 세 상태 모두 눌러 가장 늦은 판단의 예측을 켠다
                 page.locator("button.aim").first.click()
                 capture.settle(page, 500)
