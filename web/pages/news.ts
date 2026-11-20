@@ -42,7 +42,7 @@ const heading = (item, named) => {
 // 상세 이슈 해설 탭이면 오른쪽에 절 제목의 물음표 단추를 둔다. 상세 이슈 해설 탭은 분석 완료 시각과 이슈 목록을, 종목 뉴스 탭은 보고 있는 리포트 지수(`index`)의 종목 기사 목록을 보인다. 고른 탭 아래 막대는 다른 탭을 고르면 그 탭 아래로 옮겨 간다.
 // 기사 목록은 종목 뉴스 탭을 처음 고를 때 7일 치를 한 번 받아, 회차 시작 시각이 지금부터 3일 안인 기사를 먼저 보이고 "더 보기"를 누르면 7일 치를 모두 보인다.
 // 날짜 슬라이드로 지난 리포트를 열어도 지금 기준 최신 기사를 보인다. 고른 탭과 더 보기 여부는 `history.state`에 적어, 뉴스 상세에서 뒤로 돌아와도 그대로 연다.
-// 종목 뉴스 탭의 마지막 업데이트 시각은 받은 기사 가운데 가장 최근 회차의 시작 시각이다. 목록 블록은 이슈 목록 상자와 같은 모양으로 제목과 머리 줄만 쓴다.
+// 종목 뉴스 탭의 마지막 업데이트 시각은 받은 기사 가운데 가장 최근 회차의 시작 시각이다. 목록 블록은 이슈 목록 상자와 같은 모양으로 제목과 머리 줄, 회차 시각을 쓰고, 첫 그림을 오른쪽 썸네일로 정사각에 맞춰 잘라 보인다.
 export function newsTab(index) {
   const { signal } = life;
   const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "상세 이슈 해설");
@@ -121,7 +121,9 @@ export function newsTab(index) {
     const node = Object.assign(document.createElement("div"), { className: "pick" });
     const lead = node.appendChild(Object.assign(document.createElement("div"), { className: "lead" }));
     const text = lead.appendChild(Object.assign(document.createElement("div"), { className: "text" }));
-    text.append(Object.assign(document.createElement("h3"), { textContent: item.title }), Object.assign(document.createElement("p"), { textContent: item.headline }));
+    text.append(Object.assign(document.createElement("h3"), { textContent: item.title }), Object.assign(document.createElement("p"), { textContent: item.headline }),
+                Object.assign(document.createElement("div"), { className: "age", textContent: clock(item.time) }));
+    if (item.image) node.append(Object.assign(document.createElement("img"), { className: "thumb", src: item.image, alt: "", loading: "lazy" }));
     node.addEventListener("click", () => {
       feelPress();
       visit(key, { news: item.id });
