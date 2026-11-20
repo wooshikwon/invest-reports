@@ -52,12 +52,12 @@ const stamp = (time) => {
   return sessionTag(kind, `미국 ${day.slice(5, 7)}/${day.slice(8, 10)} ${name}, ${new Date(at + 9 * 3600e3).toISOString().slice(11, 16)} KST`);
 };
 // 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 지수(`index`)는 이름 줄과 큰 값을 굴리는 자리 이름에 쓴다.
-// `times`는 체결가로 다시 평가한 시각(`live`)과 계좌 요약을 만든 시각(`summary`)이다. 카드 이름과 상자 목록(`cards`)과 다시 그리는 함수(`show`)를 돌려준다.
+// `times`는 최신 날짜 점을 셈한 체결가의 시각(`live`)과 계좌 요약을 만든 시각(`summary`)이다. 체결가가 계좌 요약보다 이르면 Worker가 `live`를 빼고 최신 날짜 점을 요약 시각의 가격으로 셈하므로, 그때 `live`는 요약 시각이다. 카드 이름과 상자 목록(`cards`)과 다시 그리는 함수(`show`)를 돌려준다.
 // 카드는 요약 절의 그림 카드처럼 맨 위 줄에 값의 기준 시각을, 그 아래 이름 줄 왼쪽에 "나스닥 100"처럼 지수 이름을, 오른쪽에 큰 값의 기준을 흐린 글씨로 쓴다.
 // 카드 순서는 누적 수익률, 초과 수익률, 배율이다. 누적 수익률 카드는 첫날 대비 고정 배율·판단·집행 누적 수익률을,
 // 초과 수익률 카드는 판단과 집행의 누적 수익률에서 고정 배율 누적 수익률을 뺀 값을 날짜 지점 축에 그린다. 큰 값은 집행 선의 값이다.
 // 축은 정산한 거래일마다 한 점이고, Worker가 1분마다 다시 셈한 최신 날짜 지점의 값(`returns.now`)이 있으면 그 날짜 점을 하나 더 둔다.
-// 최신 날짜 점은 고정 배율과 집행 선에만 있고 판단 선은 마지막 정산일에서 끝난다.
+// 최신 날짜 점의 고정 배율·판단 값은 기준 배율과 목표 배율을 그대로 들고 있다고 본 값이다. Worker가 판단 값을 셈하지 못하면 판단 선은 마지막 정산일에서 끝난다.
 // 수익률 카드의 기준 시각은 최신 날짜 점이 있으면 체결가 시각, 없으면 마지막 거래일의 정규장 종가 시각이다.
 // 배율 카드는 이름 줄 오른쪽에 목표 배율을, 큰 값에 현재 배율을 현재 배율 선과 같은 주황 글씨로 쓰고, 기준 시각은 계좌 요약을 만든 시각이다. 그림에는 오늘 가격 경로들의 배율 분포(지수색 면)와 이슈가 없을 때의 분포(회색 면)를 배율 축에 그리고,
 // 목표 배율에 지수색 실선, 현재 배율에 주황 점선을 긋는다.
@@ -138,7 +138,8 @@ export function assetCards(perf, index, times = {}) {
     over.side.textContent = "고정 배율 대비 집행";
     const now = ret.now && ret.now.day > ret.days.at(-1) ? ret.now : null;
     const days = now ? [...ret.days, now.day] : ret.days;
-    const anchor = now ? [...ret.anchor, now.anchor] : ret.anchor, realized = now ? [...ret.realized, now.realized] : ret.realized, target = ret.target;
+    const anchor = now ? [...ret.anchor, now.anchor] : ret.anchor, realized = now ? [...ret.realized, now.realized] : ret.realized;
+    const target = now?.target != null ? [...ret.target, now.target] : ret.target;
     const gap = (values) => values.map((v, i) => v - anchor[i]);
     draws.push((past) => {
       const at = past ? days.filter((day) => day <= past.base_date).length - 1 : days.length - 1, first = at < 1;
@@ -183,7 +184,7 @@ export function assetPage(page) {
       + `<button type="button" class="asset-trades">거래 내역${chevron}</button><h2>내 계좌</h2>` + assetRow("원화", "주문 가능", assetMoney(accounts.KRW.cash, "KRW")) + assetRow("달러", "주문 가능", assetMoney(accounts.USD.cash, "USD"))
       + (waiting ? item({ ...waiting, name: "대기자금" }, `${waiting.symbol} ${assetShares(waiting.quantity)}`) : "");
     roll(page.querySelector(".asset-sum b:not(.veiled)"), `${index}-sum-${unit}`);
-    const perf = data.performance?.sectors?.[index], { cards, show } = assetCards(perf, index, { live: data.live?.time, summary: data.time });
+    const perf = data.performance?.sectors?.[index], { cards, show } = assetCards(perf, index, { live: data.live?.time || data.time, summary: data.time });
     if (!cards.length) return page.querySelector(".asset-sum").insertAdjacentHTML("afterend", '<p class="status">그림 값이 아직 없다.</p>');
     const bar = document.createElement("div");
     bar.className = "tabs";

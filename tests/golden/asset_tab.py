@@ -34,7 +34,7 @@ def sample() -> dict:
         ret = sector["returns"]
         day = dt.date.fromisoformat(ret["days"][-1])
         day += dt.timedelta(days=3 if day.weekday() == 4 else 1)
-        ret["now"] = {"day": day.isoformat(), "anchor": ret["anchor"][-1] + 0.004, "realized": ret["realized"][-1] + 0.006}
+        ret["now"] = {"day": day.isoformat(), "anchor": ret["anchor"][-1] + 0.004, "target": ret["target"][-1] + 0.005, "realized": ret["realized"][-1] + 0.006}
     return account
 
 
@@ -119,6 +119,9 @@ def main():
         tab(page, 0)
         before = read(page, 0)
         clock = dt.datetime.fromisoformat(account["live"]["time"]).strftime("%H:%M")
+        counts = page.evaluate("""(cards) => [...document.querySelectorAll(cards + ' .slide')[0].querySelectorAll('svg path')]
+          .map((p) => [p.getAttribute('stroke'), p.getAttribute('d').split('L').length])""", CARDS)
+        check("A4 판단 선도 최신 날짜 점까지 그린다", len({n for _, n in counts}) == 1 and len(counts) == 3, counts)
         stamp = page.evaluate("(cards) => document.querySelector(cards + ' .slide .top .kind')?.textContent", CARDS)
         check("A4 최신 날짜의 기준 시각은 체결가 시각", bool(stamp) and stamp.endswith(f"{clock} KST"), stamp)
         ret = account["performance"]["sectors"]["nasdaq"]["returns"]
