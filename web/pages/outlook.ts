@@ -34,12 +34,18 @@ export function figures(date, given = null, view = { aim: false, pending: () => 
       button.addEventListener("click", () => box.go(i));
       bar.appendChild(button);
     });
-    const change = (i) => [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j));
+    // `follow(turned)`는 보고 있는 카드가 바뀔 때마다 그 카드 이름으로 `turned`를 부르고, 받자마자 지금 카드 이름으로 한 번 부른다.
+    let current = 0, turned = () => {};
+    const change = (i) => {
+      [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j));
+      current = i;
+      turned(set.names[i]);
+    };
     const head = report.querySelector("h2"), box = slider(set.slides, head, { change, name: "cards", feel: true,
       lock: (i) => (i > 0 && set.pending() ? "아직 이전 정규장 분석이 완료되지 않았어요" : null) });
     box.prepend(bar);
     const rewind = cardRewind(box, date, set, view);
-    return { box, refresh: () => { rewind.update(); set.label(); }, label: () => set.label() };
+    return { box, refresh: () => { rewind.update(); set.label(); }, label: () => set.label(), follow: (fn) => { turned = fn; fn(set.names[current]); } };
   }
   const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
   const chart = pick("chart"), tree = pick("tree"), predict = pick("predict");
@@ -259,9 +265,11 @@ export function summaryCards(data, date, view) {
       // 날짜 슬라이더가 고른 종가가 아직 그림 왼쪽 끝 앞이면(기간을 넓히는 도중) '현재' 표시를 찍지 않는다.
       if (stop < i0) return;
       if (!ext) return nowMark(now, close[0], mark(stop, close[1]), "regular");
-      // 선 그림이면 정규장 다음 세션 값은 다음 거래일 자리에 찍어 고른 날짜의 종가 점에서 점선으로 잇는다.
+      // 선 그림이면 정규장 다음 세션 값은 다음 거래일 자리에 찍어 고른 날짜의 종가에서 잇는다. 정규장 값은 종가 선에 실선으로 잇고,
+      // 프리장·애프터장·선물 시간대 값은 종가 점을 찍고 점선으로 잇는다.
       const next = [center(stop + 1), Y(ext[0])];
-      if (!drawn) {
+      if (!drawn && ext[2] === "regular") g.append(shape("path", { d: path([close, next]), ...stroke }));
+      else if (!drawn) {
         g.append(shape("path", { d: path([close, next]), ...stroke, "stroke-dasharray": "2 2" }));
         now.append(shape("circle", { cx: close[0], cy: close[1], r: 2.5, fill: PRICE }));
       }
@@ -457,7 +465,9 @@ export function summaryCards(data, date, view) {
       }
       if (end) {
         const from = [X(end[0]), Y(end[1])], to = tail && [X(tail[0]), Y(tail[1])];
-        if (to && points.length) {
+        // 세션 값은 주가와 예측 카드처럼 정규장 값이면 끝 종가에서 실선으로, 프리장·애프터장·선물 시간대 값이면 끝 종가 점을 찍고 점선으로 잇는다.
+        if (to && points.length && tail[2] === "regular") s.append(shape("path", { d: path([from, to]), fill: "none", stroke: PRICE, "stroke-width": 1.6, "stroke-linecap": "round" }));
+        else if (to && points.length) {
           s.append(shape("path", { d: path([from, to]), fill: "none", stroke: PRICE, "stroke-width": 1.6, "stroke-linecap": "round", "stroke-dasharray": "2 2" }));
           s.append(shape("circle", { cx: from[0], cy: from[1], r: 2.5, fill: PRICE }));
         }

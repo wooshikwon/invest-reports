@@ -39,21 +39,31 @@ export function heads(title) {
   lift([...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title)?.nextElementSibling);
 }
 // `anchor` 바로 뒤에 `outlook.json`의 설명 절(현재 상태·주요 분기와 예측·종합 시나리오)을 접기 상자로 붙인다.
-// `set(html, point)`은 절을 통째로 바꾼다. 절에는 설명 날짜를 `data-point`로 단다.
+// `set(sections, point)`은 절 이름마다 HTML을 받아 절을 통째로 바꾼다. 절의 노드에는 절 이름을 `data-note`로, 설명 날짜를 `data-point`로 단다.
+// `show(name)`은 `name` 절만 보이고 나머지 절을 감춘다. 이름을 받기 전에는 모든 절을 보인다.
 export function notes(anchor) {
-  let nodes = [];
+  let nodes = [], shown = null;
+  const show = () => nodes.forEach((node) => { node.hidden = !!shown && node.dataset.note !== shown; });
   return {
-    set(html, point = "") {
+    set(sections = {}, point = "") {
       nodes.forEach((node) => node.remove());
-      const temp = document.createElement("div");
-      temp.innerHTML = html;
-      toneTags(temp);
-      lift(temp.firstElementChild);
-      wrap([...temp.children].filter((node) => level(node) === 3), 3);
-      temp.querySelectorAll("h3").forEach(trail);
-      nodes = [...temp.children];
-      nodes.forEach((node) => { node.dataset.point = point; });
+      nodes = Object.entries(sections).flatMap(([name, html]) => {
+        const temp = document.createElement("div");
+        temp.innerHTML = html;
+        toneTags(temp);
+        lift(temp.firstElementChild);
+        wrap([...temp.children].filter((node) => level(node) === 3), 3);
+        temp.querySelectorAll("h3").forEach(trail);
+        const made = [...temp.children];
+        made.forEach((node) => Object.assign(node.dataset, { note: name, point }));
+        return made;
+      });
       anchor.after(...nodes);
+      show();
+    },
+    show(name) {
+      shown = name;
+      show();
     },
   };
 }

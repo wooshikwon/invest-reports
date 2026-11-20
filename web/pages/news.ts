@@ -43,8 +43,10 @@ const heading = (item, named) => {
 // 상세 이슈 해설 탭이면 오른쪽에 절 제목의 물음표 단추를 둔다. 상세 이슈 해설 탭은 분석 완료 시각과 이슈 목록을, 종목 뉴스 탭은 보고 있는 리포트 지수(`index`)의 종목 기사 목록을 보인다. 고른 탭 아래 막대는 다른 탭을 고르면 그 탭 아래로 옮겨 간다.
 // 기사 목록은 종목 뉴스 탭을 처음 고를 때 7일 치를 한 번 받아, 회차 시작 시각이 지금부터 3일 안인 기사를 먼저 보이고 "더 보기"를 누르면 7일 치를 모두 보인다.
 // 날짜 슬라이드로 지난 리포트를 열어도 지금 기준 최신 기사를 보인다. 고른 탭과 더 보기 여부는 `history.state`에 적어, 뉴스 상세에서 뒤로 돌아와도 그대로 연다.
+// 적힌 탭이 없는 가장 늦은 리포트는 기사 목록을 바로 받아, 가장 최근 회차의 시작 시각이 리포트의 분석 완료 시각(`written`, "2026-11-20 11:43" 같은 서울 시각)보다 늦으면 종목 뉴스 탭으로 바꾼다.
+// 목록을 받기 전에 탭을 누르면 바꾸지 않는다. 지난 리포트는 상세 이슈 해설 탭으로 연다.
 // 종목 뉴스 탭의 마지막 업데이트 시각은 받은 기사 가운데 가장 최근 회차의 시작 시각이다. 목록 블록은 이슈 목록 상자와 같은 모양으로 제목과 머리 줄(첫 소제목), 회차 시각을 쓴다.
-export function newsTab(index) {
+export function newsTab(index, written) {
   const { signal } = life;
   const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "상세 이슈 해설");
   if (!head) return;
@@ -69,7 +71,7 @@ export function newsTab(index) {
   const line = Object.assign(document.createElement("span"), { className: "tabline" });
   const tabs = ["상세 이슈 해설", "종목 뉴스"].map((name, i) => {
     const tab = Object.assign(document.createElement("button"), { type: "button", textContent: name });
-    tab.addEventListener("click", () => { if (i !== shown) { feelPress(); pick(i, true); } });
+    tab.addEventListener("click", () => { touched = true; if (i !== shown) { feelPress(); pick(i, true); } });
     return tab;
   });
   const bar = Object.assign(document.createElement("i"), { className: "bar" });
@@ -87,7 +89,7 @@ export function newsTab(index) {
   }
   head.replaceChildren(line);
   head.classList.add("tabbed");
-  let shown = -1, filled = false, more = !!history.state?.more;
+  let shown = -1, filled = false, touched = false, more = !!history.state?.more;
   const pick = (i, move) => {
     shown = i;
     tabs.forEach((tab, j) => tab.classList.toggle("on", i === j));
@@ -144,7 +146,13 @@ export function newsTab(index) {
     });
     return node;
   };
-  pick(history.state?.tab === "news" ? 1 : 0, false);
+  const kept = history.state?.tab;
+  pick(kept === "news" ? 1 : 0, false);
+  if (kept || document.documentElement.classList.contains("past")) return;
+  newsList(`index=${index}&days=7`).then((items) => {
+    const newest = Math.max(...items.map((item) => Date.parse(item.time)));
+    if (!signal.aborted && !touched && newest > (written ? Date.parse(`${written.replace(" ", "T")}:00+09:00`) : 0)) pick(1, false);
+  }, () => {});
 }
 
 // 종목 상세에서 `after` 바로 뒤에 주요뉴스 절을 두고, 절의 마지막 노드를 돌려준다. 절은 `symbol` 종목을 단 최신 기사 열 편까지 받아 처음에는 세 편의 날짜와 제목을 쓰고,

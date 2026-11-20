@@ -68,10 +68,19 @@ class World:
         self.browser.close()
 
 
+# 카드 묶음에서 고른 카드(`tab`)마다 그 아래에 보이는 설명 절 이름.
+NOTE_OF = ["현재 상태", "주요 분기와 예측", "종합 시나리오"]
+
+
+def shows(s) -> bool:
+    """고른 카드에 맞는 설명 절만 보이는지."""
+    return bool(s["notes"]) and {note for _, hidden, note in s["notes"] if not hidden} == {NOTE_OF[s["tab"]]}
+
+
 def state(page):
     return page.evaluate("""() => ({
       date: document.querySelector('.carousel.cards .rewind span')?.textContent ?? null,
-      notes: [...document.querySelectorAll('[data-point]')].map((n) => [n.dataset.point, n.hidden]),
+      notes: [...document.querySelectorAll('[data-point]')].map((n) => [n.dataset.point, n.hidden, n.dataset.note]),
       aim: (() => { const b = document.querySelector('button.aim'); return b && { disabled: b.disabled, on: b.classList.contains('on'), text: b.textContent.trim() }; })(),
       tab: [...document.querySelectorAll('.carousel.cards .tabs button')].findIndex((b) => b.classList.contains('on')),
       toast: document.querySelector('.toast')?.textContent ?? null,
@@ -143,7 +152,7 @@ def main():
         s = state(page)
         check("a1 판단 전 최신: 머리 줄(#day)이 없음", page.evaluate("document.getElementById('day') === null"))
         check("a1 판단 전 최신: 예측 단추가 꺼져 있고 단계 글자를 보임", s["aim"] == {"disabled": False, "on": False, "text": "예측 중 25%"}, s["aim"])
-        check("a1 판단 전 최신: 예측 단추가 꺼져도 설명 절이 보이고 가장 늦은 판단의 날짜", s["notes"] and all(not h for _, h in s["notes"]) and {pt for pt, _ in s["notes"]} == {"2026-11-19"}, s["notes"])
+        check("a1 판단 전 최신: 예측 단추가 꺼져도 고른 카드의 설명 절이 보이고 가장 늦은 판단의 날짜", shows(s) and {pt for pt, *_ in s["notes"]} == {"2026-11-19"}, s["notes"])
         page.screenshot(path=str(shots / "a1-before-latest-top.png"))
         to_cards(page)
         page.screenshot(path=str(shots / "a1-before-latest-cards.png"))
@@ -155,7 +164,7 @@ def main():
         capture.settle(page, 600)
         s = state(page)
         check("a2 판단 전 지난 날짜: 예측 단추를 누를 수 있음", s["aim"] and s["aim"]["on"] and not s["aim"]["disabled"], s["aim"])
-        check("a2 판단 전 지난 날짜: 설명 절이 보이고 가장 늦은 판단의 날짜", s["notes"] and all(not h for _, h in s["notes"]) and {pt for pt, _ in s["notes"]} == {"2026-11-19"}, s["notes"])
+        check("a2 판단 전 지난 날짜: 고른 카드의 설명 절이 보이고 가장 늦은 판단의 날짜", shows(s) and {pt for pt, *_ in s["notes"]} == {"2026-11-19"}, s["notes"])
         page.screenshot(path=str(shots / "a2-before-past-cards.png"))
         page.locator(".fold, h2").first.scroll_into_view_if_needed()
         page.evaluate("document.querySelector('[data-point]').scrollIntoView({block:'start'})")
@@ -179,7 +188,7 @@ def main():
                 path.append(label)
                 page.wait_for_timeout(120)
                 graph.append(page.evaluate("document.querySelector('.carousel.cards .slide').innerHTML.length"))
-                held.append({pt for pt, _ in state(page)["notes"]})
+                held.append({pt for pt, *_ in state(page)["notes"]})
             if len(path) >= 4:
                 break
         at_release = path[-1]
@@ -189,7 +198,7 @@ def main():
         check("b 잡고 있는 동안 날짜 세 번 바뀜", len(path) >= 4, path)
         check("b 그래프 점이 세 번 움직임", len({g for g in graph}) >= 3, graph)
         check("b 잡고 있는 동안 설명 날짜가 가장 늦은 판단의 날짜", all(h == {"2026-11-19"} for h in held), held)
-        check("b 손을 뗀 뒤에도 설명 날짜가 가장 늦은 판단의 날짜", {pt for pt, _ in s["notes"]} == {"2026-11-19"}, [at_release, s["notes"]])
+        check("b 손을 뗀 뒤에도 설명 날짜가 가장 늦은 판단의 날짜", {pt for pt, *_ in s["notes"]} == {"2026-11-19"}, [at_release, s["notes"]])
         w.close()
 
         # (c) 튕김 잠금
@@ -253,7 +262,12 @@ def main():
         page.locator("button.aim").first.click()
         capture.settle(page, 600)
         s = state(page)
-        check("a3 판단 후 최신: 설명 절이 최신 판단", {pt for pt, _ in s["notes"]} == {PENDING} and all(not h for _, h in s["notes"]), s["notes"])
+        check("a3 판단 후 최신: 설명 절이 최신 판단이고 고른 카드의 절만 보인다", {pt for pt, *_ in s["notes"]} == {PENDING} and shows(s), s["notes"])
+        for i in (1, 2, 0):
+            page.locator(".carousel.cards .tabs button").nth(i).click()
+            capture.settle(page, 600)
+            s = state(page)
+            check(f"a3 {NOTE_OF[i]} 카드로 넘기면 그 절만 보인다", s["tab"] == i and shows(s), [s["tab"], s["notes"]])
         page.screenshot(path=str(shots / "a3-after-latest-cards.png"))
         page.evaluate("document.querySelector('[data-point]').scrollIntoView({block:'start'})")
         capture.settle(page, 400)
@@ -264,7 +278,7 @@ def main():
         drag_to(page, "11/18")
         page.wait_for_timeout(600)
         s = state(page)
-        check("a4 판단 후 지난 날짜: 설명 절이 가장 늦은 판단의 날짜 그대로", {pt for pt, _ in s["notes"]} == {PENDING}, s["notes"])
+        check("a4 판단 후 지난 날짜: 설명 절이 가장 늦은 판단의 날짜 그대로", {pt for pt, *_ in s["notes"]} == {PENDING}, s["notes"])
         page.screenshot(path=str(shots / "a4-after-past-cards.png"))
         page.evaluate("document.querySelector('[data-point]').scrollIntoView({block:'start'})")
         capture.settle(page, 400)

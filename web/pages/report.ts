@@ -22,6 +22,7 @@ export const unmount = () => unturn();
 // 판단이 올라와 화면을 그 자리에서 다시 그릴 때(`arrive`) 보던 페이지와 화면 위치, 예측 단추 상태를 다음 화면에 넘긴다.
 let carry = null;
 const OUTLOOK = ["현재 상태", "주요 분기와 예측", "종합 시나리오"];
+const NOTE_OF = { "주가와 예측": "현재 상태", "일정": "주요 분기와 예측", "권장 배율": "종합 시나리오" };
 function reportPage(body, listing, cards, history, given) {
   const { signal } = life;
   const kept = carry;
@@ -29,9 +30,9 @@ function reportPage(body, listing, cards, history, given) {
   settleStart();
   const index = key.split("-")[1], entry = listing[key], isLatest = key === latest(listing, index);
   // `pend`는 가장 늦은 리포트의 판단 날짜 지점(`entry.point`)보다 늦은 실시간 값의 날짜 지점이다. 그 지점의 판단은 아직 올라오지 않았다.
-  // 설명 세 절(`noted`)은 화면을 그릴 때 받은 가장 늦은 판단의 `outlook.json`(`given`)으로 채우고, 날짜 슬라이드의 선택과 예측 단추(`aimed`)의 상태를 받지 않고 늘 보인다.
+  // 설명 세 절(`noted`)은 화면을 그릴 때 받은 가장 늦은 판단의 `outlook.json`(`given`)으로 채우고, 날짜 슬라이드의 선택과 예측 단추(`aimed`)의 상태를 받지 않는다.
+  // 그림 카드 묶음 아래에는 보고 있는 카드에 맞는 절 하나만 보인다(`NOTE_OF`). 주가와 예측 카드는 현재 상태, 일정 카드는 주요 분기와 예측, 권장 배율 카드는 종합 시나리오다.
   let pend = null, rewind = null, noted = null, aimed = !!kept?.aim;
-  const joined = (value) => (value ? Object.values(value.sections).join("") : "");
   // 예측 단추의 글자는 판단 배치의 단계(`stage`)로 정하고, 단계 판정은 여기서 하며 `outlook.ts`는 받은 글자와 상태만 그린다.
   // 단계는 가장 늦은 리포트를 보는 동안만 정한다. 실시간 값의 `progress`가 보는 리포트의 날짜(`entry.date`)보다 늦은 날짜에 이 지수의 단계를 적었으면 판단 배치가 도는 중이라 "예측 중 N%"(`running`)이고,
   // 그렇지 않은데 다음 날짜 지점의 값(`pend`)이 들어왔으면 배치가 시작하기 전이라 "예측 전"(`pre`)이다. 그 밖에는 "예측"(`done`)이다.
@@ -109,7 +110,8 @@ function reportPage(body, listing, cards, history, given) {
     rewind = figures(date, cards, view);
     if (rewind?.box) {
       noted = notes(rewind.box);
-      noted.set(joined(given), given?.point ?? "");
+      noted.set(given?.sections, given?.point ?? "");
+      rewind.follow((name) => noted.show(NOTE_OF[name]));
     }
     indicators(date);
     marketed.then(({ map }) => {
@@ -135,7 +137,7 @@ function reportPage(body, listing, cards, history, given) {
     if (document.documentElement.classList.contains("past")) freeze("이벤트 캘린더", latest(listing, key.split("-")[1]));
     events(date, listing);
     help();
-    newsTab(index);
+    newsTab(index, entry?.written);
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "이벤트 캘린더");
     // `place`는 페이지와 바로가기 단추를 새로 묶고 `name` 페이지를 연다. 이름이 없거나 묶음에 없는 페이지면 첫 페이지를 연다.
     const place = (shown, names, name, still) => {

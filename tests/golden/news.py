@@ -7,6 +7,7 @@
 화면 시각은 `fixtures.NOW`(11/19 23:45 KST)다. 기대값은 SAMPLE 기사의 회차 시작 시각으로 손으로 셈한 제목이다.
 """
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
@@ -107,6 +108,25 @@ def main() -> int:
         capture.settle(page, 600)
         back = page.evaluate(BAR)
         check("상세 이슈 해설 탭으로 돌아오면 막대도 돌아온다", back["tab"] == "상세 이슈 해설" and near(back["bar"][:2], before["bar"][:2]), str(back))
+        run.close()
+
+        # 적힌 탭이 없는 가장 늦은 리포트는 분석 완료 시각과 가장 최근 회차 시각 가운데 늦은 쪽의 탭으로 연다.
+        listing = json.loads((Path(args.data) / "r" / "index.json").read_text(encoding="utf-8"))
+        latest = max(key for key, entry in listing.items() if key.endswith("-nasdaq") and isinstance(entry, dict))
+        page = run.open(f"?r={latest}")
+        capture.turn(page, "이슈")
+        capture.settle(page, 600)
+        check("분석 완료 시각이 최근 회차보다 늦으면 상세 이슈 해설 탭으로 연다", page.evaluate(BAR)["tab"] == "상세 이슈 해설", listing[latest]["written"])
+        # 분석 완료 시각을 SAMPLE 기사의 가장 최근 회차(11/19 18:00 KST)보다 이르게 바꾼 목록으로 다시 연다.
+        earlier = {**listing, latest: {**listing[latest], "written": "2026-11-19 10:00"}}
+        page.route("**/r/index.json*", lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps(earlier)))
+        page.evaluate("history.replaceState(null, '')")  # 미니 앱을 새로 연 것처럼 적힌 탭을 지운다
+        page.reload(wait_until="networkidle")
+        capture.settle(page)
+        capture.turn(page, "이슈")
+        capture.settle(page, 600)
+        auto = page.evaluate(BAR)
+        check("최근 회차가 분석 완료 시각보다 늦으면 종목 뉴스 탭으로 연다", auto["tab"] == "종목 뉴스" and near(auto["bar"][:2], auto["on"][:2]), str(auto))
         run.close()
 
         page = open_news(run, BIOTECH)
