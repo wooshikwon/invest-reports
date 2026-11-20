@@ -95,27 +95,33 @@ export const zoomDrag = (steps, now, pick) => {
 };
 // 봉 하나(`[a, b]`는 첫·마지막 거래일 번호)의 몸통 폭이다.
 export const candleWidth = ([a, b], step) => Math.max(1, step * (b - a + 1) * .62);
-// 봉 목록 끝에 정규장 다음 세션 값(`v`)을 더한 봉 목록. 애프터장·프리장·다음 정규장 값은 모두 다음 거래일(마지막 거래일 다음 평일)의 잠정 값으로 본다.
-// 다음 거래일이 마지막 봉의 기간 안이면 마지막 봉의 종가를 `v`로 바꾸고 고가·저가를 `v`까지 넓히며, 기간 밖이면 마지막 종가를 시가로 하는 새 봉을 기간 하나의 폭으로 덧붙인다.
-// 그래서 일봉은 정해진 마지막 봉을 바꾸지 않고 늘 새 봉을 덧붙인다. 바꾸거나 덧붙인 봉은 아직 정해지지 않은 잠정 봉이어서 일곱째 값을 참으로 둔다.
-export const candleLate = (groups, days, unit, v) => {
+// 봉 목록 끝에 날짜 지점 `point`(`YYYY-MM-DD`)의 잠정 봉을 더한 봉 목록. `live`는 `{ close, open?, high?, low?, gray }`이고, `close`가 그 지점의 마지막 체결가다.
+// 애프터장(선물 포함)·프리장 값은 시가·고가·저가가 없어 마지막 종가를 시가로 삼고 `gray`를 참으로 두어 회색 봉으로 그리며, 정규장 값은 시가·고가·저가를 받아 등락 색으로 그린다.
+// 잠정 봉의 자리는 날짜 지점 순서가 정한다. 날짜 지점은 마지막 거래일(`b`) 바로 다음 번호(`b + 1`)이고 날짜를 세지 않는다. `point`가 마지막 봉의 기간 안이면
+// 마지막 봉이 그 지점까지 늘어나고, 기간 밖이면 새 봉을 기간 하나의 폭으로 덧붙인다. `point`를 주지 않는 카드(종목·유가)는 마지막 거래일의 다음 평일을 `point`로 본다.
+// 바꾸거나 덧붙인 봉은 아직 정해지지 않은 잠정 봉이어서 일곱째 값을 참으로 두고, 여덟째 값이 회색 여부다.
+export const candleLate = (groups, days, unit, live, point = null) => {
+  const { close: v, gray = true } = typeof live === "number" ? { close: live } : live;
   const [a, b, o, h, l, c] = groups[groups.length - 1], key = candleKey(unit), t = Date.parse(days[b]);
-  const day = new Date(t + [1, 1, 1, 1, 1, 3, 2][new Date(t).getUTCDay()] * 864e5).toISOString().slice(0, 10);
-  if (key(day) === key(days[b])) return [...groups.slice(0, -1), [a, b, o, Math.max(h, v), Math.min(l, v), v, true]];
-  return [...groups, [b + 1, b + { day: 1, week: 5, month: 21 }[unit], c, Math.max(c, v), Math.min(c, v), v, true]];
+  const day = point ?? new Date(t + [1, 1, 1, 1, 1, 3, 2][new Date(t).getUTCDay()] * 864e5).toISOString().slice(0, 10);
+  const open = live.open ?? null, high = Math.max(live.high ?? v, v), low = Math.min(live.low ?? v, v);
+  if (key(day) === key(days[b])) return [...groups.slice(0, -1), [a, b + 1, o, Math.max(h, high), Math.min(l, low), v, true, gray]];
+  return [...groups, [b + 1, b + { day: 1, week: 5, month: 21 }[unit], open ?? c, Math.max(c, high), Math.min(c, low), v, true, gray]];
 };
 // 봉을 `parent`에 그린다. `X`는 거래일 번호의 가로 자리, `Y`는 값의 세로 자리, `step`은 거래일 하나의 폭이다. 종가가 시가 이상인 봉은 오름 색, 아래인 봉은 내림 색이다.
-// 잠정 봉은 등락 색에 회색(#A7ABB0)을 9할 섞은 흐린 색으로 그린다. 앞 봉 뒤에 덧붙인 잠정 봉은 앞 봉과 1px 띄우고, 오른쪽 끝(`right`)을 넘지 않게 자리를 당기고 폭을 줄인다.
-export const drawCandles = (parent, groups, X, Y, step, right = Infinity) => groups.map(([a, b, o, h, l, c, late], i) => {
+// 회색 봉(여덟째 값이 참)은 등락 색에 회색(#A7ABB0)을 9할 섞은 흐린 색으로 그린다. 잠정 봉(일곱째 값이 참)은 앞 봉 뒤에 덧붙이면 앞 봉과 1px 띄우고, 오른쪽 끝(`right`)을 넘지 않게 자리를 당기고 폭을 줄인다.
+export const drawCandles = (parent, groups, X, Y, step, right = Infinity) => groups.map(([a, b, o, h, l, c, late, gray], i) => {
   let x = X((a + b) / 2), w = candleWidth([a, b], step);
   if (late && i && a > groups[i - 1][1]) {
     const [pa, pb] = groups[i - 1], edge = X((pa + pb) / 2) + candleWidth([pa, pb], step) / 2 + 1;
     w = Math.max(1, Math.min(w, right - edge));
     x = Math.max(edge + w / 2, Math.min(x, right - w / 2));
   }
-  const color = c >= o ? (late ? "#B0A3A8" : "#ff5c5c") : (late ? "#9FA9B8" : "#5b9bff"), top = Y(Math.max(o, c)), bottom = Y(Math.min(o, c));
+  const color = c >= o ? (gray ? "#B0A3A8" : "#ff5c5c") : (gray ? "#9FA9B8" : "#5b9bff"), top = Y(Math.max(o, c)), bottom = Y(Math.min(o, c));
   parent.append(shape("path", { d: `M${x} ${Y(h)}V${Y(l)}`, stroke: color, "stroke-width": Math.min(1, w) }));
-  parent.append(shape("rect", { x: x - w / 2, y: top, width: w, height: Math.max(.8, bottom - top), fill: color }));
+  const body = shape("rect", { x: x - w / 2, y: top, width: w, height: Math.max(.8, bottom - top), fill: color });
+  if (late) body.dataset.live = gray ? "gray" : "color";
+  parent.append(body);
   return x;
 });
 // '현재' 표시. 값의 세션(`kind`: `regular`, `after`, `pre`) 색 점이고, 색은 위 줄 기준 시각 글씨와 같은 세션 색(`--kind`)이다.

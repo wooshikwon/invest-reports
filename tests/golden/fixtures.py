@@ -1,13 +1,12 @@
 """골든 캡처가 미니 앱에 돌려주는 지어낸 값.
 
-계좌 요약(`invest-account`), 실시간 값(`invest-live`의 `premarket`·`afterhours`·`progress`), 다음날 사전 리포트를 모두 여기서 만든다.
+계좌 요약(`invest-account`)과 실시간 값(`invest-live`의 `premarket`·`afterhours`·`progress`·`index`)을 모두 여기서 만든다.
 `split`은 v0.8 리포트 자료를 build.py가 지금 쓰는 모양(이슈 과거 맥락과 요약 카드 값을 `history.json`·`cards.json`으로 뺀 모양)으로 바꾼다.
 계좌 값과 신호등 값은 손으로 지어낸 상수와 고정 시드의 난수로 만들고, 실시간 체결가는 `r/market.json` 지도의 공개 종가에 종목마다 고정한 비율을 곱해 만든다.
 실제 계좌, 토스, Worker, 소유자 ID는 읽지 않는다. 모든 시각은 `NOW` 하나에서 나온다.
 """
 import datetime as dt
 import html
-import importlib.util
 import json
 import math
 import random
@@ -23,7 +22,7 @@ NOW = dt.datetime(2026, 11, 19, 14, 45, tzinfo=dt.timezone.utc)
 TODAY = NOW.astimezone(KST).date().isoformat()
 SESSION = NOW.astimezone(NEW_YORK).date().isoformat()
 PREVIOUS = "2026-11-18"
-PRE_KEY, PRE_DAY, BASE_KEY = "20261120-nasdaq", "2026-11-20", "20261119-nasdaq"
+BASE_KEY = "20261119-nasdaq"
 
 
 def account() -> dict:
@@ -133,50 +132,47 @@ def _prices(stocks: list, n: int, salt: str) -> dict:
     return out
 
 
-def live(data_root: Path) -> dict:
-    """`invest-live`의 세 값. 지도의 마지막 날짜(`PREVIOUS`) 종가에 고정 비율을 곱한 체결가로 리포트 날짜(`SESSION`)의 정규장 값과
-    그 앞 프리장 값, 지도 날짜의 애프터장 값을 만든다."""
+POINT = "2026-11-19"
+# 시점 이름 → (고정 시각 UTC, 그 시각의 실시간 값). 값은 모두 지어낸 값이다.
+MOMENTS = {
+    "after": dt.datetime(2026, 11, 19, 1, 0, tzinfo=dt.timezone.utc),
+    "futures": dt.datetime(2026, 11, 19, 9, 0, tzinfo=dt.timezone.utc),
+    "pre": dt.datetime(2026, 11, 19, 13, 30, tzinfo=dt.timezone.utc),
+    "regular": NOW,
+    "closed": dt.datetime(2026, 11, 19, 22, 0, tzinfo=dt.timezone.utc),
+}
+
+
+def live(data_root: Path, moment: str = "regular") -> dict:
+    """`invest-live`의 값. 지도의 마지막 날짜(`PREVIOUS`) 종가에 고정 비율을 곱한 체결가로 `moment` 시점까지 쌓인 날짜 지점 `POINT`의 값을 만든다.
+
+    `after`는 애프터마켓만, `futures`는 선물 창(나스닥만 `basis: futures`), `pre`는 프리마켓, `regular`는 정규장 진행 중(`phase: regular`, 진행 봉 `ohlc`),
+    `closed`는 장 마감 뒤(마지막 봉)다. 지수 값 `index`는 지어낸 값이고 `loaded`는 그 시각 직전이다."""
     board = json.loads((data_root / "r" / "market.json").read_text(encoding="utf-8"))["map"]
+    at = MOMENTS[moment]
+    ny = lambda t: t.astimezone(NEW_YORK).strftime("%Y-%m-%dT%H:%M:00-05:00")
     premarket, afterhours = {}, {}
     for index, found in board.items():
         n = found["dates"].index(PREVIOUS)
-        pre = {"time": f"{SESSION}T09:20:00-05:00", "ratio": round(1 + _tilt(index, "pre"), 6), "stocks": _prices(found["stocks"], n, "pre")}
-        premarket[index] = {SESSION: {"session": PREVIOUS, "time": f"{SESSION}T09:40:00-05:00", "phase": "regular",
-                                      "ratio": round(1 + _tilt(index, "regular"), 6), "stocks": _prices(found["stocks"], n, "regular"), "pre": pre}}
-        afterhours[index] = {PREVIOUS: {"time": f"{PREVIOUS}T19:50:00-05:00", "ratio": round(1 + _tilt(index, "after"), 6),
-                                        "stocks": _prices(found["stocks"], n, "after")}}
-    progress = {"date": PRE_DAY, "indexes": {index: {"step": 1, "since": f"{TODAY}T23:40:00+09:00"} for index in board}, "plan": [0, 20, 60, 120]}
-    return {"premarket": premarket, "afterhours": afterhours, "progress": progress}
-
-
-def pre_report(data_root: Path) -> dict:
-    """다음날 사전 리포트 `PRE_KEY`를 v0.8 본 리포트 `BASE_KEY`로 지어 `{경로: 바이트}`로 돌려준다.
-
-    build.py `pre`처럼 카드 JSON을 지우고 1개월 지수 방향 예측 절 본문을 비운 뒤 `pre_issues`와 `pre_indicators`를 거치고, 본 리포트 카드의
-    종가 기록으로 사전 리포트 카드를 붙인다. 지표 카드 표시(`mark_indicators`)는 vault 자료가 있어야 하므로 거치지 않는다.
-    목록 항목은 정규장 중에 만든 사전 리포트처럼 `stage`가 `pre`이고 `live`가 `SESSION`이다.
-    """
-    spec = importlib.util.spec_from_file_location("golden_build", data_root / "build.py")
-    build = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(build)
-    body = (data_root / "r" / BASE_KEY / "report.html").read_text(encoding="utf-8")
-    cards = json.loads(re.search(r'<script type="application/json" id="cards">(.*?)</script>', body, flags=re.DOTALL).group(1))
-    body = re.sub(r'<script type="application/json" id="cards">.*?</script>\n?', "", body, flags=re.DOTALL)
-    outlook = re.search(r'<h2 id="[^"]*">1개월 지수 방향 예측</h2>', body)
-    end = body.find("<h2", outlook.end())
-    body = body[:outlook.end()] + "\n" + body[end:]
-    body = build.pre_indicators(build.pre_issues(body, dt.date.fromisoformat(PRE_DAY)))
-    cut = cards["dates"].index(PREVIOUS) + 1
-    dates, history = cards["dates"][:cut], cards["history"][:cut]
-    card = {"pre": True, "dates": dates, "history": history, "day": PRE_DAY, "base_date": dates[-1], "base": history[-1]}
-    body += f'<script type="application/json" id="cards">{json.dumps(card, ensure_ascii=False)}</script>\n'
-    entries = json.loads((data_root / "r" / "index.json").read_text(encoding="utf-8"))
-    day = dt.date.fromisoformat(PRE_DAY)
-    entries[PRE_KEY] = {"title": entries[BASE_KEY]["title"], "day": f"{PRE_DAY} ({'월화수목금토일'[day.weekday()]})", "date": PRE_DAY,
-                        "index": "nasdaq", "stage": "pre", "updated": f"{TODAY} 23:35",
-                        "moves": {"session": None, "after": None, "close": None, "base": None}, "live": SESSION}
-    listing = json.dumps(dict(sorted(entries.items(), reverse=True)), ensure_ascii=False, indent=1) + "\n"
-    return {"r/index.json": listing.encode(), f"r/{PRE_KEY}/report.html": body.encode()}
+        after = {"time": f"{PREVIOUS}T19:50:00-05:00", "ratio": round(1 + _tilt(index, "after"), 6), "stocks": _prices(found["stocks"], n, "after"), "point": POINT}
+        if moment == "futures" and index == "nasdaq":
+            after.update(basis="futures", futures_time=ny(at))
+        pre = {"time": f"{POINT}T09:20:00-05:00", "ratio": round(1 + _tilt(index, "pre"), 6), "stocks": _prices(found["stocks"], n, "pre"), "session": PREVIOUS, "phase": "pre", "point": POINT}
+        r = round(1 + _tilt(index, "regular"), 6)
+        regular = {"time": ny(at if moment == "regular" else dt.datetime(2026, 11, 19, 21, 0, tzinfo=dt.timezone.utc)), "ratio": r,
+                   "stocks": _prices(found["stocks"], n, "regular"), "session": PREVIOUS, "phase": "regular", "point": POINT,
+                   "ohlc": {"open": round(r - .004, 6), "high": round(r + .006, 6), "low": round(r - .009, 6), "close": r}, "pre": pre}
+        if moment in ("after", "futures"):
+            afterhours[index] = {PREVIOUS: after}
+        elif moment == "pre":
+            premarket[index] = {POINT: pre}
+        else:
+            premarket[index] = {POINT: regular}
+    ndx = {"^NDX": 21000.0, "^NBI": 4500.0, "CL=F": 61.25}
+    loaded = (at - dt.timedelta(minutes=2)).astimezone(KST).strftime("%Y-%m-%dT%H:%M:00+09:00")
+    index_values = {sym: {"price": price, "time": loaded, "loaded": loaded} for sym, price in ndx.items()}
+    progress = {"date": POINT, "indexes": {index: {"step": 1, "since": f"{TODAY}T23:40:00+09:00"} for index in board}, "plan": [0, 20, 60, 120]}
+    return {"premarket": premarket, "afterhours": afterhours, "progress": progress, "index": index_values}
 
 
 HISTORY_RE = re.compile(r'\s*<template class="issue-history">(.*?)</template>\s*', re.DOTALL)

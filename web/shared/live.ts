@@ -13,7 +13,9 @@ export const LIVE_EVERY = 1;
 // 서버는 매 분 0초에 값을 새로 쓰므로, 앱은 간격의 정시에서 3초 뒤에 받는다.
 const LATE = 3e3;
 
-export type Live = { early: Record<string, any>; after: Record<string, any>; regular: Record<string, any>; progress: Record<string, any> };
+// `points`는 지수마다 날짜 지점(`point`)별로 묶은 값 `{ pre, regular, after }`이다. 지점 N의 `after`는 N 앞 세션의 애프터장(선물 시간대 포함) 값이고,
+// `pre`는 N의 프리장 값, `regular`는 N의 정규장 값(`ohlc` 포함)이다. `index`는 지수와 WTI의 1분 값 `{ price, time, loaded }`이다.
+export type Live = { early: Record<string, any>; after: Record<string, any>; regular: Record<string, any>; progress: Record<string, any>; points: Record<string, any>; index: Record<string, any> };
 type Hook = (found: Live) => void;
 
 // 지금부터 다음 `every`분 간격 정시 3초 뒤까지 남은 밀리초다. 간격은 1970년 1월 1일 0시부터 세므로 1·3·5분 간격의 정시는 매시 정각에서 시작한다.
@@ -57,7 +59,17 @@ const shape = (value: any, listing: any): Live => {
     });
     if (own?.live && own.index === index) early[index][own.date] = days[own.live] ?? null;
   });
-  return { early, after: value.afterhours || {}, regular, progress: value.progress || {} };
+  const points = {};
+  const at = (index, point) => ((points[index] ??= {})[point] ??= {});
+  Object.entries(value.premarket || {}).forEach(([index, days]: [string, any]) => Object.values(days).forEach((v: any) => {
+    if (!v?.point) return;
+    if (v.phase === "regular") {
+      at(index, v.point).regular = v;
+      if (v.pre) at(index, v.point).pre = { ...v.pre, session: v.session, phase: "pre", point: v.point };
+    } else at(index, v.point).pre = v;
+  }));
+  Object.entries(value.afterhours || {}).forEach(([index, days]: [string, any]) => Object.values(days).forEach((v: any) => { if (v?.point) at(index, v.point).after = v; }));
+  return { early, after: value.afterhours || {}, regular, progress: value.progress || {}, points, index: value.index || {} };
 };
 
 // `GET /`을 한 번 부른다. 받은 본문이 앞 회차와 같거나(304를 받은 브라우저는 저장해 둔 같은 본문을 건넨다) Worker가 답하지 않았으면 거짓을 돌려준다.

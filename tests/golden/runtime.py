@@ -77,7 +77,6 @@ SCREENS = {
     "latest": ("", f"?r={fixtures.BASE_KEY}", OTHER, None, 1, "base"),
     "issue": (f"?r={fixtures.BASE_KEY}&issue=1", f"?r={fixtures.BASE_KEY}&issue=1", f"?r={fixtures.BASE_KEY}&issue=2", None, 1, "base"),
     "past": ("?r=20261118-nasdaq", "?r=20261118-nasdaq", OTHER, None, 1, "base"),
-    "pre": (f"?r={fixtures.PRE_KEY}", f"?r={fixtures.PRE_KEY}", OTHER, None, 1, "pre"),
     "market": ("", f"?r={fixtures.BASE_KEY}", OTHER, "시장", 1, "base"),
     "asset": ("", f"?r={fixtures.BASE_KEY}", OTHER, "자산", 1, "base"),
     "stock": (f"?r={fixtures.BASE_KEY}&stock=NVDA", f"?r={fixtures.BASE_KEY}&stock=NVDA", f"?r={fixtures.BASE_KEY}&stock=NVDA", None, 1, "base"),
@@ -101,7 +100,7 @@ def context(browser, server, uid, dataset, clock=None, overlay=None):
     page_context.add_init_script(capture.mock(uid))
     if uid == 1:
         page_context.add_init_script("try { localStorage.setItem('asset', '1'); } catch {}")
-    files = dict(fixtures.pre_report(server.data)) if dataset == "pre" else {}
+    files = {}
     files.update(overlay or {})
     page_context.route("**/*", server.handler(files, fixtures.account()))
     return page_context
@@ -209,22 +208,6 @@ def beat(browser, server, every: int, minutes: int) -> bool:
     print(f"invest-account 예측 페이지 3분: {len(away)}번 {'통과' if not away else '실패'}")
     page_context.close()
 
-    # 분석 중인 리포트의 단계 표시는 회차마다 `progress`로 진척률을 다시 쓴다.
-    listing = json.loads(dict(fixtures.pre_report(server.data))["r/index.json"])
-    listing[fixtures.PRE_KEY]["stage"] = "running"
-    overlay = {"r/index.json": json.dumps(listing, ensure_ascii=False).encode()}
-    page_context = context(browser, server, 1, "pre", clock=start, overlay=overlay)
-    page_context.add_init_script(VISIBLE)
-    page = page_context.new_page()
-    page.goto(capture.APP + f"?r={fixtures.PRE_KEY}", wait_until="networkidle")
-    page.wait_for_function("document.querySelector('.stage.running')?.textContent.includes('%')", timeout=5000)
-    first = page.locator(".stage.running").text_content()
-    advance(page, every * 60 * 10)
-    later = page.locator(".stage.running").text_content()
-    good = first.startswith("분석 중 ") and later.startswith("분석 중 ") and first != later
-    ok &= good
-    print(f"분석 중 단계 표시: 연 때 {first!r}, {every * 10}분 뒤 {later!r} {'통과' if good else '실패'}")
-    page_context.close()
     return ok
 
 

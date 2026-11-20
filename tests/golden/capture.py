@@ -1,4 +1,4 @@
-"""미니 앱 화면 열두 개를 띄워 화면마다 `main`의 정규화한 HTML과 PNG를 저장한다.
+"""미니 앱 화면 열한 개를 띄워 화면마다 `main`의 정규화한 HTML과 PNG를 저장한다.
 
     python3 tests/golden/capture.py --ref v0.8 --out ~/data/invest-reports/golden/v0.8
     python3 tests/golden/capture.py --ref /path/to/built --out /tmp/golden-new --only asset,trades
@@ -131,10 +131,7 @@ class Run:
 
     def __init__(self, browser, server: Server, split: bool = False):
         self.browser, self.server, self.context = browser, server, None
-        self.pre = fixtures.pre_report(server.data)
-        self.base = {}
-        if split:
-            self.pre, self.base = fixtures.split(server.data, self.pre), fixtures.split(server.data, {})
+        self.base = fixtures.split(server.data, {}) if split else {}
 
     def open(self, query: str = "", uid: int = 1, dataset: str = "base"):
         context = self.browser.new_context(viewport={"width": 390, "height": 1000}, device_scale_factor=1, reduced_motion="reduce",
@@ -143,7 +140,7 @@ class Run:
         context.add_init_script(mock(uid))
         if uid == 1:
             context.add_init_script("try { localStorage.setItem('asset', '1'); } catch {}")
-        context.route("**/*", self.server.handler(self.pre if dataset == "pre" else self.base, fixtures.account()))
+        context.route("**/*", self.server.handler(self.base, fixtures.account()))
         self.context = context
         page = context.new_page()
         page.on("pageerror", lambda error: self.server.errors.append(f"pageerror: {str(error)[:300]}"))
@@ -196,10 +193,6 @@ def past(run):
     return run.open("?r=20261118-nasdaq")
 
 
-def pre(run):
-    return run.open(f"?r={fixtures.PRE_KEY}", dataset="pre")
-
-
 def market(run):
     page = run.open()
     turn(page, "시장")
@@ -246,7 +239,7 @@ def nonowner(run):
 
 
 SCREENS = {screen.__name__: screen for screen in
-           (latest, issue, calendar, past, pre, market, stock, asset, trades, glossary, rewind, nonowner)}
+           (latest, issue, calendar, past, market, stock, asset, trades, glossary, rewind, nonowner)}
 
 
 def dom(page) -> str:
