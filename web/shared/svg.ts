@@ -123,6 +123,17 @@ export const drawCandles = (parent, groups, X, Y, step, right = Infinity) => gro
   parent.append(body);
   return x;
 });
+// 시간 축 그림을 누르면 누른 자리의 가로 좌표를 그림 좌표(`viewBox`)로 바꿔 `handle(x)`를 부른다. 그림을 다시 그려도 손길이 쌓이지 않게 `onclick` 하나만 둔다.
+// 카드를 밀어 넘긴 손길에는 click이 오지 않으므로, 넘기기와 누르기가 섞이지 않는다.
+export const onTap = (svg, handle) => {
+  svg.style.cursor = "pointer";
+  svg.onclick = (event) => {
+    const box = svg.getBoundingClientRect(), view = svg.viewBox.baseVal;
+    if (box.width) handle(view.x + (event.clientX - box.left) / box.width * view.width);
+  };
+};
+// 가로 자리 목록 `xs`에서 `x`에 가장 가까운 번호다.
+export const nearest = (xs, x) => xs.reduce((best, v, i) => (Math.abs(v - x) < Math.abs(xs[best] - x) ? i : best), 0);
 // '현재' 표시. 값의 세션(`kind`: `regular`, `after`, `pre`) 색 점이고, 색은 위 줄 기준 시각 글씨와 같은 세션 색(`--kind`)이다.
 export const nowMark = (parent, x, y, kind) => {
   parent.append(shape("circle", { cx: x, cy: y, r: 2.5, "data-kind": kind, style: "fill: var(--kind)", stroke: "#171719", "stroke-width": 1 }));
