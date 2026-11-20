@@ -61,13 +61,18 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `THUMB`px 썸네일 `issue-{번호}-thumb.webp`를 만들어 묶음의 `data-thumb`에 적는다. `invest-reports` 미니 앱은 이슈 목록 상자에 썸네일을 붙이고, 그림이 두 장 이상인 묶음은 넘겨 보는 묶음과 쪽 점으로 그린다.
 이슈 해설 말머리 뒤 문단 사이에는 리포트 폴더 `system/issue-charts.json`의 카드 값을 `issue-chart` 그림의 `data-card`로 넣는다.
 카드 값은 ⑨의 이슈 그래프 agent가 설계하고 `issue_charts.py fill`이 채우며, 카드 값이 없는 그래프는 넣지 않는다.
-그래프는 설계의 `after`번째 문단 다음에 들어가고, 문단이 그보다 적으면 마지막 문단 다음에 들어간다.
+그래프는 설계의 `after`번째 문단 다음에 들어가고, 문단이 그보다 적으면 마지막 문단 다음에 들어간다. 본문 소제목은 문단으로 세지 않고,
+그 문단 바로 뒤가 소제목이면 그래프는 바로 뒤가 소제목이 아닌 다음 문단 뒤에 들어간다.
 `invest-reports` 미니 앱은 카드 값으로 `미국 거시 지표` 카드와 같은 모양의 선 그래프·막대 그래프·표 카드를 그린다.
 리포트 폴더 `system/terms.json`이 있으면 마크다운을 공개본으로 바꾸기 전에 그 자리마다 용어 표기를 `term` 단추로 감싸고,
 대표 표기를 `data-term`에, 단어표 설명을 `data-desc`에 단다. 자리는 ⑧의 교정 agent가 `glossary.py scan`·`check`로 문맥을 확인해 고른
 (절, 묶음 제목, 표기, 묶음 안에서 몇 번째 표기인지)이고, 리포트를 맞춰 보는 방식은 invest-report `glossary.py`의 `mark`를 그대로 쓴다.
 리포트가 판정 뒤에 바뀌어 찾지 못한 자리는 감싸지 않고 표준 오류로 알린다. `invest-reports` 미니 앱은 단추에 점선 밑줄을 긋고,
 누르면 용어 아래에 대표 표기와 설명을 담은 말풍선을 연다.
+`상세 이슈 해설` 절은 리포트의 다른 절과 따로 `issue_section`이 HTML로 바꾼다. 이 함수는 기사 문서(`report.md`나 종목 뉴스 세션 폴더의 `news.md`)와 그 폴더를 받아
+용어 단추와 이슈 그래프 카드를 넣고, 공개본 금지어는 검사하지 않는다. 기사 본문의 소제목(`#####`)은 이슈 본문 안의 `h5`가 된다.
+종목 뉴스 배치는 `issue_articles`로 기사마다 번호, 제목, 머리 줄, 머리 줄 뒤 본문 HTML을 받아 뉴스 Worker에 올린다.
+`invest-reports` 미니 앱은 `h5`를 이슈 본문의 소제목으로 그리고, 이슈 목록 상자의 미리보기 글에는 쓰지 않는다.
 
 `r/index.json`에는 리포트마다 제목, 날짜 줄(`day`), 리포트를 처음 만든 시각(`written`), 항목을 마지막으로 쓴 시각(`updated`)을 서울 시각으로 적는다.
 항목에는 판단의 날짜 지점(`point`)도 적는다. 날짜 지점은 리포트 폴더 `path-bands.json`의 `price_base_date` 다음 뉴욕 정규장 세션 날짜이고(`judgment_point`),
@@ -211,8 +216,11 @@ STOCK_IMAGES = Path.home() / "data" / "invest-reports" / "stock-images"  # inves
 TICK_STEP = 5  # 일정과 예측 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
 ISSUES_TITLE = "상세 이슈 해설"
+ISSUES_RE = re.compile(rf"^## {ISSUES_TITLE}\s*$.*?(?=^#{{1,2}} |\Z)", re.MULTILINE | re.DOTALL)  # 마크다운의 `상세 이슈 해설` 절
+ISSUES_MARK = "<!-- 상세 이슈 해설 -->"  # 리포트 마크다운에서 `상세 이슈 해설` 절을 빼고 남기는 자리. pandoc이 그대로 옮긴 자리에 `issue_section`의 HTML을 넣는다
 OUTLOOK_TITLE = "1개월 지수 방향 예측"
 OUTLOOK_SECTIONS = ("현재 상태", "주요 분기와 예측", "종합 시나리오")  # `outlook.json`에 옮기는 설명 세 절의 말머리
+PANDOC = ["pandoc", "-f", "gfm", "-t", "html5", "--wrap=none"]  # 마크다운을 HTML 조각으로 바꾸는 명령
 HISTORY_RE = re.compile(r'<template class="issue-history">.*?</template>\s*', re.DOTALL)
 THUMB = 264
 UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#ffffff"  # 오름·내림·중립 색. 오름·내림 색은 `app.html`의 등락 색과 같다
@@ -699,17 +707,21 @@ def progress(vault: Path, out: Path) -> dict | None:
     return None if value == written else value
 
 
+def plain_markdown(text: str) -> str:
+    """머리 정보(frontmatter), 헤딩 밑 `---`, 헤딩 사이 띄움(`<div style="height:…">`)을 지운 마크다운."""
+    text = re.sub(r"\A---\n.*?\n---\n", "", text, flags=re.DOTALL)
+    text = re.sub(r"^(#{1,6} .*)\n---\s*$", r"\1", text, flags=re.MULTILINE)
+    return re.sub(r'^<div style="height:[^"]*"></div>\s*$', "", text, flags=re.MULTILINE)
+
+
 def public_markdown(text: str, vault: Path, out_dir: Path, base: str) -> str:
     """공개본 마크다운. 그림은 `out_dir`로 복사하고 `app.html` 기준 상대 경로로 바꾼다.
 
     경로 뒤에 그림 내용의 해시를 붙인다. 같은 이름으로 다시 그린 그림을 텔레그램이 캐시에서 꺼내지 않게 하기 위해서다.
     """
     pdf = report_pdf(vault)
-    text = re.sub(r"\A---\n.*?\n---\n", "", text, flags=re.DOTALL)
-    text = pdf.PUBLIC_CUT_RE.split(text, maxsplit=1)[0]
+    text = pdf.PUBLIC_CUT_RE.split(plain_markdown(text), maxsplit=1)[0]
     pdf.check_public(text)
-    text = re.sub(r"^(#{1,6} .*)\n---\s*$", r"\1", text, flags=re.MULTILINE)
-    text = re.sub(r'^<div style="height:[^"]*"></div>\s*$', "", text, flags=re.MULTILINE)
 
     def embed(match: re.Match) -> str:
         source = vault / match.group(1).strip()
@@ -1223,7 +1235,8 @@ def mark_issue_images(body: str, assets: Path, plan: Path, target: Path, out: Pa
 
 
 def mark_issue_charts(body: str, plan: Path) -> str:
-    """`상세 이슈 해설` 절의 번호 붙은 이슈마다 `system/issue-charts.json`의 카드 값을 이슈 해설 말머리 뒤 `after`번째 문단 다음에 넣는다."""
+    """`상세 이슈 해설` 절의 번호 붙은 이슈마다 `system/issue-charts.json`의 카드 값을 이슈 해설 말머리 뒤 `after`번째 문단 다음에 넣는다.
+    본문 소제목(`h5`)은 문단으로 세지 않는다. 카드는 문단 사이에만 넣으므로, 그 문단 바로 뒤가 소제목이면 바로 뒤가 소제목이 아닌 다음 문단 뒤에 넣는다."""
     head = re.search(rf'<h2 id="[^"]*">{ISSUES_TITLE}</h2>', body)
     if not head or not plan.is_file():
         return body
@@ -1241,8 +1254,9 @@ def mark_issue_charts(body: str, plan: Path) -> str:
         card = cards.get(int(number.group(1))) if number else None
         if card and lead >= 0:
             closes = [match.end() for match in re.finditer(r"</p>", issue[lead:])]
-            if closes:
-                at = lead + closes[min(card["after"], len(closes)) - 1]
+            gaps = [k for k, close in enumerate(closes, 1) if not re.match(r"\s*<h5\b", issue[lead + close:])]
+            if gaps:
+                at = lead + closes[next((k for k in gaps if k >= card["after"]), gaps[-1]) - 1]
                 figure = f'\n<figure class="issue-chart" data-card="{html.escape(json.dumps(card, ensure_ascii=False))}"></figure>'
                 issue = issue[:at] + figure + issue[at:]
         parts.append(issue)
@@ -1289,6 +1303,36 @@ def explainer_title(segment: str) -> str:
     """이슈 조각의 이슈 해설 말머리 뒤 소제목."""
     title = re.search(r"<h4[^>]*><mark>이슈 해설</mark>(.*?)</h4>", segment, re.DOTALL)
     return html.unescape(re.sub(r"<[^>]+>", "", title.group(1))).strip() if title else ""
+
+
+def issue_section(document: Path, folder: Path, vault: Path) -> str:
+    """기사 문서 `document`(`report.md`나 `news.md`)의 `상세 이슈 해설` 절 HTML. 기사 폴더 `folder`의 `system/terms.json` 자리마다 용어 단추를 넣고,
+    `system/issue-charts.json`의 이슈 그래프 카드를 문단 사이에 넣는다. 공개본 금지어는 검사하지 않는다. 절이 없으면 빈 글이다."""
+    text = plain_markdown(mark_terms(document.read_text(encoding="utf-8"), folder / "system" / "terms.json", vault))
+    section = ISSUES_RE.search(text)
+    if not section:
+        return ""
+    body = subprocess.run(PANDOC, input=section.group(0), capture_output=True, text=True, check=True).stdout
+    return mark_issue_charts(body, folder / "system" / "issue-charts.json")
+
+
+def issue_articles(document: Path, folder: Path, vault: Path) -> list[dict]:
+    """기사 문서의 `상세 이슈 해설` 절에서 번호 붙은 기사마다 번호(`issue`), 제목(`title`), 머리 줄(`headline`), 머리 줄 뒤 본문 HTML(`html`).
+    제목은 `###` 줄에서 번호와 끝의 표식을 뺀 글이다. 본문의 `id` 속성은 지운다. 미니 앱이 여러 기사를 한 화면에 그릴 때 겹치기 때문이다."""
+    body = issue_section(document, folder, vault)
+    found = []
+    for start, stop in issue_segments(body):
+        segment = body[start:stop]
+        heading = re.match(r"<h3[^>]*>(.*?)</h3>", segment, re.DOTALL).group(1)
+        title = html.unescape(re.sub(r"<[^>]+>", "", re.sub(r"(?:\s*<code[^>]*>.*?</code>)+\s*$", "", heading))).strip()
+        number = re.match(r"(\d+)\.\s+", title)
+        if not number:
+            continue
+        cut = segment.find("</h4>")
+        cut = cut + len("</h4>") if cut >= 0 else segment.find("</h3>") + len("</h3>")
+        found.append({"issue": int(number.group(1)), "title": title[number.end():], "headline": explainer_title(segment),
+                      "html": re.sub(r'\sid="[^"]*"', "", segment[cut:]).strip()})
+    return found
 
 
 def linked_nodes(source: Path, item: str) -> set[str]:
@@ -1450,8 +1494,11 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
                           count=1, flags=re.MULTILINE)
     title = next((line[2:].strip() for line in markdown.splitlines() if line.startswith("# ")), key)
     markdown = re.sub(r"^# .*\n", "", markdown, count=1, flags=re.MULTILINE)
-    body = subprocess.run(["pandoc", "-f", "gfm", "-t", "html5", "--wrap=none"], input=markdown,
-                          capture_output=True, text=True, check=True).stdout
+    markdown = ISSUES_RE.sub(f"{ISSUES_MARK}\n\n", markdown, count=1)
+    body = subprocess.run(PANDOC, input=markdown, capture_output=True, text=True, check=True).stdout
+    head, mark, tail = body.partition(ISSUES_MARK)
+    if mark:
+        body = head + issue_section(source, source.parent, vault) + tail.lstrip("\n")
     body = TABLE_RE.sub(lambda m: mark_events(m.group(0)), body)
     display = source.parent / "system" / "display.json"
     # 10/21까지의 `display.json`은 `next`에 이슈 이름만 적어 갈래 값이 없으므로, 갈래를 적은 항목만 갈래 변화 표시에 쓴다.
@@ -1461,7 +1508,6 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
     body = mark_indicators(body, indicator_cards(vault, index, day))
     body = mark_issue_ids(body, source.parent / "system" / "issues.json", issue_events(vault, index, day), day)
     body = mark_issue_images(body, source.parent / "assets", source.parent / "system" / "issue-images.json", target, out)
-    body = mark_issue_charts(body, source.parent / "system" / "issue-charts.json")
     body = mark_issue_carry(body, source.parent / "system" / "issues.json", index, out)
     history = issue_history(vault, index, day, out)
     point = judgment_point(source.parent)

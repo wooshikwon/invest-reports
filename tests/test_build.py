@@ -1,6 +1,8 @@
 """build.py 시험. invest-live Worker는 가짜로 바꾸고, 시각은 `build.dt`를 바꿔 고정한다."""
 import datetime as dt
+import html
 import json
+import re
 import sys
 import types
 from pathlib import Path
@@ -162,3 +164,91 @@ def test_rewind_keeps_one_frame_per_point(monkeypatch, tmp_path):
     build.rewind("nasdaq", vault, out)
     frames = json.loads((out / "r/rewind-nasdaq/cards.json").read_text(encoding="utf-8"))["frames"]
     assert [(frame["point"], frame["date"]) for frame in frames] == [("2026-11-13", "2026-11-13"), ("2026-11-16", "2026-11-16")]
+
+
+NEWS = """---
+created: 2026-11-20
+---
+
+# 종목 뉴스 2026-11-20-18 nasdaq-1
+
+## 상세 이슈 해설
+---
+
+### 1. 엔비디아 칩 수출 허가
+
+#### <mark>이슈 해설</mark> 상무부 심사에 의문
+
+리드 문단이다.
+
+첫 문단이다. 엔비디아는 가이던스를 냈다.
+
+##### 허가 물량
+
+셋째 문단이다.
+
+넷째 문단에 대형 주문과 계좌가 나온다.
+
+##### 엔비디아의 답
+
+다섯째 문단이다.
+
+### 2. 연준 회의 `양방향` `중요도 높음`
+
+#### <mark>이슈 해설</mark> 금리 동결 전망
+
+한 문단뿐이다.
+"""
+
+
+def article_folder(tmp_path: Path, charts: list[dict]) -> Path:
+    folder = tmp_path / "nasdaq-1"
+    (folder / "system").mkdir(parents=True)
+    (folder / "news.md").write_text(NEWS, encoding="utf-8")
+    (folder / "system" / "terms.json").write_text(json.dumps({"terms": [
+        {"section": "상세 이슈 해설", "block": "1. 엔비디아 칩 수출 허가", "form": "가이던스", "nth": 0, "id": "guidance", "term": "가이던스", "desc": "실적 전망"}]},
+        ensure_ascii=False), encoding="utf-8")
+    (folder / "system" / "issue-charts.json").write_text(json.dumps({"charts": [{"card": card} for card in charts]}, ensure_ascii=False), encoding="utf-8")
+    return folder
+
+
+def test_issue_articles_read_each_article(tmp_path):
+    folder = article_folder(tmp_path, [{"issue": 1, "after": 3}])
+    found = build.issue_articles(folder / "news.md", folder, Path.home() / "obsidian-vault")
+    assert [(item["issue"], item["title"], item["headline"]) for item in found] == [
+        (1, "엔비디아 칩 수출 허가", "상무부 심사에 의문"), (2, "연준 회의", "금리 동결 전망")]
+    first = found[0]["html"]
+    assert first.startswith("<p>리드 문단이다.</p>")  # 머리 줄 뒤 본문만 담는다
+    assert [line for line in first.splitlines() if line.startswith("<h5")] == ["<h5>허가 물량</h5>", "<h5>엔비디아의 답</h5>"]
+    assert ' id="' not in first
+    assert first.count('<button class="term"') == 1 and first.count('class="issue-chart"') == 1
+    assert "대형 주문과 계좌" in first  # 공개본 금지어는 검사하지 않는다
+    assert found[1]["html"] == "<p>한 문단뿐이다.</p>"
+
+
+def blocks(html_body: str) -> list[str]:
+    """문단은 `p`, 소제목은 `h5`, 그래프 카드는 `chart`로 줄인 이슈 1 본문의 차례."""
+    return ["chart" if tag == "figure" else tag for tag in re.findall(r"<(p|h5|figure)\b", html_body)]
+
+
+@pytest.mark.parametrize("after, order", [
+    (1, ["p", "chart", "p", "h5", "p", "p", "h5", "p"]),
+    (2, ["p", "p", "h5", "p", "chart", "p", "h5", "p"]),  # 둘째 문단 바로 뒤가 소제목이라 다음 문단 사이로 미룬다
+    (3, ["p", "p", "h5", "p", "chart", "p", "h5", "p"]),  # 소제목은 문단으로 세지 않는다
+    (4, ["p", "p", "h5", "p", "p", "h5", "p", "chart"]),
+    (9, ["p", "p", "h5", "p", "p", "h5", "p", "chart"]),  # 문단이 그보다 적으면 마지막 문단 뒤
+])
+def test_issue_charts_sit_between_paragraphs(tmp_path, after, order):
+    folder = article_folder(tmp_path, [{"issue": 1, "after": after}])
+    assert blocks(build.issue_articles(folder / "news.md", folder, Path.home() / "obsidian-vault")[0]["html"]) == order
+
+
+@pytest.mark.parametrize("after, at", [(2, "<p>2</p>"), (5, "<p>3</p>")])
+def test_issue_charts_without_subheads_count_every_paragraph(tmp_path, after, at):
+    body = ('<h2 id="상세-이슈-해설">상세 이슈 해설</h2>\n<h3 id="a">1. 가</h3>\n<h4 id="b"><mark>이슈 해설</mark> 나</h4>\n'
+            + "".join(f"<p>{k}</p>\n" for k in range(1, 4)) + '<h2 id="다음">다음</h2>\n')
+    card = {"issue": 1, "after": after}
+    plan = tmp_path / "issue-charts.json"
+    plan.write_text(json.dumps({"charts": [{"card": card}]}), encoding="utf-8")
+    figure = f'\n<figure class="issue-chart" data-card="{html.escape(json.dumps(card))}"></figure>'
+    assert build.mark_issue_charts(body, plan) == body.replace(at, at + figure)
