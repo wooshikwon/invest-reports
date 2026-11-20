@@ -23,10 +23,11 @@ export function initPull() {
   const pull = document.getElementById("pull"), arc = pull.querySelector("circle"), main = document.querySelector("main"), FULL = 176, HOLD = 96;
   const head = document.getElementById("masthead");
   let from = null, fetching = null, spun = 0;
-  // 본문을 `y`px 아래로 옮긴다. 화면 위에 붙은 머리 상자는 `-y`px 옮겨 화면에서 제자리에 둔다. `offset`은 지금 그려진 본문의 옮긴 거리다.
+  // 본문을 `y`px 아래로 옮긴다. 화면 위에 붙은 머리 상자는 `-y`px 옮겨 화면에서 제자리에 둔다. 문서 맨 위에서는 머리 상자가 붙지 않으므로 본문과 함께 옮긴다.
+  // `offset`은 지금 그려진 본문의 옮긴 거리다.
   const shift = (y) => {
     main.style.transform = y ? `translate3d(0, ${y}px, 0)` : "";
-    head.style.transform = y && head.classList.contains("stuck") ? `translate3d(0, ${-y}px, 0)` : "";
+    head.style.transform = y && scrollY > 0 && head.classList.contains("stuck") ? `translate3d(0, ${-y}px, 0)` : "";
   };
   const offset = () => new DOMMatrixReadOnly(getComputedStyle(main).transform).m42;
   const place = (y, grown = fetching ? 1 : Math.min(1, y / FULL)) => {
@@ -72,16 +73,16 @@ export function initPull() {
   // 문서 끝의 튕김(`bounce`)은 손을 떼고 미끄러지던 화면이 문서 끝에 닿을 때 본문만 문서 끝 바깥으로 밀었다가 되돌린다. 본문은 문서 끝에 닿은 시각
   // `since`에 닿는 순간의 속도 `v`(px/ms, 아래로 밀려나면 양수)로 출발하는 감쇠 용수철 하나를 따라 움직인다. 용수철은 본문의 속도를 점점 줄여 멈추고,
   // 반대 방향으로 점점 빨라지다가 다시 느려지며 본문을 제자리에 둔다. 출발 속도가 화면의 속도와 같으므로 본문은 문서 끝에서 속도가 끊기지 않고 이어 간다.
-  // 용수철의 고유 진동수는 초당 12라디안(`W`), 감쇠비는 1.1(`Z`)이다. 감쇠비가 1보다 조금 커서 본문은 제자리를 지나치지 않고, 밀려난 거리는 닿은 뒤 `t`ms에
-  // v/(R1 − R2) × (e^(R1·t) − e^(R2·t))px다. 본문은 0.08초 뒤 닿는 속도의 29배(px)까지 밀려나고 0.9초 남짓 지나 제자리에 닿는다.
-  // 닿는 속도는 4.5px/ms에서 자르므로 본문은 130px 넘게 밀려나지 않는다. 닿는 속도가 느릴수록 밀려나는 거리가 짧아질 뿐, 느리게 닿아도 튕긴다.
-  const W = .012, Z = 1.1, R1 = -W * (Z - Math.sqrt(Z * Z - 1)), R2 = -W * (Z + Math.sqrt(Z * Z - 1));
+  // 용수철의 고유 진동수는 초당 8라디안(`W`), 감쇠비는 1.02(`Z`)이다. 감쇠비가 1보다 조금 커서 본문은 제자리를 지나치지 않고, 밀려난 거리는 닿은 뒤 `t`ms에
+  // v/(R1 − R2) × (e^(R1·t) − e^(R2·t))px다. 본문은 0.12초 뒤 닿는 속도의 45배(px)까지 밀려나고 1.2초 남짓 지나 제자리에 닿는다.
+  // 닿는 속도는 3.5px/ms에서 자르므로 본문은 160px 넘게 밀려나지 않는다. 닿는 속도가 느릴수록 밀려나는 거리가 짧아질 뿐, 느리게 닿아도 튕긴다.
+  const W = .008, Z = 1.02, R1 = -W * (Z - Math.sqrt(Z * Z - 1)), R2 = -W * (Z + Math.sqrt(Z * Z - 1));
   let bouncing = 0;
   const halt = () => { cancelAnimationFrame(bouncing); bouncing = 0; };
   const bounce = (v, since) => {
     halt();
     main.classList.remove("pulling");
-    v = Math.max(-4.5, Math.min(4.5, v));
+    v = Math.max(-3.5, Math.min(3.5, v));
     const step = () => {
       const t = Math.max(0, performance.now() - since), y = v / (R1 - R2) * (Math.exp(R1 * t) - Math.exp(R2 * t));
       shift(y);
