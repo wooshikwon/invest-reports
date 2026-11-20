@@ -189,7 +189,8 @@ export function headlines(after, symbol) {
 }
 
 // 뉴스 상세를 이슈 화면과 같은 틀에 그린다. `data`는 `GET /articles/{ID}`의 기사이고, `ticker`가 있으면 종목 상세에서 연 기사다.
-// 절 제목은 "종목 뉴스"이고, 위쪽 한 줄 띠에는 기사 제목을 쓴다. 기사는 이슈 문단처럼 제목과 종목 스티커, 그림 묶음, 이슈 해설 말머리와 머리 줄, 회차 시각, 본문을 차례로 쓰고,
+// 절 제목은 "종목 뉴스"이고, 위쪽 한 줄 띠에는 기사 제목을 쓴다. 기사는 이슈 문단처럼 제목과 종목 스티커, 그림 묶음, 이슈 해설 말머리, 회차 시각, 본문을 차례로 쓰고,
+// 머리 줄은 목록 블록에서만 보인다.
 // 본문의 이슈 그래프 카드와 그림은 이슈 화면의 그리기 함수로 그린다.
 // 기사 끝에는 들어온 목록의 앞 기사와 다음 기사로 가는 칸을 이슈 문단 끝의 칸과 같은 모양으로 둔다. 목록은 종목 상세에서 열었으면 그 종목의 최신 기사 열 편이고,
 // 아니면 보고 있는 리포트 지수의 7일 치 기사다. 칸을 누르면 진동을 내고 그 기사를 받아, 이슈를 넘길 때처럼 옆으로 옮겨 보이고 주소의 기사 ID를 바꾼다.
@@ -223,7 +224,7 @@ function newsDetail(data, ticker) {
       }
     }
     const lead = node.appendChild(document.createElement("h4"));
-    lead.append(Object.assign(document.createElement("mark"), { textContent: "이슈 해설" }), article.headline);
+    lead.append(Object.assign(document.createElement("mark"), { textContent: "이슈 해설" }));
     node.append(Object.assign(document.createElement("p"), { className: "written", textContent: `${article.time.slice(0, 10).replaceAll("-", ".")} ${article.time.slice(11, 16)}` }));
     node.insertAdjacentHTML("beforeend", article.html);
     node.querySelectorAll("figure.issue-chart[data-card]").forEach(issueChart);
