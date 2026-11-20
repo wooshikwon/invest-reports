@@ -91,13 +91,23 @@ export function initPull() {
     step();
   };
   const bottom = () => scrollY >= document.documentElement.scrollHeight - innerHeight - 1;
+  // 문서 맨 아래의 튕김은 웹뷰가 스스로 그린다. 스크립트는 스크롤 이벤트를 화면이 문서 끝에 닿은 뒤 한두 프레임 늦게 받으므로, 스크립트가 그린 튕김은 문서 끝에서 미세하게 끊긴다.
+  // 화면이 문서 맨 위에서 한 화면 높이와 스크롤 범위의 절반 가운데 짧은 거리보다 아래에 있으면 문서에 `native-end`를 달아 웹뷰의 세로 튕김을 켠다(`native`).
+  // 그보다 위에서는 웹뷰의 튕김을 끄므로, 문서 맨 위의 튕김과 당겨 새로고침은 스크립트가 그린다. 스크롤 범위가 없는 짧은 문서는 양 끝의 튕김을 모두 스크립트가 그린다.
+  const root = document.documentElement;
+  const native = () => {
+    const max = root.scrollHeight - innerHeight;
+    return root.classList.toggle("native-end", max > 0 && scrollY > Math.min(innerHeight, max / 2));
+  };
+  native();
+  addEventListener("resize", native, { passive: true });
   // 손을 뗀 뒤 4초 안의 스크롤만 미끄러짐으로 본다. 문서 끝에 닿는 마지막 스크롤은 문서 끝에서 잘려 짧으므로 속도에서 뺀다. 속도(px/ms)는 그 앞의
   // 마지막 스크롤 기록(`prior`)까지 0.05초 안의 기록에서 처음 기록과 마지막 기록 사이의 거리를 시간으로 나눈 값이고, 그 안의 기록이 하나뿐이면 마지막 두 기록으로 잰다.
   // 화면은 스크롤 이벤트가 오기 전에 문서 끝에 닿아 멈춰 있으므로, 닿은 시각은 `prior`의 자리에서 그 속도로 문서 끝까지 가는 시각으로 셈한다.
   // 튕김은 그 시각부터 흐른 시간의 자리를 스크롤 이벤트 안에서 바로 그리므로, 이벤트가 늦게 와도 본문은 문서 끝에서 멈칫하지 않는다.
   let touching = false, lifted = -Infinity, marks = [];
   addEventListener("scroll", () => {
-    const now = performance.now(), y = scrollY, edge = y <= 0 || bottom();
+    const now = performance.now(), y = scrollY, own = !native(), edge = y <= 0 || bottom() && own;
     marks = marks.filter(([t]) => now - t < 100);
     const prior = marks.at(-1), near = marks.filter(([t]) => t >= prior?.[0] - 50), span = near.length > 1 ? near : marks.slice(-2);
     marks.push([now, y]);
@@ -107,7 +117,7 @@ export function initPull() {
     bounce(-v, Math.min(now, prior[0] + (y - prior[1]) / v));
   }, { passive: true });
   // 문서 끝에서 화면 밖으로 끌면 본문이 같은 비율로 줄어드는 거리만큼 따라오고, 손을 떼면 0.65초에 걸쳐 서서히 제자리로 돌아간다.
-  // 문서 맨 위에서 아래로 끌 때만 새로고침 표시를 띄운다. 문서 맨 아래에서 위로 끌면 본문만 올라간다.
+  // 문서 맨 위에서 아래로 끌 때만 새로고침 표시를 띄운다. 웹뷰가 튕김을 그리지 않는 짧은 문서는 맨 아래에서 위로 끌면 본문만 올라간다.
   // 튕기거나 제자리로 돌아가는 본문에 손가락이 닿으면 본문은 그 자리에 멈춘다(`base`). 이어서 문서 끝 밖으로 끌면 멈춘 자리부터 따라오고,
   // 끌지 않고 떼거나 문서 안쪽으로 밀면 멈춘 자리에서 0.65초에 걸쳐 제자리로 돌아간다.
   const rest = () => {
@@ -121,7 +131,7 @@ export function initPull() {
     const base = offset();
     main.classList.remove("pulling");
     shift(base);
-    const edge = event.touches.length !== 1 ? "" : scrollY <= 0 ? (bottom() ? "both" : "top") : bottom() ? "bottom" : "";
+    const edge = event.touches.length !== 1 ? "" : scrollY <= 0 ? (bottom() ? "both" : "top") : bottom() && !native() ? "bottom" : "";
     from = edge ? { x: event.touches[0].clientX, y: event.touches[0].clientY, edge, down: false, base } : null;
     if (!from && base) rest();
     pull.classList.remove("back");

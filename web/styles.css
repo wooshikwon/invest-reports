@@ -59,10 +59,12 @@ main { position: relative; max-width: 720px; margin: 0 auto; padding: calc(16px 
    표시는 바로가기 알약과 같은 반투명 유리 원이고, 안에 끈 거리만큼 길어지는 얇은 호를 회색으로 그린다. 호가 4분의 3 원까지 자라면 흰색으로 바뀌어 돌기 시작하고(`spin`),
    새로고침이 끝날 때까지 돈다. 새로고침이 끝나면(`done`) 호가 온전한 원으로 닫히고, 원 둘레에서 흰 고리가 한 번 퍼지며 사라진 뒤 표시가 올라가며 닫힌다.
    덜 끌고 떼거나 옆으로 밀면 본문과 표시가 0.65초에 걸쳐 서서히 제자리로 돌아간다.
-   웹뷰가 문서 끝에서 스스로 튕기면 본문이 표시보다 먼저 올라가므로, 문서의 세로 튕김을 끄고 문서 끝의 튕김은 스크립트가 본문을 옮겨 그린다.
+   웹뷰가 문서 맨 위에서 스스로 튕기면 본문이 표시보다 먼저 내려오므로, 문서 맨 위 근처에서는 문서의 세로 튕김을 끄고 맨 위의 튕김을 스크립트가 본문을 옮겨 그린다.
+   화면이 맨 위에서 멀어지면(`native-end`) 세로 튕김을 켜 문서 맨 아래의 튕김은 웹뷰가 그린다.
    본문은 미리 따로 그려 둔 층을 변환(`transform`)으로 옮기므로, 옮기는 동안 레이아웃과 그리기를 다시 하지 않는다. 변환은 화면 위에 붙은 머리 상자도 함께 옮기므로,
    머리 상자는 본문이 옮긴 만큼 반대로 옮겨 제자리에 둔다. */
 html { overscroll-behavior-y: none; }
+html.native-end { overscroll-behavior-y: auto; }
 main { will-change: transform; }
 main.pulling, main.pulling #masthead { transition: transform .65s cubic-bezier(.22, .61, .36, 1); }
 main.pulling.slow, main.pulling.slow #masthead { transition: transform .45s cubic-bezier(.4, 0, .4, 1); }
