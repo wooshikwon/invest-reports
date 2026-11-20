@@ -4,7 +4,7 @@ import * as stockScreen from "../pages/stock";
 import * as tradesScreen from "../pages/trades";
 import { ASSET } from "./account";
 import { backEdge, backward } from "./back";
-import { latest, masthead, paint, ticker, unglos } from "./chrome";
+import { latest, masthead, paint, ticker, topGlass, unglos } from "./chrome";
 import { listed, parts, reportPart, reportText, texts } from "./data";
 import { forget } from "./live";
 import { unpress } from "./press";
@@ -69,6 +69,7 @@ export const leave = () => {
   document.getElementById("index-ink")?.ownerSVGElement.remove();
   document.documentElement.classList.remove("past", "edging");
   masthead.classList.remove("stuck");
+  topGlass.classList.remove("off");
   report.classList.remove("flow");
   document.getElementById("past").textContent = "";
   ticker.textContent = "";

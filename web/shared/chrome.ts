@@ -3,12 +3,13 @@ import { reportText } from "./data";
 import { motion } from "./motion";
 import { depth, key, life, reshow } from "./route";
 import { feelPress } from "./telegram";
-// 머리 상자가 화면 위에 붙어 있으면 `stuck`을 단다. 문서 맨 위에서는 달지 않는다.
+// 머리 상자가 화면 위에 붙어 있으면 `stuck`을 달고, 위쪽 높이의 유리(`#top-glass`)에 `off`를 달아 감춘다. 문서 맨 위에서는 달지 않는다.
 // 붙었는지는 머리 상자 바로 위의 빈 띠(`#berth`)의 아래 끝이 머리 상자가 붙는 높이보다 위로 올라갔는지로 정한다. iOS는 코드가 화면을 옮긴 직후 붙는 상자의 위치를 옮기기 전 화면 기준으로 알려 주므로 머리 상자의 위치로 정하지 않는다.
 export const masthead = document.getElementById("masthead");
 export const ticker = document.getElementById("ticker");
 export const berth = document.getElementById("berth");
-export const stick = () => masthead.classList.toggle("stuck", scrollY > 0 && berth.getBoundingClientRect().bottom <= parseFloat(getComputedStyle(masthead).top) + .5);
+export const topGlass = document.getElementById("top-glass");
+export const stick = () => topGlass.classList.toggle("off", masthead.classList.toggle("stuck", scrollY > 0 && berth.getBoundingClientRect().bottom <= parseFloat(getComputedStyle(masthead).top) + .5));
 // 붙어 있는 머리 상자에서 지수 단추 밖을 누르면 문서 맨 위로 올라간다.
 const onMast = (event) => {
   if (!masthead.classList.contains("stuck") || event.target.closest(".index-pick")) return;

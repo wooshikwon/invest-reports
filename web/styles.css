@@ -109,12 +109,13 @@ main.unveil { animation: unveil .2s ease-out; }
                 opacity: 0; transition: opacity .15s; pointer-events: none; will-change: opacity; }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #masthead::before { background: var(--bg); } }
 #masthead.stuck::before { opacity: 1; }
-/* 전체화면 위쪽 높이를 머리 상자의 띠와 같은 유리로 덮는다. 머리 상자가 고정되면 띠가 이 높이까지 함께 덮으므로 이 유리는 감춘다. */
+/* 전체화면 위쪽 높이를 머리 상자의 띠와 같은 유리로 덮는다. 머리 상자가 고정되면 띠가 이 높이까지 함께 덮으므로 이 유리는 감춘다(`off`).
+   감추는 표시는 유리에 바로 달아, 머리 상자가 붙고 떨어질 때 문서 전체의 스타일을 다시 계산하지 않는다. */
 #top-glass { position: fixed; top: 0; left: 0; right: 0; z-index: 4; height: var(--top-inset); pointer-events: none;
              background: color-mix(in srgb, var(--bg) 40%, transparent);
              -webkit-backdrop-filter: blur(3px) saturate(150%); backdrop-filter: blur(3px) saturate(150%); transition: opacity .15s; }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { #top-glass { background: var(--bg); } }
-body:has(#masthead.stuck) #top-glass { opacity: 0; }
+#top-glass.off { opacity: 0; }
 #masthead.stuck { cursor: pointer; }
 /* 가장 늦은 리포트가 아닌 리포트를 보고 있으면, 전체화면 위쪽 높이 바로 아래에 등락률 줄 높이의 빨간 띠를 화면에 고정해 두고 가운데에 흰 글씨로 "3일 전 리포트 탐색 중"처럼 오늘(한국 시각)에서 리포트 날짜까지의 날수를 쓴다.
    띠는 화면을 넘겨도 늘 보인다. */
