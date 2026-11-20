@@ -4,8 +4,8 @@
   "day": "2026-11-20 (금)",
   "date": "2026-11-20",
   "index": "nasdaq",
-  "stage": "pre",
-  "updated": "2026-11-20 06:30",
+  "stage": "running",
+  "updated": "2026-11-20 10:00",
   "moves": {
    "session": -2.21,
    "after": null,
@@ -21,8 +21,8 @@
   "day": "2026-11-20 (금)",
   "date": "2026-11-20",
   "index": "biotech",
-  "stage": "pre",
-  "updated": "2026-11-20 06:30",
+  "stage": "running",
+  "updated": "2026-11-20 10:00",
   "moves": {
    "session": -1.01,
    "after": null,
