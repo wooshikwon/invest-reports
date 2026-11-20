@@ -6,7 +6,7 @@ import { indicators } from "./macro";
 import { indexMap } from "./market";
 import { figures } from "./outlook";
 import { indexPick, latest } from "../shared/chrome";
-import { marketed, relist, reportPart } from "../shared/data";
+import { marketed, relist } from "../shared/data";
 import { help } from "../shared/help";
 import { subscribe } from "../shared/live";
 import { motion, settle, settleStart } from "../shared/motion";
