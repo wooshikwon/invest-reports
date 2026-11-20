@@ -118,9 +118,13 @@ def trades(browser, server):
     check("R5 기간 투자액 숫자를 굴린다", any("trade-sum" in r["at"] for r in got), [before, got[:2]])
     page.wait_for_timeout(900)
     check("R5 굴림이 끝나면 새 기간 투자액이다", text(page, ".trade-sum b") != before, [before, text(page, ".trade-sum b")])
-    page.locator(".trade-head [data-filter]:not(.on)").first.click()
+    page.locator(".trade-head .pick > button").click()
+    page.locator(".trade-head .menu [data-filter]:not(.on)").first.click()
     page.wait_for_timeout(120)
     check("R5 필터를 바꾸면 굴리지 않는다", not rolls(page))
+    page.locator(".trade-head [data-unit]:not(.on)").first.click()
+    page.wait_for_timeout(120)
+    check("R5 금액 단위를 바꾸면 굴리지 않는다", not rolls(page))
     context.close()
 
 

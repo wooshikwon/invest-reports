@@ -20,6 +20,16 @@ export const assetShares = (v) => `${v.toLocaleString("en-US", { maximumFraction
 export const assetRow = (name, sub, value, tail) => `<div class="asset-item"><div><strong>${name}</strong><small>${sub}</small></div>`
   + `<div><strong>${value}</strong>${tail ? `<small>${tail}</small>` : ""}</div></div>`;
 export const assetDay = (date) => `${+date.slice(5, 7)}.${+date.slice(8, 10)}`;
+// 금액 단위와 내 자산 페이지에서 보던 그림 카드는 기기에 적어 두고 다음에 열 때도 그대로 쓴다. 내 자산 페이지와 거래 내역 화면은 같은 금액 단위를 쓴다.
+export const assetView = () => {
+  const view = { unit: "KRW", card: 0 };
+  try { const kept = JSON.parse(localStorage.getItem("asset-view")); view.unit = kept.unit === "USD" ? "USD" : "KRW"; view.card = kept.card | 0; } catch {}
+  return view;
+};
+export const assetRemember = (view) => { try { localStorage.setItem("asset-view", JSON.stringify(view)); } catch {} };
+// 금액 단위 단추. 칸마다 `data-unit`에 통화를 적고, 고른 칸을 밝게 칠한다.
+export const assetUnits = (unit) => '<div class="seg">' + [["USD", "$"], ["KRW", "원"]].map(([currency, label]) =>
+  `<button type="button" data-unit="${currency}"${currency === unit ? ' class="on"' : ""}>${label}</button>`).join("") + "</div>";
 // 집행 신호등 카드. 값(`signal`)은 거래 내역 값의 `signal`이고, 그 지수(`index`)의 값이 없으면 카드를 두지 않는다. 옵티마이저 게이트와
 // 조건부 게이트 가운데 더 묶는 관문(빨강 > 주황 > 초록) 한 줄만 그 관문의 이름, 색, 배치가 쓴 이유로 쓰고, 두 관문의 색이 같으면 옵티마이저 게이트를 쓴다.
 // 옵티마이저 게이트가 초록이면 카드를 단추(`go`)로 만들어, 누르면 그날 집행 요청을 맨 위에 두는 거래 내역 화면을 연다.
@@ -123,10 +133,7 @@ export function assetCards(perf, index) {
 
 // 내 자산 페이지(`page`)를 그리는 함수를 돌려준다. 공개 화면 `asset.ts`가 Worker가 건넨 계좌 요약(`data`)마다 이 함수를 부른다.
 export function assetPage(page) {
-  // 금액 단위와 보던 그림 카드는 기기에 적어 두고 다음에 열 때도 그대로 쓴다.
-  const view = { unit: "KRW", card: 0 };
-  try { const kept = JSON.parse(localStorage.getItem("asset-view")); view.unit = kept.unit === "USD" ? "USD" : "KRW"; view.card = kept.card | 0; } catch {}
-  const remember = () => { try { localStorage.setItem("asset-view", JSON.stringify(view)); } catch {} };
+  const view = assetView(), remember = () => assetRemember(view);
   const chevron = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // 평가 금액의 가림을 벗겼는지(`bare`)는 미니 앱을 닫을 때까지만 기억하고 기기에는 적지 않으므로, 미니 앱을 열 때마다 보이는 채로 시작한다. 평가 금액을 누르면 가리고 다시 누르면 보인다.
   let last = null, bare = true, chosen = null;
@@ -143,9 +150,7 @@ export function assetPage(page) {
     const mine = held.filter((item) => item.sector === index), waiting = held.find((item) => item.sector === "sgov");
     const total = (field) => mine.reduce((sum, item) => sum + item[field], 0), profit = total("profit"), purchase = total("purchase");
     const item = (it, sub) => assetRow(assetText(it.name), sub, assetMoney(it.value, unit), change(it.profit, it.rate, true));
-    page.innerHTML = `<h2 class="asset-head">내 투자<div class="seg">`
-      + [["USD", "$"], ["KRW", "원"]].map(([currency, label]) => `<button type="button" data-unit="${currency}"${currency === unit ? ' class="on"' : ""}>${label}</button>`).join("")
-      + `</div></h2><div class="asset-sum${bare ? "" : " veil"}" role="button" tabindex="0"><b class="veiled">평가 금액 보기</b>`
+    page.innerHTML = `<h2 class="asset-head">내 투자${assetUnits(unit)}</h2><div class="asset-sum${bare ? "" : " veil"}" role="button" tabindex="0"><b class="veiled">평가 금액 보기</b>`
       + `<b>${assetMoney(total("value"), unit)}</b>${change(profit, purchase ? profit / purchase : 0)}</div>`
       + `${assetSignal(data.trades?.signal, index)}<h2>상세 보유 종목</h2>`
       + (mine.length ? mine.map((it) => item(it, assetShares(it.quantity))).join("") : `<p class="status">${INDEX_NAME[index]} 종목을 들고 있지 않다.</p>`)
@@ -203,14 +208,24 @@ export function assetPage(page) {
 // 거래 내역 화면의 집행 요청 절과 거래 내역 절. 블록의 출처(`source`)마다 카드 오른쪽 위 스티커 글씨를 두고, 출처가 없는 옛 블록은 스티커를 두지 않는다.
 // 새 출처는 이 표와 서버의 출처 판정(`trades.py`)에만 더한다. 필터는 "전체"와 이 표의 출처 순서다.
 export const TRADE_SOURCE = { llm: "LLM 매수", manual: "일반 매수" };
+// 거래 내역 절 제목 오른쪽에 출처 필터 드롭다운과 금액 단위 단추를 둔다. 드롭다운은 고른 필터 이름과 아래 꺽쇠를 쓰고, 누르면 그 아래에 필터 목록을 펼친다.
+// 목록에서 필터를 고르거나 목록 밖을 누르면 목록을 접는다. 체결 금액은 달러로만 받으므로, 원 단위에서는 계좌 요약을 만든 시각의 환율로 바꿔 쓴다.
 export function tradesView(page, index) {
   const WEEK = "일월화수목금토", clock = (runAt) => runAt.slice(11, 16), due = (runAt) => Date.parse(`${runAt}:00+09:00`);
   const side = (value) => (value === "BUY" ? '<span class="side up">매수</span>' : '<span class="side down">매도</span>');
+  const view = assetView(), filters = { all: "전체", ...TRADE_SOURCE }, closer = new AbortController();
   let last = null, timer = null, filter = "all";
   const gap = (v) => `${assetSign(v)}${Math.abs(v).toFixed(3)}배`;
+  const caret = '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6l4.5 4.5L12.5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const menu = (open) => {
+    page.querySelector(".pick")?.classList.toggle("open", open);
+    page.querySelector(".pick > button")?.setAttribute("aria-expanded", String(open));
+  };
+  document.addEventListener("click", (event) => page.querySelector(".pick")?.contains(event.target) || menu(false), { signal: closer.signal });
   const render = (data) => {
     last = data;
     clearTimeout(timer);
+    const unit = view.unit, money = (usd) => assetMoney(unit === "USD" ? usd : usd * data.rate, unit);
     const trades = data.trades, request = trades?.request, now = Date.now();
     const asked = request && (request.sectors?.[index]?.order_count || 0) > 0 && now < due(request.run_at) ? request : null;
     const decided = data.decisions?.date === request?.date ? data.decisions.sectors?.[index]?.decision : null;
@@ -219,10 +234,12 @@ export function tradesView(page, index) {
     const block = (b, live) => {
       const state = live ? ({ approve: "approved", cancel: "rejected" }[decided] || asked.sectors[index].status) : b.state;
       const rows = b.executions?.length
-        ? b.executions.map((e) => assetRow(`${e.symbol}${side(e.side)}`, e.quantity != null ? assetShares(e.quantity) : "", e.amount != null ? `$${figure(e.amount)}` : "",
+        ? b.executions.map((e) => assetRow(`${e.symbol}${side(e.side)}`, e.quantity != null ? assetShares(e.quantity) : "", e.amount != null ? money(e.amount) : "",
           e.at.slice(11, 16)).replace('"asset-item"', e.filled ? '"asset-item"' : '"asset-item miss"'))
-        : (b.orders || []).map((o) => assetRow(`${o.symbol}${side(o.side)}`, o.shares != null ? `약 ${assetShares(o.shares)}` : "", assetMoney(o.krw, "KRW"),
-          o.usd != null ? `약 $${figure(o.usd)}` : ""));
+        // 보낼 주문은 원화 금액으로 정하고, 달러 금액은 어림값이다. 고른 단위의 금액을 위 줄에, 다른 통화의 금액을 아래 줄에 쓴다.
+        : (b.orders || []).map((o) => assetRow(`${o.symbol}${side(o.side)}`, o.shares != null ? `약 ${assetShares(o.shares)}` : "",
+          unit === "USD" && o.usd != null ? `약 $${figure(o.usd)}` : assetMoney(o.krw, "KRW"),
+          o.usd == null ? "" : unit === "USD" ? assetMoney(o.krw, "KRW") : `약 $${figure(o.usd)}`));
       const act = live ? `<p class="note">${{ approved: `${clock(asked.run_at)}에 집행한다. 그 전까지 취소할 수 있다.`,
         rejected: `이 지수는 집행하지 않는다. ${clock(asked.run_at)} 전까지 다시 승인할 수 있다.` }[state] || `${clock(asked.run_at)}까지 취소하지 않으면 그대로 집행한다.`}</p>`
         + `<div class="act"><button type="button" data-decision="cancel"${state === "rejected" ? ' class="on" disabled' : ""}>${state === "rejected" ? "취소함" : "취소"}</button>`
@@ -236,19 +253,33 @@ export function tradesView(page, index) {
     // 기간 투자액은 체결한 행만 센다. 체결하지 못한 주문은 금액이 있어도 돈이 나가지 않았다.
     const invested = past.reduce((sum, b) => sum + (b.executions || []).reduce((inner, e) => inner + (e.filled && e.amount != null ? (e.side === "BUY" ? e.amount : -e.amount) : 0), 0), 0);
     page.innerHTML = (open ? `<h2>집행 요청</h2>${block(open, true)}` : "")
-      + `<h2 class="trade-head">거래 내역<div class="seg">`
-      + [["all", "전체"], ...Object.entries(TRADE_SOURCE)].map(([name, label]) => `<button type="button" data-filter="${name}"${name === filter ? ' class="on"' : ""}>${label}</button>`).join("")
-      + `</div></h2><div class="asset-sum trade-sum"><b>${assetSign(invested)}${assetMoney(invested, "USD")}</b>기간 투자액</div>`
+      + `<h2 class="trade-head">거래 내역<div class="tools"><div class="pick"><button type="button" aria-haspopup="listbox" aria-expanded="false">${filters[filter]}${caret}</button>`
+      + `<div class="menu" role="listbox">` + Object.entries(filters).map(([name, label]) =>
+        `<button type="button" role="option" data-filter="${name}"${name === filter ? ' class="on" aria-selected="true"' : ""}>${label}</button>`).join("") + "</div></div>"
+      + `${assetUnits(unit)}</div></h2><div class="asset-sum trade-sum"><span>기간 투자액</span><b>${assetSign(invested)}${money(invested)}</b></div>`
       + (past.length ? past.map((b) => block(b)).join("") : '<p class="status">거래 내역이 없다.</p>');
-    roll(page.querySelector(".trade-sum b"), `${index}-trade-${filter}`);
+    roll(page.querySelector(".trade-sum b"), `${index}-trade-${filter}-${unit}`);
     if (open) timer = setTimeout(() => render(last), due(asked.run_at) - now + 1000);
   };
   page.addEventListener("click", async (event) => {
-    const pick = event.target.closest(".seg button[data-filter]");
+    if (event.target.closest(".pick > button")) {
+      feelPress();
+      return menu(!page.querySelector(".pick").classList.contains("open"));
+    }
+    const pick = event.target.closest(".menu button[data-filter]");
     if (pick) {
-      if (pick.dataset.filter === filter) return;
+      if (pick.dataset.filter === filter) return menu(false);
       feelSlide();
       filter = pick.dataset.filter;
+      return render(last);
+    }
+    // 금액 단위는 내 자산 페이지가 적어 둔 그림 카드 번호를 지우지 않게, 기기에 적힌 값을 다시 읽어 단위만 바꿔 적는다.
+    const unit = event.target.closest("[data-unit]");
+    if (unit) {
+      if (unit.dataset.unit === view.unit) return;
+      feelSlide();
+      Object.assign(view, assetView(), { unit: unit.dataset.unit });
+      assetRemember(view);
       return render(last);
     }
     const button = event.target.closest(".act button:not(:disabled)");
@@ -268,5 +299,5 @@ export function tradesView(page, index) {
     render(last);
     page.querySelector(`.trade[data-date="${card.dataset.date}"] .note`)?.replaceChildren(error);
   });
-  return { render, stop: () => clearTimeout(timer) };
+  return { render, stop: () => { clearTimeout(timer); closer.abort(); } };
 }
