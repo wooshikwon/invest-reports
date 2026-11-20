@@ -1,4 +1,4 @@
-"""거래 내역 화면(T1~T4)의 동작 시험. 출처 스티커, 목표 배율 갭, 출처 필터 드롭다운, 금액 단위 단추, 기간 투자액을 연다.
+"""거래 내역 화면(T1~T4)의 동작 시험. 출처 스티커, 목표 배율 갭, 출처 필터 드롭다운, 금액 단위 단추, 기간 투자액, 조회 기간 달력을 연다.
 
     python3 tests/golden/trades.py --data /tmp/dp-u4/out --shots /tmp/at-u2
 
@@ -10,6 +10,7 @@ SAMPLE 거래 내역(나스닥, 목표 배율과 거래 직후 배율은 블록�
     11/14 일반 QLD 매도 $140.00   목표 1.55, 직후 1.5 -> 갭 +0.050배
 기대 기간 투자액: 전체 $460.00(카드 4), LLM 매수 $300.00(카드 2), 일반 매수 $160.00(카드 2).
 필터 시험은 기기에 달러 단위를 적어 두고 연다. 원 단위의 기대값은 SAMPLE 계좌 요약의 환율 1,330.5원으로 바꾼 값이다.
+조회 기간은 처음에 8/19~11/19(최근 3개월)이다. 달력에서 11/16~11/18을 고르면 카드 3개, 기간 투자액 $600.00이다.
 """
 import argparse
 import io
@@ -102,7 +103,7 @@ def state(page):
 
 
 def gaps(page):
-    """화면 그림에서 제목 줄의 단추 아래부터 "기간 투자액" 글씨 위까지, 큰 값 글씨 아래부터 첫 거래 카드 위까지 빈 줄 수(px)를 센다."""
+    """화면 그림에서 제목 줄의 단추 아래부터 기간 투자액 글씨 위까지, 기간 투자액 글씨 아래부터 첫 거래 카드 위까지 빈 줄 수(px)를 센다."""
     top, bottom, left, right = page.evaluate("""() => {
       const tools = document.querySelector('.trade-head .tools').getBoundingClientRect(), card = document.querySelector('.trade-sum ~ .trade').getBoundingClientRect();
       return [Math.round(tools.bottom), Math.round(card.top), Math.round(card.left), Math.round(card.right)];
@@ -130,7 +131,7 @@ def main():
               and page.locator(".trade-head .pick > button").get_attribute("aria-expanded") == "true")
         page.mouse.click(20, 900)
         check("a 목록 밖을 누르면 접는다", not menu.is_visible())
-        check("a 기간 투자액 이름이 값 위에 있다", s["sum"].startswith("기간 투자액"), s["sum"])
+        check("a 기간 투자액 이름 없이 오른쪽 기간 단추에 최근 3개월을 쓴다", s["sum"].endswith("8.19 ~ 11.19") and "기간 투자액" not in s["sum"], s["sum"])
         check("a 카드 스티커와 갭이 SAMPLE 기대값", [(c["date"], c["sticker"], c["lev"]) for c in s["cards"]] == [(d, k, f"목표 배율 갭 {g}") for d, k, g in GAPS],
               [(c["date"], c["sticker"], c["lev"]) for c in s["cards"]])
         check("a 체결·미체결 글씨가 없음", "체결" not in s["text"], s["text"][:120])
@@ -150,7 +151,7 @@ def main():
                 capture.settle(page, 400)
                 page.screenshot(path=str(shots / "trades-llm.png"))
                 above, below = gaps(page)
-                check("b 기간 투자액 묶음의 위아래 여백이 같다", abs(above - below) <= 1, (above, below))
+                check("b 기간 투자액 아래 여백이 위보다 10px 넘게 넓다", below - above >= 10, (above, below))
         check("b 필터를 고르면 목록을 접는다", not menu.is_visible())
         page.locator(".trade-head [data-unit='KRW']").click()
         capture.settle(page, 300)
@@ -165,6 +166,29 @@ def main():
         capture.settle(page, 300)
         order = page.locator(".trade:has(.act) .asset-item").inner_text()
         check("e 달러 단위: 보낼 주문은 달러 어림값 아래 원화 금액", "$460.00" in state(page)["sum"] and order.index("$") < order.index("1,000,000원"), order)
+        sheet, day = page.locator(".period-card"), lambda d: page.locator(f'.period-card [data-day="{d}"]')
+        marked = lambda: (page.locator(".period-card .start").get_attribute("data-day"), [e.get_attribute("data-day") for e in page.locator(".period-card .end").all()])
+        page.locator(".trade-sum .period").click()
+        check("f 달력은 최근 3개월을 칠하고 오늘 뒤 날짜를 끈다", sheet.is_visible() and marked() == ("2026-08-19", [fixtures.TODAY])
+              and day("2026-11-20").is_disabled() and not day(fixtures.TODAY).is_disabled(), marked())
+        page.screenshot(path=str(shots / "trades-calendar.png"))
+        day("2026-11-17").click()
+        day("2026-11-16").click()
+        check("f 시작 날짜보다 앞을 누르면 시작 날짜를 다시 고른다", sheet.is_visible() and marked() == ("2026-11-16", []), marked())
+        day("2026-11-18").click()
+        capture.settle(page, 500)
+        s = state(page)
+        check("f 끝 날짜를 누르면 기간을 바꾸고 달력을 닫는다", sheet.count() == 0 and len(s["cards"]) == 3 and "$600.00" in s["sum"] and s["sum"].endswith("11.16 ~ 11.18")
+              and s["open"] == 1, (len(s["cards"]), s["sum"]))
+        page.screenshot(path=str(shots / "trades-period.png"))
+        page.locator(".trade-sum .period").click()
+        page.mouse.click(5, 5)
+        check("f 달력 밖을 누르면 기간을 그대로 두고 닫는다", sheet.count() == 0 and state(page)["sum"].endswith("11.16 ~ 11.18"))
+        page.locator(".trade-sum .period").click()
+        page.locator(".period-card .reset").click()
+        capture.settle(page, 300)
+        s = state(page)
+        check("f 최근 3개월 단추는 처음 기간으로 돌린다", sheet.count() == 0 and len(s["cards"]) == 4 and "$460.00" in s["sum"] and s["sum"].endswith("8.19 ~ 11.19"), s["sum"])
         check("c 오류·외부 요청 0건", not server.errors and not server.escaped, (server.errors, server.escaped))
         browser.close()
 

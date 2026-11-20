@@ -210,12 +210,74 @@ export function assetPage(page) {
 export const TRADE_SOURCE = { llm: "LLM 매수", manual: "일반 매수" };
 // 거래 내역 절 제목 오른쪽에 출처 필터 드롭다운과 금액 단위 단추를 둔다. 드롭다운은 고른 필터 이름과 아래 꺽쇠를 쓰고, 누르면 그 아래에 필터 목록을 펼친다.
 // 목록에서 필터를 고르거나 목록 밖을 누르면 목록을 접는다. 체결 금액은 달러로만 받으므로, 원 단위에서는 계좌 요약을 만든 시각의 환율로 바꿔 쓴다.
+// 거래 내역은 조회 기간 안의 블록만 쓰고, 기간 투자액도 그 블록만 더한다. 조회 기간은 처음에 오늘(서울 날짜)까지 최근 3개월이고, 화면을 닫으면 처음 값으로 돌아간다.
+// 기간 투자액 오른쪽의 기간 단추를 누르면 달력 상자를 띄운다. 달력은 가장 오래된 거래가 있는 달이나 조회 시작 달부터 이번 달까지를 쌓고, 이번 달이 보이게 연다.
+// 날짜를 처음 누르면 시작 날짜로 두고, 다음에 누른 날짜가 시작 날짜와 같거나 뒤면 끝 날짜로 두어 기간을 바꾸고 상자를 닫는다. 시작 날짜보다 앞을 누르면 시작 날짜를 다시 고른다.
 export function tradesView(page, index) {
   const WEEK = "일월화수목금토", clock = (runAt) => runAt.slice(11, 16), due = (runAt) => Date.parse(`${runAt}:00+09:00`);
   const side = (value) => (value === "BUY" ? '<span class="side up">매수</span>' : '<span class="side down">매도</span>');
   const view = assetView(), filters = { all: "전체", ...TRADE_SOURCE }, closer = new AbortController();
-  let last = null, timer = null, filter = "all";
+  const today = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10), recent = () => {
+    const [y, m, d] = today.split("-").map(Number), end = new Date(Date.UTC(y, m - 3, 0)).getUTCDate();
+    return { start: new Date(Date.UTC(y, m - 4, Math.min(d, end))).toISOString().slice(0, 10), end: today };
+  };
+  let last = null, timer = null, filter = "all", period = recent(), sheet = null;
   const gap = (v) => `${assetSign(v)}${Math.abs(v).toFixed(3)}배`;
+  const span = ({ start, end }) => `${start.slice(0, 4) === end.slice(0, 4) ? "" : `${start.slice(2, 4)}.`}${assetDay(start)} ~ ${assetDay(end)}`;
+  const icon = '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>'
+    + '<path d="M2 6.5h12M5.5 1.8v2.6M10.5 1.8v2.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+  const shut = () => { sheet?.remove(); sheet = null; };
+  const calendar = () => {
+    const blocks = last?.trades?.sectors?.[index] || [], first = [period.start, ...blocks.map((b) => b.date)].sort()[0];
+    let start = period.start, end = period.end;
+    const months = [];
+    for (let y = +first.slice(0, 4), m = +first.slice(5, 7); `${y}-${String(m).padStart(2, "0")}` <= today.slice(0, 7); m === 12 ? (y++, m = 1) : m++) {
+      const lead = new Date(Date.UTC(y, m - 1, 1)).getUTCDay(), days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      months.push(`<section><h4>${y}년 ${m}월</h4><div class="grid">${"<i></i>".repeat(lead)}` + Array.from({ length: days }, (_, i) => {
+        const day = `${y}-${String(m).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`;
+        return `<button type="button" data-day="${day}"${day > today ? " disabled" : ""}${day === today ? ' class="today"' : ""}><span>${i + 1}</span></button>`;
+      }).join("") + "</div></section>");
+    }
+    const box = sheet = document.createElement("div");
+    box.className = "help-card period-card";
+    box.innerHTML = `<div class="card"><h3>조회 기간<span><button type="button" class="reset">최근 3개월</button><button type="button" class="close" aria-label="닫기">✕</button></span></h3>`
+      + `<p class="hint"></p><div class="week">${[...WEEK].map((d) => `<i>${d}</i>`).join("")}</div><div class="months">${months.join("")}</div></div>`;
+    const paint = () => {
+      box.querySelector(".hint").textContent = end ? `${span({ start, end })} · 시작 날짜를 눌러요` : "끝 날짜를 눌러요";
+      box.querySelector(".months").classList.toggle("ranged", !!end && end > start);
+      box.querySelectorAll("[data-day]").forEach((cell) => {
+        const day = cell.dataset.day;
+        cell.classList.toggle("start", day === start);
+        cell.classList.toggle("end", day === end);
+        cell.classList.toggle("in", !!end && day > start && day < end);
+      });
+    };
+    box.addEventListener("click", (event) => {
+      if (event.target === box || event.target.closest(".close")) return shut();
+      if (event.target.closest(".reset")) {
+        feelSlide();
+        period = recent();
+        render(last);
+        return shut();
+      }
+      const cell = event.target.closest("[data-day]:not(:disabled)");
+      if (!cell) return;
+      feelSlide();
+      const day = cell.dataset.day;
+      if (end || day < start) [start, end] = [day, null];
+      else {
+        end = day;
+        period = { start, end };
+        render(last);
+        setTimeout(() => sheet === box && shut(), 250);
+      }
+      paint();
+    });
+    paint();
+    document.body.append(box);
+    const scroll = box.querySelector(".months");
+    scroll.scrollTop = scroll.scrollHeight;
+  };
   const caret = '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6l4.5 4.5L12.5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const menu = (open) => {
     page.querySelector(".pick")?.classList.toggle("open", open);
@@ -249,22 +311,27 @@ export function tradesView(page, index) {
         + (b.target != null && b.after != null ? `<div class="lev">목표 배율 갭 ${gap(b.target - b.after)}</div>` : "")
         + (b.reason ? `<p class="why">${assetText(b.reason)}</p>` : "") + (rows.length ? `<div class="rows">${rows.join("")}</div>` : "") + act + "</div>";
     };
-    const past = blocks.filter((b) => b !== open && (filter === "all" || b.source === filter));
+    const past = blocks.filter((b) => b !== open && (filter === "all" || b.source === filter) && b.date >= period.start && b.date <= period.end);
     // 기간 투자액은 체결한 행만 센다. 체결하지 못한 주문은 금액이 있어도 돈이 나가지 않았다.
     const invested = past.reduce((sum, b) => sum + (b.executions || []).reduce((inner, e) => inner + (e.filled && e.amount != null ? (e.side === "BUY" ? e.amount : -e.amount) : 0), 0), 0);
     page.innerHTML = (open ? `<h2>집행 요청</h2>${block(open, true)}` : "")
       + `<h2 class="trade-head">거래 내역<div class="tools"><div class="pick"><button type="button" aria-haspopup="listbox" aria-expanded="false">${filters[filter]}${caret}</button>`
       + `<div class="menu" role="listbox">` + Object.entries(filters).map(([name, label]) =>
         `<button type="button" role="option" data-filter="${name}"${name === filter ? ' class="on" aria-selected="true"' : ""}>${label}</button>`).join("") + "</div></div>"
-      + `${assetUnits(unit)}</div></h2><div class="asset-sum trade-sum"><span>기간 투자액</span><b>${assetSign(invested)}${money(invested)}</b></div>`
+      + `${assetUnits(unit)}</div></h2><div class="asset-sum trade-sum"><b>${assetSign(invested)}${money(invested)}</b>`
+      + `<button type="button" class="period" aria-label="조회 기간 바꾸기">${icon}${span(period)}</button></div>`
       + (past.length ? past.map((b) => block(b)).join("") : '<p class="status">거래 내역이 없다.</p>');
-    roll(page.querySelector(".trade-sum b"), `${index}-trade-${filter}-${unit}`);
+    roll(page.querySelector(".trade-sum b"), `${index}-trade-${filter}-${unit}-${period.start}-${period.end}`);
     if (open) timer = setTimeout(() => render(last), due(asked.run_at) - now + 1000);
   };
   page.addEventListener("click", async (event) => {
     if (event.target.closest(".pick > button")) {
       feelPress();
       return menu(!page.querySelector(".pick").classList.contains("open"));
+    }
+    if (event.target.closest(".trade-sum .period")) {
+      feelPress();
+      return calendar();
     }
     const pick = event.target.closest(".menu button[data-filter]");
     if (pick) {
@@ -299,5 +366,5 @@ export function tradesView(page, index) {
     render(last);
     page.querySelector(`.trade[data-date="${card.dataset.date}"] .note`)?.replaceChildren(error);
   });
-  return { render, stop: () => { clearTimeout(timer); closer.abort(); } };
+  return { render, stop: () => { clearTimeout(timer); closer.abort(); shut(); } };
 }
