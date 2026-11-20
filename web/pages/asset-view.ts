@@ -211,8 +211,9 @@ export const TRADE_SOURCE = { llm: "LLM 매수", manual: "일반 매수" };
 // 거래 내역 절 제목 오른쪽에 출처 필터 드롭다운과 금액 단위 단추를 둔다. 드롭다운은 고른 필터 이름과 아래 꺽쇠를 쓰고, 누르면 그 아래에 필터 목록을 펼친다.
 // 목록에서 필터를 고르거나 목록 밖을 누르면 목록을 접는다. 체결 금액은 달러로만 받으므로, 원 단위에서는 계좌 요약을 만든 시각의 환율로 바꿔 쓴다.
 // 거래 내역은 조회 기간 안의 블록만 쓰고, 기간 투자액도 그 블록만 더한다. 조회 기간은 처음에 오늘(서울 날짜)까지 최근 3개월이고, 화면을 닫으면 처음 값으로 돌아간다.
-// 기간 투자액 오른쪽의 기간 단추를 누르면 달력 상자를 띄운다. 달력은 가장 오래된 거래가 있는 달이나 조회 시작 달부터 이번 달까지를 쌓고, 이번 달이 보이게 연다.
-// 날짜를 처음 누르면 시작 날짜로 두고, 다음에 누른 날짜가 시작 날짜와 같거나 뒤면 끝 날짜로 두어 기간을 바꾸고 상자를 닫는다. 시작 날짜보다 앞을 누르면 시작 날짜를 다시 고른다.
+// 기간 투자액 오른쪽의 기간 단추를 누르면 달력 상자를 띄운다. 달력은 가장 오래된 거래가 있는 달, 조회 시작 달, 최근 3개월의 시작 달 가운데 가장 이른 달부터 이번 달까지를 한 달씩 옆으로 놓고, 조회 끝 날짜의 달을 보이며 연다.
+// 달은 좌우로 밀거나 달 이름 양옆의 꺽쇠를 눌러 넘긴다. 날짜를 처음 누르면 시작 날짜로 두고, 다음에 누른 날짜가 시작 날짜와 같거나 뒤면 끝 날짜로 둔다. 시작 날짜보다 앞을 누르면 시작 날짜를 다시 고른다.
+// 최근 3개월 단추는 고른 기간을 최근 3개월로 바꾼다. 고른 기간은 끝 날짜까지 고른 뒤 아래 확인 단추를 눌러야 조회 기간이 되고, 닫기 단추나 상자 밖을 누르면 버린다.
 export function tradesView(page, index) {
   const WEEK = "일월화수목금토", clock = (runAt) => runAt.slice(11, 16), due = (runAt) => Date.parse(`${runAt}:00+09:00`);
   const side = (value) => (value === "BUY" ? '<span class="side up">매수</span>' : '<span class="side down">매도</span>');
@@ -228,12 +229,13 @@ export function tradesView(page, index) {
     + '<path d="M2 6.5h12M5.5 1.8v2.6M10.5 1.8v2.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
   const shut = () => { sheet?.remove(); sheet = null; };
   const calendar = () => {
-    const blocks = last?.trades?.sectors?.[index] || [], first = [period.start, ...blocks.map((b) => b.date)].sort()[0];
+    const blocks = last?.trades?.sectors?.[index] || [], first = [period.start, recent().start, ...blocks.map((b) => b.date)].sort()[0];
     let start = period.start, end = period.end;
-    const months = [];
+    const months = [], names = [];
     for (let y = +first.slice(0, 4), m = +first.slice(5, 7); `${y}-${String(m).padStart(2, "0")}` <= today.slice(0, 7); m === 12 ? (y++, m = 1) : m++) {
       const lead = new Date(Date.UTC(y, m - 1, 1)).getUTCDay(), days = new Date(Date.UTC(y, m, 0)).getUTCDate();
-      months.push(`<section><h4>${y}년 ${m}월</h4><div class="grid">${"<i></i>".repeat(lead)}` + Array.from({ length: days }, (_, i) => {
+      names.push(`${y}년 ${m}월`);
+      months.push(`<section data-month="${y}-${String(m).padStart(2, "0")}"><div class="grid">${"<i></i>".repeat(lead)}` + Array.from({ length: days }, (_, i) => {
         const day = `${y}-${String(m).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`;
         return `<button type="button" data-day="${day}"${day > today ? " disabled" : ""}${day === today ? ' class="today"' : ""}><span>${i + 1}</span></button>`;
       }).join("") + "</div></section>");
@@ -241,9 +243,23 @@ export function tradesView(page, index) {
     const box = sheet = document.createElement("div");
     box.className = "help-card period-card";
     box.innerHTML = `<div class="card"><h3>조회 기간<span><button type="button" class="reset">최근 3개월</button><button type="button" class="close" aria-label="닫기">✕</button></span></h3>`
-      + `<p class="hint"></p><div class="week">${[...WEEK].map((d) => `<i>${d}</i>`).join("")}</div><div class="months">${months.join("")}</div></div>`;
+      + `<p class="hint"></p><div class="month"><button type="button" class="prev" aria-label="앞 달">${caret}</button><h4></h4><button type="button" class="next" aria-label="다음 달">${caret}</button></div>`
+      + `<div class="week">${[...WEEK].map((d) => `<i>${d}</i>`).join("")}</div><div class="months">${months.join("")}</div><button type="button" class="ok">확인</button></div>`;
+    const track = box.querySelector(".months"), at = () => Math.round(track.scrollLeft / track.clientWidth);
+    const turn = () => {
+      const i = at();
+      box.querySelector(".month h4").textContent = names[i];
+      box.querySelector(".prev").disabled = i === 0;
+      box.querySelector(".next").disabled = i === names.length - 1;
+    };
+    const go = (month, smooth) => {
+      const i = Math.max(0, [...track.children].findIndex((s) => s.dataset.month === month));
+      track.scrollTo({ left: i * track.clientWidth, behavior: smooth ? "smooth" : "instant" });
+      turn();
+    };
     const paint = () => {
-      box.querySelector(".hint").textContent = end ? `${span({ start, end })} · 시작 날짜를 눌러요` : "끝 날짜를 눌러요";
+      box.querySelector(".hint").textContent = end ? span({ start, end }) : "끝 날짜를 눌러요";
+      box.querySelector(".ok").disabled = !end;
       box.querySelector(".months").classList.toggle("ranged", !!end && end > start);
       box.querySelectorAll("[data-day]").forEach((cell) => {
         const day = cell.dataset.day;
@@ -254,29 +270,35 @@ export function tradesView(page, index) {
     };
     box.addEventListener("click", (event) => {
       if (event.target === box || event.target.closest(".close")) return shut();
-      if (event.target.closest(".reset")) {
+      const step = event.target.closest(".prev, .next");
+      if (step) {
         feelSlide();
-        period = recent();
+        return track.scrollTo({ left: (at() + (step.classList.contains("next") ? 1 : -1)) * track.clientWidth, behavior: "smooth" });
+      }
+      if (event.target.closest(".ok")) {
+        feelPress();
+        period = { start, end };
         render(last);
         return shut();
+      }
+      if (event.target.closest(".reset")) {
+        feelSlide();
+        ({ start, end } = recent());
+        go(end.slice(0, 7), true);
+        return paint();
       }
       const cell = event.target.closest("[data-day]:not(:disabled)");
       if (!cell) return;
       feelSlide();
       const day = cell.dataset.day;
       if (end || day < start) [start, end] = [day, null];
-      else {
-        end = day;
-        period = { start, end };
-        render(last);
-        setTimeout(() => sheet === box && shut(), 250);
-      }
+      else end = day;
       paint();
     });
+    track.addEventListener("scroll", turn, { passive: true });
     paint();
     document.body.append(box);
-    const scroll = box.querySelector(".months");
-    scroll.scrollTop = scroll.scrollHeight;
+    go(end.slice(0, 7), false);
   };
   const caret = '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6l4.5 4.5L12.5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const menu = (open) => {

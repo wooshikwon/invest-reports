@@ -74,17 +74,30 @@
 .trade-sum .period { flex: none; display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border: 0; border-radius: 9px; background: rgba(255, 255, 255, .06);
                      font: inherit; font-size: 12.5px; font-weight: 700; color: var(--text); cursor: pointer; }
 .trade-sum .period svg { color: var(--hint); }
-/* 조회 기간 달력은 설명 상자 모양을 쓰고, 제목 줄 오른쪽에 최근 3개월 단추와 닫기 단추를 둔다. 그 아래 안내 한 줄과 요일 줄을 고정하고, 달마다 일요일부터 칸 일곱 개씩 날짜를 쌓아 스크롤한다.
+/* 조회 기간 달력은 설명 상자 모양을 쓰고, 제목 줄 오른쪽에 최근 3개월 단추와 닫기 단추를 둔다. 그 아래 고른 기간 한 줄, 양옆에 꺽쇠를 둔 달 이름 줄, 요일 줄을 두고,
+   달마다 일요일부터 칸 일곱 개씩 날짜를 놓은 판을 옆으로 이어 한 달씩 멈춰 넘긴다. 맨 아래 확인 단추는 지수색으로 칠하고, 끝 날짜를 고르기 전에는 흐리게 둔다.
    시작·끝 날짜는 지수색 동그라미에 어두운 글씨로, 그 사이 날짜는 옅은 지수색 띠로 칠하고, 띠는 시작·끝 동그라미의 가운데까지 잇는다. 오늘은 밑줄을 긋고, 오늘 뒤 날짜는 흐리게 두어 누르지 못하게 한다. */
-.period-card .card { display: flex; flex-direction: column; overflow: hidden; padding: 18px 16px 8px; }
+.period-card .card { display: flex; flex-direction: column; max-height: none; overflow: hidden; padding: 18px 16px 16px; }
 .period-card h3 { margin-bottom: 4px; }
 .period-card h3 span { display: flex; align-items: center; gap: 4px; }
 .period-card h3 .reset { margin: 0; padding: 4px 9px; border-radius: 8px; background: rgba(255, 255, 255, .06); color: var(--text); font: inherit; font-size: 12px; font-weight: 700; }
 .period-card .hint { margin: 0 0 10px; font-size: 13px; color: var(--dim); }
 .period-card .week, .period-card .grid { display: grid; grid-template-columns: repeat(7, 1fr); }
 .period-card .week i { padding-bottom: 6px; border-bottom: 1px solid rgba(255, 255, 255, .06); font-size: 12px; font-style: normal; font-weight: 600; color: var(--dim); text-align: center; }
-.period-card .months { overflow: auto; overscroll-behavior: contain; }
-.period-card h4 { margin: 14px 0 6px 6px; font-size: 14px; font-weight: 700; color: var(--text); }
+.period-card .month { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.period-card .month h4 { margin: 0; font-size: 15px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.period-card .month button { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 9px;
+                             background: none; color: var(--text); cursor: pointer; }
+.period-card .month svg { width: 16px; height: 16px; }
+.period-card .month .prev svg { transform: rotate(90deg); }
+.period-card .month .next svg { transform: rotate(-90deg); }
+.period-card .month button:disabled { color: rgba(255, 255, 255, .2); cursor: default; }
+.period-card .months { display: flex; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; overscroll-behavior: contain; scrollbar-width: none; }
+.period-card .months::-webkit-scrollbar { display: none; }
+.period-card .months section { flex: 0 0 100%; min-width: 0; min-height: 264px; padding-top: 6px; overflow: hidden; scroll-snap-align: start; scroll-snap-stop: always; }
+.period-card .ok { height: 46px; margin-top: 12px; border: 0; border-radius: 12px; background: var(--index); color: var(--bg);
+                   font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
+.period-card .ok:disabled { background: rgba(255, 255, 255, .08); color: rgba(255, 255, 255, .3); cursor: default; }
 .period-card .grid button { height: 40px; margin: 2px 0; padding: 0; border: 0; position: relative; isolation: isolate;
                             background: none; font: inherit; font-size: 14px; font-weight: 600; color: var(--text);
                             font-variant-numeric: tabular-nums; cursor: pointer; -webkit-tap-highlight-color: transparent; }
