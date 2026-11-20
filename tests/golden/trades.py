@@ -131,7 +131,10 @@ def main():
               and page.locator(".trade-head .pick > button").get_attribute("aria-expanded") == "true")
         page.mouse.click(20, 900)
         check("a 목록 밖을 누르면 접는다", not menu.is_visible())
-        check("a 기간 투자액 이름 없이 오른쪽 기간 단추에 최근 3개월을 쓴다", s["sum"].endswith("8.19 ~ 11.19") and "기간 투자액" not in s["sum"], s["sum"])
+        check("a 기간 투자액 이름 없이 기간 단추에 최근 3개월을 쓴다", s["sum"].endswith("8.19 ~ 11.19") and "기간 투자액" not in s["sum"], s["sum"])
+        box = page.evaluate("""() => { const [row, value, period] = ['.trade-sum', '.trade-sum b', '.trade-sum .period'].map((q) => document.querySelector(q).getBoundingClientRect());
+          return { below: period.top - value.bottom, right: Math.round(row.right - period.right), left: Math.round(value.left - row.left) }; }""")
+        check("a 기간 단추는 기간 투자액 아래 줄 오른쪽 끝에 있다", box["below"] >= 0 and box["right"] == 0 and box["left"] == 0, box)
         check("a 카드 스티커와 갭이 SAMPLE 기대값", [(c["date"], c["sticker"], c["lev"]) for c in s["cards"]] == [(d, k, f"목표 배율 갭 {g}") for d, k, g in GAPS],
               [(c["date"], c["sticker"], c["lev"]) for c in s["cards"]])
         check("a 체결·미체결 글씨가 없음", "체결" not in s["text"], s["text"][:120])
