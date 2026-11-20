@@ -156,7 +156,7 @@ def main():
         capture.settle(page, 600)
         s = state(page)
         check("a2 판단 전 지난 날짜: 예측 단추를 누를 수 있음", s["aim"] == {"disabled": False, "on": True}, s["aim"])
-        check("a2 판단 전 지난 날짜: 설명 절이 보임", s["notes"] and all(not h for _, h in s["notes"]) and {pt for pt, _ in s["notes"]} == {"2026-11-18"}, s["notes"])
+        check("a2 판단 전 지난 날짜: 설명 절이 보이고 가장 늦은 판단의 날짜", s["notes"] and all(not h for _, h in s["notes"]) and {pt for pt, _ in s["notes"]} == {"2026-11-19"}, s["notes"])
         page.screenshot(path=str(shots / "a2-before-past-cards.png"))
         page.locator(".fold, h2").first.scroll_into_view_if_needed()
         page.evaluate("document.querySelector('[data-point]').scrollIntoView({block:'start'})")
@@ -189,8 +189,8 @@ def main():
         s = state(page)
         check("b 잡고 있는 동안 날짜 세 번 바뀜", len(path) >= 4, path)
         check("b 그래프 점이 세 번 움직임", len({g for g in graph}) >= 3, graph)
-        check("b 잡고 있는 동안 설명 날짜가 처음 날짜", all(h == {"2026-11-18"} for h in held), held)
-        check("b 손을 뗀 뒤 설명 날짜가 뗀 날짜", {pt for pt, _ in s["notes"]} == {f"2026-{at_release.replace('/', '-')}"}, [at_release, s["notes"]])
+        check("b 잡고 있는 동안 설명 날짜가 가장 늦은 판단의 날짜", all(h == {"2026-11-19"} for h in held), held)
+        check("b 손을 뗀 뒤에도 설명 날짜가 가장 늦은 판단의 날짜", {pt for pt, _ in s["notes"]} == {"2026-11-19"}, [at_release, s["notes"]])
         w.close()
 
         # (c) 튕김 잠금
@@ -265,7 +265,7 @@ def main():
         drag_to(page, "11/18")
         page.wait_for_timeout(600)
         s = state(page)
-        check("a4 판단 후 지난 날짜: 설명 절이 지난 판단", {pt for pt, _ in s["notes"]} == {"2026-11-18"}, s["notes"])
+        check("a4 판단 후 지난 날짜: 설명 절이 가장 늦은 판단의 날짜 그대로", {pt for pt, _ in s["notes"]} == {PENDING}, s["notes"])
         page.screenshot(path=str(shots / "a4-after-past-cards.png"))
         page.evaluate("document.querySelector('[data-point]').scrollIntoView({block:'start'})")
         capture.settle(page, 400)

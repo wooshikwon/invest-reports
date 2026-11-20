@@ -28,18 +28,10 @@ function reportPage(body, listing, cards, history, given) {
   settleStart();
   const index = key.split("-")[1], entry = listing[key], isLatest = key === latest(listing, index);
   // `pend`는 가장 늦은 리포트의 판단 날짜 지점(`entry.point`)보다 늦은 실시간 값의 날짜 지점이다. 그 지점의 판단은 아직 올라오지 않았다.
-  // 설명 세 절(`noted`)은 슬라이더에서 레버를 놓은 날짜 판단의 `outlook.json`으로 바꾸고, 예측 단추(`aimed`)가 켜져 있을 때만 보인다.
-  let pend = null, rewind = null, noted = null, aimed = !!kept?.aim, seq = 0;
+  // 설명 세 절(`noted`)은 화면을 그릴 때 받은 가장 늦은 판단의 `outlook.json`(`given`)으로 채우고, 날짜 슬라이드의 선택을 받지 않는다. 예측 단추(`aimed`)가 켜져 있을 때만 보인다.
+  let pend = null, rewind = null, noted = null, aimed = !!kept?.aim;
   const joined = (value) => (value ? Object.values(value.sections).join("") : "");
-  const load = (point) => {
-    const hit = Object.keys(listing).find((name) => listing[name].index === index && listing[name].point === point);
-    const mine = ++seq;
-    (hit ? reportPart(hit, "outlook", listing).catch(() => null) : Promise.resolve(null)).then((value) => {
-      if (signal.aborted || mine !== seq) return;
-      noted?.set(joined(value), value?.point ?? point);
-    });
-  };
-  const view = { aim: aimed, pending: () => pend, release: load, watch: (on) => { aimed = on; noted?.show(on); } };
+  const view = { aim: aimed, pending: () => pend, watch: (on) => { aimed = on; noted?.show(on); } };
   if (entry) {
     document.title = `${entry.title} ${entry.day}`;
     // 머리 상자 위 날짜 줄은 "2026년 11월 13일 (금) 09:10 KST"처럼 쓰고, 오른쪽에 판단 배치의 단계를 쓴다. 날짜와 단계 표시는 `entry.point`와 실시간 값의 날짜 지점으로 정한다.

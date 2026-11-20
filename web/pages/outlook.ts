@@ -15,7 +15,7 @@ import { feelPress } from "../shared/telegram";
 // Montecarlo 그림은 원래 이벤트 캘린더 절에 있으므로 그 자리에서는 뺀다. 12M + Predictions가 없는 리포트는 두 장을 넘긴다.
 // 묶음 위에는 그림 이름 탭을 둔다. 탭을 누르면 그 그림으로 넘기고, 넘기면 보고 있는 그림의 탭을 밝힌다.
 // 그림 카드 값(`given`, `build.py`가 쓴 `r/{키}/cards.json`. 그 파일이 없는 지난 리포트는 리포트 끝의 `#cards`)이 있는 리포트는 그림 대신 주가와 예측, 일정, 권장 배율 카드 세 장을 넘긴다.
-export function figures(date, given = null, view = { aim: false, pending: () => null, release() {}, watch() {} }) {
+export function figures(date, given = null, view = { aim: false, pending: () => null, watch() {} }) {
   const data = report.querySelector("#cards");
   data?.remove();
   const cards = given ?? (data && JSON.parse(data.textContent));
