@@ -232,23 +232,12 @@ def glossary(run):
     return page
 
 
-def rewind(run):
-    page = run.open()
-    top(page, page.locator("main .rewind"), 500)
-    box = page.locator("main .rewind").filter(visible=True).first
-    box.locator(".open").click()
-    settle(page, 400)
-    box.locator("input[type=range]").evaluate("(range) => { range.value = 45; range.dispatchEvent(new Event('input')); }")
-    settle(page, 800)
-    return page
-
-
 def nonowner(run):
     return run.open(uid=2)
 
 
 SCREENS = {screen.__name__: screen for screen in
-           (latest, issue, calendar, past, market, stock, asset, trades, glossary, rewind, nonowner)}
+           (latest, issue, calendar, past, market, stock, asset, trades, glossary, nonowner)}
 
 
 def dom(page) -> str:

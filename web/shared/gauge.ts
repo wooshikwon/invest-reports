@@ -1,5 +1,18 @@
 // @ts-nocheck
 import { DIM, DIMS, FIGURE, KNOB, PRICE, candleGroups, candleLate, canvas, nextClip, dailyBounds, drawCandles, drawMap, frame, legend, mapOf, nowMark, shape, textWidth, zoneOf } from "./svg";
+// 시간 축 그림을 누를 수 있는 자리. 점이나 막대마다 그림 좌표의 가로 자리와, 그 자리가 가리키는 점 번호를 돌려준다.
+// 가로 자리는 `columns`와 `daily`가 점을 그리는 식과 같다.
+export const columnTaps = ({ bars }) => {
+  const w = (256 - 2 * (bars.length - 1)) / bars.length;
+  return [bars.map((_, i) => 6 + i * (w + 2) + w / 2), bars.map((_, i) => i)];
+};
+// 일별 선은 그림 왼쪽 끝(`start`) 뒤의 점만 담고, 다음 세션 값 자리(`reach`)는 마지막 점 번호를 가리킨다.
+export const dailyTaps = ({ points, start = 0, reach = 0 }) => {
+  const last = points.length - 1, span = Math.max(1, last + reach - start), X = (i) => 4 + 308 * (i - start) / span;
+  const idx = [];
+  for (let i = Math.max(0, Math.ceil(start)); i <= last; i++) idx.push(i);
+  return [[...idx.map(X), ...(reach ? [X(last + reach)] : [])], [...idx, ...(reach ? [last] : [])]];
+};
 export const GAUGES = {
   // 반원 속도계: 구간 경계값을 바깥에 적는다.
   semi({ min, max, zones, value, ends }) {
@@ -28,18 +41,18 @@ export const GAUGES = {
                                                        "font-weight": 600, fill: "#A7ABB0" }, end)));
     return s;
   },
-  // 주별 세로 막대: 막대마다 [날짜, 값, 글자]이고 0에서 시작한다. 지난주 막대는 회색, 오늘 막대는 흰색이며 오늘 막대 위에만 값을 적는다.
-  // `lines`는 [값, 이름]이고 점선을 긋고 오른쪽 여백에 이름을 적는다. 오늘 값 글자와 높이가 겹치는 선은 긋지 않는다. 날짜는 처음과 마지막 막대 아래에만 적는다.
-  columns({ bars, max, lines = [] }) {
+  // 주별 세로 막대: 막대마다 [날짜, 값, 글자]이고 0에서 시작한다. 고른 막대(`stop`, 처음에는 마지막 막대)는 흰색, 나머지는 회색이며 고른 막대 위에만 값을 적는다.
+  // `lines`는 [값, 이름]이고 점선을 긋고 오른쪽 여백에 이름을 적는다. 고른 값 글자와 높이가 겹치는 선은 긋지 않는다. 날짜는 처음과 마지막 막대 아래에만 적는다.
+  columns({ bars, max, lines = [], stop = bars.length - 1 }) {
     const x0 = 6, x1 = 262, top = 26, base = 146, gap = 2, s = canvas(FIGURE);
     const w = (x1 - x0 - gap * (bars.length - 1)) / bars.length, Y = (v) => base - (base - top) * Math.min(1, Math.max(0, v / max));
-    const mark = Y(bars[bars.length - 1][1]) - 12;
+    const mark = Y(bars[stop][1]) - 12;
     lines.filter(([v]) => Math.abs(Y(v) - mark) > 12).forEach(([v, name]) => {
       s.append(shape("line", { x1: x0, y1: Y(v), x2: x1, y2: Y(v), stroke: "#7A828C", "stroke-width": 1, "stroke-dasharray": "3 3", opacity: 0.7 }));
       s.append(shape("text", { x: x1 + 10, y: Y(v) + 4, "font-size": 11, fill: "#7A828C" }, name));
     });
     bars.forEach(([day, v, text], i) => {
-      const x = x0 + i * (w + gap), y = Y(v), r = Math.min(4, (base - y) / 2, w / 2), last = i === bars.length - 1;
+      const x = x0 + i * (w + gap), y = Y(v), r = Math.min(4, (base - y) / 2, w / 2), last = i === stop;
       const bar = shape("path", { d: `M${x} ${base}V${y + r}Q${x} ${y} ${x + r} ${y}H${x + w - r}Q${x + w} ${y} ${x + w} ${y + r}V${base}Z`,
                                   fill: last ? "#EAEAEA" : "#7A828C", opacity: last ? 1 : 0.55 });
       bar.append(shape("title", {}, `${day} ${text}`));

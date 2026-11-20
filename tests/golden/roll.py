@@ -97,8 +97,8 @@ def asset(browser, server):
     page.locator(".asset-head [data-unit]:not(.on)").first.click()
     page.wait_for_timeout(120)
     rolls(page)
-    asset_tab.drag_back(page, 40)
-    check("R4 기준 날짜를 옮기면 굴리지 않는다", not rolls(page))
+    asset_tab.tap_at(page, 0, 0.4)
+    check("R4 그림을 눌러 날짜를 고르면 굴리지 않는다", not rolls(page))
     context.close()
 
 

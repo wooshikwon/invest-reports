@@ -2,10 +2,9 @@
 
     python3 tests/golden/landing.py --data /tmp/dp-u2/out --shots /tmp/at-u1/shots
 
-`--data`는 가장 늦은 리포트가 날짜 지점 2026-11-19인 리포트 자료다. 주말 시나리오의 리포트 항목(금요일·토요일 리포트)과 그 되감기 프레임은 이 시험이 지어 얹는다.
+`--data`는 가장 늦은 리포트가 날짜 지점 2026-11-19인 리포트 자료다. 주말 시나리오의 리포트 항목(금요일·토요일 리포트)은 이 시험이 지어 얹는다.
 """
 import argparse
-import copy
 import json
 import sys
 from pathlib import Path
@@ -45,11 +44,9 @@ def refit(raw: bytes, date: str, point: str) -> bytes:
 
 
 def story(data: Path, case: dict) -> dict:
-    """`case`의 보는 리포트가 가장 늦은 리포트가 되도록 목록에 항목을 얹고, 그 리포트와 되감기 프레임의 바이트를 `{경로: 바이트}`로 돌려준다."""
+    """`case`의 보는 리포트가 가장 늦은 리포트가 되도록 목록에 항목을 얹고, 그 리포트의 바이트를 `{경로: 바이트}`로 돌려준다."""
     out, base = {}, data / "r"
     listing = json.loads((base / "index.json").read_text(encoding="utf-8"))
-    frames = json.loads((base / "rewind-nasdaq" / "cards.json").read_text(encoding="utf-8"))
-    last = frames["frames"][-1]
     date, point = case["report"]
     if date != "2026-11-19":
         names = [key_of(date, "nasdaq"), key_of(date, "biotech")]
@@ -58,25 +55,20 @@ def story(data: Path, case: dict) -> dict:
             out.update({f"r/{name}/{p.name}": p.read_bytes() for p in (base / seed).iterdir() if p.is_file()})
             out[f"r/{name}/cards.json"] = refit(out[f"r/{name}/cards.json"], date, point)
             listing = {name: {**listing[seed], "date": date, "point": point, "day": f"{date} (보기)"}, **listing}
-        frames["frames"].append({**copy.deepcopy(last), "day": date, "point": point, "base_date": closes(date)[-1] if closes(date) else last["base_date"]})
-        out["r/rewind-nasdaq/cards.json"] = json.dumps(frames).encode()
     out["r/index.json"] = json.dumps(listing, ensure_ascii=False).encode()
     return out
 
 
 def arrival(data: Path, case: dict, current: dict) -> dict:
-    """`case`의 새 리포트가 도착한 뒤의 파일(목록, 리포트 파일, 되감기 프레임)."""
+    """`case`의 새 리포트가 도착한 뒤의 파일(목록, 리포트 파일)."""
     out, base = dict(current), data / "r"
     listing = json.loads(current["r/index.json"])
-    frames = json.loads(current.get("r/rewind-nasdaq/cards.json") or (base / "rewind-nasdaq" / "cards.json").read_bytes())
     date, point = case["arrive"]
     for index in ("nasdaq", "biotech"):
         name, seed = key_of(date, index), key_of("2026-11-19", index)
         out.update({f"r/{name}/{p.name}": p.read_bytes() for p in (base / seed).iterdir() if p.is_file()})
         out[f"r/{name}/cards.json"] = refit(out[f"r/{name}/cards.json"], date, point)
         listing = {name: {**listing[seed], "date": date, "point": point, "day": f"{date} (새)"}, **listing}
-    frames["frames"].append({**copy.deepcopy(frames["frames"][-1]), "day": date, "point": point, "base_date": closes(date)[-1] if closes(date) else "2026-11-18"})
-    out["r/rewind-nasdaq/cards.json"] = json.dumps(frames).encode()
     out["r/index.json"] = json.dumps(listing, ensure_ascii=False).encode()
     return out
 
@@ -181,15 +173,15 @@ def main():
                                 else (got["text"] == text and got["pre"]) if stage == "pre"
                                 else (got["text"].startswith("예측 중 ") and got["text"].endswith("%") and got["running"]))
                 check(f"p2 {case['name']} {stage}: 단추 글자", bool(good), got)
-                notes = page.evaluate("() => [...document.querySelectorAll('[data-point]')].map((n) => [n.dataset.point, n.hidden])")
-                check(f"p2 {case['name']} {stage}: 예측을 켜기 전에도 설명 절이 보임", bool(notes and all(not h for _, h in notes)), notes)
+                notes = page.evaluate("() => [...document.querySelectorAll('[data-point]')].map((n) => [n.dataset.point, n.hidden, n.dataset.note])")
+                check(f"p2 {case['name']} {stage}: 예측을 켜기 전에도 주가와 예측 카드의 설명 절(현재 상태)이 보임", dp.shows({"notes": notes, "tab": 0}), notes)
                 # 세 상태 모두 눌러 가장 늦은 판단의 예측을 켠다
                 page.locator("button.aim").first.click()
                 capture.settle(page, 500)
                 on = label(page)
-                notes = page.evaluate("() => [...document.querySelectorAll('[data-point]')].map((n) => [n.dataset.point, n.hidden])")
-                check(f"p2 {case['name']} {stage}: 눌러서 예측이 켜지고 설명 절이 보임",
-                      bool(on and on["on"] and not on["disabled"] and notes and all(not h for _, h in notes) and len({pt for pt, _ in notes}) == 1), (on, notes))
+                notes = page.evaluate("() => [...document.querySelectorAll('[data-point]')].map((n) => [n.dataset.point, n.hidden, n.dataset.note])")
+                check(f"p2 {case['name']} {stage}: 눌러서 예측이 켜지고 현재 상태 절이 보임",
+                      bool(on and on["on"] and not on["disabled"] and dp.shows({"notes": notes, "tab": 0}) and len({pt for pt, *_ in notes}) == 1), (on, notes))
                 if case is WEEKDAY and stage == "running":
                     page.locator(".carousel.cards").first.scroll_into_view_if_needed()
                     capture.settle(page, 400)

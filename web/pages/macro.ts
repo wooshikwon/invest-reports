@@ -1,20 +1,20 @@
 // @ts-nocheck
 import { candled } from "../shared/data";
-import { GAUGES, gauge } from "../shared/gauge";
+import { GAUGES, columnTaps, dailyTaps, gauge } from "../shared/gauge";
 import { question } from "../shared/help";
 import { subscribe } from "../shared/live";
 import { later, slider } from "../shared/motion";
-import { dial, rewindOffset } from "../shared/rewind";
-import { key, life, report } from "../shared/route";
-import { candleOn, candleUnit, kindButton } from "../shared/svg";
+import { life, report } from "../shared/route";
+import { candleOn, candleUnit, kindButton, nearest, onTap } from "../shared/svg";
+import { feelPress } from "../shared/telegram";
 // 미국 거시 지표를 지표마다 한 장의 카드로 바꿔 넘기는 묶음으로 만들고, 위에 지표 이름 탭 띠를 둔다. 카드 값은 `build.py`가
 // 소제목에 단 `data-card`를 쓰고, 해설은 소제목 뒤 문단이며 해설이 없으면 카드에 해설 문단을 두지 않는다. 카드 값이 없는 소제목은 해설과 함께 지우고, 카드가 하나도 없으면 절을 지운다.
 // 탭을 누르면 그 지표로 넘기고, 넘기면 보고 있는 지표의 탭을 밝힌다. 카드 아래 점은 보고 있는 장을 따른다.
-// 카드 이름 뒤의 물음표 단추는 그 지표의 `help` 문단을 보여 준다. 카드의 그림과 해설 사이에는 날짜 슬라이더를 둔다(`indicatorRewind`).
+// 카드 이름 뒤의 물음표 단추는 그 지표의 `help` 문단을 보여 준다. 주별 막대 그림과 일별 선 그림은 누른 자리에서 가장 가까운 막대나 점을 고른다. 고른 막대나 점은 그림에서 강조하고(막대는 흰색, 선은 '현재' 표시), 카드의 큰 값과 기준일 글씨를 그 값과 날짜로 바꾸며, 앞 1년 순위(`state`)는 마지막 값의 것이므로 숨긴다. 마지막 막대나 점을 누르면 처음 상태로 돌아간다. 반원 속도계와 금리 경로는 점마다 값이 없어 누르기를 두지 않는다.
 // 일별 선 그림(`daily`)을 그리는 유가 카드는 WTI 봉 비율(`r/candles.json`의 `oil`)이 오면 그림 아래 줄 오른쪽 끝에 선·봉 단추(`kindButton`)를 두고,
 // 유가 카드는 실시간 값의 WTI 1분 값(`index`의 `CL=F`)이 있으면 그림 위에 그 값과 받은 시각(`loaded`)을 서울 시각으로 적는다.
 // 봉 그림이면 그림이 담는 1년을 주봉으로 그린다(`candleUnit`). 봉 비율은 미국 장 날짜를 키로 적고 그림의 날짜는 그 하루 뒤이므로, 그림의 날짜에서 하루를 빼서 찾는다.
-export function indicators(date) {
+export function indicators() {
   const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "미국 거시 지표");
   if (!head) return;
   // 첫 소제목 앞의 노드는 그대로 두고 묶음을 그 뒤에 둔다.
@@ -43,16 +43,36 @@ export function indicators(date) {
     drawn.classList.add("figure");
     return drawn;
   };
-  // `paints[k](figure, stop)`는 k번째 카드의 그림을 `figure`로 다시 그리고, 일별 선 그림이면 '현재' 표시를 `stop`번 점에 찍는다. 값을 주지 않으면 마지막으로 그린 값으로 다시 그린다.
-  const spots = [], paints = [], daily = [];
+  // `paints[k](figure, stop)`는 k번째 카드의 그림을 `figure`로 다시 그리고, 고른 막대나 '현재' 표시를 `stop`번 점에 찍는다. 값을 주지 않으면 마지막으로 그린 값으로 다시 그린다.
+  const daily = [];
   const slides = cards.map((c) => {
     const [box, name] = gauge(c);
     name.append(question(c.name, () => c.help.map((text) => Object.assign(document.createElement("p"), { textContent: text }))));
     let figure = c.figure, stop;
-    const paint = (next = figure, at = stop) => { figure = next; stop = at; box.querySelector(":scope > .figure")?.replaceWith(figureOf({ ...figure, stop })); };
-    paints.push(paint);
+    const taps = { columns: columnTaps, daily: dailyTaps }[figure?.type];
+    const asof = box.querySelector(".asof"), first = asof.textContent, num = box.querySelector(":scope > .val b")?.firstChild, firstNum = num?.nodeValue;
+    const state = box.querySelector(".state");
+    // 고른 점의 값과 날짜로 큰 값과 기준일을 바꾼다. 마지막 점이면 처음 글씨로 돌린다.
+    const show = (i) => {
+      const [day, value] = figure.type === "columns" ? figure.bars[i] : figure.points[i], last = i === (figure.bars ?? figure.points).length - 1;
+      asof.textContent = last ? first : first.replace(/[\d/]+ KST$/, `${day.includes("-") ? `${+day.slice(5, 7)}/${+day.slice(8)}` : day} KST`);
+      if (num) num.nodeValue = last ? firstNum : value.toFixed(2);
+      if (state) state.style.visibility = last ? "" : "hidden";
+      return last ? undefined : i;
+    };
+    const paint = (next = figure, at = stop) => {
+      figure = next; stop = at;
+      const drawn = figureOf({ ...figure, stop });
+      box.querySelector(":scope > .figure")?.replaceWith(drawn);
+      if (taps) onTap(drawn, (x) => {
+        const [xs, idx] = taps(figure), i = idx[nearest(xs, x)];
+        if (i === (stop ?? idx.at(-1))) return;
+        feelPress();
+        paint(figure, show(i));
+      });
+    };
     if (figure?.type === "daily") daily.push([box, paint]);
-    spots.push(box.appendChild(document.createElement("div")));
+    if (taps) paint();
     const text = c.text.filter(Boolean).join(" ");
     if (text) box.append(Object.assign(document.createElement("p"), { textContent: text }));
     return [box];
@@ -84,7 +104,6 @@ export function indicators(date) {
   });
   resize.observe(box);
   life.signal.addEventListener("abort", () => resize.disconnect());
-  indicatorRewind(cards, spots, paints, date);
   subscribe((all) => {
     const tick = all.index?.["CL=F"];
     daily.forEach(([box]) => {
@@ -111,37 +130,4 @@ export function indicators(date) {
       if (candleOn) paint();
     });
   });
-}
-
-// 지표 카드마다 그림과 해설 사이의 자리 `spots`에 지난 리포트 날짜로 되감는 슬라이더를 둔다(build.py `r/rewind-{지수}/indicators.json`).
-// 리포트 날짜와 그 앞 날짜 가운데 그 지표의 카드 값이 있는 날짜만 고를 수 있고, 리포트 날짜에 카드 값이 없는 지표에는 슬라이더를 두지 않는다.
-// 날짜를 고르면 그날 카드 값으로 그 카드의 기준일·값·그림만 다시 그리고, 이름과 물음표 단추, 해설은 리포트 날짜의 것을 그대로 둔다.
-// 일별 선 그림(유가)은 리포트 날짜의 그림을 그대로 두고, 그날 그림의 마지막 날짜에 '현재' 표시만 옮겨 찍는다.
-export function indicatorRewind(cards, spots, paints, date) {
-  fetch(`r/rewind-${key.split("-")[1]}/indicators.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((data) => {
-    if (!data) return;
-    const frames = data.frames.filter((frame) => frame.day <= date && rewindOffset(frame.day, date) >= 0);
-    cards.forEach((c, k) => {
-      const own = frames.filter((frame) => frame.cards[c.name]);
-      const start = own.findIndex((frame) => frame.day === date);
-      if (start < 0) return;
-      const box = spots[k].parentNode;
-      let drawn = start, frame = 0;
-      const draw = () => {
-        frame = 0;
-        const [fresh] = gauge({ name: c.name, ...own[drawn].cards[c.name] });
-        box.querySelector(".asof").textContent = fresh.querySelector(".asof").textContent;
-        const val = box.querySelector(":scope > .val"), next = fresh.querySelector(":scope > .val");
-        if (val && next) val.replaceWith(next); else if (val) val.remove(); else if (next) box.querySelector(".top").after(next);
-        const figure = own[drawn].cards[c.name].figure;
-        if (figure.type !== "daily") paints[k](figure);
-        else paints[k](c.figure, c.figure.points.findLastIndex(([day]) => day <= figure.points.at(-1)[0]));
-      };
-      dial(spots[k], date, own.map((f) => f.day), start, (i) => {
-        if (i === drawn) return;
-        drawn = i;
-        if (!frame) frame = requestAnimationFrame(draw);
-      });
-    });
-  }).catch(() => {});
 }

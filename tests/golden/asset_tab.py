@@ -1,4 +1,4 @@
-"""내 투자 그림(U3)의 동작 시험. 단추 순서, 지난 날짜를 골랐을 때의 '현재' 점, 1분 값이 큰 값과 마지막 점을 바꾸는지 연다.
+"""내 투자 그림(U3)의 동작 시험. 단추 순서, 그림을 눌러 날짜를 골랐을 때의 '현재' 점, 1분 값이 큰 값과 마지막 점을 바꾸는지 연다.
 
     python3 tests/golden/asset_tab.py --shots /tmp/at-u3
 
@@ -55,20 +55,11 @@ def tab(page, i):
     capture.settle(page, 500)
 
 
-def drag_back(page, steps: int):
-    """기준 날짜 레버를 잡아 왼쪽으로 `steps` 칸 옮긴다."""
-    page.locator(f"{CARDS} .rewind .open").first.click()
-    capture.settle(page, 300)
-    box = page.locator(f"{CARDS} .rewind .grip").first.bounding_box()
-    x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
-    page.mouse.move(x, y)
-    page.mouse.down()
-    for step in range(1, steps):
-        page.mouse.move(x - step * 2, y)
-        page.wait_for_timeout(30)
-    page.mouse.up()
-    capture.settle(page, 600)
-    return page.locator(f"{CARDS} .rewind > span").first.text_content()
+def tap_at(page, card: int, fraction: float):
+    """카드 하나의 그림에서 가로 `fraction` 자리(0~1)를 누른다. 누른 뒤 카드가 다시 그려지길 기다린다."""
+    box = page.locator(f"{CARDS} .slide").nth(card).locator("svg").first.bounding_box()
+    page.mouse.click(box["x"] + box["width"] * fraction, box["y"] + box["height"] * 0.5)
+    capture.settle(page, 400)
 
 
 def main():
@@ -104,19 +95,26 @@ def main():
         if shots:
             page.locator(CARDS).screenshot(path=str(shots / "latest.png"))
 
-        label = drag_back(page, 40)
+        tap_at(page, 0, 0.3)
         past = read(page, 0)
-        check("A3 지난 날짜를 골라도 선의 마지막 값은 그대로", past["last"] == latest["last"] and past["count"] == latest["count"], [label, past, latest])
-        check("A3 지난 날짜는 '현재' 점만 옮긴다", past["mark"] is not None and latest["mark"] is not None and past["mark"][0] < latest["mark"][0], [past["mark"], latest["mark"]])
-        check("A3 지난 날짜의 큰 값이 바뀐다", past["value"] != latest["value"], [past["value"], latest["value"]])
+        check("A3 그래프를 눌러도 선의 마지막 값은 그대로", past["last"] == latest["last"] and past["count"] == latest["count"], [past, latest])
+        check("A3 누른 날짜로 '현재' 점만 옮긴다", past["mark"] is not None and latest["mark"] is not None and past["mark"][0] < latest["mark"][0], [past["mark"], latest["mark"]])
+        check("A3 누른 날짜의 큰 값이 바뀐다", past["value"] != latest["value"], [past["value"], latest["value"]])
+        tab(page, 1)
+        other = read(page, 1)
+        check("A3 초과 수익률 카드도 같은 날짜를 고른다", other["mark"] is not None and abs(other["mark"][0] - past["mark"][0]) < 0.01, [other["mark"], past["mark"]])
         if shots:
             page.locator(CARDS).screenshot(path=str(shots / "past.png"))
-
-        # 1분 값: 지난 날짜를 고른 채 두면 큰 값이 그 날짜 값이라, 다시 열어 최신 날짜로 읽는다.
-        page.reload(wait_until="networkidle")
-        capture.settle(page)
-        capture.turn(page, "자산")
         tab(page, 0)
+        page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
+        capture.settle(page, 800)
+        kept = read(page, 0)
+        check("A3 계좌 요약을 다시 그려도 고른 날짜를 유지한다", kept["value"] == past["value"] and kept["mark"] == past["mark"], [kept, past])
+        tap_at(page, 0, 0.99)
+        back = read(page, 0)
+        check("A3 가장 늦은 점을 누르면 처음 상태로 돌아온다", back["value"] == latest["value"] and back["mark"] == latest["mark"], [back, latest])
+
+        # 1분 값: 최신 점을 고른 상태로 읽는다.
         before = read(page, 0)
         clock = dt.datetime.fromisoformat(account["live"]["time"]).strftime("%H:%M")
         counts = page.evaluate("""(cards) => [...document.querySelectorAll(cards + ' .slide')[0].querySelectorAll('svg path')]

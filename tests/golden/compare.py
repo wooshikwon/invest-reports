@@ -18,7 +18,7 @@ from PIL import Image
 
 # 화면 이름 → 차이를 받아들이는 요소의 CSS 선택자 목록. 리포트 화면의 설명 세 절은 지수와 예측 절 밖으로 옮겨 예측 단추를 켠 동안만 보인다.
 NOTES = [f'details.fold:has(> summary h3[id^="{name}"])' for name in ("현재-상태", "주요-분기와-예측", "종합-시나리오")]
-ALLOW: dict[str, list[str]] = {name: NOTES for name in ("asset", "calendar", "latest", "market", "nonowner", "past", "rewind")}
+ALLOW: dict[str, list[str]] = {name: NOTES for name in ("asset", "calendar", "latest", "market", "nonowner", "past")}
 
 # 시각 문자열. ISO 시각을 먼저 바꾸고, 남은 "HH:MM"과 뒤따르는 시간대 이름을 바꾼다.
 _ISO = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?")

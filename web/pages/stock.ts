@@ -4,14 +4,13 @@ import { backward } from "../shared/back";
 import { INDEX_NAME } from "../shared/chrome";
 import { marketed } from "../shared/data";
 import { price, signed } from "../shared/format";
-import { GAUGES, gauge } from "../shared/gauge";
+import { GAUGES, dailyTaps, gauge } from "../shared/gauge";
 import { question } from "../shared/help";
 import { subscribe } from "../shared/live";
 import { slider } from "../shared/motion";
-import { dial, rewindOffset } from "../shared/rewind";
 import { key, query, report } from "../shared/route";
 import { afterEnd, closeAt, sessionAt, sessionSeg } from "../shared/session";
-import { DIMS, candleOn, candleUnit, dailyBounds, ease, kindButton, zoomDrag } from "../shared/svg";
+import { DIMS, candleOn, candleUnit, dailyBounds, ease, kindButton, nearest, onTap, zoomDrag } from "../shared/svg";
 import { feelPress } from "../shared/telegram";
 import { gallery, viewer } from "../shared/viewer";
 // 종목 상세(`stock`)를 이슈 화면과 같은 틀에 그린다. `data`는 `build.py` `stock_pages`가 적는 `r/stocks/{티커}.json`이다.
@@ -21,9 +20,9 @@ import { gallery, viewer } from "../shared/viewer";
 // 그림 아래 −·+ 단추로 1년, 6개월, 3개월 가운데 기간을 골라 일별 종가 선을 다시 그린다. 종가가 기간보다 짧으면 있는 종가를 모두 그리고, 같은 그림이 되는 기간은 하나만 둔다.
 // 단추 사이의 점 묶음은 누른 채 끌어 기간을 바로 고른다(`zoomDrag`). 봉 비율(`candles`)이 있으면 그 줄 오른쪽 끝에 선·봉 단추(`kindButton`)를 두고, 봉 그림이면 종가 선 대신 1년은 주봉, 6개월·3개월은 일봉을 그린다.
 // 처음에는 가장 짧은 기간을 그린다.
-// 카드 끝에는 마지막 종가 날짜와 그 앞 90일 안의 종가 날짜로 되감는 슬라이더(`dial`)를 둔다. 날짜를 고르면 그림은 그대로 두고 그 종가 점에 '현재' 표시를 옮겨 찍으며,
-// 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 앞 종가 대비 등락률을 쓴다. 그 종가가 고른 기간 밖이면 그 종가가 드는 가장 짧은 기간으로 넓히고,
-// + 단추로는 그 종가가 빠지는 기간까지 줄이지 않는다. 지난 날짜에는 세션 단추를 두지 않고, 다시 고르는 마지막 종가 날짜는 처음과 같은 세션을 고른다.
+// 그림을 누르면 누른 자리에서 가장 가까운 종가 점(그림에 보이는 범위 안)으로 '현재' 표시를 옮겨 찍으며,
+// 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 앞 종가 대비 등락률을 쓴다. + 단추로는 그 종가가 빠지는 기간까지 줄이지 않는다.
+// 지난 날짜에는 세션 단추를 두지 않고, 마지막 종가 점이나 그 뒤 세션 값 자리를 누르면 처음과 같은 세션의 마지막 종가로 돌아간다.
 // 카드 맨 위 줄에는 기준일 글씨를 쓰고, 그 아래 이름 줄에 종목 이름과 티커를 쓴다.
 // 마지막 종가 날짜의 애프터장 체결가(`r/market.json` 지도 값, 없으면 실시간 값 `afterhours`의 체결가)나 그 다음 프리장 체결가(실시간 값 `premarket`)가 있으면 이름 줄 오른쪽에
 // 정규장·애프터장이나 정규장·프리장 단추를 둔다. 두 값이 다 있으면 프리장 값을 쓴다.
@@ -81,7 +80,7 @@ function stockDetail(data) {
     // `after`는 마지막 종가 날짜의 애프터장 마지막 체결가(`r/market.json` 지도 값)이고, `tail`은 그 체결가가 아직 없을 때 쓰는 애프터장 값이며,
     // `early`는 그 다음 프리장이나 정규장 값이다. 없으면 null이다.
     const asked = query.get("session"), date = `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
-    // `stop`은 되감기 슬라이더가 고른 종가 번호이고, `most()`는 그 종가가 그림 안에 드는 가장 짧은 기간의 번호다.
+    // `stop`은 그림을 눌러 고른 종가 번호이고, `most()`는 그 종가가 그림 안에 드는 가장 짧은 기간의 번호다.
     let late = asked !== "regular", after = null, tail = null, early = null, stop = last;
     const most = () => { let k = SPAN.length - 1; while (k > 0 && stop < closes.length - SPAN[k]) k--; return k; };
     // 정규장 다음 세션의 종류와 [체결가, 기준 시각 글씨, 세션 종류]. 없으면 null이다.
@@ -97,8 +96,22 @@ function stockDetail(data) {
       const shown = extra();
       return { points, extra: late && shown ? shown[0] : null, point: shown?.[3] ?? null, kind: shown?.[2], reach: shown ? 1 : 0, candle: candle(), height: PLOT, stop, start };
     };
+    // 그림을 누르면 누른 자리에서 가장 가까운 종가 점(첫 종가 제외)을 고른다. 기간을 옮기는 도중에는 받지 않는다.
+    const tappable = (svg) => {
+      onTap(svg, (x) => {
+        if (raf) return;
+        const [xs, idx] = dailyTaps(figure(begin(span))), to = idx[nearest(xs, x)];
+        if (to === stop || to < 1) return;
+        feelPress();
+        stop = to;
+        late = asked !== "regular";
+        level();
+        repaint();
+      });
+      return svg;
+    };
     const draw = (start = begin(span), bounds = null, marks = true) => {
-      card.querySelector(":scope > svg").replaceWith(GAUGES.daily({ ...figure(start), bounds, marks }));
+      card.querySelector(":scope > svg").replaceWith(tappable(GAUGES.daily({ ...figure(start), bounds, marks })));
     };
     // `from` 기간에서 `to` 기간으로 가는 도중 `t`(0~1) 지점의 그림. 주가와 예측 카드처럼 왼쪽 끝과 세로 범위를 같은 곡선으로 옮기고,
     // 넓히는 동안 새로 들어온 과거 종가가 범위 밖이면 범위를 그만큼 먼저 넓힌다. 최고·최저 글자는 기간이 정해진 뒤에만 적는다.
@@ -153,19 +166,7 @@ function stockDetail(data) {
     level();
     if (candles) zoom.append(kindButton(() => { cancelAnimationFrame(raf); raf = 0; draw(); }));
     page.append(card);
-    const back = closes.map(([d], i) => [d, i]).filter(([d, i]) => i > 0 && rewindOffset(d, day) >= 0);
-    let frame = 0;
-    dial(card, day, back.map(([d]) => d), back.length - 1, (i) => {
-      if (back[i][1] === stop) return;
-      const from = span;
-      stop = back[i][1];
-      span = Math.min(span, most());
-      level();
-      late = asked !== "regular";
-      // 고른 종가가 그림 밖으로 나가 기간을 넓혔으면 − 단추처럼 그림을 이어 옮긴다.
-      if (span !== from) animate(from);
-      if (!frame) frame = requestAnimationFrame(() => { frame = 0; repaint(); });
-    });
+    tappable(card.querySelector(":scope > svg"));
     marketed.then(({ map }) => {
       const own = map?.[data.index]?.stocks.find((stock) => stock.symbol === data.symbol);
       after = own?.after?.[map[data.index].dates.indexOf(day)] ?? null;

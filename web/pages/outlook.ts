@@ -6,22 +6,21 @@ import { candled } from "../shared/data";
 import { tone } from "../shared/format";
 import { subscribe } from "../shared/live";
 import { slider } from "../shared/motion";
-import { cardRewind } from "../shared/rewind";
 import { rolled } from "../shared/roll";
 import { key, report } from "../shared/route";
 import { SESSION_NAME, afterEnd, closeAt, sessionAt, sessionSeg, sessionTag } from "../shared/session";
-import { DIMS, PRICE, candleGroups, candleLate, candleOn, candleUnit, drawCandles, ease, kindButton, nowMark, shape, zoomDrag } from "../shared/svg";
+import { DIMS, PRICE, candleGroups, candleLate, candleOn, candleUnit, drawCandles, ease, kindButton, nowMark, onTap, shape, zoomDrag } from "../shared/svg";
 import { feelPress } from "../shared/telegram";
 // 요약의 Outlook 그림 자리에 12M + Predictions(지수와 예측), Montecarlo(일정과 예측), Outlook(권장 배율) 순서로 넘기는 묶음을 둔다.
 // Montecarlo 그림은 원래 이벤트 캘린더 절에 있으므로 그 자리에서는 뺀다. 12M + Predictions가 없는 리포트는 두 장을 넘긴다.
 // 묶음 위에는 그림 이름 탭을 둔다. 탭을 누르면 그 그림으로 넘기고, 넘기면 보고 있는 그림의 탭을 밝힌다.
 // 그림 카드 값(`given`, `build.py`가 쓴 `r/{키}/cards.json`. 그 파일이 없는 지난 리포트는 리포트 끝의 `#cards`)이 있는 리포트는 그림 대신 주가와 예측, 일정, 권장 배율 카드 세 장을 넘긴다.
-export function figures(date, given = null, view = { aim: false, pending: () => null, stage: () => ({ state: "done", text: "예측" }), watch() {} }) {
+export function figures(given = null, view = { aim: false, stage: () => ({ state: "done", text: "예측" }), watch() {} }) {
   const data = report.querySelector("#cards");
   data?.remove();
   const cards = given ?? (data && JSON.parse(data.textContent));
   if (cards) {
-    const set = summaryCards(cards, date, view);
+    const set = summaryCards(cards, view);
     ticker.innerHTML = set.quote();
     subscribe((found) => {
       set.live(found, key.split("-")[1]);
@@ -41,11 +40,9 @@ export function figures(date, given = null, view = { aim: false, pending: () => 
       current = i;
       turned(set.names[i]);
     };
-    const head = report.querySelector("h2"), box = slider(set.slides, head, { change, name: "cards", feel: true,
-      lock: (i) => (i > 0 && set.pending() ? "아직 이전 정규장 분석이 완료되지 않았어요" : null) });
+    const head = report.querySelector("h2"), box = slider(set.slides, head, { change, name: "cards", feel: true });
     box.prepend(bar);
-    const rewind = cardRewind(box, date, set, view);
-    return { box, refresh: () => { rewind.update(); set.label(); }, label: () => set.label(), follow: (fn) => { turned = fn; fn(set.names[current]); } };
+    return { box, label: () => set.label(), follow: (fn) => { turned = fn; fn(set.names[current]); } };
   }
   const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
   const chart = pick("chart"), tree = pick("tree"), predict = pick("predict");
@@ -67,7 +64,7 @@ export function figures(date, given = null, view = { aim: false, pending: () => 
 // 요약 절의 그림 카드 세 장(주가와 예측, 일정과 예측, 권장 배율)을 만든다. 카드 이름 탭에는 "주가와 예측", "일정", "권장 배율"로 쓴다. `data`는 `build.py` `summary_cards`의 값이다.
 // 돌려준 `show(frame)`은 되감기 슬라이더가 고른 날짜의 판단(`cards.json`의 프레임)으로 카드를 다시 그린다.
 // 주가와 예측 카드의 종가 바탕(날짜·종가·지난 예측)은 늘 리포트 날짜의 값이고, 고른 날짜의 판단만 그 위에 바꿔 그린다.
-export function summaryCards(data, date, view) {
+export function summaryCards(data, view) {
   // 카드는 모두 같은 높이(`H`)의 그림에 같은 높이(`B`)의 가로축을 긋는다.
   const dates = data.dates, hist = data.history, W = 320, H = 236, B = 212;
   // 예측 선과 면, 범위 값 글씨는 지수색 그라데이션(`color`)으로 칠한다.
@@ -83,61 +80,62 @@ export function summaryCards(data, date, view) {
     c.title.append(Object.assign(document.createElement("span"), { className: "name", textContent: INDEX_TITLE[key.split("-")[1]] || INDEX_NAME[key.split("-")[1]] }));
     return c;
   };
-  // 날짜 지점(`point`)은 이 리포트 판단의 기준 가격 날짜 다음 거래일(`days[1]`)이다. 앱은 날짜를 세지 않고 리포트의 `days`와 실시간 값의 `point`로 지점을 찾는다.
+  // 날짜 지점은 이 리포트 판단의 기준 가격 날짜 다음 거래일부터의 거래일(`days[1]`, `days[2]`, …)이다. 앱은 날짜를 세지 않고 리포트의 `days`와 실시간 값의 `point`로 지점을 찾는다.
   // `found`는 이 지수의 지점별 실시간 값(`live.ts`의 `points`)이다.
-  const point = data.days[1];
   let found = {};
-  // 프레임 `f`의 판단에서 기준 가격 날짜 다음 지점의 값 [값, 위 줄 글씨, 세션(`pre`, `after`, `regular`), 체결 뉴욕 시각, 실시간 값]. 없으면 null이다.
-  // 지점의 정규장 값(`regular`)이 있으면 그 값이고, 없으면 프리장 값(`pre`), 없으면 앞 세션의 애프터장 값(`after`)이며, 없으면 판단의 기준 가격(애프터장 마지막 값)이다.
-  // 값은 기준 가격 날짜 종가에 실시간 값의 비율을 곱한 값이다. 나스닥의 선물 시간대 애프터장 값(`basis`가 `futures`)은 위 줄 글씨에 "선물 가격"을 덧붙이고 시각은 선물 체결 시각(`futures_time`)으로 쓴다. 머리 상자 아래 줄에는 "애프터마켓" 대신 "선물 가격"을 쓴다.
-  // 리포트 날짜 판단의 종가가 이미 있는 지점(`dates`에 든 지점)에는 판단의 종가를 먼저 그리고 실시간 값을 쓰지 않는다. 지난 날짜의 판단은 그날 프리장 값만 쓴다.
-  const nextOf = (f) => {
-    const own = f.days[1], rec = f.day === date && dates.includes(own) ? {} : found[own] ?? {}, base = hist[dates.indexOf(f.base_date)];
-    const pick = f.day === date ? rec : { pre: rec.pre };
-    if (pick.regular?.ratio != null) return [base * pick.regular.ratio, sessionAt("정규장", pick.regular.time), "regular", pick.regular.time, pick.regular];
-    if (pick.pre?.ratio != null) return [base * pick.pre.ratio, sessionAt("프리마켓", pick.pre.time), "pre", pick.pre.time, pick.pre];
-    if (pick.after?.ratio != null) {
-      const text = sessionAt("애프터마켓", pick.after.time, pick.after.basis === "futures" ? pick.after.futures_time ?? pick.after.time : pick.after.time);
-      return [base * pick.after.ratio, pick.after.basis === "futures" ? `${text} · 선물 가격` : text, "after", pick.after.time, pick.after];
+  // 실시간 값의 사슬(`sessions`). 리포트 판단의 첫 날짜 지점부터 차례로 지점마다 앞 세션의 애프터장 값(`after`), 프리장 값(`pre`), 정규장 값(`regular`)을 늦은 순으로 읽는다.
+  // 지점의 값은 앞 세션 종가에 실시간 값의 비율을 곱한 값이다. 앞 세션 종가는 첫 지점이면 기준 가격 날짜 종가이고, 그 뒤 지점이면 앞 지점의 정규장 마감 값이다.
+  // 그래서 지점 N 정규장이 끝난 뒤의 애프터장 값은 다음 지점의 `after`로 들어와 사슬을 잇는다. 정규장 값이 없는 지점에서 사슬이 끝난다.
+  // 값마다 [값, 위 줄 글씨, 세션(`pre`, `after`, `regular`), 체결 뉴욕 시각, 실시간 값, 지점 순번(기준 가격 날짜에서 센 거래일 수), 앞 세션 종가]이다.
+  // `regulars`는 지점마다의 정규장 값이고, `latest`는 가장 늦은 값이며, 실시간 값이 없으면 판단의 기준 가격(기준 가격 날짜의 애프터장 마지막 값)이다.
+  // 나스닥의 선물 시간대 애프터장 값(`basis`가 `futures`)은 위 줄 글씨에 "선물 가격"을 덧붙이고 시각은 선물 체결 시각(`futures_time`)으로 쓴다.
+  const sessions = () => {
+    const regulars = [];
+    let latest = null, prior = hist[close];
+    for (let k = 1; k < data.days.length; k++) {
+      const rec = found[data.days[k]];
+      if (!rec) break;
+      if (rec.after?.ratio != null) {
+        const clock = rec.after.basis === "futures" ? rec.after.futures_time ?? rec.after.time : rec.after.time, text = sessionAt("애프터마켓", rec.after.time, clock);
+        latest = [prior * rec.after.ratio, rec.after.basis === "futures" ? `${text} · 선물 가격` : text, "after", rec.after.time, rec.after, k, prior];
+      }
+      if (rec.pre?.ratio != null) latest = [prior * rec.pre.ratio, sessionAt("프리마켓", rec.pre.time), "pre", rec.pre.time, rec.pre, k, prior];
+      if (rec.regular?.ratio == null) break;
+      latest = [prior * rec.regular.ratio, sessionAt("정규장", rec.regular.time), "regular", rec.regular.time, rec.regular, k, prior];
+      regulars.push(latest);
+      prior = latest[0];
     }
-    return [f.base, sessionAt("애프터마켓", afterEnd(f.base_date)), "after", afterEnd(f.base_date), null];
+    return { regulars, latest: latest ?? [data.base, sessionAt("애프터마켓", afterEnd(data.base_date)), "after", afterEnd(data.base_date), null, 1, hist[close]] };
   };
-  const upcoming = () => nextOf(data);
 
   // 주가와 예측 카드(`price`): 이름 줄 오른쪽에 예측 단추와 세션 단추를 둔다.
   // 그림 아래 −·+ 단추로 종가를 그릴 기간을 고른다. 기간은 3년, 2년, 1년, 6개월, 3개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
   // 기간은 가로축 전체의 길이다. 단추 사이의 점 묶음은 누른 채 끌어 기간을 바로 고른다(`zoomDrag`).
   // 처음에는 가장 짧은 3개월을 그린다. 봉 비율(`r/candles.json`)이 있으면 그 줄 오른쪽 끝에 선·봉 단추(`kindButton`)를 두고,
   // 봉 그림이면 종가 선 대신 3년·2년은 월봉, 1년은 주봉, 6개월·3개월은 일봉을 그린다.
-  // 봉 그림이면 리포트 날짜에 고른 정규장 다음 세션 값을 다음 거래일이 든 기간의 흐린 잠정 봉(`candleLate`)으로 그린다.
-  // 카드는 되감기 슬라이더가 고른 날짜와 관계없이 종가를 마지막 정규장 종가까지 그리고, 예측을 끈 카드는 고른 날짜의 값에 '현재' 표시(`nowMark`)를 찍는다.
-  // '현재' 표시는 고른 날짜 판단의 기준 가격 날짜 종가에 찍고, 봉 그림이면 그 종가가 든 봉의 고가 위에 찍는다.
-  // 그 종가가 예측을 켠 그림 왼쪽 끝 밖에 있으면 그 종가가 드는 가장 짧은 기간으로 넓히고, + 단추로는 그 종가가 빠지는 기간까지 줄이지 않는다.
-  // 위 줄에 그 종가 날짜를, 가운데 줄에 그 종가와 전날 대비 등락률을 정규장 등락률 색(`tone`)의 점과 글씨로 적는다.
-  // 기준 가격 날짜 다음 세션 값이 있으면 이름 줄 오른쪽 끝에 정규장·애프터장이나 정규장·프리장 단추를 둔다. 지난 날짜의 다음 세션 값은 그날 프리장 값이 있으면 그 값이고, 없으면 그날 판단의 기준 가격이다.
-  // 애프터장·프리장·정규장 값은 기준 가격 날짜 종가에 실시간 값(`points`)의 비율을 곱한 값이며, 정규장, 프리장, 애프터장 순으로 있는 값을 쓴다.
-  // 정규장 다음 단추를 고르면 위 줄에 그 세션 이름과 시각을, 가운데 줄에 그 값과 정규장 종가 대비 등락률을 회색으로 적는다.
-  // 리포트 날짜의 프리장 값이 정규장 값(`phase`가 `regular`)이면 단추를 정규장 단추 하나로 줄이고, 위 줄에 정규장과 시각을, 가운데 줄에 그 값과 앞 종가 대비 등락률을 등락률 색으로 적는다.
-  // 선 그림이면 정규장 다음 세션 값은 세션과 체결 시각에 관계없이 다음 거래일 자리에 '현재' 표시로 찍어 고른 날짜의 종가 점에서 점선으로 잇는다.
-  // 봉 그림이면 그 값의 '현재' 표시는 다음 거래일이 든 봉의 고가 위에 찍는다.
-  // 예측을 끈 카드는 가장 늦은 리포트의 리포트 날짜에 가장 늦은 세션을, 지난 날짜와 지난 리포트는 정규장을 고른다. 단추를 누르면 되감기 슬라이더가 다른 날짜를 고를 때까지 누른 세션을 유지한다.
-  // 예측 단추(`aim`)를 켜면 고른 날짜 판단의 예측과 지난 리포트의 예측을 그린다. 처음에는 끈 채로 연다.
-  // 켠 카드는 고른 날짜 판단에 예측이 있으면 위 줄에 "25거래일 뒤 예측 중앙값"을, 가운데 줄에 그 값을 지수색 그라데이션으로 쓰고 지수색 점 뒤에 기준 가격 대비 등락률을 적는다.
-  // 켠 카드는 되감기 슬라이더가 고른 날짜와 관계없이 '현재' 표시를 리포트 날짜의 가장 늦은 세션 값(`upcoming()`)에, 그 값이 없으면 마지막 정규장 종가에 찍고,
-  // 세션 단추를 모두 끈다. 되감기 슬라이더는 예측만 고른 날짜 판단의 예측으로 바꾼다.
-  // 끈 카드의 가로축은 마지막 종가 다음 거래일에서 끝나고, 켠 카드의 가로축은 마지막 종가 뒤 25거래일에서 끝난다. 그림 왼쪽 끝도 같은 거래일 수만큼 옮겨 기간을 지킨다.
+  // 종가는 기준 가격 날짜까지 그리고, 실시간 값의 사슬(`sessions`)을 지점 순번의 거래일 자리에 잇는다. 선 그림이면 정규장 값은 앞 점에서 실선으로 잇고,
+  // 그 뒤의 프리장·애프터장·선물 시간대 값은 앞 점을 찍고 점선으로 잇는다. 봉 그림이면 정규장 값은 앞 세션 종가 대비 비율로 받은 시가·고가·저가·종가(`ohlc`)의 등락 색 잠정 봉으로,
+  // 그 뒤의 값은 흐린 회색 잠정 봉으로 덧붙인다(`candleLate`).
+  // 세션 단추는 가장 늦은 값이 정규장 값이면 정규장 단추 하나이고, 프리장·애프터장 값이면 정규장 단추와 그 세션 단추 한 쌍이다.
+  // 정규장 단추를 고르면 사슬의 정규장 값까지만 그리고 '현재' 표시를 마지막 정규장 값(없으면 기준 가격 날짜 종가)에 찍는다. 세션 단추를 고르면 가장 늦은 값까지 그려 거기에 찍는다.
+  // 가장 늦은 리포트는 가장 늦은 값을, 지난 리포트는 정규장을 고른 채로 연다. 머리 글씨의 위 줄에는 '현재' 표시 값의 세션과 시각을, 가운데 줄에는 그 값과 앞 세션 종가 대비 등락률을 적고,
+  // 정규장 값은 등락률 색(`tone`)으로, 프리장·애프터장 값은 회색으로 쓴다.
+  // 그림을 누르면 누른 자리의 거래일로 '현재' 표시를 옮기고 머리 글씨를 그날 정규장 종가와 전날 대비 등락률로 바꾼다(`picked`). 기준 가격 날짜 종가나 그 뒤 실시간 값 자리를 누르면
+  // 처음 상태로 돌아온다. 세션 단추나 예측 단추를 누르거나 고른 거래일이 기간 밖으로 나가도 처음 상태로 돌아온다.
+  // 예측 단추(`aim`)를 켜면 판단의 예측과 지난 리포트의 예측을 그리고, '현재' 표시를 가장 늦은 값에 찍으며 세션 단추를 모두 끈다. 처음에는 끈 채로 연다.
+  // 켠 카드는 위 줄에 "25거래일 뒤 예측 중앙값"을, 가운데 줄에 그 값을 지수색 그라데이션으로 쓰고 지수색 점 뒤에 기준 가격 대비 등락률을 적는다.
+  // 켠 카드에서 예측 자리를 누르면 그 거래일의 예측 중앙값으로 머리 글씨와 '현재' 표시를 옮긴다.
+  // 끈 카드의 가로축은 사슬의 마지막 거래일 자리(없으면 기준 가격 날짜 다음 거래일)에서 끝나고, 켠 카드의 가로축은 기준 가격 날짜 뒤 25거래일에서 끝난다. 그림 왼쪽 끝도 같은 거래일 수만큼 옮겨 기간을 지킨다.
   // 단추를 누르면 기간을 바꿀 때와 같은 곡선으로 가로축과 세로 범위를 옮기면서 예측을 서서히 나타내거나 지운다.
-  // 판단의 예측은 기준 가격 점에서 출발하는 25~75% 범위와 50% 선이다. 기준 가격 점은 애프터마켓·프리마켓 '현재' 표시처럼 기준 가격 날짜 다음 거래일 자리에 찍고,
+  // 판단의 예측은 기준 가격 점에서 출발하는 25~75% 범위와 50% 선이다. 기준 가격 점은 기준 가격 날짜 다음 거래일 자리에 찍고,
   // 25거래일 뒤 값은 그 거래일 자리에 찍으며, 그 사이 날은 두 자리 사이에 고르게 놓는다.
   // 기준 가격 점과 25거래일 뒤 50% 값의 점은 지수색으로 찍고, 기준 가격 점은 종가와 잇지 않는다. 지난 리포트의 예측은 회색 점선과 면으로 그린다.
-  // 고른 날짜 판단에 예측이 없으면 지난 리포트의 예측만 그리고, 머리 글씨에는 '현재' 표시의 값을 끈 카드와 같은 모양으로 적는다.
+  // 판단에 예측이 없으면 지난 리포트의 예측만 그리고, 머리 글씨에는 '현재' 표시의 값을 끈 카드와 같은 모양으로 적는다.
   const price = (() => {
     const c = card(""), s = c.svg, clipId = "price-clip", title = c.title;
     c.box.querySelector(".val b").className = "";
-    let late = false, chosen = false, ext = null, aim = false, want = !!view.aim, first = true;
-    // 고른 날짜 값의 정규장 다음 세션 [값, 위 줄 글씨, 세션(`pre`, `after`, `regular`)]. 없으면 null이다. 리포트 날짜는 `upcoming()`이고,
-    // 지난 날짜의 정규장 다음 세션은 그날 프리장 값의 앞 세션이 그날 판단의 기준 가격 날짜이면 그 프리장 값이고, 아니면 그날 판단의 기준 가격인 애프터장 값이다.
-    const extra = (f) => nextOf(f);
+    // `track`은 그림에 잇는 사슬의 값들이고, `picked`는 그림을 눌러 고른 자리(종가 거래일 번호 `i`나 예측 거래일 `k`)다.
+    let late = false, chosen = false, track = [], picked = null, aim = false, want = !!view.aim, first = true;
     const toggle = Object.assign(document.createElement("button"), { type: "button", className: "aim", innerHTML: "<span>예측</span>" });
     title.append(toggle);
     // 단추 글자와 단계 상태(`pre`·`running`)는 `view.stage()`가 준 값을 그대로 그린다. 단계는 눌러서 예측을 켜는 동작에 영향을 주지 않는다.
@@ -150,22 +148,20 @@ export function summaryCards(data, date, view) {
     };
     label();
     toggle.setAttribute("aria-pressed", "false");
-    const seg = sessionSeg((on) => { late = on; chosen = true; show(frame); });
-    // `stop`은 '현재' 표시를 찍는 고른 날짜의 거래일 번호다. `ahead`는 예측 단추를 켠 정도(끄면 0, 켜면 1)이고, 단추를 누르는 동안 그 사이 값을 받는다.
-    // 가로축 오른쪽 끝(`xmax`)은 끄면 마지막 종가 다음 거래일, 켜면 마지막 종가 뒤 25거래일이다.
+    const seg = sessionSeg((on) => { late = on; chosen = true; picked = null; show(frame); });
+    // `ahead`는 예측 단추를 켠 정도(끄면 0, 켜면 1)이고, 단추를 누르는 동안 그 사이 값을 받는다. `reach`는 사슬의 마지막 지점 순번(없으면 1)이다.
+    // 가로축 오른쪽 끝(`xmax`)은 끄면 마지막 종가 뒤 `reach` 거래일, 켜면 마지막 종가 뒤 25거래일이다.
     // 기간(`DAYS`)마다 그림 왼쪽 끝(`start`)은 가로축 마지막 거래일(`xmax - 1`)에서 그 거래일 수만큼 앞이다.
-    const L = 4, R = W - 4, T = 22, DAYS = [756, 504, 252, 126, 63];
-    let stop = last, ahead = 0, seen = 0, head = () => {};
-    const xmax = (r) => last + 1 + 24 * r, start = (k, r) => Math.max(0, xmax(r) - 1 - DAYS[k]);
-    let span = DAYS.length - 1, frame = null, raf = 0, ratios = null;
-    // 고른 날짜의 종가가 예측을 켠 그림 안에 드는 가장 짧은 기간의 번호다.
-    const most = () => { let k = DAYS.length - 1; while (k > 0 && stop < start(k, 1)) k--; return k; };
+    const L = 4, R = W - 4, T = 22, DAYS = [756, 504, 252, 126, 63], most = DAYS.length - 1;
+    let ahead = 0, seen = 0, reach = 1, head = () => {};
+    const xmax = (r) => last + Math.max(reach, 1 + 24 * r), start = (k, r) => Math.max(0, xmax(r) - 1 - DAYS[k]);
+    let span = most, frame = null, raf = 0, ratios = null;
     const zoom = c.foot.appendChild(Object.assign(document.createElement("div"), { className: "zoom" }));
     zoom.innerHTML = `<button type="button" aria-label="기간 늘리기">−</button><span class="steps">${"<i></i>".repeat(DAYS.length)}</span><button type="button" aria-label="기간 줄이기">+</button>`;
     const [wider, narrower] = zoom.querySelectorAll("button");
     const level = () => {
       wider.disabled = span === 0;
-      narrower.disabled = span >= most();
+      narrower.disabled = span >= most;
       zoom.querySelectorAll(".steps i").forEach((dot, i) => dot.classList.toggle("on", i === span));
     };
     level();
@@ -178,18 +174,18 @@ export function summaryCards(data, date, view) {
       zoom.append(kindButton(() => { cancelAnimationFrame(raf); raf = 0; tween(span, span, 1); }));
       if (candleOn && frame) tween(span, span, 1);
     });
-    // 날짜 지점의 잠정 봉 값. 정규장 값은 앞 세션 종가 대비 비율로 받은 시가·고가·저가·종가(`ohlc`)로 등락 색 봉을 그리고, 애프터장·프리장 값은 회색 봉을 그린다.
-    const liveBar = (shown) => {
-      const o = shown[2] === "regular" ? shown[4]?.ohlc : null, base = hist[close];
-      return o ? { open: base * o.open, high: base * o.high, low: base * o.low, close: base * o.close, gray: false } : { close: shown[0], gray: shown[2] !== "regular" };
+    // 사슬 값의 잠정 봉 값. 정규장 값은 앞 세션 종가 대비 비율로 받은 시가·고가·저가·종가(`ohlc`)로 등락 색 봉을 그리고, 애프터장·프리장 값은 회색 봉을 그린다.
+    const liveBar = (entry) => {
+      const o = entry[2] === "regular" ? entry[4]?.ohlc : null, base = entry[6];
+      return o ? { open: base * o.open, high: base * o.high, low: base * o.low, close: base * o.close, gray: false } : { close: entry[0], gray: entry[2] !== "regular" };
     };
     const past = (data.past ?? []).map(([x, lo, mid, hi]) => ({ x, lo, mid, hi }));
     const at = (f) => dates.indexOf(f.base_date);
-    // 기간마다 세로 범위: 보이는 종가(봉 그림이면 보이는 봉의 고가와 저가)·정규장 다음 세션 값을 담고, 예측을 켰으면(`r`가 0보다 크면) 예측 면과 지난 예측도 담는다.
+    // 기간마다 세로 범위: 보이는 종가(봉 그림이면 보이는 봉의 고가와 저가)·사슬 값을 담고, 예측을 켰으면(`r`가 0보다 크면) 예측 면과 지난 예측도 담는다.
     // 최저 점 아래에는 글씨가 들어갈 20px을 비운다.
     const range = (x0, r) => {
       const shown = candle() ? candleGroups(dates, hist, ratios, candleUnit(DAYS[span]), last).filter((group) => group[1] >= x0).flatMap((group) => [group[3], group[4]]) : hist.slice(x0, last + 1);
-      const band = (r > 0 && frame.predict) || { q25: [], q75: [] }, before = r > 0 ? past : [], more = ext ? [ext[0], ...[liveBar(ext).high, liveBar(ext).low].filter((v) => v != null)] : [];
+      const band = (r > 0 && frame.predict) || { q25: [], q75: [] }, before = r > 0 ? past : [], more = track.flatMap((entry) => [entry[0], liveBar(entry).high, liveBar(entry).low].filter((v) => v != null));
       let lo = Math.min(...shown, ...band.q25, ...before.map((q) => q.lo), ...more);
       const hi = Math.max(...shown, ...band.q75, ...before.map((q) => q.hi), ...more);
       const low = Math.min(...shown);
@@ -247,7 +243,7 @@ export function summaryCards(data, date, view) {
       if (p) g.append(shape("path", { d: `${path(xs.map((x, k) => [x, Y(p.q25[k])]))}L${xs.slice().reverse().map((x, k) => `${x} ${Y(p.q75[xs.length - 1 - k])}`).join("L")}Z`, fill: color, opacity: .22 * r }));
       // 봉 그림이면 리포트 날짜에 고른 정규장 다음 세션 값만 잠정 봉으로 덧붙인다. `center(i)`는 거래일 `i`가 든 봉의 가운데 x이고,
       // `mark(i, y)`는 '현재' 표시의 높이로, 선 그림이면 값의 높이 `y`, 봉 그림이면 그 봉의 고가 5px 위다.
-      const drawn = groups && (ext && stop === last ? candleLate(groups, dates, unit, liveBar(ext), point) : groups);
+      const drawn = groups && track.reduce((out, entry) => candleLate(out, dates, unit, liveBar(entry), data.days[entry[5]]), groups);
       const centers = drawn ? drawCandles(g, drawn, X, Y, step, R + 3) : null;
       const bar = (i) => Math.max(0, drawn.findLastIndex(([a]) => a <= i));
       const center = (i) => (drawn ? centers[bar(i)] : X(i)), mark = (i, y) => (drawn ? Y(drawn[bar(i)][3]) - 5 : y);
@@ -260,20 +256,32 @@ export function summaryCards(data, date, view) {
         s.append(ends);
       }
       if (marks) extremes();
-      const close = [center(stop), Y(hist[stop])];
+      const close = [center(last), Y(hist[last])];
       const now = s.insertBefore(shape("g"), ends);
-      // 날짜 슬라이더가 고른 종가가 아직 그림 왼쪽 끝 앞이면(기간을 넓히는 도중) '현재' 표시를 찍지 않는다.
-      if (stop < i0) return;
-      if (!ext) return nowMark(now, close[0], mark(stop, close[1]), "regular");
-      // 선 그림이면 정규장 다음 세션 값은 다음 거래일 자리에 찍어 고른 날짜의 종가에서 잇는다. 정규장 값은 종가 선에 실선으로 잇고,
-      // 프리장·애프터장·선물 시간대 값은 종가 점을 찍고 점선으로 잇는다.
-      const next = [center(stop + 1), Y(ext[0])];
-      if (!drawn && ext[2] === "regular") g.append(shape("path", { d: path([close, next]), ...stroke }));
-      else if (!drawn) {
-        g.append(shape("path", { d: path([close, next]), ...stroke, "stroke-dasharray": "2 2" }));
-        now.append(shape("circle", { cx: close[0], cy: close[1], r: 2.5, fill: PRICE }));
-      }
-      nowMark(now, next[0], mark(stop + 1, next[1]), ext[2]);
+      // 선 그림이면 사슬 값을 지점 순번의 거래일 자리에 잇는다. 정규장 값은 앞 점에서 실선으로, 그 뒤의 프리장·애프터장·선물 시간대 값은 앞 점을 찍고 점선으로 잇는다.
+      let tip = close;
+      track.forEach((entry) => {
+        const to = [center(last + entry[5]), Y(entry[0])];
+        if (drawn) return (tip = to);
+        if (entry[2] === "regular") g.append(shape("path", { d: path([tip, to]), ...stroke }));
+        else {
+          g.append(shape("path", { d: path([tip, to]), ...stroke, "stroke-dasharray": "2 2" }));
+          now.append(shape("circle", { cx: tip[0], cy: tip[1], r: 2.5, fill: PRICE }));
+        }
+        tip = to;
+      });
+      // '현재' 표시는 고른 자리에, 고르지 않았으면 사슬의 마지막 값(없으면 기준 가격 날짜 종가)에 찍는다. 봉 그림이면 그 거래일이 든 봉의 고가 위에 찍는다.
+      if (picked?.k != null) { if (p) nowMark(now, xs[picked.k], Y(p.q50[picked.k]), "regular"); }
+      else if (picked) { if (picked.i >= i0) nowMark(now, center(picked.i), mark(picked.i, Y(hist[picked.i])), "regular"); }
+      else nowMark(now, tip[0], mark(last + (track.at(-1)?.[5] ?? 0), tip[1]), track.at(-1)?.[2] ?? "regular");
+      // 그림을 누르면 누른 자리의 거래일을 고른다. 켠 카드의 예측 자리는 예측 거래일을 고르고, 기준 가격 날짜 종가나 그 뒤 자리는 처음 상태로 돌린다.
+      onTap(s, (x) => {
+        const i = Math.round(x0 + (x - L) / (R - L) * (end - x0));
+        feelPress();
+        picked = p && i > fx ? { k: Math.min(p.q50.length - 1, i - fx) } : i < last ? { i: Math.max(i0, i) } : null;
+        head();
+        tween(span, span, 1);
+      });
     };
     // `from` 기간과 예측 정도 `r0`에서 `to` 기간과 `r1`로 가는 도중 `t`(0~1) 지점의 그림. 왼쪽 끝과 오른쪽 끝, 세로 범위를 같은 곡선으로 옮기고, 넓히는 동안 새로 들어온
     // 과거 종가가 범위 밖이면 범위를 그만큼 먼저 넓혀 선이 가로축 아래로 내려가지 않게 한다.
@@ -291,15 +299,16 @@ export function summaryCards(data, date, view) {
     };
     const move = (by) => {
       const from = span;
-      span = Math.max(0, Math.min(most(), span + by));
+      span = Math.max(0, Math.min(most, span + by));
       if (span === from) return;
       level();
+      if (picked?.i != null && picked.i < start(span, ahead)) { picked = null; head(); }
       animate(from, seen);
     };
     wider.addEventListener("click", () => move(-1));
     narrower.addEventListener("click", () => move(1));
     zoomDrag(zoom.querySelector(".steps"), () => span, (i) => move(i - span));
-    // 예측 단추를 누른 상태(`want`)는 카드를 넘겨도 그대로 두고, 판단이 없는 날짜(`frame.pending`)에서도 켠 채로 둔다. 그 날짜는 가장 늦은 판단의 예측을 보인다. `aim`은 그린 상태다.
+    // 예측 단추를 누른 상태(`want`)는 카드를 넘겨도 그대로 둔다. `aim`은 그린 상태다.
     // 켠 상태가 바뀔 때마다 `view.watch`로 알린다. 리포트 화면은 그 상태를 판단이 올라와 화면을 다시 그릴 때 넘긴다.
     const sync = () => {
       aim = want;
@@ -312,62 +321,64 @@ export function summaryCards(data, date, view) {
     toggle.addEventListener("click", () => {
       feelPress();
       want = !want;
+      picked = null;
       sync();
       const from = span;
       settle();
       animate(from, seen);
     });
-    // '현재' 표시를 찍을 값과 세션 단추, 머리 글씨를 정한다. 예측을 켠 카드는 가장 늦은 값을 쓰고 세션 단추를 모두 끈다.
-    // 예측을 끈 카드는 가장 늦은 리포트의 리포트 날짜에 가장 늦은 세션을, 지난 날짜와 지난 리포트는 정규장을 고르고, 사용자가 누른 단추가 있으면 그 세션을 쓴다.
-    // 리포트 날짜의 정규장 값은 늘 고른 채로 둔다.
+    // 그림에 잇는 사슬 값과 세션 단추, 머리 글씨를 정한다. 예측을 켠 카드는 가장 늦은 값까지 잇고 세션 단추를 모두 끈다.
+    // 예측을 끈 카드는 가장 늦은 리포트면 가장 늦은 값을, 지난 리포트면 정규장을 고르고, 사용자가 누른 단추가 있으면 그 세션을 쓴다. 가장 늦은 값이 정규장 값이면 늘 그 값을 고른다.
     const settle = () => {
-      const f = frame, now = f.day === date;
-      stop = now || aim ? last : at(f);
-      span = Math.min(span, most());
-      level();
-      const session = Math.round((hist[stop] / hist[stop - 1] - 1) * 1e4) / 100, shown = aim ? upcoming() : extra(f), regular = shown?.[2] === "regular";
-      if (!aim && (!chosen || regular)) late = !!shown && now && (regular || !document.documentElement.classList.contains("past"));
-      ext = shown && (aim || late) ? shown : null;
-      seg.rename(shown?.[2] ?? "after");
+      const f = frame, { regulars, latest } = sessions(), regular = latest[2] === "regular";
+      if (!aim && (!chosen || regular)) late = regular || !document.documentElement.classList.contains("past");
+      track = aim || late ? (regular ? regulars : [...regulars, latest]) : regulars;
+      reach = Math.max(1, ...track.map((entry) => entry[5]));
+      seg.rename(latest[2]);
       seg.mark(aim ? null : late);
       [...seg.box.children].forEach((button) => (button.disabled = aim));
-      if (shown) title.append(seg.box); else seg.box.remove();
+      title.append(seg.box);
       head = () => {
-        const p = aim ? f.predict : null, move = ext && Math.round((ext[0] / hist[stop] - 1) * 1e4) / 100, end = p?.q50.at(-1);
-        c.box.classList.toggle("ext", !!ext && !regular && !p);
-        c.box.classList.toggle("ink", !!p);
-        c.box.querySelector(".val b").className = p ? "ink" : "";
-        c.box.querySelector(".state").className = `state ${p ? "" : ext ? (regular ? tone(move) : "") : tone(session)}`;
-        if (p) c.head(`${signed((end / f.base - 1) * 100)}%`, fmt(end), "25거래일 뒤 예측 중앙값");
-        else if (ext) c.head(`${signed(move, 2)}%`, fmt(ext[0]), sessionTag(ext[2], ext[1]));
-        else c.head(`${signed(session, 2)}%`, fmt(hist[stop]), sessionTag("regular", sessionAt("정규장", closeAt(dates[stop]))));
+        const p = aim ? f.predict : null, tip = track.at(-1), rate = (a, b) => Math.round((a / b - 1) * 1e4) / 100;
+        const forecast = p && picked?.k != null, ink = !!p && (!picked || forecast), value = forecast ? p.q50[picked.k] : p?.q50.at(-1);
+        c.box.classList.toggle("ext", !p && !picked && !!tip && tip[2] !== "regular");
+        c.box.classList.toggle("ink", ink);
+        c.box.querySelector(".val b").className = ink ? "ink" : "";
+        if (ink) {
+          c.box.querySelector(".state").className = "state";
+          return c.head(`${signed((value / f.base - 1) * 100)}%`, fmt(value), `${forecast ? picked.k : 25}거래일 뒤 예측 중앙값`);
+        }
+        const i = picked?.i ?? last;
+        if (picked || !tip) {
+          const move = i > 0 ? rate(hist[i], hist[i - 1]) : 0;
+          c.box.querySelector(".state").className = `state ${tone(move)}`;
+          return c.head(`${signed(move, 2)}%`, fmt(hist[i]), sessionTag("regular", sessionAt("정규장", closeAt(dates[i]))));
+        }
+        const move = rate(tip[0], tip[6]);
+        c.box.querySelector(".state").className = `state ${tip[2] === "regular" ? tone(move) : ""}`;
+        c.head(`${signed(move, 2)}%`, fmt(tip[0]), sessionTag(tip[2], tip[1]));
       };
       head();
     };
-    // 되감기 슬라이더가 다른 날짜를 고르면 사용자가 고른 단추를 지운다.
+    // 실시간 값이 바뀌면 같은 카드를 다시 그린다. 가로축 끝이 바뀌었거나 예측을 켜고 끈 상태가 바뀌었으면 − 단추처럼 그림을 이어 옮긴다.
     const show = (f) => {
-      if (f !== frame) chosen = false;
       frame = f;
       sync();
-      const from = span;
+      const from = span, was = reach;
       settle();
-      // 고른 날짜의 종가가 그림 밖으로 나가 기간을 넓혔거나 예측을 켜고 끈 상태가 바뀌었으면 − 단추처럼 그림을 이어 옮긴다. 기간을 옮기는 도중이면 다음 장면이 고른 날짜로 그린다.
-      if (span !== from || ahead !== seen) animate(from, seen);
+      if (reach !== was || ahead !== seen) animate(from, seen);
       else if (!raf) tween(span, span, 1);
     };
-    return { box: c.box, show, label, pending: () => !!frame?.pending };
+    return { box: c.box, show, label };
   })();
 
   // 일정과 예측: 등락률 분위수의 10~90% 옅은 면과 25~75% 면, 50% 실선을 주가와 예측 카드의 예측과 같은 지수색으로 그린다. 위쪽 번호는 이슈 일정이 있는 날이고,
   // 마지막 거래일에는 일정이 없어도 번호를 달고, 처음에는 첫 번호를 고른다. 번호를 누르면 위 값을 그날의 25~75% 등락률로 바꾸고
   // 세로선과 범위 끝이 만나는 곳에 그날의 등락률을 적는다. 그림 아래 줄 가운데에는 고른 일정의 날짜와 이름을 적고, 이름이 줄을 넘으면 말줄임표로 줄인다.
   // 그 줄 양옆의 꺽쇠를 누르면 앞뒤 일정을 고르고, 일정 이름을 누르면 같은 페이지 아래의 이벤트 캘린더에서 같은 거래일을 연다(`toCalendar`).
-  // 그림의 왼쪽 끝은 판단의 날짜 지점(`days[1]`)이고, 등락률은 고른 날짜 판단의 기준 가격 대비 값이다.
-  // 리포트 날짜를 고르면 리포트 날짜 판단의 날짜 지점 세션 값(`upcoming()`)에 '현재' 표시를 왼쪽 끝에 찍는다. 1분 값이 바뀌면 표시가 왼쪽 끝에서 위아래로 옮겨 간다.
-  // 세션 값이 없으면 기준 가격 날짜의 정규장 종가에 정규장 '현재' 표시를 찍는다.
-  // 지난 날짜를 고르면 그날 날짜 지점부터 실제 종가 등락률을 흰 선으로 그린다. 선이 리포트 날짜 판단의 기준 가격 날짜까지 닿고 세션 값이 있으면
-  // 선의 끝 종가에서 리포트 날짜 판단의 날짜 지점에 놓은 세션 값까지 점선으로 잇고 세션 값에 '현재' 표시를 찍는다.
-  // 세션 값은 늘 리포트 날짜의 가장 늦은 값이므로 고른 날짜와 관계없이 같은 값을 그리고, 세션 단추를 두지 않는다.
+  // 그림의 왼쪽 끝은 판단의 첫 날짜 지점(`days[1]`)이고, 등락률은 판단의 기준 가격 대비 값이다.
+  // 기준 가격 날짜 종가에서 실시간 값의 사슬(`sessions`)을 지점 순번의 거래일 자리에 주가와 예측 카드처럼 잇는다. 정규장 값은 실선으로, 그 뒤의 프리장·애프터장·선물 시간대 값은
+  // 앞 점을 찍고 점선으로 잇고, 사슬의 마지막 값(없으면 기준 가격 날짜 종가)에 '현재' 표시를 찍는다. 1분 값이 바뀌면 다시 그린다. 세션 단추는 두지 않는다.
   const tree = (() => {
     const c = card("25거래일 뒤 범위"), s = c.svg;
     const L = 4, R = W - 4, T = 38;
@@ -420,14 +431,10 @@ export function summaryCards(data, date, view) {
       const f = frame, pct = f.tree.pct, n = pct["50"].length - 1;
       events = f.tree.events.at(-1)?.[0] === n ? f.tree.events : [...f.tree.events, [n, [], f.days[n].slice(5).split("-").map(Number).join("/")]];
       pick ??= 0;
-      const actual = f.day === date ? [] : f.tree.actual.slice(0, (f.days.indexOf(data.base_date) + 1) || undefined);
-      // 선의 끝 종가 [거래일, 등락률]과 세션 값 [거래일, 등락률, 세션]이다. 끝 종가가 기준 가격 날짜가 아니면 둘 다 없다.
-      const end = f.day === date ? [0, (hist[close] / f.base - 1) * 100]
-        : actual.length && f.days[actual.length - 1] === data.base_date ? [actual.length - 1, actual.at(-1)] : null;
-      // 세션 값은 리포트 날짜 판단의 날짜 지점(`point`)에 놓는다. 그 지점은 프레임의 `days`에서 찾고, 프레임이 지점에 닿지 않으면 세션 값이 없다.
-      const here = f.days.indexOf(point), shown = end && here > 0 ? nextOf(data) : null;
-      const tail = shown ? [here, (shown[0] / f.base - 1) * 100, shown[2]] : null;
-      const reach = Math.max(15, ...[pct["10"], pct["90"], actual].flat().map(Math.abs), ...[end, tail].filter(Boolean).map((v) => Math.abs(v[1])));
+      // 선의 시작인 기준 가격 날짜 종가 [거래일, 등락률]과 사슬 값 [거래일, 등락률, 세션]이다.
+      const { regulars, latest } = sessions(), track = latest[2] === "regular" ? regulars : [...regulars, latest];
+      const end = [0, (hist[close] / f.base - 1) * 100], tips = track.map((entry) => [entry[5], (entry[0] / f.base - 1) * 100, entry[2]]);
+      const reach = Math.max(15, ...[pct["10"], pct["90"]].flat().map(Math.abs), ...[end, ...tips].map((v) => Math.abs(v[1])));
       const top = Math.ceil(reach / 5) * 5;
       // 거래일의 가로 자리다. 날짜 지점(1번째 거래일)을 왼쪽 끝에 두고, 기준 가격 날짜(0번째)도 왼쪽 끝에 둔다.
       const X = (d) => L + Math.max(0, d - 1) / (n - 1) * (R - L), Y = (v) => B - (Math.max(-top, Math.min(top, v)) + top) / (2 * top) * (B - T);
@@ -455,24 +462,17 @@ export function summaryCards(data, date, view) {
       f.tree.ticks.forEach(([t, day]) => s.append(shape("text", { x: X(t), y: B + 17, "font-size": 11, fill: DIMS, "text-anchor": t === 0 ? "start" : t === n ? "end" : "middle" }, day)));
       s.append(shape("path", { d: `${path(pct["25"].map((v, d) => [X(d), Y(v)]))}L${pct["75"].slice().reverse().map((v, d) => `${X(n - d)} ${Y(v)}`).join("L")}Z`, fill: color, opacity: .22 }));
       s.append(shape("path", { d: path(pct["50"].map((v, d) => [X(d), Y(v)])), fill: "none", stroke: color, "stroke-width": 1.4, "stroke-linejoin": "round" }));
-      // 실제 종가 선은 날짜 지점의 종가부터 긋는다.
-      const points = actual.map((v, d) => [X(d), Y(v)]).slice(1);
-      if (points.length) {
-        const lineStyle = { fill: "none", "stroke-linejoin": "round", "stroke-linecap": "round" };
-        s.append(shape("path", { d: path(points), ...lineStyle, stroke: "rgba(0, 0, 0, .6)", "stroke-width": 3.2 }));
-        s.append(shape("path", { d: path(points), ...lineStyle, stroke: PRICE, "stroke-width": 1.6 }));
-        if (!end) s.append(shape("circle", { cx: points.at(-1)[0], cy: points.at(-1)[1], r: 2.5, fill: PRICE }));
-      }
-      if (end) {
-        const from = [X(end[0]), Y(end[1])], to = tail && [X(tail[0]), Y(tail[1])];
-        // 세션 값은 주가와 예측 카드처럼 정규장 값이면 끝 종가에서 실선으로, 프리장·애프터장·선물 시간대 값이면 끝 종가 점을 찍고 점선으로 잇는다.
-        if (to && points.length && tail[2] === "regular") s.append(shape("path", { d: path([from, to]), fill: "none", stroke: PRICE, "stroke-width": 1.6, "stroke-linecap": "round" }));
-        else if (to && points.length) {
+      let from = [X(end[0]), Y(end[1])];
+      tips.forEach(([d, v, kind]) => {
+        const to = [X(d), Y(v)];
+        if (kind === "regular") s.append(shape("path", { d: path([from, to]), fill: "none", stroke: PRICE, "stroke-width": 1.6, "stroke-linecap": "round" }));
+        else {
           s.append(shape("path", { d: path([from, to]), fill: "none", stroke: PRICE, "stroke-width": 1.6, "stroke-linecap": "round", "stroke-dasharray": "2 2" }));
           s.append(shape("circle", { cx: from[0], cy: from[1], r: 2.5, fill: PRICE }));
         }
-        nowMark(s, ...(to ?? from), tail?.[2] ?? "regular");
-      }
+        from = to;
+      });
+      nowMark(s, ...from, tips.at(-1)?.[2] ?? "regular");
       // 0% 글씨는 종가 선과 '현재' 표시가 시작하는 왼쪽 끝을 비우도록 그림 오른쪽 끝에 둔다.
       s.append(shape("text", { x: R, y: Y(0) - 4, "font-size": 11, fill: DIMS, "text-anchor": "end", "pointer-events": "none",
         stroke: "#171719", "stroke-width": 3, "stroke-linejoin": "round", "paint-order": "stroke" }, "0%"));
@@ -518,29 +518,27 @@ export function summaryCards(data, date, view) {
   })();
 
   const parts = [[price, "주가와 예측"], [tree, "일정"], [chart, "권장 배율"]];
-  let frame = data;
-  const show = (f) => { frame = f; parts.forEach(([part]) => part.show(f)); };
-  show(data);
-  // 머리 상자 시세는 위 줄에 기준 가격 날짜의 정규장 종가를, 아래 줄에 리포트 날짜 판단의 기준 가격 날짜 다음 날짜 지점의 값(`nextOf`)을 쓴다.
-  // 그 값이 프리장 값이면 아래 줄에 프리마켓 가격과 정규장 종가 대비 등락률을, 애프터장 값(판단의 기준 가격이나 실시간 애프터장·선물 시간대 값)이면 애프터마켓 가격과 등락률을 쓴다.
-  // 정규장 값이면 아래 줄을 두지 않고, 위 줄에 그 값과 앞 종가 대비 등락률을 쓴다. 위 줄 등락률은 반올림한 값으로 색을 정해 0.00%를 칠하지 않는다.
+  const show = () => parts.forEach(([part]) => part.show(data));
+  show();
+  // 머리 상자 시세는 위 줄에 사슬의 마지막 정규장 값(없으면 기준 가격 날짜의 정규장 종가)과 그 앞 세션 종가 대비 등락률을 쓴다.
+  // 사슬의 가장 늦은 값이 그 뒤의 프리장 값이면 아래 줄에 프리마켓 가격과 위 줄 가격 대비 등락률을, 애프터장 값(판단의 기준 가격이나 실시간 애프터장·선물 시간대 값)이면
+  // 애프터마켓 가격과 등락률을 쓴다. 가장 늦은 값이 정규장 값이면 아래 줄을 두지 않는다. 위 줄 등락률은 반올림한 값으로 색을 정해 0.00%를 칠하지 않는다.
   const rate = (ratio) => Math.round(ratio * 1e4) / 100;
-  const day = rate(hist[close] / hist[close - 1] - 1);
   const quote = () => {
-    const next = upcoming();
-    const line = (name, value) => `<small>${name} ${fmt(value)} ${signed(rate(value / hist[close] - 1), 2)}%</small>`;
-    const open = next[2] === "regular", value = open ? next[0] : hist[close], move = open ? rate(next[0] / hist[close] - 1) : day;
-    const tail = open ? "" : line(next[2] === "pre" ? "프리마켓" : next[4]?.basis === "futures" ? "선물 가격" : "애프터마켓", next[0]);
+    const { regulars, latest } = sessions(), reg = regulars.at(-1);
+    const value = reg ? reg[0] : hist[close], move = rate(reg ? reg[0] / reg[6] - 1 : hist[close] / hist[close - 1] - 1);
+    const line = (name, v) => `<small>${name} ${fmt(v)} ${signed(rate(v / value - 1), 2)}%</small>`;
+    const tail = latest[2] === "regular" ? "" : line(latest[2] === "pre" ? "프리마켓" : latest[4]?.basis === "futures" ? "선물 가격" : "애프터마켓", latest[0]);
     return `<span class="row"><span>${INDEX_NAME[key.split("-")[1]]}</span><b class="price ${tone(move)}">${fmt(value)}</b>`
       + `<b class="${tone(move)}">${signed(move, 2)}%</b>${tail}</span>`;
   };
-  // `live(all, index)`는 실시간 값 전체(`all`)에서 지수(`index`)의 지점별 값을 받아, 값이 바뀌었으면 고른 날짜로 카드를 다시 그리고 바뀐 큰 글씨 숫자를 굴린다.
+  // `live(all, index)`는 실시간 값 전체(`all`)에서 지수(`index`)의 지점별 값을 받아, 값이 바뀌었으면 카드를 다시 그리고 바뀐 큰 글씨 숫자를 굴린다.
   const live = (all, index) => {
     const next = all.points?.[index] ?? {};
     const changed = JSON.stringify(next) !== JSON.stringify(found);
     found = next;
     if (!changed) return;
-    rolled(() => show(frame));
+    rolled(show);
   };
-  return { names: parts.map(([, name]) => name), slides: parts.map(([part]) => [part.box]), show, quote, live, label: () => price.label?.(), pending: () => !!frame.pending };
+  return { names: parts.map(([, name]) => name), slides: parts.map(([part]) => [part.box]), quote, live, label: () => price.label?.() };
 }

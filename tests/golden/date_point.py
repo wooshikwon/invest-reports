@@ -1,9 +1,9 @@
-"""날짜 지점 U4(리포트 화면)의 동작 시험. 판단 전과 후, 최신 날짜와 지난 날짜, 레버, 튕김 잠금, 판단 도착을 연다.
+"""리포트 화면 그림 카드의 동작 시험. 판단 전과 후, 실시간 값의 사슬, 그림 누르기, 카드 넘기기, 판단 도착, 카드별 설명 절을 연다.
 
     python3 tests/golden/date_point.py --data /tmp/dp-u4/out --after /tmp/dp-u4/out-after --shots /tmp/dp-u4/shots
 
 `--data`는 판단 전(가장 늦은 리포트가 날짜 지점 2026-11-19)의 리포트 자료이고, `--after`는 거기에 2026-11-20 판단을 더한 자료다.
-실시간 값은 `fixtures.live(..., "closed")`에 날짜 지점 2026-11-20의 값을 더한 값이다. 화면 값은 모두 지어낸 값이다.
+실시간 값은 `fixtures.live(..., "closed")`(날짜 지점 2026-11-19의 정규장 마감 값)에 그 뒤 애프터장 값(날짜 지점 2026-11-20)을 더한 값이다. 화면 값은 모두 지어낸 값이다.
 """
 import argparse
 import json
@@ -16,7 +16,7 @@ import capture
 import fixtures
 
 PENDING = "2026-11-20"
-WHY = "아직 이전 정규장 분석이 완료되지 않았어요"
+AFTER = 1.002
 FAILS = []
 
 
@@ -30,14 +30,14 @@ def pending_live(data: Path) -> dict:
     live = fixtures.live(data, "closed")
     for index, found in json.loads((data / "r" / "market.json").read_text(encoding="utf-8"))["map"].items():
         live["afterhours"].setdefault(index, {})[fixtures.POINT] = {
-            "time": "2026-11-19T16:50:00-05:00", "ratio": 1.002, "stocks": {}, "point": PENDING}
+            "time": "2026-11-19T16:50:00-05:00", "ratio": AFTER, "stocks": {}, "point": PENDING}
     live["progress"] = {"date": PENDING, "indexes": {index: {"step": 1, "since": "2026-11-20T06:50:00+09:00"} for index in live["premarket"]}, "plan": [0, 20, 60, 120]}
     return live
 
 
 def overlay_after(after: Path) -> dict:
     """`after` 자료에서 판단이 도착하며 바뀌는 파일을 바이트로 읽는다."""
-    paths = ["r/index.json", "r/rewind-nasdaq/cards.json"] + [f"r/20261120-nasdaq/{p.name}" for p in (after / "r" / "20261120-nasdaq").iterdir()]
+    paths = ["r/index.json"] + [f"r/20261120-nasdaq/{p.name}" for p in (after / "r" / "20261120-nasdaq").iterdir()]
     return {path: (after / path).read_bytes() for path in paths}
 
 
@@ -79,7 +79,6 @@ def shows(s) -> bool:
 
 def state(page):
     return page.evaluate("""() => ({
-      date: document.querySelector('.carousel.cards .rewind span')?.textContent ?? null,
       notes: [...document.querySelectorAll('[data-point]')].map((n) => [n.dataset.point, n.hidden, n.dataset.note]),
       aim: (() => { const b = document.querySelector('button.aim'); return b && { disabled: b.disabled, on: b.classList.contains('on'), text: b.textContent.trim() }; })(),
       tab: [...document.querySelectorAll('.carousel.cards .tabs button')].findIndex((b) => b.classList.contains('on')),
@@ -92,34 +91,21 @@ def to_cards(page):
     capture.settle(page, 300)
 
 
-def open_lever(page):
-    page.locator(".carousel.cards .rewind .open").first.click()
-    capture.settle(page, 300)
+def price(page):
+    """주가와 예측 카드의 머리 글씨, 점선 수, '현재' 표시[세션, 가로 자리]."""
+    return page.evaluate("""() => { const g = document.querySelector('.carousel.cards .slide .gauge');
+      return { top: g.querySelector('.top .ctx')?.textContent, val: g.querySelector('.val b')?.textContent, state: g.querySelector('.val .state')?.textContent,
+        dashed: g.querySelectorAll('.fig svg path[stroke-dasharray="2 2"]').length,
+        mark: [...g.querySelectorAll('.fig svg circle[data-kind]')].map((c) => [c.dataset.kind, Math.round(+c.getAttribute('cx'))]),
+        ticker: document.getElementById('ticker').textContent }; }""")
 
 
-def grip(page):
-    box = page.locator(".carousel.cards .rewind .grip").first.bounding_box()
-    return box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
-
-
-def drag_to(page, label, hold=False, away=False):
-    """레버를 잡고 날짜 이름표가 `label`이 될 때까지 왼쪽으로 옮긴다. `hold`이면 손을 떼지 않는다."""
-    x, y = grip(page)
-    page.mouse.move(x, y)
-    page.mouse.down()
-    seen = []
-    for step in range(1, 160):
-        page.mouse.move(x - step * 2, y)
-        page.wait_for_timeout(30)
-        now = page.locator(".carousel.cards .rewind > span").first.text_content()
-        if not seen or seen[-1] != now:
-            seen.append(now)
-        if now == label:
-            break
-    if not hold:
-        page.mouse.up()
-        capture.settle(page, 500)
-    return seen
+def tap(page, fraction):
+    """주가와 예측 카드 그림의 가로 `fraction` 자리를 누른다."""
+    svg = page.locator(".carousel.cards .slide .gauge .fig svg").first
+    box = svg.bounding_box()
+    svg.click(position={"x": box["width"] * fraction, "y": box["height"] * 0.5})
+    capture.settle(page, 600)
 
 
 def swipe(page, dx):
@@ -156,79 +142,34 @@ def main():
         page.screenshot(path=str(shots / "a1-before-latest-top.png"))
         to_cards(page)
         page.screenshot(path=str(shots / "a1-before-latest-cards.png"))
-        # (a) 판단 전 지난 날짜
-        open_lever(page)
-        seen = drag_to(page, "11/18")
-        page.wait_for_timeout(600)
-        page.locator("button.aim").first.click()
+        # (b) 정규장이 끝난 뒤의 애프터장 값이 사슬로 이어진다
+        page.locator(".zoom button[aria-label='선 그래프로 보기']").first.click()
         capture.settle(page, 600)
-        s = state(page)
-        check("a2 판단 전 지난 날짜: 예측 단추를 누를 수 있음", s["aim"] and s["aim"]["on"] and not s["aim"]["disabled"], s["aim"])
-        check("a2 판단 전 지난 날짜: 고른 카드의 설명 절이 보이고 가장 늦은 판단의 날짜", shows(s) and {pt for pt, *_ in s["notes"]} == {"2026-11-19"}, s["notes"])
-        page.screenshot(path=str(shots / "a2-before-past-cards.png"))
-        page.locator(".fold, h2").first.scroll_into_view_if_needed()
-        page.evaluate("document.querySelector('[data-point]').scrollIntoView({block:'start'})")
-        capture.settle(page, 400)
-        page.screenshot(path=str(shots / "a2-before-past-notes.png"))
-        # (b) 레버를 잡고 세 날짜를 지남
-        page.evaluate("scrollTo(0, 0)")
-        to_cards(page)
-        marks = []
-        x, y = grip(page)
-        page.mouse.move(x, y)
-        page.mouse.down()
-        path = [page.locator(".carousel.cards .rewind > span").first.text_content()]
-        graph = [page.evaluate("document.querySelector('.carousel.cards .slide').innerHTML.length")]
-        held = []
-        for step in range(1, 120):
-            page.mouse.move(x - step * 2, y)
-            page.wait_for_timeout(40)
-            label = page.locator(".carousel.cards .rewind > span").first.text_content()
-            if label != path[-1]:
-                path.append(label)
-                page.wait_for_timeout(120)
-                graph.append(page.evaluate("document.querySelector('.carousel.cards .slide').innerHTML.length"))
-                held.append({pt for pt, *_ in state(page)["notes"]})
-            if len(path) >= 4:
-                break
-        at_release = path[-1]
-        page.mouse.up()
-        capture.settle(page, 700)
-        s = state(page)
-        check("b 잡고 있는 동안 날짜 세 번 바뀜", len(path) >= 4, path)
-        check("b 그래프 점이 세 번 움직임", len({g for g in graph}) >= 3, graph)
-        check("b 잡고 있는 동안 설명 날짜가 가장 늦은 판단의 날짜", all(h == {"2026-11-19"} for h in held), held)
-        check("b 손을 뗀 뒤에도 설명 날짜가 가장 늦은 판단의 날짜", {pt for pt, *_ in s["notes"]} == {"2026-11-19"}, [at_release, s["notes"]])
+        live = price(page)
+        check("b 머리 글씨가 다음 지점의 애프터장 값", live["top"].startswith("미국 11/19 애프터마켓") and live["state"] == "+0.20%", live)
+        check("b 정규장 마감 값은 실선, 애프터장 값만 점선으로 잇고 '현재' 표시가 애프터장 색", live["dashed"] == 1 and [k for k, _ in live["mark"]] == ["after"], live)
+        check("b 머리 상자 아래 줄이 애프터마켓", "애프터마켓" in live["ticker"], live["ticker"])
+        page.screenshot(path=str(shots / "b-chain.png"))
+        # (a) 그림 누르기
+        tap(page, 0.4)
+        picked = price(page)
+        check("a2 그림을 누르면 그날 정규장 종가로 머리 글씨와 '현재' 표시가 옮겨 간다",
+              picked["top"].startswith("미국") and "정규장" in picked["top"] and picked["val"] != live["val"] and picked["mark"][0][0] == "regular" and picked["mark"][0][1] < live["mark"][0][1], picked)
+        tap(page, 0.995)
+        check("a2 오른쪽 끝을 누르면 처음 상태로 돌아온다", price(page) == live, price(page))
+        # (c) 판단 전에도 카드를 넘긴다
         w.close()
-
-        # (c) 튕김 잠금
         w = World(p, data, {})
         page = w.open()
         to_cards(page)
-        results = []
-        for kind in ("swipe", "swipe", "tap", "tap"):
-            if kind == "swipe":
-                swipe(page, -240)
-            else:
-                page.locator(".carousel.cards .tabs button").nth(1).click()
-                page.wait_for_timeout(900)
-            s = state(page)
-            results.append((kind, s["tab"], s["toast"]))
-            if len(results) == 4:
-                page.screenshot(path=str(shots / "c-bounce.png"))
-            page.wait_for_timeout(2600)
-        check("c 판단 전 최신: 밀기 2번과 누르기 2번이 막히고 알림", all(t == 0 and why == WHY for _, t, why in results[:1]) and all(t == 0 for _, t, _ in results), results)
-        check("c 알림 문구", all(why == WHY for *_, why in results), results)
-        open_lever(page)
-        drag_to(page, "11/18")
-        page.wait_for_timeout(600)
-        passed = []
-        for _ in range(2):
-            swipe(page, -240)
-            passed.append(state(page)["tab"])
-            page.locator(".carousel.cards .tabs button").nth(0).click()
-            page.wait_for_timeout(900)
-        check("c 지난 날짜에서 밀기 2번이 통과", passed == [1, 1], passed)
+        swipe(page, -240)
+        s = state(page)
+        check("c 판단 전 최신: 밀면 일정 카드로 넘어가고 알림이 없다", s["tab"] == 1 and s["toast"] is None, s)
+        page.locator(".carousel.cards .tabs button").nth(2).click()
+        page.wait_for_timeout(900)
+        s = state(page)
+        check("c 판단 전 최신: 권장 배율 탭을 누르면 넘어가고 알림이 없다", s["tab"] == 2 and s["toast"] is None and shows(s), s)
+        page.screenshot(path=str(shots / "c-swipe.png"))
         w.close()
 
         # (d) 판단 도착
@@ -272,17 +213,6 @@ def main():
         page.evaluate("document.querySelector('[data-point]').scrollIntoView({block:'start'})")
         capture.settle(page, 400)
         page.screenshot(path=str(shots / "a3-after-latest-notes.png"))
-        page.evaluate("scrollTo(0, 0)")
-        to_cards(page)
-        open_lever(page)
-        drag_to(page, "11/18")
-        page.wait_for_timeout(600)
-        s = state(page)
-        check("a4 판단 후 지난 날짜: 설명 절이 가장 늦은 판단의 날짜 그대로", {pt for pt, *_ in s["notes"]} == {PENDING}, s["notes"])
-        page.screenshot(path=str(shots / "a4-after-past-cards.png"))
-        page.evaluate("document.querySelector('[data-point]').scrollIntoView({block:'start'})")
-        capture.settle(page, 400)
-        page.screenshot(path=str(shots / "a4-after-past-notes.png"))
         w.close()
         print("서버 오류", w.server.errors, "외부 요청", w.server.escaped)
     print("FAILS", FAILS)

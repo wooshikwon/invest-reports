@@ -5,11 +5,10 @@ import { gaugeCard, indexInk } from "../shared/card";
 import { INDEX_NAME, INDEX_TITLE } from "../shared/chrome";
 import { figure, signed, tone } from "../shared/format";
 import { slider } from "../shared/motion";
-import { dial, rewindFrames, rewindOffset } from "../shared/rewind";
 import { roll } from "../shared/roll";
 import { closeAt, sessionAt, sessionTag } from "../shared/session";
 import { key, visit } from "../shared/route";
-import { DIMS, nowMark, shape } from "../shared/svg";
+import { DIMS, nearest, nowMark, onTap, shape } from "../shared/svg";
 import { feelPress, feelSlide, tg } from "../shared/telegram";
 // 내 자산 조각. 내 자산 페이지와 거래 내역 화면의 글씨와 그림은 모두 이 파일에 있고, 공개 화면(`asset.ts`, `trades.ts`)은 Worker가 계좌 요약을 건넨 뒤에만
 // 이 파일을 `import()`로 불러온다. 빌드는 이 파일과 `asset-view.css`를 `assets/asset-view-*.js`·`assets/asset-view-*.css`로 따로 낸다.
@@ -61,10 +60,11 @@ const stamp = (time) => {
 // 수익률 카드의 기준 시각은 최신 날짜 점이 있으면 체결가 시각, 없으면 마지막 거래일의 정규장 종가 시각이다.
 // 배율 카드는 이름 줄 오른쪽에 목표 배율을, 큰 값에 현재 배율을 현재 배율 선과 같은 주황 글씨로 쓰고, 기준 시각은 계좌 요약을 만든 시각이다. 그림에는 오늘 가격 경로들의 배율 분포(지수색 면)와 이슈가 없을 때의 분포(회색 면)를 배율 축에 그리고,
 // 목표 배율에 지수색 실선, 현재 배율에 주황 점선을 긋는다.
-// `show(past)`는 `past`가 없으면 받은 값으로 그린다. 지난 날짜면 수익률 카드는 선을 줄이지 않고 그날 기준 가격 날짜(`past.base_date`) 점에 '현재' 표시(`nowMark`)를 찍어
-// 큰 값을 그 점의 값으로 쓰고, 기준 시각을 그날 정규장 종가 시각으로 쓴다. 그 점이 첫날이면 큰 값에 "기록 없음"을 쓴다. 배율 카드는 그날 판단의 배율 분포(`past.chart`)에 그날 현재·목표 배율(`past.current`, `past.target`)을 긋고,
-// 그날 현재 배율을 모르면 현재 배율 선을 긋지 않고 큰 값에 "기록 없음"을 쓴다.
-export function assetCards(perf, index, times = {}) {
+// 누적 수익률·초과 수익률 카드는 그림을 누르면 누른 가로 자리에서 가장 가까운 날짜 점으로 '현재' 표시(`nowMark`)를 옮기고, 큰 값을 그 점의 값으로,
+// 기준 시각을 그날 정규장 종가 시각으로 바꾼다. 선은 줄이지 않는다. 고른 점이 첫날이면 큰 값에 "기록 없음"을 쓰고, 가장 늦은 점을 누르면 처음 상태로 돌아간다.
+// 두 카드는 같은 날짜를 함께 고르고, 고른 날짜(`pin.day`)는 호출하는 쪽이 들고 있어 카드를 다시 만들어도 이어진다. 가장 늦은 점을 고르면 `pin.day`를 비워 새 최신 점을 따른다.
+// 배율 카드는 시간 축이 없어 누르기 동작이 없다.
+export function assetCards(perf, index, times = {}, pin = { day: null }) {
   const W = 320, H = 236, B = 212, L = 6, R = W - 6, T = 22, color = indexInk(W), NOW = "#FF9F1C", BASE = "#A7ABB0";
   const big = (text, unit) => [text, Object.assign(document.createElement("small"), { textContent: unit })];
   // 카드 틀에 이름 줄을 더한다. 이름 줄이 같은 높이를 차지해 카드를 넘겨도 값과 그림이 같은 높이에 있다.
@@ -74,41 +74,39 @@ export function assetCards(perf, index, times = {}) {
     title.append(Object.assign(document.createElement("span"), { className: "name", textContent: INDEX_TITLE[index] || INDEX_NAME[index] }), c.side);
     return c;
   };
-  // 기준 시각 글씨. 지난 날짜(`day`)면 그날 정규장 종가 시각을 쓴다.
+  // 날짜(`day`)의 정규장 종가 시각 글씨.
   const settled = (day) => sessionTag("regular", sessionAt("정규장", closeAt(day)));
-  const cards = [], draws = [];
+  const cards = [];
   const lev = perf?.leverage;
   let lever = null;
   if (lev?.today?.length > 1) {
     const c = card("lever"), s = c.svg;
-    draws.push((past) => {
-      const den = past ? { ...past.chart, anchor: lev.anchor, current: past.current, target: past.target ?? lev.anchor * (1 + past.chart.mean) } : lev, n = den.today.length;
-      c.value.className = "";
-      c.head("", den.current == null ? "기록 없음" : big(den.current.toFixed(3), "배"), past ? settled(past.base_date) : stamp(times.summary));
-      c.side.textContent = `목표 ${den.target.toFixed(3)}배`;
-      c.value.style.color = den.current == null ? DIMS : NOW;
-      const xs = Array.from({ length: n }, (_, i) => den.anchor * (1 + den.low + (den.high - den.low) * i / (n - 1)));
-      const X = (v) => Math.min(R, Math.max(L, L + (v - xs[0]) / (xs[n - 1] - xs[0]) * (R - L))), peak = Math.max(...den.today, ...den.quiet);
-      const Y = (v) => B - v / peak * (B - T);
-      const area = (values) => `M${X(xs[0])} ${B}L${values.map((v, i) => `${X(xs[i])} ${Y(v)}`).join("L")}L${X(xs[n - 1])} ${B}Z`;
-      s.replaceChildren();
-      s.append(shape("path", { d: area(den.quiet), fill: "rgba(167, 171, 176, .14)" }));
-      s.append(shape("path", { d: area(den.today), fill: color, opacity: .2 }));
-      if (den.current != null) s.append(shape("line", { x1: X(den.current), x2: X(den.current), y1: T, y2: B, stroke: NOW, "stroke-width": 1.6, "stroke-dasharray": "4 3" }));
-      s.append(shape("line", { x1: X(den.target), x2: X(den.target), y1: T, y2: B, stroke: color, "stroke-width": 1.6 }));
-      s.append(shape("line", { x1: L, x2: R, y1: B, y2: B, stroke: DIMS }));
-      const gap = xs[n - 1] - xs[0] > 3 ? 1 : 0.5;
-      for (let v = Math.ceil(xs[0] / gap) * gap; v <= xs[n - 1] + 1e-9; v += gap) {
-        s.append(shape("line", { x1: X(v), x2: X(v), y1: B, y2: B + 4, stroke: DIMS }));
-        s.append(shape("text", { x: X(v), y: B + 18, "font-size": 11, fill: den.current != null && Math.abs(v - den.current) < gap / 4 ? "#EAEAEA" : DIMS, "text-anchor": "middle" }, `${v.toFixed(1)}배`));
-      }
-    });
+    const n = lev.today.length;
+    c.value.className = "";
+    c.head("", lev.current == null ? "기록 없음" : big(lev.current.toFixed(3), "배"), stamp(times.summary));
+    c.side.textContent = `목표 ${lev.target.toFixed(3)}배`;
+    c.value.style.color = lev.current == null ? DIMS : NOW;
+    const xs = Array.from({ length: n }, (_, i) => lev.anchor * (1 + lev.low + (lev.high - lev.low) * i / (n - 1)));
+    const X = (v) => Math.min(R, Math.max(L, L + (v - xs[0]) / (xs[n - 1] - xs[0]) * (R - L))), peak = Math.max(...lev.today, ...lev.quiet);
+    const Y = (v) => B - v / peak * (B - T);
+    const area = (values) => `M${X(xs[0])} ${B}L${values.map((v, i) => `${X(xs[i])} ${Y(v)}`).join("L")}L${X(xs[n - 1])} ${B}Z`;
+    s.replaceChildren();
+    s.append(shape("path", { d: area(lev.quiet), fill: "rgba(167, 171, 176, .14)" }));
+    s.append(shape("path", { d: area(lev.today), fill: color, opacity: .2 }));
+    if (lev.current != null) s.append(shape("line", { x1: X(lev.current), x2: X(lev.current), y1: T, y2: B, stroke: NOW, "stroke-width": 1.6, "stroke-dasharray": "4 3" }));
+    s.append(shape("line", { x1: X(lev.target), x2: X(lev.target), y1: T, y2: B, stroke: color, "stroke-width": 1.6 }));
+    s.append(shape("line", { x1: L, x2: R, y1: B, y2: B, stroke: DIMS }));
+    const gap = xs[n - 1] - xs[0] > 3 ? 1 : 0.5;
+    for (let v = Math.ceil(xs[0] / gap) * gap; v <= xs[n - 1] + 1e-9; v += gap) {
+      s.append(shape("line", { x1: X(v), x2: X(v), y1: B, y2: B + 4, stroke: DIMS }));
+      s.append(shape("text", { x: X(v), y: B + 18, "font-size": 11, fill: lev.current != null && Math.abs(v - lev.current) < gap / 4 ? "#EAEAEA" : DIMS, "text-anchor": "middle" }, `${v.toFixed(1)}배`));
+    }
     lever = ["배율", c.box];
   }
   const ret = perf?.returns;
   // 선 그림은 값 범위를 1·2·5 단위 눈금 네댓 칸으로 나눠 오른쪽 끝에 눈금 값을 쓰고, 그림 아래에 첫날·가운데·마지막 거래일을 쓴다.
   // 고정 배율 선이 0인 초과 수익률 그림은 0 눈금을 회색 점선으로 긋는다.
-  const lines = (c, series, unit, flat, days, at) => {
+  const lines = (c, series, unit, flat, days, at, tap) => {
     const s = c.svg, n = days.length, all = [0, ...series.flatMap(([values]) => values)], P = R - 40;
     let lo = Math.min(...all), hi = Math.max(...all);
     if (hi - lo < 1e-4) { lo -= 0.005; hi += 0.005; }
@@ -125,7 +123,9 @@ export function assetCards(perf, index, times = {}) {
       "stroke-width": dash ? 1.2 : 1.8, "stroke-linejoin": "round", ...(dash ? { "stroke-dasharray": "3 3" } : {}) })));
     [[0, "start"], [Math.floor((n - 1) / 2), "middle"], [n - 1, "end"]].forEach(([i, anchor]) =>
       s.append(shape("text", { x: X(i), y: B + 18, "font-size": 11, fill: DIMS, "text-anchor": anchor }, assetDay(days[i]))));
-    if (at != null) nowMark(s, X(at), Y(series.at(-1)[0][at]), "regular");
+    nowMark(s, X(at), Y(series.at(-1)[0][at]), "regular");
+    const spots = days.map((_, i) => X(i));
+    onTap(s, (x) => tap(nearest(spots, x)));
   };
   // 고른 날짜 점이 첫날이면 그림은 그리되 큰 값에 "기록 없음"을 쓴다.
   const figureOf = (c, v, unit, at) => {
@@ -141,21 +141,20 @@ export function assetCards(perf, index, times = {}) {
     const anchor = now ? [...ret.anchor, now.anchor] : ret.anchor, realized = now ? [...ret.realized, now.realized] : ret.realized;
     const target = now?.target != null ? [...ret.target, now.target] : ret.target;
     const gap = (values) => values.map((v, i) => v - anchor[i]);
-    draws.push((past) => {
-      const at = past ? days.filter((day) => day <= past.base_date).length - 1 : days.length - 1, first = at < 1;
-      const when = past ? settled(days[at]) : now ? stamp(times.live) : settled(days[at]);
+    const paint = () => {
+      const at = pin.day == null ? days.length - 1 : Math.max(0, days.filter((day) => day <= pin.day).length - 1), first = at < 1;
+      const when = at < days.length - 1 || !now ? settled(days[at]) : stamp(times.live);
       figureOf(cum, first ? null : realized[at], "%", when);
       figureOf(over, first ? null : realized[at] - anchor[at], "%p", when.cloneNode(true));
-      const mark = past ? at : null;
-      lines(cum, [[anchor, BASE, true], [target, color], [realized, NOW]], "%", false, days, mark ?? days.length - 1);
-      lines(over, [[gap(target), color], [gap(realized), NOW]], "%p", true, days, mark ?? days.length - 1);
-    });
+      const tap = (i) => { feelPress(); pin.day = i === days.length - 1 ? null : days[i]; paint(); };
+      lines(cum, [[anchor, BASE, true], [target, color], [realized, NOW]], "%", false, days, at, tap);
+      lines(over, [[gap(target), color], [gap(realized), NOW]], "%p", true, days, at, tap);
+    };
+    paint();
     cards.push(["누적 수익률", cum.box], ["초과 수익률", over.box]);
   }
   if (lever) cards.push(lever);
-  const show = (past) => draws.forEach((draw) => draw(past));
-  show(null);
-  return { cards, show };
+  return cards;
 }
 
 // 내 자산 페이지(`page`)를 그리는 함수를 돌려준다. 공개 화면 `asset.ts`가 Worker가 건넨 계좌 요약(`data`)마다 이 함수를 부른다.
@@ -163,10 +162,12 @@ export function assetPage(page) {
   const view = assetView(), remember = () => assetRemember(view);
   const chevron = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // 평가 금액의 가림을 벗겼는지(`bare`)는 미니 앱을 닫을 때까지만 기억하고 기기에는 적지 않으므로, 미니 앱을 열 때마다 보이는 채로 시작한다. 평가 금액을 누르면 가리고 다시 누르면 보인다.
-  let last = null, bare = true, chosen = null;
+  let last = null, bare = true;
   // 첫 절 내 투자는 보고 있는 리포트 지수의 종목(`sector`)만 모아 평가금 합계와 수익·수익률을 쓰고, 그 아래 그림 카드와 집행 신호등 카드를 둔다.
   // 둘째 절 상세 보유 종목은 그 종목들의 종목 줄을 쓰고, 그 아래 거래 내역 단추를 둔다.
   // 맨 아래 절 내 계좌는 원화·달러 주문 가능 현금을 그 통화로, 대기자금(SGOV)을 고른 단위로 쓴다. SGOV를 들고 있지 않으면 대기자금 줄을 두지 않는다.
+  // 그림 카드에서 고른 날짜는 화면을 닫을 때까지 기억해, 새 계좌 요약을 받아 다시 그려도 그 날짜로 그린다.
+  const pin = { day: null };
   const fill = (data) => {
     last = data;
     const index = key.split("-")[1], { rate, accounts } = data, unit = view.unit;
@@ -184,7 +185,7 @@ export function assetPage(page) {
       + `<button type="button" class="asset-trades">거래 내역${chevron}</button><h2>내 계좌</h2>` + assetRow("원화", "주문 가능", assetMoney(accounts.KRW.cash, "KRW")) + assetRow("달러", "주문 가능", assetMoney(accounts.USD.cash, "USD"))
       + (waiting ? item({ ...waiting, name: "대기자금" }, `${waiting.symbol} ${assetShares(waiting.quantity)}`) : "");
     roll(page.querySelector(".asset-sum b:not(.veiled)"), `${index}-sum-${unit}`);
-    const perf = data.performance?.sectors?.[index], { cards, show } = assetCards(perf, index, { live: data.live?.time || data.time, summary: data.time });
+    const perf = data.performance?.sectors?.[index], cards = assetCards(perf, index, { live: data.live?.time || data.time, summary: data.time }, pin);
     if (!cards.length) return page.querySelector(".asset-sum").insertAdjacentHTML("afterend", '<p class="status">그림 값이 아직 없다.</p>');
     const bar = document.createElement("div");
     bar.className = "tabs";
@@ -196,31 +197,6 @@ export function assetPage(page) {
     const pick = (i) => { [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j)); if (view.card !== i) { view.card = i; remember(); } };
     const box = slider(cards.map(([, card]) => [card]), page.querySelector(".asset-sum"), { start: Math.min(view.card, cards.length - 1), change: pick, name: "asset-cards", feel: true });
     box.prepend(bar);
-    // 그림 카드 묶음 아래에 리포트 그림 카드와 같은 기준 날짜 슬라이더를 둔다. 고를 수 있는 날짜는 되감기 자료의 판단 날짜 가운데
-    // 기준 가격 날짜가 집행 성과의 마지막 거래일을 넘지 않는 날이고, 마지막 날짜는 받은 값 그대로 그린다.
-    // 지난 날짜의 현재·목표 배율은 거래 내역의 그날 블록에서 읽고, 블록이 없으면 목표 배율을 그날 판단의 평균 배율로 쓴다.
-    // 고른 날짜는 화면을 닫을 때까지 기억해, 금액 단위를 바꾸거나 새 계좌 요약을 받아 다시 그려도 그 날짜로 그린다.
-    const blocks = data.trades?.sectors?.[index] || [], end = perf?.returns?.days?.at(-1);
-    rewindFrames(index).then((all) => {
-      if (!all || !box.isConnected) return;
-      const frames = all.filter((frame) => frame.chart && (!end || frame.base_date <= end)), latest = frames.at(-1)?.day;
-      const days = frames.filter((frame) => rewindOffset(frame.day, latest) >= 0).map((frame) => frame.day);
-      if (days.length < 2) return;
-      const past = (day) => {
-        if (day === latest) return null;
-        const frame = frames.find((f) => f.day === day), block = blocks.find((b) => b.date === day);
-        return { chart: frame.chart, base_date: frame.base_date, current: block?.current ?? null, target: block?.target ?? null };
-      };
-      // 슬라이더가 알린 날짜가 이미 그린 날짜면 다시 그리지 않는다. 슬라이더는 만들 때 처음 날짜를 한 번 알리므로, 새 계좌 요약으로 그린 최신 날짜의 굴림이 끊기지 않는다.
-      const at = days.indexOf(chosen);
-      let frame = 0, drawn = latest;
-      dial(box, latest, days, at < 0 ? days.length - 1 : at, (i) => {
-        chosen = days[i];
-        if (chosen === drawn) return;
-        drawn = chosen;
-        if (!frame) frame = requestAnimationFrame(() => { frame = 0; show(past(chosen)); });
-      });
-    });
   };
   page.addEventListener("click", (event) => {
     const unit = event.target.closest("[data-unit]");

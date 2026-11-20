@@ -30,15 +30,15 @@ function reportPage(body, listing, cards, history, given) {
   settleStart();
   const index = key.split("-")[1], entry = listing[key], isLatest = key === latest(listing, index);
   // `pend`는 가장 늦은 리포트의 판단 날짜 지점(`entry.point`)보다 늦은 실시간 값의 날짜 지점이다. 그 지점의 판단은 아직 올라오지 않았다.
-  // 설명 세 절(`noted`)은 화면을 그릴 때 받은 가장 늦은 판단의 `outlook.json`(`given`)으로 채우고, 날짜 슬라이드의 선택과 예측 단추(`aimed`)의 상태를 받지 않는다.
+  // 설명 세 절(`noted`)은 화면을 그릴 때 받은 가장 늦은 판단의 `outlook.json`(`given`)으로 채우고, 예측 단추(`aimed`)의 상태를 받지 않는다.
   // 그림 카드 묶음 아래에는 보고 있는 카드에 맞는 절 하나만 보인다(`NOTE_OF`). 주가와 예측 카드는 현재 상태, 일정 카드는 주요 분기와 예측, 권장 배율 카드는 종합 시나리오다.
-  let pend = null, rewind = null, noted = null, aimed = !!kept?.aim;
+  let pend = null, cardSet = null, noted = null, aimed = !!kept?.aim;
   // 예측 단추의 글자는 판단 배치의 단계(`stage`)로 정하고, 단계 판정은 여기서 하며 `outlook.ts`는 받은 글자와 상태만 그린다.
   // 단계는 가장 늦은 리포트를 보는 동안만 정한다. 실시간 값의 `progress`가 보는 리포트의 날짜(`entry.date`)보다 늦은 날짜에 이 지수의 단계를 적었으면 판단 배치가 도는 중이라 "예측 중 N%"(`running`)이고,
   // 그렇지 않은데 다음 날짜 지점의 값(`pend`)이 들어왔으면 배치가 시작하기 전이라 "예측 전"(`pre`)이다. 그 밖에는 "예측"(`done`)이다.
   // 진척률은 지금 단계의 누적 분에 그 단계에 머문 분을 다음 단계의 몫까지만 더해 마지막 누적 분으로 나눈 값이고, 줄지 않으며 99%에서 멈춘다.
   let stage = { state: "done", text: "예측" }, shown = 0, shownFor = null;
-  const view = { aim: aimed, pending: () => pend, stage: () => stage, watch: (on) => { aimed = on; } };
+  const view = { aim: aimed, stage: () => stage, watch: (on) => { aimed = on; } };
   if (entry) {
     document.title = `${entry.title} ${entry.day}`;
     const judge = (found) => {
@@ -65,11 +65,10 @@ function reportPage(body, listing, cards, history, given) {
     subscribe((found) => {
       const next = isLatest && entry.point
         ? Object.keys(found.points?.[index] || {}).filter((point) => point > entry.point).sort()[0] ?? null : null;
-      const moved = next !== pend;
       pend = next;
       const [now, waiting] = judge(found);
       stage = now;
-      if (moved) rewind?.refresh?.(); else rewind?.label?.();
+      cardSet?.label?.();
       if (!waiting || asking) return;
       asking = true;
       relist().then((fresh) => {
@@ -107,13 +106,13 @@ function reportPage(body, listing, cards, history, given) {
       if (drop) node.dataset.drop = "";
     }
     report.querySelectorAll("[data-drop]").forEach((node) => node.remove());
-    rewind = figures(date, cards, view);
-    if (rewind?.box) {
-      noted = notes(rewind.box);
+    cardSet = figures(cards, view);
+    if (cardSet?.box) {
+      noted = notes(cardSet.box);
       noted.set(given?.sections, given?.point ?? "");
-      rewind.follow((name) => noted.show(NOTE_OF[name]));
+      cardSet.follow((name) => noted.show(NOTE_OF[name]));
     }
-    indicators(date);
+    indicators();
     marketed.then(({ map }) => {
       if (signal.aborted) return;
       if (!map?.[index]?.stocks.length) return glance.remove();
