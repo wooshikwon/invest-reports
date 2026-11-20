@@ -81,6 +81,8 @@ SCREENS = {
     "asset": ("", f"?r={fixtures.BASE_KEY}", OTHER, "자산", 1, "base"),
     "stock": (f"?r={fixtures.BASE_KEY}&stock=NVDA", f"?r={fixtures.BASE_KEY}&stock=NVDA", f"?r={fixtures.BASE_KEY}&stock=NVDA", None, 1, "base"),
     "trades": (f"?r={fixtures.BASE_KEY}&trades=nasdaq", f"?r={fixtures.BASE_KEY}&trades=nasdaq", f"?r={fixtures.BASE_KEY}&trades=nasdaq", None, 1, "base"),
+    "news": (f"?r={fixtures.BASE_KEY}&news={fixtures.news()[0]['id']}", f"?r={fixtures.BASE_KEY}&news={fixtures.news()[0]['id']}",
+             f"?r={fixtures.BASE_KEY}&news={fixtures.news()[2]['id']}", None, 1, "base"),
     "nonowner": ("", f"?r={fixtures.BASE_KEY}", OTHER, None, 2, "base"),
 }
 SWAP = """(url) => new Promise((done) => {

@@ -271,9 +271,14 @@ h3 code.tone-both { background: #6f7984; }
 /* 같은 이슈를 다룬 앞 날짜 리포트가 있으면 이슈 그림과 이슈 해설 말머리 사이에 히스토리 말머리와 이슈 목록 상자 같은 연한 둥근 상자를 둔다. 상자에는 줄마다 날짜와
    그날 이슈 해설 소제목을 오늘부터 앞 날짜 순으로 쓰고, 줄 사이에 옅은 선을 긋는다. 보고 있는 날짜의 줄은 본문 색 굵은 글씨로, 나머지 줄은 흐린 글씨로 쓴다. 누르고 있는 줄은 3% 줄인다.
    최근 세 줄 아래의 앞선 줄은 접어 두고, 상자 아래 끝에 지수 색으로 칠하고 위로 갈수록 투명해지는 띠와 펼침 단추를 둔다. 펼치면 단추 글을 `이전 해설 숨기기`로
-   바꾸고 줄 목록의 높이를 다섯 줄까지 늘리며, 그보다 많은 줄(`long`)은 목록 안에서 스크롤해 본다. 줄이 다섯 이하면 목록을 스크롤 상자로 만들지 않는다. */
-.issue-page > div.history { margin-top: 8px; padding: 4px calc(18px - var(--inset)); border-radius: 16px; background: rgba(255, 255, 255, .035); overflow: hidden; }
+   바꾸고 줄 목록의 높이를 다섯 줄까지 늘리며, 그보다 많은 줄(`long`)은 목록 안에서 스크롤해 본다. 줄이 다섯 이하면 목록을 스크롤 상자로 만들지 않는다.
+   종목 상세의 주요뉴스 절도 같은 상자에 줄마다 기사 날짜와 제목을 최신순으로 쓰고, 최근 세 줄 아래의 줄은 접어 두었다가 펼침 단추로 펼친다.
+   주요뉴스의 제목은 이슈 문단 색으로, 날짜는 흐린 글씨로 쓴다. */
+:is(.issue-page, #report) > div.history { margin-top: 8px; padding: 4px calc(18px - var(--inset)); border-radius: 16px; background: rgba(255, 255, 255, .035); overflow: hidden; }
 .issue-page > div.history + h4 { margin-top: 28px; }
+#report > div.headlines { margin-top: 12px; }
+#report > div.headlines .entry { color: var(--hint); }
+#report > div.headlines .entry .day { color: var(--dim); }
 .history .rows { position: relative; overflow: hidden; }
 .history .rows.open.long { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
 .history .rows.open::-webkit-scrollbar { display: none; }
@@ -378,6 +383,24 @@ details.fold > .body > * { margin-top: 0; }
 .issue-page > :first-child { margin-top: 0; }
 .issue-box.inside .issue-list:not(.leaving) { display: none; }
 .issue-box.inside .issue-page.on { display: block; }
+/* 리포트 화면의 상세 이슈 해설 절 제목 자리에는 "상세 이슈 해설"과 "종목 뉴스" 두 탭을 둔다. 고른 탭 이름은 굵은 흰 글씨로, 고르지 않은 탭 이름은 회색 글씨로 쓴다.
+   탭 줄 아래에는 화면 폭 전체에 얇은 구분선을 긋고, 고른 탭 아래에는 탭 이름 폭만큼 끝이 둥근 굵은 흰 막대를 구분선 위에 둔다. 다른 탭을 고르면 막대가 그 탭 아래로 옮겨 간다.
+   절 제목의 물음표 단추는 상세 이슈 해설 탭 바로 뒤에 둔다.
+   종목 뉴스 탭의 기사 블록은 이슈 목록 상자와 같은 모양이고, 제목 끝에 종목 스티커를, 제목 아래에 머리 줄과 회차 시각을 쓴다. 썸네일은 첫 그림을 정사각에 맞춰 가운데와 위쪽 4분의 1 높이를 남기고 자른다.
+   목록 끝의 더 보기 단추는 기사 블록과 같은 연한 둥근 상자에 흐린 글씨와 아래 꺽쇠로 쓴다. */
+h2.tabbed { margin-bottom: 0; }
+h2.tabbed .tabline { position: relative; display: flex; align-items: center; gap: 18px; padding-bottom: 10px; }
+h2.tabbed .tabline::after { content: ""; position: absolute; bottom: 0; left: calc(50% - 50vw); right: calc(50% - 50vw); height: 1px; background: rgba(255, 255, 255, .08); }
+h2.tabbed .tabline > button:not(.help) { padding: 0; border: 0; background: none; color: var(--dim); font: inherit; font-weight: 600; cursor: pointer; }
+h2.tabbed .tabline > button.on { color: #fff; font-weight: 700; }
+h2.tabbed .tabline > .help { margin-left: -16px; }
+h2.tabbed .tabline .bar { position: absolute; z-index: 1; bottom: -1px; left: 0; height: 3px; border-radius: 1.5px; background: #fff; transition: transform var(--glide), width var(--glide); }
+h2.tabbed + .issue-asof { margin-top: 14px; }
+.news-box { margin-top: 12px; }
+.news-box .pick .thumb { object-position: 50% 25%; }
+.news-box .more { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; padding: 14px 0; border: 0; border-radius: 16px;
+                  background: rgba(255, 255, 255, .035); color: var(--dim); font: inherit; font-size: 13px; cursor: pointer; }
+.news-box .more[hidden] { display: none; }
 /* 이벤트 캘린더는 발표일마다 한 장이고, 위 날짜 띠의 날짜마다 별·날짜·요일을 테두리 없는 둥근 회색 상자에 담는다. 보고 있는 날짜는 상자를
    진하게, 글자를 흰색으로 쓰고, 나머지 날짜는 상자를 연하게, 글자를 흐린 회색으로 쓴다. 리포트 날짜의 상자에는 절 제목 색의 얇은 회색 테두리를 두르고, 누르고 있는 상자는 조금 줄인다.
    상자는 같은 폭이고 넘기기 장 사이만큼 띄운다.

@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { headlines } from "./news";
 import { backward } from "../shared/back";
 import { INDEX_NAME } from "../shared/chrome";
 import { marketed } from "../shared/data";
@@ -29,7 +30,8 @@ import { gallery, viewer } from "../shared/viewer";
 // 정규장 다음 단추를 고르면 값과 등락률을 그 체결가와 마지막 종가 대비 등락률로 바꿔 회색으로 쓰고, 그림에 그 체결가를 점선으로 잇는다.
 // 처음 고르는 세션은 주소의 `session`이고, 주소에 없으면 가장 늦은 세션이다.
 // 프리장 값이 리포트 날짜의 정규장 값이면 단추를 정규장 단추 하나로 줄이고, 그 체결가와 등락률을 등락률 색으로 쓰며 그림에 점선으로 잇는다.
-// 공시 상세 절은 탭 띠와 넘기기 묶음에 실적, 매출 구성, 최근 공시 카드를 담는다. 카드 이름 뒤 물음표 단추는 카드의 `help` 문단을 보여 주고, 그림 아래에 해설(`text`)을 둔다.
+// 첫 상자 아래에는 주요뉴스 절을 두고 그 종목을 단 종목 뉴스 기사의 제목을 쓴다(`pages/news.ts` `headlines`).
+// 공시 상세 절은 주요뉴스 절 아래에 두고, 탭 띠와 넘기기 묶음에 실적, 매출 구성, 최근 공시 카드를 담는다. 카드 이름 뒤 물음표 단추는 카드의 `help` 문단을 보여 주고, 그림 아래에 해설(`text`)을 둔다.
 // 재무 값이 없는 카드는 그림과 해설 대신 안내 문장(`empty`)을 쓴다. 카드가 없으면 공시 상세 절을 두지 않는다.
 // 종목 상세는 `mount`로 그리고 `unmount`로 걷는다. 종목 상세가 거는 손길과 받는 값은 모두 수명(`life`)에 묶여 있어 `unmount`가 따로 걷을 것은 없다.
 export const mount = (root, { data }) => stockDetail(data);
@@ -180,9 +182,10 @@ function stockDetail(data) {
   }
   if (data.about) page.append(Object.assign(document.createElement("h4"), { innerHTML: "<mark>기업 설명</mark>" }),
                              Object.assign(document.createElement("p"), { textContent: data.about }));
+  const news = headlines(box, data.symbol);
   if (!data.cards.length) return;
   const filings = Object.assign(document.createElement("h2"), { className: "issues inside", textContent: "공시 상세" });
-  box.after(filings);
+  news.after(filings);
   const slides = data.cards.map((c) => {
     const [card, name] = gauge(c);
     name.append(question(c.name, () => c.help.map((text) => Object.assign(document.createElement("p"), { textContent: text }))));

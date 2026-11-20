@@ -8,10 +8,11 @@
 `--data`(기본 `v0.8`)의 git 시점에서 읽는다. 두 쪽 모두 git 시점이면 `git archive`로 임시 폴더에 풀고 끝나면 지운다.
 `--split`이면 리포트 자료를 `fixtures.split`으로 build.py가 지금 쓰는 모양으로 바꿔, 이슈 과거 맥락과 요약 카드 값을 `history.json`·`cards.json`에서 받는 길로 연다.
 
-모든 요청은 가짜 주소 `https://app.local/`과 아래 세 곳만 답하고, 나머지 외부 요청은 abort한 뒤 실패로 끝낸다.
+모든 요청은 가짜 주소 `https://app.local/`과 아래 네 곳만 답하고, 나머지 외부 요청은 abort한 뒤 실패로 끝낸다.
 - `telegram.org`: 빈 스크립트. 텔레그램 WebApp은 init 스크립트가 흉내 낸다(사용자 ID는 1이나 2).
 - `invest-account`: initData의 사용자가 1이면 `fixtures.account()`의 지어낸 계좌 요약과 `/decide` 결정, 아니면 403. 그래서 사용자 1이 본인이고 사용자 2는 남이다.
 - `invest-live`: `GET /`은 세 값을 묶은 객체, `GET /{이름}`은 그 값 하나(`fixtures.live()`).
+- `invest-news`: 공개 읽기 네 경로를 `fixtures.news_answer()`의 SAMPLE 기사로 답한다. `Server.news_down`이 참이면 답하지 않고 abort한다.
 소유자 해시 상수 `ASSET_OWNER`를 가진 앱 코드(v0.8)는 서빙할 때 그 상수를 sha256("1")로 바꾼다.
 시각은 `fixtures.NOW`로 고정하고(`clock.set_fixed_time`), 화면은 390×1000, 배율 1, `reduced_motion`으로 연다.
 화면을 여는 절차는 화면 이름마다 함수 하나이고 `SCREENS`에 이름 순서대로 모인다. 차이를 받아들이는 선택자는 `compare.ALLOW`에 둔다.
@@ -38,6 +39,7 @@ REPO = Path(__file__).resolve().parents[2]
 APP = "https://app.local/app.html"
 LIVE_URL = "https://invest-live.wonwooshik.workers.dev"
 ASSET_URL = "https://invest-account.wonwooshik.workers.dev"
+NEWS_URL = fixtures.NEWS_URL
 OWNER_PATTERN = re.compile(r'(ASSET_OWNER\s*=\s*")[0-9a-f]{64}(")')
 OWNER_STAND_IN = hashlib.sha256(b"1").hexdigest()
 JSON_HEAD = {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json"}
@@ -78,6 +80,7 @@ class Server:
         self.code, self.data = code, data
         self.live = fixtures.live(data)
         self.escaped, self.errors, self.unpatched = [], [], 0
+        self.news_down = False
 
     def file(self, path: str, overlay: dict) -> bytes | None:
         if path in overlay:
@@ -121,6 +124,12 @@ class Server:
                 if decide:
                     return route.fulfill(status=200, body=json.dumps(fixtures.decide(account, request.post_data)), headers=JSON_HEAD)
                 return route.fulfill(status=200, body=json.dumps(account), headers=JSON_HEAD)
+            if url.startswith(NEWS_URL):
+                if self.news_down:
+                    return route.abort()
+                parsed = urlparse(url)
+                status, body, kind = fixtures.news_answer(self.data, unquote(parsed.path).strip("/"), parse_qs(parsed.query))
+                return route.fulfill(status=status, body=body, headers={"Access-Control-Allow-Origin": "*", "Content-Type": kind})
             self.escaped.append(urlparse(url).netloc)
             return route.abort()
         return serve

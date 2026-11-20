@@ -1,6 +1,6 @@
 """골든 캡처가 미니 앱에 돌려주는 지어낸 값.
 
-계좌 요약(`invest-account`)과 실시간 값(`invest-live`의 `premarket`·`afterhours`·`progress`·`index`)을 모두 여기서 만든다.
+계좌 요약(`invest-account`)과 실시간 값(`invest-live`의 `premarket`·`afterhours`·`progress`·`index`), 종목 뉴스 기사(`invest-news`)를 모두 여기서 만든다.
 `split`은 v0.8 리포트 자료를 build.py가 지금 쓰는 모양(이슈 과거 맥락과 요약 카드 값을 `history.json`·`cards.json`으로 뺀 모양)으로 바꾼다.
 계좌 값과 신호등 값은 손으로 지어낸 상수와 고정 시드의 난수로 만들고, 실시간 체결가는 `r/market.json` 지도의 공개 종가에 종목마다 고정한 비율을 곱해 만든다.
 실제 계좌, 토스, Worker, 소유자 ID는 읽지 않는다. 모든 시각은 `NOW` 하나에서 나온다.
@@ -173,6 +173,95 @@ def live(data_root: Path, moment: str = "regular") -> dict:
     index_values = {sym: {"price": price, "time": loaded, "loaded": loaded} for sym, price in ndx.items()}
     progress = {"date": POINT, "indexes": {index: {"step": 1, "since": f"{TODAY}T23:40:00+09:00"} for index in board}, "plan": [0, 20, 60, 120]}
     return {"premarket": premarket, "afterhours": afterhours, "progress": progress, "index": index_values}
+
+
+NEWS_URL = "https://invest-news.wonwooshik.workers.dev"
+# 종목 뉴스 SAMPLE 기사. (회차, 지수, 종목, 제목, 머리 줄)이고 값은 모두 지어낸 값이다. 회차 시작 시각은 `NOW`(11/19 23:45 KST) 앞이다.
+# 나스닥 기사는 3일 안에 여섯 편, 3~7일 사이에 세 편, 7일 밖에 여섯 편이고, NVDA를 단 기사는 열한 편이다. 바이오 기사는 3일 안에 세 편이다.
+NEWS = [
+    ("2026-11-19-18", "nasdaq", ["NVDA"], "엔비디아, 차세대 AI 칩 출하를 한 분기 앞당겨", "공급망 점검에서 첫 물량이 12월에 나간다고 확인…데이터센터 주문 늘어"),
+    ("2026-11-19-18", "nasdaq", ["AAPL", "MSFT"], "애플과 마이크로소프트, 기업용 AI 비서 제휴 넓혀", "두 회사가 업무용 서비스에서 같은 모델을 쓴다"),
+    ("2026-11-19-06", "nasdaq", ["NVDA"], "엔비디아 주가, 실적 발표 다음 날 3% 내려", "매출은 예상을 넘었지만 다음 분기 이익률 전망이 낮았다"),
+    ("2026-11-18-18", "nasdaq", ["TSLA"], "테슬라, 유럽 판매가 석 달 만에 늘어", "보급형 모델이 나온 뒤 10월 등록 대수가 앞 달보다 많았다"),
+    ("2026-11-18-06", "nasdaq", ["NVDA"], "엔비디아, 3분기 매출이 시장 예상을 웃돌아", "데이터센터 매출이 한 해 전보다 크게 늘었다"),
+    ("2026-11-17-06", "nasdaq", ["AMD"], "AMD, 데이터센터 칩 새 고객 확보", "클라우드 기업 한 곳이 내년 물량을 주문했다"),
+    ("2026-11-16-18", "nasdaq", ["NVDA"], "엔비디아 실적 발표를 앞두고 옵션 거래 늘어", "실적 발표 주간의 주가 변동 기대가 커졌다"),
+    ("2026-11-15-06", "nasdaq", ["META"], "메타, 내년 데이터센터 투자 계획 늘려", "AI 연산 설비에 쓰는 돈이 올해보다 많아진다"),
+    ("2026-11-13-06", "nasdaq", ["NVDA"], "엔비디아, 중동 데이터센터에 칩 공급 계약", "두 해에 걸쳐 칩을 나눠 공급한다"),
+    ("2026-11-12-06", "nasdaq", ["NVDA"], "엔비디아, 새 네트워크 장비 공개", "데이터센터 서버 사이 연결 속도를 두 배로 높였다"),
+    ("2026-11-10-18", "nasdaq", ["NVDA"], "엔비디아 공급사 주가가 함께 올라", "메모리와 기판 업체의 주문이 늘었다"),
+    ("2026-11-09-06", "nasdaq", ["NVDA"], "엔비디아, 자율주행 플랫폼 협력사 늘려", "완성차 업체 두 곳이 새로 합류했다"),
+    ("2026-11-06-18", "nasdaq", ["NVDA"], "엔비디아, 연례 개발자 행사 일정 공개", "행사는 내년 3월에 열린다"),
+    ("2026-11-05-06", "nasdaq", ["NVDA"], "엔비디아, 소프트웨어 구독 가격 올려", "기업용 AI 도구 구독료가 내년부터 오른다"),
+    ("2026-11-03-18", "nasdaq", ["NVDA"], "엔비디아, 유럽 연구소 세워", "현지 대학과 AI 연구를 함께 한다"),
+    ("2026-11-19-06", "biotech", ["AMGN"], "암젠, 비만 치료제 3상 결과 발표일 확정", "다음 달 학회에서 결과를 낸다"),
+    ("2026-11-18-18", "biotech", ["GILD", "VRTX"], "길리어드와 버텍스, 약가 협상 대상에 올라", "두 회사의 대표 약이 내년 협상 목록에 들었다"),
+    ("2026-11-17-18", "biotech", ["REGN"], "리제네론, 안과 치료제 처방 줄어", "경쟁 약이 나온 뒤 석 달째 처방이 줄었다"),
+]
+NEWS_CARD = {"issue": 1, "after": 2, "name": "차세대 칩 분기 출하 물량", "asof": "SAMPLE · 11/19", "value": "55", "unit": "만 개",
+             "figure": {"type": "bars", "items": [], "groups": [["2분기", [[30, "30만 개"]]], ["3분기", [[42, "42만 개"]]], ["4분기 예상", [[55, "55만 개"]]]],
+                        "min": 0, "max": 55},
+             "state": ["앞 분기보다 31% 많다", "#ffffff"], "caption": "4분기 예상 출하 물량은 회사가 밝힌 공급 계획에서 셈했다."}
+
+NEWS_TERM = {"id": "guidance", "term": "가이던스", "desc": "기업이 직접 내놓은 다음 분기나 한 해의 실적 전망치다."}
+
+
+def _news_body(title: str, rich: bool) -> str:
+    """SAMPLE 기사 본문 HTML. `rich`면 build.py `issue_articles`가 만드는 조각처럼 소제목 두 개, 이슈 그래프 카드 하나, 단어표 용어 하나를 둔다."""
+    lead = f"<p>{html.escape(title)}. 이 문단은 리드다. 회사가 밝힌 내용과 시장의 반응을 두 문장으로 쓴다.</p>"
+    if not rich:
+        return lead + "\n<p>둘째 문단은 사실의 배경을 쓴다. 숫자는 모두 지어낸 값이다.</p>"
+    card = html.escape(json.dumps(NEWS_CARD, ensure_ascii=False))
+    term = f'<button class="term" type="button" data-term="{NEWS_TERM["term"]}" data-desc="{NEWS_TERM["desc"]}">가이던스</button>'
+    return "\n".join([
+        lead,
+        "<p>회사는 4분기 출하 물량이 55만 개라고 밝혔다. 3분기 42만 개보다 31% 많다.</p>",
+        f'<figure class="issue-chart" data-card="{card}"></figure>',
+        "<p>출하를 앞당긴 이유는 공급사의 생산 수율이 오른 데 있다.</p>",
+        "<h5>공급사 수율이 오른 덕분</h5>",
+        "<p>기판 공급사는 지난달 새 공정의 수율이 목표를 넘었다고 밝혔다.</p>",
+        f"<p>회사는 다음 분기 매출 {term}를 바꾸지 않았다.</p>",
+        "<h5>주가는 장 마감 뒤 올라</h5>",
+        "<p>발표 뒤 시간외 거래에서 주가가 2% 올랐다.</p>",
+        "<p>시장은 다음 달 고객 행사에서 나올 주문 규모를 기다린다.</p>",
+    ])
+
+
+def news() -> list[dict]:
+    """SAMPLE 기사마다 뉴스 Worker `GET /articles/{ID}`가 돌려주는 값과 회차 시작 시각(`start`). ID는 `{회차}-{지수}-1-{회차 안 순번}`이다.
+    그림 이름은 `sample-{첫 종목}-{순번}.webp`이고, `news_answer`가 리포트 자료의 `r/stocks/{종목}-{순번}.webp`로 답한다. 첫 기사만 그림이 두 장이다."""
+    out, seen = [], {}
+    for n, (name, index, tickers, title, headline) in enumerate(NEWS):
+        seen[(name, index)] = seen.get((name, index), 0) + 1
+        time = f"{name[:10]}T{name[11:]}:00:00+09:00"
+        images = [{"url": f"{NEWS_URL}/images/sample-{tickers[0]}-{k}.webp", "caption": f"{title} 관련 SAMPLE 그림 {k}"} for k in range(1, 3 if n == 0 else 2)]
+        out.append({"id": f"{name}-{index}-1-{seen[(name, index)]}", "round": name, "time": time, "start": dt.datetime.fromisoformat(time),
+                    "indices": [index], "tickers": tickers, "title": title, "headline": headline, "html": _news_body(title, n == 0),
+                    "images": images, "charts": [NEWS_CARD] if n == 0 else [], "terms": [NEWS_TERM] if n == 0 else [], "sources": [{"url": f"https://example.com/news/{n}", "time": time}],
+                    "previous": None})
+    return out
+
+
+def news_answer(data_root: Path, path: str, params: dict) -> tuple[int, bytes, str]:
+    """뉴스 Worker 공개 읽기의 (응답 코드, 본문, 형식). 목록은 `worker/news.js`처럼 회차 시작 시각이 `NOW`부터 `days`일 안인 지수 기사나
+    그 종목을 단 최신 기사 `limit`편을 회차 시작 시각이 늦은 기사부터, 같으면 ID 순으로 준다."""
+    articles = sorted(news(), key=lambda a: (-a["start"].timestamp(), a["id"]))
+    reply = lambda value: (200, json.dumps(value, ensure_ascii=False).encode(), "application/json")
+    entry = lambda a: {"id": a["id"], "round": a["round"], "time": a["time"], "tickers": a["tickers"], "title": a["title"],
+                       "headline": a["headline"], "image": a["images"][0]["url"] if a["images"] else None}
+    if path == "list" and "index" in params:
+        since = NOW - dt.timedelta(days=int(params["days"][0]))
+        return reply({"articles": [entry(a) for a in articles if params["index"][0] in a["indices"] and a["start"] >= since]})
+    if path == "list" and "ticker" in params:
+        return reply({"articles": [entry(a) for a in articles if params["ticker"][0] in a["tickers"]][:int(params["limit"][0])]})
+    if path.startswith("articles/"):
+        found = next((a for a in articles if a["id"] == path[len("articles/"):]), None)
+        return reply({k: v for k, v in found.items() if k != "start"}) if found else (404, b"", "application/json")
+    image = re.fullmatch(r"images/sample-([A-Z.]+)-(\d+)\.webp", path)
+    source = data_root / "r" / "stocks" / f"{image.group(1)}-{image.group(2)}.webp" if image else None
+    if source and source.is_file():
+        return 200, source.read_bytes(), "image/webp"
+    return 404, b"", "application/json"
 
 
 HISTORY_RE = re.compile(r'\s*<template class="issue-history">(.*?)</template>\s*', re.DOTALL)

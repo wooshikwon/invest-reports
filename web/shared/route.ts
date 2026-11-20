@@ -1,4 +1,5 @@
 // @ts-nocheck
+import * as newsScreen from "../pages/news";
 import * as reportScreen from "../pages/report";
 import * as stockScreen from "../pages/stock";
 import * as tradesScreen from "../pages/trades";
@@ -15,6 +16,7 @@ export let query = new URLSearchParams(location.search);
 // 홈 화면 바로가기는 `start_param` 없이 미니 앱을 열므로, 키가 없으면 리포트를 받기 전에 `r/index.json`에서 키를 정한다.
 // 주소에 `issue`가 있으면 리포트 대신 그 번호의 이슈 하나를 보이는 이슈 화면을 그리고, `at`이 있으면 히스토리에서 그 날짜 항목을 고른다.
 // 주소에 `stock`이 있으면 이슈 화면과 같은 틀에 그 티커의 종목 상세를 그린다.
+// 주소에 `news`가 있으면 같은 틀에 그 ID의 종목 뉴스 기사를 그린다. `ticker`가 있으면 종목 상세에서 연 기사이고, 이전·다음 기사를 그 종목의 기사 목록에서 고른다.
 // 주소에 `trades`가 있거나 집행 알림의 단추가 `start_param`으로 `trades-{지수}`를 주면 같은 틀에 그 지수의 거래 내역 화면을 그린다.
 // 알림 단추로 연 화면은 그 지수의 최신 리포트 키를 `r`에, 지수를 `trades`에 적은 주소로 기록을 바꾼다.
 export const opened = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || "";
@@ -24,7 +26,7 @@ export const report = document.getElementById("report");
 // 미니 앱 안에서 다른 리포트로 옮기면 주소의 `r`을 바꿔 페이지를 다시 열므로 브라우저 기록이 하나씩 쌓인다. 기록마다 처음 연 리포트에서
 // 몇 번 옮겨 왔는지(`depth`)를 `history.state`에 적는다. 옮기기 직전에 다음 깊이를 `sessionStorage`에 두고, 새 페이지가 그 값을 읽어 자기 기록에 적는다.
 // 뒤로 가기로 돌아온 페이지는 자기 기록에 적힌 깊이를 그대로 쓴다. 지수 단추는 페이지를 다시 열지 않고 기록을 하나 더해 그 기록에 다음 깊이를 적는다.
-// 리포트 화면에서 옮겨 온 페이지는 앞 화면의 리포트 키(`from`)도 같은 방법으로 자기 기록에 적는다. 이슈 화면과 종목 상세에서 옮겨 왔으면 빈 글자를 적는다.
+// 리포트 화면과 종목 상세에서 옮겨 온 페이지는 앞 화면의 리포트 키(`from`)도 같은 방법으로 자기 기록에 적는다. 이슈 화면과 거래 내역 화면, 뉴스 상세에서 옮겨 왔으면 빈 글자를 적는다.
 export let depth = 0;
 export let from = "";
 export function initHistory() {
@@ -36,17 +38,19 @@ export function initHistory() {
 // 옮기기 직전의 화면 위치(`y`)도 자기 기록에 적는다. 브라우저는 리포트를 받아 그리기 전에 화면 위치를 되돌리려다 실패하므로, 되돌리기는 페이지가 맡는다.
   history.scrollRestoration = "manual";
 }
-// 이슈 화면(`issue`, `at`)과 종목 상세(`stock`, `session`), 거래 내역 화면(`trades`)은 `more`로 줄 때만 주소에 적고, 다른 리포트로 옮길 때는 지운다.
+// 이슈 화면(`issue`, `at`)과 종목 상세(`stock`, `session`), 거래 내역 화면(`trades`), 뉴스 상세(`news`, `ticker`)는 `more`로 줄 때만 주소에 적고, 다른 리포트로 옮길 때는 지운다.
 export const visit = (target, more = {}) => {
   history.replaceState({ ...history.state, y: scrollY }, "");
   sessionStorage.setItem("depth", depth + 1);
-  sessionStorage.setItem("from", query.get("issue") || query.get("stock") || trades ? "" : key);
+  sessionStorage.setItem("from", query.get("issue") || query.get("news") || trades ? "" : key);
   const params = new URLSearchParams(location.search);
   params.delete("issue");
   params.delete("at");
   params.delete("stock");
   params.delete("session");
   params.delete("trades");
+  params.delete("news");
+  params.delete("ticker");
   params.set("r", target);
   Object.entries(more).forEach(([name, value]) => params.set(name, value));
   location.search = params.toString();
@@ -98,7 +102,7 @@ export function present() {
     screen = null;
     leave();
     paint();
-    if (depth > 0 && !query.get("issue") && !symbol && !trades) backEdge();
+    if (depth > 0 && !query.get("issue") && !query.get("news") && !symbol && !trades) backEdge();
   };
   (/^\d{8}-[a-z]+$/.test(key) ? Promise.resolve(key) : listed.then((listing) => latest(listing, trades || "nasdaq"))).then((found) => {
     if (!found) throw new Error("no report");
@@ -108,6 +112,14 @@ export function present() {
       if (!query.get("trades")) history.replaceState(history.state, "", `?r=${key}&trades=${trades}`);
       backward(["trades"], ASSET);
       return mount(tradesScreen, { index: trades });
+    }
+    // 뉴스 상세는 리포트 대신 뉴스 Worker의 기사를 받아 그린다(`pages/news.ts`).
+    if (query.get("news")) {
+      return newsScreen.newsArticle(query.get("news")).then((data) => {
+        if (signal.aborted) return;
+        arrive();
+        mount(newsScreen, { data, ticker: query.get("ticker") || "" });
+      });
     }
     if (symbol) {
       arrive();
@@ -133,11 +145,11 @@ export function present() {
   }).catch(() => {
     if (signal.aborted) return;
     arrive();
-    fail(symbol ? "종목을 찾지 못했다." : "리포트를 찾지 못했다.");
+    fail(query.get("news") ? "기사를 찾지 못했다." : symbol ? "종목을 찾지 못했다." : "리포트를 찾지 못했다.");
   }).finally(() => landed());
 }
 export function initRoute() {
-  if (query.get("issue") || query.get("stock") || trades) document.documentElement.classList.add("issue");
+  if (query.get("issue") || query.get("stock") || query.get("news") || trades) document.documentElement.classList.add("issue");
 }
 export function initPopstate() {
   addEventListener("popstate", () => reshow(true));

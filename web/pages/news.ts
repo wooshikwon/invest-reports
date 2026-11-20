@@ -1,0 +1,281 @@
+// @ts-nocheck
+import { backward } from "../shared/back";
+import { marketed } from "../shared/data";
+import { issueChart } from "../shared/gauge";
+import { EASE, GLIDE, glide, motion } from "../shared/motion";
+import { key, life, report, visit } from "../shared/route";
+import { trail } from "../shared/sections";
+import { feelPress } from "../shared/telegram";
+import { gallery, viewer } from "../shared/viewer";
+// 종목 뉴스를 그린다. 기사는 종목 뉴스 배치가 뉴스 Worker(`NEWS_URL`, `worker/news.js`)에 올린 것이고, 앱은 공개 읽기 세 경로만 쓴다.
+// `GET /list?index={지수}&days={일수}`와 `GET /list?ticker={티커}&limit={편수}`는 기사마다 ID, 회차 시작 시각(`time`), 종목, 제목, 머리 줄, 첫 그림 주소(`image`)를 최신순으로 주고,
+// `GET /articles/{ID}`는 기사 한 편의 본문 HTML(`html`), 그림 주소와 사진 설명(`images`)을 더 준다. 본문 HTML은 build.py `issue_articles`가 만든 이슈 본문과 같은 조각이라
+// 본문 소제목(`h5`), 이슈 그래프 카드(`figure.issue-chart`), 단어표 용어 단추(`button.term`)가 들어 있다.
+// 리포트 화면의 상세 이슈 해설 절은 "상세 이슈 해설"과 "종목 뉴스" 두 탭을 두고(`newsTab`), 종목 상세는 공시 상세 위에 주요뉴스 절을 둔다(`headlines`).
+// 기사를 누르면 주소의 `news`에 기사 ID를 적어 뉴스 상세를 연다. 종목 상세에서 열면 `ticker`에 그 티커도 적는다.
+// Worker가 답하지 않으면 종목 뉴스 탭과 주요뉴스 절에 빈 상태 문구를 쓰고, 상세 이슈 해설 탭은 그대로 둔다.
+export const NEWS_URL = "https://invest-news.wonwooshik.workers.dev";
+const DAY = 864e5;
+// Worker를 기다리는 시간. 넘기면 답하지 않은 것으로 본다.
+const WAIT = 8e3;
+// 같은 주소는 한 문서에서 한 번만 받는다. 받지 못한 주소는 지워 다음에 다시 받는다.
+const asked = {};
+const ask = (path) => (asked[path] ||= fetch(`${NEWS_URL}${path}`, { signal: AbortSignal.timeout?.(WAIT) })
+  .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .catch((error) => { delete asked[path]; throw error; }));
+export const newsList = (query) => ask(`/list?${query}`).then((value) => value.articles);
+export const newsArticle = (id) => ask(`/articles/${encodeURIComponent(id)}`);
+// 종목 스티커에 쓰는 한글 이름. `r/market.json` 지도의 두 지수 종목 이름이고, 지도에 없는 종목은 티커를 그대로 쓴다.
+const names = () => marketed.then(({ map }) => Object.fromEntries(Object.values(map || {}).flatMap(({ stocks }) => stocks.map((stock) => [stock.symbol, stock.name]))));
+// 회차 시작 시각 "2026-11-19T18:00:00+09:00"을 "11/19 18:00"으로 쓴다. 시각은 서울 시각 그대로다.
+const clock = (time) => `${+time.slice(5, 7)}/${+time.slice(8, 10)} ${time.slice(11, 16)}`;
+const empty = (text) => Object.assign(document.createElement("p"), { className: "empty", textContent: text });
+// 기사 제목. 이슈 제목의 방향 표식처럼 제목 끝에 종목마다 한글 이름 스티커를 붙인다.
+const heading = (item, named) => {
+  const h3 = Object.assign(document.createElement("h3"), { textContent: item.title });
+  h3.append(...item.tickers.map((ticker) => Object.assign(document.createElement("code"), { className: "ticker", textContent: named[ticker] || ticker })));
+  trail(h3);
+  return h3;
+};
+
+// 리포트 화면의 상세 이슈 해설 절 제목을 "상세 이슈 해설 | 종목 뉴스" 탭 줄로 바꾼다. 절 제목의 물음표 단추는 상세 이슈 해설 탭 뒤에 둔다.
+// 상세 이슈 해설 탭은 분석 완료 시각과 이슈 목록을, 종목 뉴스 탭은 보고 있는 리포트 지수(`index`)의 종목 기사 목록을 보인다. 고른 탭 아래 막대는 다른 탭을 고르면 그 탭 아래로 옮겨 간다.
+// 기사 목록은 종목 뉴스 탭을 처음 고를 때 7일 치를 한 번 받아, 회차 시작 시각이 지금부터 3일 안인 기사를 먼저 보이고 "더 보기"를 누르면 7일 치를 모두 보인다.
+// 날짜 슬라이드로 지난 리포트를 열어도 지금 기준 최신 기사를 보인다. 고른 탭과 더 보기 여부는 `history.state`에 적어, 뉴스 상세에서 뒤로 돌아와도 그대로 연다.
+// 목록 블록은 이슈 목록 상자와 같은 모양으로 제목과 종목 스티커, 머리 줄, 회차 시각을 쓰고, 첫 그림을 오른쪽 썸네일로 정사각에 맞춰 잘라 보인다.
+export function newsTab(index) {
+  const { signal } = life;
+  const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "상세 이슈 해설");
+  if (!head) return;
+  const own = [];
+  for (let node = head.nextElementSibling; node && node.tagName !== "H2"; node = node.nextElementSibling) own.push(node);
+  const box = Object.assign(document.createElement("div"), { className: "news-box", hidden: true });
+  (own.at(-1) || head).after(box);
+  const tip = head.querySelector(":scope > .help");
+  const line = Object.assign(document.createElement("span"), { className: "tabline" });
+  const tabs = ["상세 이슈 해설", "종목 뉴스"].map((name, i) => {
+    const tab = Object.assign(document.createElement("button"), { type: "button", textContent: name });
+    tab.addEventListener("click", () => { if (i !== shown) { feelPress(); pick(i, true); } });
+    return tab;
+  });
+  const bar = Object.assign(document.createElement("i"), { className: "bar" });
+  line.append(tabs[0], ...(tip ? [tip] : []), tabs[1], bar);
+  head.replaceChildren(line);
+  head.classList.add("tabbed");
+  let shown = -1, filled = false, more = !!history.state?.more;
+  const pick = (i, move) => {
+    shown = i;
+    tabs.forEach((tab, j) => tab.classList.toggle("on", i === j));
+    if (!move) bar.style.transition = "none";
+    bar.style.width = `${tabs[i].offsetWidth}px`;
+    bar.style.transform = `translateX(${tabs[i].offsetLeft}px)`;
+    bar.offsetWidth;
+    bar.style.transition = "";
+    own.forEach((node) => { node.hidden = i === 1; });
+    box.hidden = i === 0;
+    history.replaceState({ ...history.state, tab: i ? "news" : "issues" }, "");
+    if (i && !filled) fill();
+  };
+  const fill = () => {
+    filled = true;
+    box.replaceChildren(Object.assign(document.createElement("p"), { className: "status", textContent: "종목 뉴스를 불러오는 중이다." }));
+    Promise.all([newsList(`index=${index}&days=7`), names()]).then(([items, named]) => {
+      if (signal.aborted) return;
+      if (!items.length) return box.replaceChildren(empty("최근 7일 동안 올라온 종목 뉴스가 없다."));
+      const since = Date.now() - 3 * DAY, recent = items.filter((item) => Date.parse(item.time) >= since);
+      const list = Object.assign(document.createElement("div"), { className: "issue-list" });
+      const button = Object.assign(document.createElement("button"), { type: "button", className: "more", textContent: "더 보기" });
+      button.insertAdjacentHTML("beforeend", '<svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+      const draw = () => {
+        const picked = more ? items : recent;
+        list.replaceChildren(...(picked.length ? picked.map((item) => block(item, named)) : [empty("최근 3일 동안 올라온 종목 뉴스가 없다.")]));
+        button.hidden = more || items.length === recent.length;
+      };
+      button.addEventListener("click", () => {
+        feelPress();
+        more = true;
+        history.replaceState({ ...history.state, more: true }, "");
+        draw();
+      });
+      draw();
+      box.replaceChildren(list, button);
+    }, () => {
+      if (signal.aborted) return;
+      filled = false;
+      box.replaceChildren(empty("종목 뉴스를 불러오지 못했다."));
+    });
+  };
+  const block = (item, named) => {
+    const node = Object.assign(document.createElement("div"), { className: "pick" });
+    const lead = node.appendChild(Object.assign(document.createElement("div"), { className: "lead" }));
+    const text = lead.appendChild(Object.assign(document.createElement("div"), { className: "text" }));
+    text.append(heading(item, named), Object.assign(document.createElement("p"), { textContent: item.headline }),
+                Object.assign(document.createElement("div"), { className: "age", textContent: clock(item.time) }));
+    if (item.image) node.append(Object.assign(document.createElement("img"), { className: "thumb", src: item.image, alt: "", loading: "lazy" }));
+    node.addEventListener("click", () => {
+      feelPress();
+      visit(key, { news: item.id });
+    });
+    return node;
+  };
+  pick(history.state?.tab === "news" ? 1 : 0, false);
+}
+
+// 종목 상세에서 `after` 바로 뒤에 주요뉴스 절을 두고, 절의 마지막 노드를 돌려준다. 절은 `symbol` 종목을 단 최신 기사 열 편까지 받아 처음에는 세 편의 날짜와 제목을 쓰고,
+// 상자 아래 끝의 펼침 단추를 누르면 열 편까지 펼친다. 모양은 이슈 화면의 히스토리 상자와 같다. 제목을 누르면 그 기사의 뉴스 상세를 연다.
+export function headlines(after, symbol) {
+  const { signal } = life;
+  const head = Object.assign(document.createElement("h2"), { className: "issues inside", textContent: "주요뉴스" });
+  const box = Object.assign(document.createElement("div"), { className: "headlines" });
+  after.after(head, box);
+  newsList(`ticker=${encodeURIComponent(symbol)}&limit=10`).then((items) => {
+    if (signal.aborted) return;
+    if (!items.length) return box.replaceChildren(empty("최근 올라온 기사가 없다."));
+    const rows = Object.assign(document.createElement("div"), { className: items.length > 3 ? "rows shut" : "rows" });
+    rows.append(...items.map((item) => {
+      const row = Object.assign(document.createElement("button"), { type: "button", className: "entry" });
+      row.append(Object.assign(document.createElement("span"), { className: "day", textContent: clock(item.time).split(" ")[0] }),
+                 Object.assign(document.createElement("span"), { className: "title", textContent: item.title }));
+      row.addEventListener("click", () => {
+        feelPress();
+        visit(key, { news: item.id, ticker: symbol });
+      });
+      return row;
+    }));
+    box.classList.add("history");
+    box.replaceChildren(rows);
+    if (items.length <= 3) return;
+    const unfold = box.appendChild(Object.assign(document.createElement("button"), { type: "button", className: "unfold" }));
+    const label = () => {
+      const opened = !rows.classList.contains("shut");
+      unfold.innerHTML = `${opened ? "이전 기사 숨기기" : `이전 기사 ${items.length - 3}개 펼치기`}<svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="${opened ? "M1 5l4-4 4 4" : "M1 1l4 4 4-4"}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    };
+    unfold.addEventListener("click", () => {
+      feelPress();
+      rows.classList.toggle("shut");
+      label();
+    });
+    label();
+  }, () => {
+    if (!signal.aborted) box.replaceChildren(empty("주요뉴스를 불러오지 못했다."));
+  });
+  return box;
+}
+
+// 뉴스 상세를 이슈 화면과 같은 틀에 그린다. `data`는 `GET /articles/{ID}`의 기사이고, `ticker`가 있으면 종목 상세에서 연 기사다.
+// 절 제목은 "종목 뉴스"이고, 위쪽 한 줄 띠에는 기사 제목을 쓴다. 기사는 이슈 문단처럼 제목과 종목 스티커, 그림 묶음, 이슈 해설 말머리와 머리 줄, 회차 시각, 본문을 차례로 쓰고,
+// 본문의 이슈 그래프 카드와 그림은 이슈 화면의 그리기 함수로 그린다.
+// 기사 끝에는 들어온 목록의 앞 기사와 다음 기사로 가는 칸을 이슈 문단 끝의 칸과 같은 모양으로 둔다. 목록은 종목 상세에서 열었으면 그 종목의 최신 기사 열 편이고,
+// 아니면 보고 있는 리포트 지수의 7일 치 기사다. 칸을 누르면 진동을 내고 그 기사를 받아, 이슈를 넘길 때처럼 옆으로 옮겨 보이고 주소의 기사 ID를 바꾼다.
+export const mount = (root, { data, ticker }) => newsDetail(data, ticker);
+export const unmount = () => {};
+function newsDetail(data, ticker) {
+  const { signal } = life;
+  const head = Object.assign(document.createElement("h2"), { className: "issues inside" });
+  head.append(Object.assign(document.createElement("span"), { textContent: "종목 뉴스" }));
+  const box = Object.assign(document.createElement("div"), { className: "issue-box inside" });
+  report.replaceChildren(head, box);
+  backward(["news", "ticker"], "이슈");
+  const bar = document.getElementById("issue-bar");
+  const rename = (title) => {
+    if (bar.textContent === title) return;
+    bar.textContent = title;
+    bar.animate([{ opacity: 0 }, { opacity: 1 }], { duration: motion.matches ? 0 : GLIDE });
+  };
+  let named = {}, items = [], busy = false, current = null;
+  const page = (article) => {
+    const node = Object.assign(document.createElement("div"), { className: "issue-page" });
+    node.append(heading(article, named));
+    if (article.images.length) {
+      const figure = node.appendChild(Object.assign(document.createElement("figure"), { className: "issue-image" }));
+      for (const { url, caption } of article.images) {
+        const photo = figure.appendChild(Object.assign(document.createElement("figure"), { className: "photo" }));
+        const frame = photo.appendChild(Object.assign(document.createElement("div"), { className: "frame" }));
+        frame.append(Object.assign(document.createElement("img"), { src: url, alt: "" }),
+                     Object.assign(document.createElement("span"), { className: "ai", textContent: "AI 생성 이미지" }));
+        if (caption) photo.append(Object.assign(document.createElement("figcaption"), { textContent: caption }));
+      }
+    }
+    const lead = node.appendChild(document.createElement("h4"));
+    lead.append(Object.assign(document.createElement("mark"), { textContent: "이슈 해설" }), article.headline);
+    node.append(Object.assign(document.createElement("p"), { className: "written", textContent: `${article.time.slice(0, 10).replaceAll("-", ".")} ${article.time.slice(11, 16)}` }));
+    node.insertAdjacentHTML("beforeend", article.html);
+    node.querySelectorAll("figure.issue-chart[data-card]").forEach(issueChart);
+    node.querySelectorAll("figure.issue-image").forEach(gallery);
+    node.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => viewer(img)));
+    return node;
+  };
+  // 목록의 `at`번째 기사를 보이는 문단 끝에 앞 기사와 다음 기사로 가는 칸을 붙인다. 칸에는 그 기사의 첫 그림과 제목을 쓰고, 목록에 그림이 하나도 없으면 꼬리표와 제목만 쓴다.
+  const neighbors = (node, at) => {
+    if (at < 0) return;
+    const framed = items.some((item) => item.image);
+    const cell = (k, side) => {
+      if (k < 0 || k >= items.length) return document.createElement("span");
+      const button = Object.assign(document.createElement("button"), { type: "button", className: side });
+      const tag = Object.assign(document.createElement("span"), { className: "tag", textContent: side === "prev" ? "‹ 이전" : "다음 ›" });
+      if (framed) {
+        const shot = button.appendChild(Object.assign(document.createElement("div"), { className: "shot" }));
+        if (items[k].image) shot.append(Object.assign(document.createElement("img"), { className: "thumb", src: items[k].image, alt: "", loading: "lazy" }));
+        shot.append(tag);
+      } else {
+        button.append(tag);
+      }
+      button.append(Object.assign(document.createElement("span"), { className: "title", textContent: items[k].title }));
+      button.addEventListener("click", () => {
+        if (busy) return;
+        feelPress();
+        step(at, k);
+      });
+      return button;
+    };
+    const nav = node.appendChild(Object.assign(document.createElement("nav"), { className: "step" }));
+    nav.append(cell(at - 1, "prev"), cell(at + 1, "next"));
+  };
+  // 보고 있는 `i`번째 기사에서 `k`번째 기사로 넘긴다. 다음 기사는 오른쪽에서, 앞 기사는 왼쪽에서 들어오고, 동시에 화면을 맨 위로 옮긴다.
+  const step = (i, k) => {
+    busy = true;
+    newsArticle(items[k].id).then((article) => {
+      if (signal.aborted) return;
+      const dir = k > i ? 1 : -1, out = current, shown = page(article);
+      neighbors(shown, k);
+      const params = new URLSearchParams(location.search);
+      params.set("news", article.id);
+      history.replaceState(history.state, "", `?${params}`);
+      box.style.minHeight = `${box.offsetHeight}px`;
+      box.classList.add("moving");
+      out.classList.add("leaving");
+      shown.classList.add("on");
+      box.append(shown);
+      current = shown;
+      rename(article.title);
+      const options = { duration: motion.matches ? 0 : GLIDE, easing: EASE };
+      out.animate([{ transform: "none" }, { transform: `translateX(calc(${-dir} * (100vw + 10px)))` }], options);
+      shown.animate([{ transform: `translateX(calc(${dir} * (100vw + 10px)))` }, { transform: "none" }], options);
+      const cancel = () => { stop(); removeEventListener("touchstart", cancel); removeEventListener("wheel", cancel); };
+      const stop = glide(scrollY, 0, (top) => scrollTo(0, top));
+      addEventListener("touchstart", cancel, { passive: true });
+      addEventListener("wheel", cancel, { passive: true });
+      setTimeout(() => {
+        out.remove();
+        box.classList.remove("moving");
+        box.style.minHeight = "";
+        removeEventListener("touchstart", cancel);
+        removeEventListener("wheel", cancel);
+        busy = false;
+      }, options.duration);
+    }, () => { busy = false; });
+  };
+  return names().then((found) => {
+    if (signal.aborted) return;
+    named = found;
+    current = page(data);
+    current.classList.add("on");
+    box.append(current);
+    rename(data.title);
+    newsList(ticker ? `ticker=${encodeURIComponent(ticker)}&limit=10` : `index=${key.split("-")[1]}&days=7`).then((found) => {
+      if (signal.aborted) return;
+      items = found;
+      neighbors(current, items.findIndex((item) => item.id === data.id));
+    }, () => {});
+  });
+}
