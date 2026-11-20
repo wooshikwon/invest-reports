@@ -7,6 +7,7 @@ import { key, life, report, visit } from "../shared/route";
 import { trail } from "../shared/sections";
 import { feelPress } from "../shared/telegram";
 import { gallery, viewer } from "../shared/viewer";
+import { NEWS_HELP, question } from "../shared/help";
 // 종목 뉴스를 그린다. 기사는 종목 뉴스 배치가 뉴스 Worker(`NEWS_URL`, `worker/news.js`)에 올린 것이고, 앱은 공개 읽기 세 경로만 쓴다.
 // `GET /list?index={지수}&days={일수}`와 `GET /list?ticker={티커}&limit={편수}`는 기사마다 ID, 회차 시작 시각(`time`), 종목, 제목, 머리 줄, 첫 그림 주소(`image`)를 최신순으로 주고,
 // `GET /articles/{ID}`는 기사 한 편의 본문 HTML(`html`), 그림 주소와 사진 설명(`images`)을 더 준다. 본문 HTML은 build.py `issue_articles`가 만든 이슈 본문과 같은 조각이라
@@ -50,6 +51,19 @@ export function newsTab(index) {
   const own = [];
   for (let node = head.nextElementSibling; node && node.tagName !== "H2"; node = node.nextElementSibling) own.push(node);
   const box = Object.assign(document.createElement("div"), { className: "news-box", hidden: true });
+  // 종목 뉴스 탭의 첫 줄. 왼쪽에 마지막 업데이트 시각을, 오른쪽에 설명 물음표 단추를 둔다.
+  const stamp = document.createElement("span");
+  const meta = Object.assign(document.createElement("p"), { className: "issue-asof meta" });
+  meta.append(stamp, question("종목 뉴스", () => {
+    const list = document.createElement("ul");
+    NEWS_HELP(index).forEach(([name, text]) => {
+      const li = list.appendChild(document.createElement("li"));
+      li.append(Object.assign(document.createElement("b"), { textContent: name }), text);
+    });
+    return [list];
+  }));
+  const body = document.createElement("div");
+  box.append(meta, body);
   (own.at(-1) || head).after(box);
   const tip = head.querySelector(":scope > .help");
   const line = Object.assign(document.createElement("span"), { className: "tabline" });
@@ -89,10 +103,10 @@ export function newsTab(index) {
   };
   const fill = () => {
     filled = true;
-    box.replaceChildren(Object.assign(document.createElement("p"), { className: "status", textContent: "종목 뉴스를 불러오는 중이다." }));
+    body.replaceChildren(Object.assign(document.createElement("p"), { className: "status", textContent: "종목 뉴스를 불러오는 중이다." }));
     newsList(`index=${index}&days=7`).then((items) => {
       if (signal.aborted) return;
-      if (!items.length) return box.replaceChildren(empty("최근 7일 동안 올라온 종목 뉴스가 없다."));
+      if (!items.length) return body.replaceChildren(empty("최근 7일 동안 올라온 종목 뉴스가 없다."));
       const since = Date.now() - 3 * DAY, recent = items.filter((item) => Date.parse(item.time) >= since);
       const list = Object.assign(document.createElement("div"), { className: "issue-list" });
       const button = Object.assign(document.createElement("button"), { type: "button", className: "more", textContent: "더 보기" });
@@ -110,11 +124,12 @@ export function newsTab(index) {
       });
       draw();
       const newest = items.reduce((a, b) => (Date.parse(b.time) > Date.parse(a.time) ? b : a)).time;
-      box.replaceChildren(Object.assign(document.createElement("p"), { className: "issue-asof meta", textContent: `마지막 업데이트 ${clock(newest)} KST` }), list, button);
+      stamp.textContent = `마지막 업데이트 ${clock(newest)} KST`;
+      body.replaceChildren(list, button);
     }, () => {
       if (signal.aborted) return;
       filled = false;
-      box.replaceChildren(empty("종목 뉴스를 불러오지 못했다."));
+      body.replaceChildren(empty("종목 뉴스를 불러오지 못했다."));
     });
   };
   const block = (item) => {
