@@ -7,6 +7,7 @@
 화면 시각은 `fixtures.NOW`(11/19 23:45 KST)다. 기대값은 SAMPLE 기사의 회차 시작 시각으로 손으로 셈한 제목이다.
 """
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -85,8 +86,10 @@ def main() -> int:
         shown = page.evaluate(LIST)
         check("나스닥 리포트는 3일 안의 나스닥 기사만 최신순으로 보인다", shown == NASDAQ_3, " | ".join(shown))
         check("나스닥 리포트에서 바이오 종목 기사가 보이지 않는다", not set(shown) & set(BIOTECH_7))
-        stickers = page.evaluate("() => [...document.querySelectorAll('.news-box .pick')].map((pick) => [...pick.querySelectorAll('h3 .tags code')].map((c) => c.textContent).join(','))")
-        check("기사 블록에 종목마다 한글 이름 스티커가 붙는다", stickers[:2] == ["엔비디아", "애플,마이크로소프트"], str(stickers[:3]))
+        parts = page.evaluate("() => ['.news-box .pick code', '.news-box .pick .thumb', '.news-box .pick .age'].map((q) => document.querySelectorAll(q).length)")
+        check("기사 블록에는 종목 스티커, 썸네일, 회차 시각이 없다", parts == [0, 0, 0], str(parts))
+        stamp = page.evaluate("() => document.querySelector('.news-box > .issue-asof')?.textContent")
+        check("종목 뉴스 탭 첫 줄에 가장 최근 회차의 마지막 업데이트 시각이 있다", bool(stamp and re.fullmatch(r"마지막 업데이트 \d{1,2}/\d{1,2} \d\d:\d\d KST", stamp)), str(stamp))
         page.evaluate("scrollTo(0, 0)")
         capture.settle(page, 300)
         page.screenshot(path=str(shots / "news-tab.png"))

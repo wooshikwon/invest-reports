@@ -30,23 +30,19 @@ const names = () => marketed.then(({ map }) => Object.fromEntries(Object.values(
 // 회차 시작 시각 "2026-11-19T18:00:00+09:00"을 "11/19 18:00"으로 쓴다. 시각은 서울 시각 그대로다.
 const clock = (time) => `${+time.slice(5, 7)}/${+time.slice(8, 10)} ${time.slice(11, 16)}`;
 const empty = (text) => Object.assign(document.createElement("p"), { className: "empty", textContent: text });
-// 기사 제목. 이슈 제목의 방향 표식처럼 제목 끝에 종목마다 한글 이름 스티커를 붙인다.
-// 목록 블록(`short`)은 종목이 셋 이상이면 앞의 두 종목 스티커 뒤에 "외 N개" 스티커 하나를 붙인다.
-const heading = (item, named, short = false) => {
+// 뉴스 상세의 기사 제목. 이슈 제목의 방향 표식처럼 제목 끝에 종목마다 한글 이름 스티커를 붙인다.
+const heading = (item, named) => {
   const h3 = Object.assign(document.createElement("h3"), { textContent: item.title });
-  const shown = short && item.tickers.length >= 3 ? item.tickers.slice(0, 2) : item.tickers;
-  const sticker = (text) => Object.assign(document.createElement("code"), { className: "ticker", textContent: text });
-  h3.append(...shown.map((ticker) => sticker(named[ticker] || ticker)));
-  if (shown.length < item.tickers.length) h3.append(sticker(`외 ${item.tickers.length - shown.length}개`));
+  h3.append(...item.tickers.map((ticker) => Object.assign(document.createElement("code"), { className: "ticker", textContent: named[ticker] || ticker })));
   trail(h3);
   return h3;
 };
 
-// 리포트 화면의 상세 이슈 해설 절 제목을 "상세 이슈 해설 | 종목 뉴스" 탭 줄로 바꾼다. 절 제목의 물음표 단추는 상세 이슈 해설 탭 뒤에 둔다.
-// 상세 이슈 해설 탭은 분석 완료 시각과 이슈 목록을, 종목 뉴스 탭은 보고 있는 리포트 지수(`index`)의 종목 기사 목록을 보인다. 고른 탭 아래 막대는 다른 탭을 고르면 그 탭 아래로 옮겨 간다.
+// 리포트 화면의 상세 이슈 해설 절 제목을 "상세 이슈 해설 | 종목 뉴스" 탭 줄로 바꾼다. 탭 줄 아래 줄에는 왼쪽에 "마지막 업데이트 MM/DD HH:MM KST"를,
+// 상세 이슈 해설 탭이면 오른쪽에 절 제목의 물음표 단추를 둔다. 상세 이슈 해설 탭은 분석 완료 시각과 이슈 목록을, 종목 뉴스 탭은 보고 있는 리포트 지수(`index`)의 종목 기사 목록을 보인다. 고른 탭 아래 막대는 다른 탭을 고르면 그 탭 아래로 옮겨 간다.
 // 기사 목록은 종목 뉴스 탭을 처음 고를 때 7일 치를 한 번 받아, 회차 시작 시각이 지금부터 3일 안인 기사를 먼저 보이고 "더 보기"를 누르면 7일 치를 모두 보인다.
 // 날짜 슬라이드로 지난 리포트를 열어도 지금 기준 최신 기사를 보인다. 고른 탭과 더 보기 여부는 `history.state`에 적어, 뉴스 상세에서 뒤로 돌아와도 그대로 연다.
-// 목록 블록은 이슈 목록 상자와 같은 모양으로 제목과 종목 스티커, 머리 줄, 회차 시각을 쓰고, 첫 그림을 오른쪽 썸네일로 정사각에 맞춰 잘라 보인다.
+// 종목 뉴스 탭의 마지막 업데이트 시각은 받은 기사 가운데 가장 최근 회차의 시작 시각이다. 목록 블록은 이슈 목록 상자와 같은 모양으로 제목과 머리 줄만 쓴다.
 export function newsTab(index) {
   const { signal } = life;
   const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "상세 이슈 해설");
@@ -63,7 +59,18 @@ export function newsTab(index) {
     return tab;
   });
   const bar = Object.assign(document.createElement("i"), { className: "bar" });
-  line.append(tabs[0], ...(tip ? [tip] : []), tabs[1], bar);
+  line.append(tabs[0], tabs[1], bar);
+  // 상세 이슈 해설 탭의 아래 줄. `section`이 만든 분석 완료 시각 줄에 물음표 단추를 오른쪽에 붙인다.
+  let asof = own.find((node) => node.classList?.contains("issue-asof"));
+  if (!asof && tip) {
+    asof = Object.assign(document.createElement("p"), { className: "issue-asof" });
+    head.after(asof);
+    own.unshift(asof);
+  }
+  if (asof) {
+    asof.classList.add("meta");
+    if (tip) asof.append(tip);
+  }
   head.replaceChildren(line);
   head.classList.add("tabbed");
   let shown = -1, filled = false, more = !!history.state?.more;
@@ -83,7 +90,7 @@ export function newsTab(index) {
   const fill = () => {
     filled = true;
     box.replaceChildren(Object.assign(document.createElement("p"), { className: "status", textContent: "종목 뉴스를 불러오는 중이다." }));
-    Promise.all([newsList(`index=${index}&days=7`), names()]).then(([items, named]) => {
+    newsList(`index=${index}&days=7`).then((items) => {
       if (signal.aborted) return;
       if (!items.length) return box.replaceChildren(empty("최근 7일 동안 올라온 종목 뉴스가 없다."));
       const since = Date.now() - 3 * DAY, recent = items.filter((item) => Date.parse(item.time) >= since);
@@ -92,7 +99,7 @@ export function newsTab(index) {
       button.insertAdjacentHTML("beforeend", '<svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>');
       const draw = () => {
         const picked = more ? items : recent;
-        list.replaceChildren(...(picked.length ? picked.map((item) => block(item, named)) : [empty("최근 3일 동안 올라온 종목 뉴스가 없다.")]));
+        list.replaceChildren(...(picked.length ? picked.map(block) : [empty("최근 3일 동안 올라온 종목 뉴스가 없다.")]));
         button.hidden = more || items.length === recent.length;
       };
       button.addEventListener("click", () => {
@@ -102,20 +109,19 @@ export function newsTab(index) {
         draw();
       });
       draw();
-      box.replaceChildren(list, button);
+      const newest = items.reduce((a, b) => (Date.parse(b.time) > Date.parse(a.time) ? b : a)).time;
+      box.replaceChildren(Object.assign(document.createElement("p"), { className: "issue-asof meta", textContent: `마지막 업데이트 ${clock(newest)} KST` }), list, button);
     }, () => {
       if (signal.aborted) return;
       filled = false;
       box.replaceChildren(empty("종목 뉴스를 불러오지 못했다."));
     });
   };
-  const block = (item, named) => {
+  const block = (item) => {
     const node = Object.assign(document.createElement("div"), { className: "pick" });
     const lead = node.appendChild(Object.assign(document.createElement("div"), { className: "lead" }));
     const text = lead.appendChild(Object.assign(document.createElement("div"), { className: "text" }));
-    text.append(heading(item, named, true), Object.assign(document.createElement("p"), { textContent: item.headline }),
-                Object.assign(document.createElement("div"), { className: "age", textContent: clock(item.time) }));
-    if (item.image) node.append(Object.assign(document.createElement("img"), { className: "thumb", src: item.image, alt: "", loading: "lazy" }));
+    text.append(Object.assign(document.createElement("h3"), { textContent: item.title }), Object.assign(document.createElement("p"), { textContent: item.headline }));
     node.addEventListener("click", () => {
       feelPress();
       visit(key, { news: item.id });

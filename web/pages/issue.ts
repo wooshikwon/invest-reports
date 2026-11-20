@@ -297,7 +297,7 @@ export function section(title, focus = 0, at = null, analyzed = "", pasts = null
   head.classList.add("issues");
   head.after(box);
   if (analyzed) box.before(Object.assign(document.createElement("p"), { className: "issue-asof",
-    textContent: `${analyzed.slice(5, 7)}/${analyzed.slice(8, 10)} ${analyzed.slice(11, 16)} KST` }));
+    textContent: `마지막 업데이트 ${analyzed.slice(5, 7)}/${analyzed.slice(8, 10)} ${analyzed.slice(11, 16)} KST` }));
   if (!focus) return;
   const shown = numbers.indexOf(focus);
   if (shown < 0) {
