@@ -31,9 +31,13 @@ const names = () => marketed.then(({ map }) => Object.fromEntries(Object.values(
 const clock = (time) => `${+time.slice(5, 7)}/${+time.slice(8, 10)} ${time.slice(11, 16)}`;
 const empty = (text) => Object.assign(document.createElement("p"), { className: "empty", textContent: text });
 // 기사 제목. 이슈 제목의 방향 표식처럼 제목 끝에 종목마다 한글 이름 스티커를 붙인다.
-const heading = (item, named) => {
+// 목록 블록(`short`)은 종목이 셋 이상이면 앞의 두 종목 스티커 뒤에 "외 N개" 스티커 하나를 붙인다.
+const heading = (item, named, short = false) => {
   const h3 = Object.assign(document.createElement("h3"), { textContent: item.title });
-  h3.append(...item.tickers.map((ticker) => Object.assign(document.createElement("code"), { className: "ticker", textContent: named[ticker] || ticker })));
+  const shown = short && item.tickers.length >= 3 ? item.tickers.slice(0, 2) : item.tickers;
+  const sticker = (text) => Object.assign(document.createElement("code"), { className: "ticker", textContent: text });
+  h3.append(...shown.map((ticker) => sticker(named[ticker] || ticker)));
+  if (shown.length < item.tickers.length) h3.append(sticker(`외 ${item.tickers.length - shown.length}개`));
   trail(h3);
   return h3;
 };
@@ -109,7 +113,7 @@ export function newsTab(index) {
     const node = Object.assign(document.createElement("div"), { className: "pick" });
     const lead = node.appendChild(Object.assign(document.createElement("div"), { className: "lead" }));
     const text = lead.appendChild(Object.assign(document.createElement("div"), { className: "text" }));
-    text.append(heading(item, named), Object.assign(document.createElement("p"), { textContent: item.headline }),
+    text.append(heading(item, named, true), Object.assign(document.createElement("p"), { textContent: item.headline }),
                 Object.assign(document.createElement("div"), { className: "age", textContent: clock(item.time) }));
     if (item.image) node.append(Object.assign(document.createElement("img"), { className: "thumb", src: item.image, alt: "", loading: "lazy" }));
     node.addEventListener("click", () => {
