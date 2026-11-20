@@ -87,7 +87,7 @@ def main() -> int:
         check("나스닥 리포트는 3일 안의 나스닥 기사만 최신순으로 보인다", shown == NASDAQ_3, " | ".join(shown))
         check("나스닥 리포트에서 바이오 종목 기사가 보이지 않는다", not set(shown) & set(BIOTECH_7))
         parts = page.evaluate("() => ['.news-box .pick', '.news-box .pick code', '.news-box .pick .thumb', '.news-box .pick .age'].map((q) => document.querySelectorAll(q).length)")
-        check("기사 블록마다 썸네일과 회차 시각이 있고 종목 스티커는 없다", parts[1] == 0 and parts[2] == parts[3] == parts[0] > 0, str(parts))
+        check("기사 블록마다 회차 시각이 있고 종목 스티커와 썸네일은 없다", parts[1] == parts[2] == 0 and parts[3] == parts[0] > 0, str(parts))
         stamp = page.evaluate("() => document.querySelector('.news-box > .issue-asof')?.textContent")
         check("종목 뉴스 탭 첫 줄에 가장 최근 회차의 마지막 업데이트 시각이 있다", bool(stamp and re.fullmatch(r"마지막 업데이트 \d{1,2}/\d{1,2} \d\d:\d\d KST", stamp)), str(stamp))
         page.evaluate("scrollTo(0, 0)")

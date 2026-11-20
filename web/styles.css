@@ -400,7 +400,6 @@ h2.tabbed .tabline > button.on { color: #fff; font-weight: 700; }
 h2.tabbed .tabline .bar { position: absolute; z-index: 1; bottom: -1px; left: 0; height: 3px; border-radius: 1.5px; background: #fff; transition: transform var(--glide), width var(--glide); }
 h2.tabbed + .issue-asof { margin-top: 14px; }
 .news-box { margin-top: 12px; }
-.news-box .pick .thumb { object-position: 50% 25%; }
 .news-box .pick :is(.lead, .text) { min-width: 0; }
 .news-box .more { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; padding: 14px 0; border: 0; border-radius: 16px;
                   background: rgba(255, 255, 255, .035); color: var(--dim); font: inherit; font-size: 13px; cursor: pointer; }
