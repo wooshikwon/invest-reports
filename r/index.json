@@ -3,12 +3,14 @@
   "title": "나스닥 리포트",
   "day": "2026-11-20 (금)",
   "written": "2026-11-20 11:43",
-  "updated": "2026-11-20 11:43",
+  "updated": "2026-11-20 12:12",
   "date": "2026-11-20",
   "index": "nasdaq",
+  "point": "2026-11-20",
   "parts": [
    "history",
-   "cards"
+   "cards",
+   "outlook"
   ],
   "moves": {
    "session": -2.21,
@@ -21,12 +23,14 @@
   "title": "바이오 리포트",
   "day": "2026-11-20 (금)",
   "written": "2026-11-20 11:27",
-  "updated": "2026-11-20 11:27",
+  "updated": "2026-11-20 12:12",
   "date": "2026-11-20",
   "index": "biotech",
+  "point": "2026-11-20",
   "parts": [
    "history",
-   "cards"
+   "cards",
+   "outlook"
   ],
   "moves": {
    "session": -1.01,
@@ -39,152 +43,195 @@
   "title": "나스닥 리포트",
   "day": "2026-11-19 (목)",
   "written": "2026-11-19 11:39",
-  "updated": "2026-11-19 15:29",
+  "updated": "2026-11-20 12:12",
   "date": "2026-11-19",
   "index": "nasdaq",
-  "moves": {
-   "session": -0.13,
-   "after": 1.33,
-   "close": 655.96,
-   "base": 664.72
-  },
+  "point": "2026-11-19",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "2": "20261120-nasdaq/3",
    "6": "20261120-nasdaq/4",
    "4": "20261120-nasdaq/5",
    "3": "20261120-nasdaq/6"
+  },
+  "moves": {
+   "session": -0.13,
+   "after": 1.33,
+   "close": 655.96,
+   "base": 664.72
   }
  },
  "20261119-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-19 (목)",
   "written": "2026-11-19 11:41",
-  "updated": "2026-11-19 15:29",
+  "updated": "2026-11-20 12:12",
   "date": "2026-11-19",
   "index": "biotech",
+  "point": "2026-11-19",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
+  "later": {
+   "3": "20261120-biotech/2",
+   "4": "20261120-biotech/3",
+   "2": "20261120-biotech/4"
+  },
   "moves": {
    "session": -0.67,
    "after": -0.04,
    "close": 201.96,
    "base": 201.88
-  },
-  "later": {
-   "3": "20261120-biotech/2",
-   "4": "20261120-biotech/3",
-   "2": "20261120-biotech/4"
   }
  },
  "20261118-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-11-18 (수)",
   "written": "2026-11-18 11:31",
-  "updated": "2026-11-18 12:53",
+  "updated": "2026-11-20 12:12",
   "date": "2026-11-18",
   "index": "nasdaq",
+  "point": "2026-11-18",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
+  "later": {
+   "2": "20261120-nasdaq/3",
+   "4": "20261120-nasdaq/6",
+   "5": "20261120-nasdaq/5"
+  },
   "moves": {
    "session": -0.72,
    "after": 1.38,
    "close": 656.83,
    "base": 665.91
-  },
-  "later": {
-   "2": "20261120-nasdaq/3",
-   "4": "20261120-nasdaq/6",
-   "5": "20261120-nasdaq/5"
   }
  },
  "20261118-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-18 (수)",
   "written": "2026-11-18 11:37",
-  "updated": "2026-11-18 12:53",
+  "updated": "2026-11-20 12:12",
   "date": "2026-11-18",
   "index": "biotech",
-  "moves": {
-   "session": -0.71,
-   "after": -0.04,
-   "close": 203.31,
-   "base": 203.24
-  },
+  "point": "2026-11-18",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "1": "20261119-biotech/1",
    "3": "20261120-biotech/4",
    "5": "20261120-biotech/2",
    "2": "20261120-biotech/3",
    "4": "20261119-biotech/5"
+  },
+  "moves": {
+   "session": -0.71,
+   "after": -0.04,
+   "close": 203.31,
+   "base": 203.24
   }
  },
  "20261117-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-11-17 (화)",
   "written": "2026-11-17 11:43",
+  "updated": "2026-11-20 12:12",
   "date": "2026-11-17",
   "index": "nasdaq",
+  "point": "2026-11-17",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
+  "later": {
+   "5": "20261120-nasdaq/5",
+   "7": "20261119-nasdaq/5"
+  },
   "moves": {
    "session": -2.67,
    "after": 0.11,
    "close": 661.58,
    "base": 662.32
-  },
-  "updated": "2026-11-17 11:43",
-  "later": {
-   "5": "20261120-nasdaq/5",
-   "7": "20261119-nasdaq/5"
   }
  },
  "20261117-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-17 (화)",
   "written": "2026-11-17 11:39",
+  "updated": "2026-11-20 12:12",
   "date": "2026-11-17",
   "index": "biotech",
-  "moves": {
-   "session": -1.98,
-   "after": 0.21,
-   "close": 204.78,
-   "base": 205.2
-  },
-  "updated": "2026-11-17 11:39",
+  "point": "2026-11-17",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "3": "20261119-biotech/1",
    "4": "20261120-biotech/3",
    "5": "20261120-biotech/4",
    "2": "20261119-biotech/5",
    "6": "20261118-biotech/6"
+  },
+  "moves": {
+   "session": -1.98,
+   "after": 0.21,
+   "close": 204.78,
+   "base": 205.2
   }
  },
  "20261116-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-11-16 (월)",
   "written": "2026-11-16 11:21",
+  "updated": "2026-11-20 12:12",
   "date": "2026-11-16",
   "index": "nasdaq",
-  "moves": {
-   "session": null,
-   "after": -0.83,
-   "close": 679.74,
-   "base": 674.12
-  },
+  "point": "2026-11-16",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "1": "20261117-nasdaq/6",
    "4": "20261120-nasdaq/5",
    "2": "20261120-nasdaq/1",
    "3": "20261120-nasdaq/6"
   },
-  "updated": "2026-11-16 11:21"
+  "moves": {
+   "session": null,
+   "after": -0.83,
+   "close": 679.74,
+   "base": 674.12
+  }
  },
  "20261116-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-16 (월)",
   "written": "2026-11-16 11:37",
+  "updated": "2026-11-20 12:11",
   "date": "2026-11-16",
   "index": "biotech",
-  "moves": {
-   "session": null,
-   "after": -0.38,
-   "close": 208.92,
-   "base": 208.12
-  },
+  "point": "2026-11-16",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "2": "20261119-biotech/1",
    "1": "20261119-biotech/5",
@@ -192,20 +239,26 @@
    "3": "20261120-biotech/4",
    "6": "20261118-biotech/6"
   },
-  "updated": "2026-11-16 11:37"
+  "moves": {
+   "session": null,
+   "after": -0.38,
+   "close": 208.92,
+   "base": 208.12
+  }
  },
  "20261114-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-11-14 (토)",
   "written": "2026-11-14 11:38",
+  "updated": "2026-11-20 12:11",
   "date": "2026-11-14",
   "index": "nasdaq",
-  "moves": {
-   "session": -1.22,
-   "after": -0.84,
-   "close": 679.74,
-   "base": 674.06
-  },
+  "point": "2026-11-16",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "1": "20261117-nasdaq/6",
    "2": "20261120-nasdaq/1",
@@ -213,20 +266,26 @@
    "5": "20261120-nasdaq/5",
    "3": "20261118-nasdaq/3"
   },
-  "updated": "2026-11-14 11:38"
+  "moves": {
+   "session": -1.22,
+   "after": -0.84,
+   "close": 679.74,
+   "base": 674.06
+  }
  },
  "20261114-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-14 (토)",
   "written": "2026-11-14 11:23",
+  "updated": "2026-11-20 12:11",
   "date": "2026-11-14",
   "index": "biotech",
-  "moves": {
-   "session": -0.5,
-   "after": -0.38,
-   "close": 208.92,
-   "base": 208.12
-  },
+  "point": "2026-11-16",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "1": "20261119-biotech/5",
    "2": "20261119-biotech/1",
@@ -234,20 +293,26 @@
    "3": "20261120-biotech/3",
    "5": "20261120-biotech/2"
   },
-  "updated": "2026-11-14 11:23"
+  "moves": {
+   "session": -0.5,
+   "after": -0.38,
+   "close": 208.92,
+   "base": 208.12
+  }
  },
  "20261113-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-11-13 (금)",
   "written": "2026-11-13 11:24",
+  "updated": "2026-11-20 12:11",
   "date": "2026-11-13",
   "index": "nasdaq",
-  "moves": {
-   "session": -0.3,
-   "after": 0.4,
-   "close": 688.15,
-   "base": 690.88
-  },
+  "point": "2026-11-13",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "1": "20261117-nasdaq/6",
    "2": "20261120-nasdaq/1",
@@ -255,20 +320,26 @@
    "5": "20261120-nasdaq/6",
    "3": "20261120-nasdaq/5"
   },
-  "updated": "2026-11-13 11:24"
+  "moves": {
+   "session": -0.3,
+   "after": 0.4,
+   "close": 688.15,
+   "base": 690.88
+  }
  },
  "20261113-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-13 (금)",
   "written": "2026-11-13 11:13",
+  "updated": "2026-11-20 12:11",
   "date": "2026-11-13",
   "index": "biotech",
-  "moves": {
-   "session": -2.3,
-   "after": 0.09,
-   "close": 209.97,
-   "base": 210.16
-  },
+  "point": "2026-11-13",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "1": "20261119-biotech/5",
    "3": "20261120-biotech/2",
@@ -276,98 +347,128 @@
    "2": "20261120-biotech/4",
    "5": "20261120-biotech/5"
   },
-  "updated": "2026-11-13 11:13"
+  "moves": {
+   "session": -2.3,
+   "after": 0.09,
+   "close": 209.97,
+   "base": 210.16
+  }
  },
  "20261112-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-11-12 (목)",
   "written": "2026-11-12 11:50",
+  "updated": "2026-11-20 12:11",
   "date": "2026-11-12",
   "index": "nasdaq",
-  "moves": {
-   "session": 2.28,
-   "after": -0.92,
-   "close": 690.22,
-   "base": 683.86
-  },
+  "point": "2026-11-12",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "2": "20261117-nasdaq/1",
    "1": "20261120-nasdaq/1",
    "3": "20261120-nasdaq/5",
    "5": "20261118-nasdaq/3"
   },
-  "updated": "2026-11-12 11:50"
+  "moves": {
+   "session": 2.28,
+   "after": -0.92,
+   "close": 690.22,
+   "base": 683.86
+  }
  },
  "20261112-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-12 (목)",
   "written": "2026-11-12 11:44",
+  "updated": "2026-11-20 12:11",
   "date": "2026-11-12",
   "index": "biotech",
-  "moves": {
-   "session": 0.45,
-   "after": 0.08,
-   "close": 214.91,
-   "base": 215.09
-  },
+  "point": "2026-11-12",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "1": "20261119-biotech/5",
    "2": "20261120-biotech/4",
    "4": "20261120-biotech/3"
   },
-  "updated": "2026-11-12 11:44"
+  "moves": {
+   "session": 0.45,
+   "after": 0.08,
+   "close": 214.91,
+   "base": 215.09
+  }
  },
  "20261111-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-11-11 (수)",
   "written": "2026-11-11 11:44",
+  "updated": "2026-11-20 12:11",
   "date": "2026-11-11",
   "index": "nasdaq",
-  "moves": {
-   "session": -0.6,
-   "after": 0.75,
-   "close": 674.81,
-   "base": 679.9
-  },
+  "point": "2026-11-11",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "1": "20261120-nasdaq/1",
    "3": "20261117-nasdaq/1",
    "2": "20261120-nasdaq/5",
    "5": "20261118-nasdaq/3"
   },
-  "updated": "2026-11-11 11:44"
+  "moves": {
+   "session": -0.6,
+   "after": 0.75,
+   "close": 674.81,
+   "base": 679.9
+  }
  },
  "20261111-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-11 (수)",
   "written": "2026-11-11 11:56",
+  "updated": "2026-11-20 12:11",
   "date": "2026-11-11",
   "index": "biotech",
-  "moves": {
-   "session": -0.86,
-   "after": 0.0,
-   "close": 213.95,
-   "base": 213.95
-  },
+  "point": "2026-11-11",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "1": "20261119-biotech/5",
    "2": "20261120-biotech/4",
    "4": "20261118-biotech/6"
   },
-  "updated": "2026-11-11 11:56"
+  "moves": {
+   "session": -0.86,
+   "after": 0.0,
+   "close": 213.95,
+   "base": 213.95
+  }
  },
  "20261110-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-11-10 (화)",
   "written": "2026-11-10 11:57",
+  "updated": "2026-11-20 12:11",
   "date": "2026-11-10",
   "index": "nasdaq",
-  "moves": {
-   "session": 3.4,
-   "after": -0.14,
-   "close": 678.87,
-   "base": 677.93
-  },
+  "point": "2026-11-10",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "2": "20261120-nasdaq/1",
    "1": "20261120-nasdaq/5",
@@ -375,20 +476,26 @@
    "3": "20261112-nasdaq/4",
    "5": "20261120-nasdaq/6"
   },
-  "updated": "2026-11-10 11:57"
+  "moves": {
+   "session": 3.4,
+   "after": -0.14,
+   "close": 678.87,
+   "base": 677.93
+  }
  },
  "20261110-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-10 (화)",
   "written": "2026-11-10 11:55",
+  "updated": "2026-11-20 12:11",
   "date": "2026-11-10",
   "index": "biotech",
-  "moves": {
-   "session": 2.73,
-   "after": -0.5,
-   "close": 215.8,
-   "base": 214.73
-  },
+  "point": "2026-11-10",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "4": "20261119-biotech/5",
    "2": "20261120-biotech/4",
@@ -396,97 +503,127 @@
    "3": "20261119-biotech/1",
    "5": "20261120-biotech/2"
   },
-  "updated": "2026-11-10 11:55"
+  "moves": {
+   "session": 2.73,
+   "after": -0.5,
+   "close": 215.8,
+   "base": 214.73
+  }
  },
  "20261109-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-11-09 (월)",
   "written": "2026-11-09 11:45",
+  "updated": "2026-11-20 12:10",
   "date": "2026-11-09",
   "index": "nasdaq",
-  "moves": {
-   "session": null,
-   "after": 0.21,
-   "close": 656.54,
-   "base": 657.94
-  },
+  "point": "2026-11-09",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "3": "20261120-nasdaq/5",
    "1": "20261120-nasdaq/1",
    "2": "20261120-nasdaq/6"
   },
-  "updated": "2026-11-09 11:45"
+  "moves": {
+   "session": null,
+   "after": 0.21,
+   "close": 656.54,
+   "base": 657.94
+  }
  },
  "20261109-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-09 (월)",
   "written": "2026-11-09 11:38",
+  "updated": "2026-11-20 12:10",
   "date": "2026-11-09",
   "index": "biotech",
+  "point": "2026-11-09",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
+  "later": {
+   "2": "20261118-biotech/6",
+   "5": "20261120-biotech/2"
+  },
   "moves": {
    "session": null,
    "after": 0.64,
    "close": 210.06,
    "base": 211.41
-  },
-  "later": {
-   "2": "20261118-biotech/6",
-   "5": "20261120-biotech/2"
-  },
-  "updated": "2026-11-09 11:38"
+  }
  },
  "20261107-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-11-07 (토)",
   "written": "2026-11-07 12:11",
+  "updated": "2026-11-20 12:10",
   "date": "2026-11-07",
   "index": "nasdaq",
-  "moves": {
-   "session": 1.35,
-   "after": 0.2,
-   "close": 656.54,
-   "base": 657.88
-  },
+  "point": "2026-11-09",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "2": "20261120-nasdaq/1",
    "1": "20261120-nasdaq/6",
    "3": "20261120-nasdaq/5",
    "5": "20261120-nasdaq/2"
   },
-  "updated": "2026-11-07 12:11"
+  "moves": {
+   "session": 1.35,
+   "after": 0.2,
+   "close": 656.54,
+   "base": 657.88
+  }
  },
  "20261107-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-07 (토)",
   "written": "2026-11-07 11:51",
+  "updated": "2026-11-20 12:10",
   "date": "2026-11-07",
   "index": "biotech",
-  "moves": {
-   "session": 2.2,
-   "after": 0.64,
-   "close": 210.06,
-   "base": 211.41
-  },
+  "point": "2026-11-09",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "3": "20261120-biotech/2",
    "2": "20261120-biotech/4",
    "1": "20261120-biotech/1",
    "5": "20261119-biotech/5"
   },
-  "updated": "2026-11-07 11:51"
+  "moves": {
+   "session": 2.2,
+   "after": 0.64,
+   "close": 210.06,
+   "base": 211.41
+  }
  },
  "20261106-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-11-06 (금)",
   "written": "2026-11-06 11:58",
+  "updated": "2026-11-20 12:10",
   "date": "2026-11-06",
   "index": "nasdaq",
-  "moves": {
-   "session": -6.36,
-   "after": 0.52,
-   "close": 647.78,
-   "base": 651.15
-  },
+  "point": "2026-11-06",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "2": "20261120-nasdaq/6",
    "1": "20261120-nasdaq/1",
@@ -494,20 +631,26 @@
    "3": "20261112-nasdaq/4",
    "4": "20261120-nasdaq/5"
   },
-  "updated": "2026-11-06 11:58"
+  "moves": {
+   "session": -6.36,
+   "after": 0.52,
+   "close": 647.78,
+   "base": 651.15
+  }
  },
  "20261106-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-06 (금)",
   "written": "2026-11-06 11:51",
+  "updated": "2026-11-20 12:10",
   "date": "2026-11-06",
   "index": "biotech",
-  "moves": {
-   "session": -4.95,
-   "after": -0.99,
-   "close": 205.53,
-   "base": 203.51
-  },
+  "point": "2026-11-06",
+  "parts": [
+   "history",
+   "cards",
+   "outlook"
+  ],
   "later": {
    "1": "20261120-biotech/1",
    "2": "20261120-biotech/4",
@@ -515,20 +658,25 @@
    "5": "20261120-biotech/2",
    "4": "20261120-biotech/5"
   },
-  "updated": "2026-11-06 11:51"
+  "moves": {
+   "session": -4.95,
+   "after": -0.99,
+   "close": 205.53,
+   "base": 203.51
+  }
  },
  "20261105-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-11-05 (목)",
   "written": "2026-11-05 11:34",
+  "updated": "2026-11-20 12:10",
   "date": "2026-11-05",
   "index": "nasdaq",
-  "moves": {
-   "session": 0.91,
-   "after": -1.07,
-   "close": 691.75,
-   "base": 684.33
-  },
+  "point": "2026-11-05",
+  "parts": [
+   "history",
+   "cards"
+  ],
   "later": {
    "1": "20261120-nasdaq/1",
    "3": "20261120-nasdaq/6",
@@ -536,40 +684,49 @@
    "5": "20261120-nasdaq/5",
    "4": "20261120-nasdaq/3"
   },
-  "updated": "2026-11-05 11:34"
+  "moves": {
+   "session": 0.91,
+   "after": -1.07,
+   "close": 691.75,
+   "base": 684.33
+  }
  },
  "20261105-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-05 (목)",
   "written": "2026-11-05 11:41",
+  "updated": "2026-11-20 12:10",
   "date": "2026-11-05",
   "index": "biotech",
-  "moves": {
-   "session": 2.71,
-   "after": -0.05,
-   "close": 216.23,
-   "base": 216.12
-  },
+  "point": "2026-11-05",
+  "parts": [
+   "history",
+   "cards"
+  ],
   "later": {
    "3": "20261120-biotech/1",
    "1": "20261120-biotech/4",
    "4": "20261118-biotech/6",
    "5": "20261120-biotech/2"
   },
-  "updated": "2026-11-05 11:41"
+  "moves": {
+   "session": 2.71,
+   "after": -0.05,
+   "close": 216.23,
+   "base": 216.12
+  }
  },
  "20261104-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-11-04 (수)",
   "written": "2026-11-04 11:34",
+  "updated": "2026-11-20 12:10",
   "date": "2026-11-04",
   "index": "nasdaq",
-  "moves": {
-   "session": 0.68,
-   "after": -0.53,
-   "close": 685.5,
-   "base": 681.84
-  },
+  "point": "2026-11-04",
+  "parts": [
+   "cards"
+  ],
   "later": {
    "3": "20261120-nasdaq/1",
    "4": "20261120-nasdaq/2",
@@ -577,418 +734,527 @@
    "2": "20261120-nasdaq/3",
    "5": "20261118-nasdaq/3"
   },
-  "updated": "2026-11-04 11:34"
+  "moves": {
+   "session": 0.68,
+   "after": -0.53,
+   "close": 685.5,
+   "base": 681.84
+  }
  },
  "20261104-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-04 (수)",
   "written": "2026-11-04 11:39",
+  "updated": "2026-11-20 12:10",
   "date": "2026-11-04",
   "index": "biotech",
-  "moves": {
-   "session": 0.76,
-   "after": 0.05,
-   "close": 210.52,
-   "base": 210.62
-  },
+  "point": "2026-11-04",
+  "parts": [
+   "cards"
+  ],
   "later": {
    "1": "20261120-biotech/4",
    "3": "20261120-biotech/1",
    "2": "20261118-biotech/6",
    "4": "20261120-biotech/2"
   },
-  "updated": "2026-11-04 11:39"
+  "moves": {
+   "session": 0.76,
+   "after": 0.05,
+   "close": 210.52,
+   "base": 210.62
+  }
  },
  "20261103-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-11-03 (화)",
   "written": "2026-11-03 11:33",
+  "updated": "2026-11-20 12:09",
   "date": "2026-11-03",
   "index": "nasdaq",
+  "point": "2026-11-03",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": -1.39,
    "after": 0.36,
    "close": 680.86,
    "base": 683.29
-  },
-  "updated": "2026-11-03 11:33"
+  }
  },
  "20261103-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-03 (화)",
   "written": "2026-11-03 11:35",
+  "updated": "2026-11-20 12:09",
   "date": "2026-11-03",
   "index": "biotech",
+  "point": "2026-11-03",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": -1.47,
    "after": -0.09,
    "close": 208.92,
    "base": 208.73
-  },
-  "updated": "2026-11-03 11:35"
+  }
  },
  "20261102-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-11-02 (월)",
   "written": "2026-11-02 11:28",
+  "updated": "2026-11-20 12:09",
   "date": "2026-11-02",
   "index": "nasdaq",
+  "point": "2026-11-02",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": null,
    "after": 0.33,
    "close": 690.47,
    "base": 692.72
-  },
-  "updated": "2026-11-02 11:28"
+  }
  },
  "20261102-biotech": {
   "title": "바이오 리포트",
   "day": "2026-11-02 (월)",
   "written": "2026-11-02 11:28",
+  "updated": "2026-11-20 12:09",
   "date": "2026-11-02",
   "index": "biotech",
+  "point": "2026-11-02",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": null,
    "after": 0.18,
    "close": 212.05,
    "base": 212.44
-  },
-  "updated": "2026-11-02 11:28"
+  }
  },
  "20261031-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-10-31 (토요일)",
   "written": "2026-10-31 11:03",
+  "updated": "2026-11-20 12:09",
   "date": "2026-10-31",
   "index": "nasdaq",
+  "point": "2026-11-02",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": -3.46,
    "after": 0.32,
    "close": 690.47,
    "base": 692.67
-  },
-  "updated": "2026-10-31 11:03"
+  }
  },
  "20261031-biotech": {
   "title": "바이오 리포트",
   "day": "2026-10-31 (토)",
   "written": "2026-10-31 11:06",
+  "updated": "2026-11-20 12:09",
   "date": "2026-10-31",
   "index": "biotech",
+  "point": "2026-11-02",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": 0.02,
    "after": 0.18,
    "close": 212.05,
    "base": 212.43
-  },
-  "updated": "2026-10-31 11:06"
+  }
  },
  "20261030-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-10-30 (금)",
   "written": "2026-10-30 11:06",
+  "updated": "2026-11-20 12:09",
   "date": "2026-10-30",
   "index": "nasdaq",
+  "point": "2026-10-30",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": -1.38,
    "after": -1.54,
    "close": 715.23,
    "base": 704.19
-  },
-  "updated": "2026-10-30 11:06"
+  }
  },
  "20261030-biotech": {
   "title": "바이오 리포트",
   "day": "2026-10-30 (금요일)",
   "written": "2026-10-30 11:03",
+  "updated": "2026-11-20 12:09",
   "date": "2026-10-30",
   "index": "biotech",
+  "point": "2026-10-30",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": 0.86,
    "after": 0.34,
    "close": 212.01,
    "base": 212.72
-  },
-  "updated": "2026-10-30 11:03"
+  }
  },
  "20261029-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-10-29 (목)",
   "written": "2026-10-29 12:16",
+  "updated": "2026-11-20 12:09",
   "date": "2026-10-29",
   "index": "nasdaq",
+  "point": "2026-10-29",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": 0.55,
    "after": -1.18,
    "close": 725.22,
    "base": 716.64
-  },
-  "updated": "2026-10-29 12:16"
+  }
  },
  "20261029-biotech": {
   "title": "바이오 리포트",
   "day": "2026-10-29 (목)",
   "written": "2026-10-29 12:00",
+  "updated": "2026-11-20 12:09",
   "date": "2026-10-29",
   "index": "biotech",
+  "point": "2026-10-29",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": 1.48,
    "after": 0.61,
    "close": 210.21,
    "base": 211.49
-  },
-  "updated": "2026-10-29 12:00"
+  }
  },
  "20261028-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-10-28 (수)",
   "written": "2026-10-28 11:08",
+  "updated": "2026-11-20 12:09",
   "date": "2026-10-28",
   "index": "nasdaq",
+  "point": "2026-10-28",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": 1.29,
    "after": 0.14,
    "close": 721.28,
    "base": 722.29
-  },
-  "updated": "2026-10-28 11:08"
+  }
  },
  "20261028-biotech": {
   "title": "바이오 리포트",
   "day": "2026-10-28 (수)",
   "written": "2026-10-28 11:13",
+  "updated": "2026-11-20 12:09",
   "date": "2026-10-28",
   "index": "biotech",
+  "point": "2026-10-28",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": 1.87,
    "after": 0.14,
    "close": 207.16,
    "base": 207.45
-  },
-  "updated": "2026-10-28 11:13"
+  }
  },
  "20261027-nasdaq": {
   "title": "나스닥 리포트",
   "day": "2026-10-27 (화)",
   "written": "2026-10-27 10:54",
+  "updated": "2026-11-20 12:08",
   "date": "2026-10-27",
   "index": "nasdaq",
+  "point": "2026-10-27",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": 1.09,
    "after": 0.35,
    "close": 712.09,
    "base": 714.6
-  },
-  "updated": "2026-10-27 10:54"
+  }
  },
  "20261027-biotech": {
   "title": "바이오 리포트",
   "day": "2026-10-27 (화)",
   "written": "2026-10-27 11:16",
+  "updated": "2026-11-20 12:08",
   "date": "2026-10-27",
   "index": "biotech",
+  "point": "2026-10-27",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": 0.38,
    "after": 0.25,
    "close": 203.34,
    "base": 203.84
-  },
-  "updated": "2026-10-27 11:16"
+  }
  },
  "20261026-nasdaq": {
   "title": "나스닥 투자 리포트",
   "day": "2026-10-26 (월)",
   "written": "2026-10-26 11:03",
+  "updated": "2026-11-20 12:08",
   "date": "2026-10-26",
   "index": "nasdaq",
+  "point": "2026-10-26",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": null,
    "after": 0.07,
    "close": 704.4,
    "base": 704.88
-  },
-  "updated": "2026-10-26 11:03"
+  }
  },
  "20261026-biotech": {
   "title": "바이오 투자 리포트",
   "day": "2026-10-26 (월)",
   "written": "2026-10-26 10:55",
+  "updated": "2026-11-20 12:08",
   "date": "2026-10-26",
   "index": "biotech",
+  "point": "2026-10-26",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": null,
    "after": 0.0,
    "close": 202.57,
    "base": 202.57
-  },
-  "updated": "2026-10-26 10:55"
+  }
  },
  "20261024-nasdaq": {
   "title": "나스닥 투자 리포트",
   "day": "2026-10-24 (토)",
   "written": "2026-10-24 11:10",
+  "updated": "2026-11-20 12:08",
   "date": "2026-10-24",
   "index": "nasdaq",
+  "point": "2026-10-26",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": 0.0,
    "after": 0.08,
    "close": 704.4,
    "base": 704.96
-  },
-  "updated": "2026-10-24 11:10"
+  }
  },
  "20261024-biotech": {
   "title": "바이오 투자 리포트",
   "day": "2026-10-24 (토)",
   "written": "2026-10-24 11:10",
+  "updated": "2026-11-20 12:08",
   "date": "2026-10-24",
   "index": "biotech",
+  "point": "2026-10-26",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": -1.13,
    "after": 0.0,
    "close": 202.57,
    "base": 202.57
-  },
-  "updated": "2026-10-24 11:10"
+  }
  },
  "20261023-nasdaq": {
   "title": "나스닥 투자 리포트",
   "day": "2026-10-23 (금)",
   "written": "2026-10-23 11:17",
+  "updated": "2026-11-20 12:08",
   "date": "2026-10-23",
   "index": "nasdaq",
+  "point": "2026-10-23",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": -2.9,
    "after": 0.2,
    "close": 704.43,
    "base": 705.86
-  },
-  "updated": "2026-10-23 11:17"
+  }
  },
  "20261023-biotech": {
   "title": "바이오 투자 리포트",
   "day": "2026-10-23 (금)",
   "written": "2026-10-23 11:22",
+  "updated": "2026-11-20 12:08",
   "date": "2026-10-23",
   "index": "biotech",
+  "point": "2026-10-23",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": -0.75,
    "after": -0.02,
    "close": 204.88,
    "base": 204.84
-  },
-  "updated": "2026-10-23 11:22"
+  }
  },
  "20261022-nasdaq": {
   "title": "나스닥 투자 리포트",
   "day": "2026-10-22 (목)",
   "written": "2026-10-22 14:57",
+  "updated": "2026-11-20 12:08",
   "date": "2026-10-22",
   "index": "nasdaq",
+  "point": "2026-10-22",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": 1.13,
    "after": -1.79,
    "close": 725.45,
    "base": 712.46
-  },
-  "updated": "2026-10-22 14:57"
+  }
  },
  "20261022-biotech": {
   "title": "바이오 투자 리포트",
   "day": "2026-10-22 (목)",
   "written": "2026-10-22 15:02",
+  "updated": "2026-11-20 12:08",
   "date": "2026-10-22",
   "index": "biotech",
+  "point": "2026-10-22",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": 0.24,
    "after": -0.37,
    "close": 206.42,
    "base": 205.65
-  },
-  "updated": "2026-10-22 15:02"
+  }
  },
  "20261021-nasdaq": {
   "title": "나스닥 투자 리포트",
   "day": "2026-10-21 (수)",
   "written": "2026-10-21 11:08",
+  "updated": "2026-11-20 12:08",
   "date": "2026-10-21",
   "index": "nasdaq",
+  "point": "2026-10-21",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": -0.13,
    "after": 0.0,
    "close": 717.36,
    "base": 717.36
-  },
-  "updated": "2026-10-21 11:08"
+  }
  },
  "20261021-biotech": {
   "title": "바이오 투자 리포트",
   "day": "2026-10-21 (수)",
   "written": "2026-10-21 11:01",
+  "updated": "2026-11-20 12:08",
   "date": "2026-10-21",
   "index": "biotech",
+  "point": "2026-10-21",
+  "parts": [
+   "cards"
+  ],
   "moves": {
    "session": 3.23,
    "after": 0.0,
    "close": 205.92,
    "base": 205.92
-  },
-  "updated": "2026-10-21 11:01"
+  }
  },
  "20261020-nasdaq": {
   "title": "나스닥 투자 리포트",
   "day": "2026-10-20 (화)",
   "written": "2026-10-20 11:13",
+  "updated": "2026-11-20 12:08",
   "date": "2026-10-20",
   "index": "nasdaq",
+  "point": "2026-10-20",
   "moves": {
    "session": 1.17,
    "after": 0.0,
    "close": 718.31,
    "base": 718.31
-  },
-  "updated": "2026-10-20 11:13"
+  }
  },
  "20261020-biotech": {
   "title": "바이오 투자 리포트",
   "day": "2026-10-20 (화)",
   "written": "2026-10-20 10:56",
+  "updated": "2026-11-20 12:07",
   "date": "2026-10-20",
   "index": "biotech",
+  "point": "2026-10-20",
   "moves": {
    "session": 0.89,
    "after": 0.0,
    "close": 199.47,
    "base": 199.47
-  },
-  "updated": "2026-10-20 10:56"
+  }
  },
  "20261019-nasdaq": {
   "title": "나스닥 투자 리포트",
   "day": "2026-10-19 (월)",
   "written": "2026-10-19 13:38",
+  "updated": "2026-11-20 12:07",
   "date": "2026-10-19",
   "index": "nasdaq",
+  "point": "2026-10-19",
   "moves": {
    "session": null,
    "after": -0.27,
    "close": 710.0,
    "base": 708.07
-  },
-  "updated": "2026-10-19 13:38"
+  }
  },
  "20261019-biotech": {
   "title": "바이오 투자 리포트",
   "day": "2026-10-19 (월)",
   "written": "2026-10-19 13:38",
+  "updated": "2026-11-20 12:07",
   "date": "2026-10-19",
   "index": "biotech",
+  "point": "2026-10-19",
   "moves": {
    "session": null,
    "after": -0.22,
    "close": 197.71,
    "base": 197.28
-  },
-  "updated": "2026-10-19 13:38"
+  }
  }
 }
