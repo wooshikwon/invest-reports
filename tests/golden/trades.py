@@ -103,15 +103,17 @@ def state(page):
 
 
 def gaps(page):
-    """화면 그림에서 제목 줄의 단추 아래부터 기간 투자액 글씨 위까지, 기간 투자액 글씨 아래부터 첫 거래 카드 위까지 빈 줄 수(px)를 센다."""
-    top, bottom, left, right = page.evaluate("""() => {
-      const tools = document.querySelector('.trade-head .tools').getBoundingClientRect(), card = document.querySelector('.trade-sum ~ .trade').getBoundingClientRect();
-      return [Math.round(tools.bottom), Math.round(card.top), Math.round(card.left), Math.round(card.right)];
+    """화면 그림에서 제목 줄의 단추 아래부터 기간 투자액 글씨 위까지, 기간 투자액 글씨 아래부터 기간 단추 위까지 빈 줄 수(px)를 세고,
+    기간 단추 아래부터 첫 거래 카드 위까지와 첫 두 카드 사이의 거리(px)를 잰다."""
+    top, bottom, left, right, after, between = page.evaluate("""() => {
+      const r = (q) => document.querySelector(q).getBoundingClientRect(), [one, two] = [...document.querySelectorAll('.trade-sum ~ .trade')].map((c) => c.getBoundingClientRect());
+      const value = r('.trade-sum b'), period = r('.trade-sum .period');
+      return [Math.round(r('.trade-head .tools').bottom), Math.round(period.top), Math.round(value.left), Math.round(value.right), Math.round(one.top - period.bottom), Math.round(two.top - one.bottom)];
     }""")
     shot = Image.open(io.BytesIO(page.screenshot())).convert("RGB")
     bg = shot.getpixel((2, top))
     inked = [y for y in range(top, bottom) if any(max(abs(a - b) for a, b in zip(shot.getpixel((x, y)), bg)) > 40 for x in range(left, right))]
-    return inked[0] - top, bottom - inked[-1] - 1
+    return inked[0] - top, bottom - inked[-1] - 1, after, between
 
 
 def main():
@@ -153,8 +155,9 @@ def main():
                 page.evaluate("scrollTo(0, document.querySelector('.trade-head').getBoundingClientRect().top + scrollY - 70)")
                 capture.settle(page, 400)
                 page.screenshot(path=str(shots / "trades-llm.png"))
-                above, below = gaps(page)
-                check("b 기간 투자액 아래 여백이 위보다 10px 넘게 넓다", below - above >= 10, (above, below))
+                above, below, after, between = gaps(page)
+                check("b 기간 투자액 글씨는 제목 줄과 기간 단추 사이의 가운데에 있다", abs(above - below) <= 1, (above, below))
+                check("b 기간 단추와 첫 카드 사이는 카드 사이와 같다", after == between, (after, between))
         check("b 필터를 고르면 목록을 접는다", not menu.is_visible())
         page.locator(".trade-head [data-unit='KRW']").click()
         capture.settle(page, 300)
