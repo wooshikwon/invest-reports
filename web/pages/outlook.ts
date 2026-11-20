@@ -78,9 +78,9 @@ export function summaryCards(data, date, view) {
     return c;
   };
   // 날짜 지점(`point`)은 이 리포트 판단의 기준 가격 날짜 다음 거래일(`days[1]`)이다. 앱은 날짜를 세지 않고 리포트의 `days`와 실시간 값의 `point`로 지점을 찾는다.
-  // `found`는 이 지수의 지점별 실시간 값(`live.ts`의 `points`)이고 `loaded`는 지수의 1분 값(`index`)이다.
+  // `found`는 이 지수의 지점별 실시간 값(`live.ts`의 `points`)이다.
   const point = data.days[1];
-  let found = {}, loaded = null;
+  let found = {};
   // 프레임 `f`의 판단에서 기준 가격 날짜 다음 지점의 값 [값, 위 줄 글씨, 세션(`pre`, `after`, `regular`), 체결 뉴욕 시각, 실시간 값]. 없으면 null이다.
   // 지점의 정규장 값(`regular`)이 있으면 그 값이고, 없으면 프리장 값(`pre`), 없으면 앞 세션의 애프터장 값(`after`)이며, 없으면 판단의 기준 가격(애프터장 마지막 값)이다.
   // 값은 기준 가격 날짜 종가에 실시간 값의 비율을 곱한 값이다. 나스닥의 선물 시간대 애프터장 값(`basis`가 `futures`)은 위 줄 글씨에 "선물 가격"을 덧붙이고 시각은 선물 체결 시각(`futures_time`)으로 쓴다. 머리 상자 아래 줄에는 "애프터마켓" 대신 "선물 가격"을 쓴다.
@@ -514,25 +514,20 @@ export function summaryCards(data, date, view) {
   // 머리 상자 시세는 위 줄에 기준 가격 날짜의 정규장 종가를, 아래 줄에 리포트 날짜 판단의 기준 가격 날짜 다음 날짜 지점의 값(`nextOf`)을 쓴다.
   // 그 값이 프리장 값이면 아래 줄에 프리마켓 가격과 정규장 종가 대비 등락률을, 애프터장 값(판단의 기준 가격이나 실시간 애프터장·선물 시간대 값)이면 애프터마켓 가격과 등락률을 쓴다.
   // 정규장 값이면 아래 줄을 두지 않고, 위 줄에 그 값과 앞 종가 대비 등락률을 쓴다. 위 줄 등락률은 반올림한 값으로 색을 정해 0.00%를 칠하지 않는다.
-  // 지수의 1분 값(`index`)이 있으면 마지막 줄에 지수 값과 그 값을 받은 시각(`loaded`)을 서울 시각으로 쓴다.
   const rate = (ratio) => Math.round(ratio * 1e4) / 100;
   const day = rate(hist[close] / hist[close - 1] - 1);
-  const clock = (text) => new Date(text).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false });
   const quote = () => {
     const next = upcoming();
     const line = (name, value) => `<small>${name} ${fmt(value)} ${signed(rate(value / hist[close] - 1), 2)}%</small>`;
     const open = next[2] === "regular", value = open ? next[0] : hist[close], move = open ? rate(next[0] / hist[close] - 1) : day;
     const tail = open ? "" : line(next[2] === "pre" ? "프리마켓" : next[4]?.basis === "futures" ? "선물 가격" : "애프터마켓", next[0]);
-    const idx = loaded && `<small class="loaded">지수 ${fmt(loaded.price)} · ${clock(loaded.loaded)} KST 로드</small>`;
     return `<span class="row"><span>${INDEX_NAME[key.split("-")[1]]}</span><b class="price ${tone(move)}">${fmt(value)}</b>`
-      + `<b class="${tone(move)}">${signed(move, 2)}%</b>${tail}${idx || ""}</span>`;
+      + `<b class="${tone(move)}">${signed(move, 2)}%</b>${tail}</span>`;
   };
-  // `live(all, index)`는 실시간 값 전체(`all`)에서 지수(`index`)의 지점별 값과 지수 1분 값을 받아, 값을 받은 시각이 바뀌었으면 고른 날짜로 카드를 다시 그리고 바뀐 큰 글씨 숫자를 굴린다.
-  const SYMBOL = { nasdaq: "^NDX", biotech: "^NBI" };
+  // `live(all, index)`는 실시간 값 전체(`all`)에서 지수(`index`)의 지점별 값을 받아, 값이 바뀌었으면 고른 날짜로 카드를 다시 그리고 바뀐 큰 글씨 숫자를 굴린다.
   const live = (all, index) => {
-    const next = all.points?.[index] ?? {}, tick = all.index?.[SYMBOL[index]] ?? null;
+    const next = all.points?.[index] ?? {};
     const changed = JSON.stringify(next) !== JSON.stringify(found);
-    loaded = tick;
     found = next;
     if (!changed) return;
     rolled(() => show(frame));
