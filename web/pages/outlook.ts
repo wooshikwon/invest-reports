@@ -421,7 +421,7 @@ export function summaryCards(data, view) {
         else node.setAttribute("fill", on ? "#0b1a24" : "#EAEAEA");
       });
       const [d, names, day] = events[pick], pct = frame.tree.pct;
-      const wide = Object.assign(document.createElement("span"), { className: "wide", textContent: `80% ${signed(pct["10"][d])}~${signed(pct["90"][d])}%` });
+      const wide = Object.assign(document.createElement("span"), { className: "wide", textContent: `${signed(pct["10"][d])}~${signed(pct["90"][d])}%` });
       c.head("", [...percent(pct["25"][d]), Object.assign(document.createElement("span"), { className: "sep", textContent: "~" }), ...percent(pct["75"][d]), wide],
         `${d}거래일 뒤 범위`);
       line.replaceChildren(Object.assign(document.createElement("span"), { className: "d", textContent: day }),
