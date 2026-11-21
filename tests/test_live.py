@@ -27,7 +27,7 @@ class Answer:
 
 
 class Market:
-    """가짜 토스·야후. `prices`는 토스 시세 응답의 심볼마다 (가격, 시각), `closes`는 마감 1분봉, `spark`는 야후 1분봉,
+    """가짜 토스·야후. `prices`는 토스 시세 응답의 심볼마다 (가격, 시각), `closes`는 (심볼, 세션 날짜)마다 토스 일봉 종가(없으면 `BASE`), `spark`는 야후 봉,
     `meta`는 야후 응답의 앞 세션 종가(`chartPreviousClose`)다.
 
     지수 묶음 요청은 `yahoo`에 넣지 않고 그 요청의 `range`를 `indexes`에 넣는다.
@@ -45,11 +45,9 @@ class Market:
             asked = params["symbols"].split(",")
             return Answer({"result": [{"symbol": symbol, "lastPrice": str(price), "currency": "USD", "timestamp": stamp or ""}
                                       for symbol, (price, stamp) in self.prices.items() if symbol in asked]})
-        if params["interval"] == "1d":
-            return Answer({"result": {"candles": [{"timestamp": f"2026-11-{date:02d}T14:00:00.000+09:00", "closePrice": str(BASE[params["symbol"]])}
-                                                  for date in range(1, 31)]}})
-        price = self.closes[params["symbol"]]  # 토스 1분봉의 시각은 봉이 끝나는 시각이다
-        return Answer({"result": {"candles": [{"timestamp": params["before"], "closePrice": str(price)}]}})
+        symbol = params["symbol"]
+        found = [(f"2026-11-{date:02d}", self.closes.get((symbol, f"2026-11-{date:02d}"), BASE.get(symbol))) for date in range(1, 31)]
+        return Answer({"result": {"candles": [{"timestamp": f"{day}T14:00:00.000+09:00", "closePrice": str(price)} for day, price in found if price is not None]}})
 
     def yahoo_get(self, url, impersonate, timeout, params):
         asked = params["symbols"].split(",")
@@ -95,7 +93,7 @@ def test_outside_hours_calls_nothing(market):
     assert live.tick(at("2026-11-19", "03:59:10")) == {}  # 프리장 전
     assert market.toss == [] and market.written == []
     market.prices = {symbol: (10.0, kst("2026-11-19", "19:59:50")) for symbol in ("QQQ", "IBB", "AAPL", "MSFT", "AMGN")}
-    market.closes = {symbol: 9.0 for symbol in market.prices}
+    market.closes = {(symbol, "2026-11-19"): 9.0 for symbol in market.prices}
     assert set(live.tick(at("2026-11-19", "20:00:10"))) == {"premarket", "afterhours"}  # 마감 값과 애프터장 끝 값을 받는다
     market.toss.clear()
     assert live.tick(at("2026-11-19", "20:01:10")) == {}  # 그날 값을 다 받았다
@@ -118,7 +116,7 @@ def test_close_wait_then_fix(market):
     for clock in ("16:00:05", "16:02:05", "16:04:59"):
         assert live.tick(at("2026-11-19", clock)) == {}
     assert market.toss == []
-    market.closes = {"QQQ": 506.0, "IBB": 98.0, "AAPL": 11.0, "MSFT": 21.0}  # AMGN 마감 1분봉은 토스가 답하지 않는다
+    market.closes = {("QQQ", "2026-11-19"): 506.0, ("IBB", "2026-11-19"): 98.0, ("AAPL", "2026-11-19"): 11.0, ("MSFT", "2026-11-19"): 21.0}  # AMGN 일봉은 토스가 답하지 않는다
     market.spark = {"AMGN": []}  # 야후도 봉이 없다
     market.prices = {symbol: (price + 1, kst("2026-11-19", "16:04:30")) for symbol, (price, _) in market.prices.items()}
     written = live.tick(at("2026-11-19", "16:05:05"))
@@ -130,7 +128,7 @@ def test_close_wait_then_fix(market):
     assert after["time"] == "2026-11-19T16:05:00-05:00" and after["stocks"] == {"AAPL": 11.0, "MSFT": 21.0}
     assert after["ratio"] == round(506.0 / 506.0, 6)
     assert written["afterhours"]["biotech"]["2026-11-19"]["ratio"] == round(100.0 / 98.0, 6)
-    assert {params["before"] for name, params in market.toss if name == "candles" and params["interval"] == "1m"} == {"2026-11-19T16:00:00-05:00"}
+    assert {params["interval"] for name, params in market.toss if name == "candles"} == {"1d"}  # 마감 값은 1분봉이 아닌 일봉의 공식 종가다
     market.toss.clear()
     assert set(live.tick(at("2026-11-19", "16:06:05"))) == {"afterhours"}  # 마감 값은 한 번만 고정한다
     assert [name for name, _ in market.toss] == ["prices"]
@@ -251,7 +249,7 @@ STOCKS = ("QQQ", "IBB", "AAPL", "MSFT", "AMGN")
 def traded(market, day: str, clock: str, scale: float = 1.0) -> None:
     """공개 종목 다섯이 `day` `clock`(뉴욕)에 체결한 토스 시세. 가격은 지어낸 SAMPLE 값이다."""
     market.prices = {symbol: (price * scale, kst(day, clock)) for symbol, price in zip(STOCKS, (505.0, 99.0, 10.0, 20.0, 30.0))}
-    market.closes = {symbol: price for symbol, (price, _) in market.prices.items()}
+    market.closes.update({(symbol, day): price for symbol, (price, _) in market.prices.items()})
 
 
 def minutes(day: str, start: str, end: str, first: float, step: float) -> list[tuple[dt.datetime, float]]:

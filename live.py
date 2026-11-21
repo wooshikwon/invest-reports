@@ -9,7 +9,7 @@ cron(`~/scripts/cron/invest-live-tick.sh`)이 1분마다 `tick()`을 부른다. 
 토스가 체결 시각 없이 준 심볼은 체결이 없는 것으로 보고 야후에 묻지 않는다. 토큰은 toss-trader와 함께 쓰는 캐시 파일만 쓴다.
 
 값의 스키마는 build.py 머리 설명의 `premarket`·`afterhours`·`index` 값과 같다. `premarket`은 프리장(`PREMARKET_OPEN`)부터 정규장이 닫힐 때까지 1분마다 그 분의 값을 쓰고,
-정규장이 닫히고 `CLOSE_WAIT`가 지난 첫 회차가 마감 시각까지 끝난 1분봉으로 마감 값을 한 번 더 받아 고정한다.
+정규장이 닫히고 `CLOSE_WAIT`가 지난 첫 회차가 그날 일봉의 공식 종가로 마감 값을 한 번 더 받아 고정한다.
 `afterhours`는 `AFTER_OPEN`과 마감 고정 회차 가운데 늦은 쪽부터 `AFTER_CLOSE`까지 1분마다 쓴다.
 체결가는 `premarket`이면 오늘 `PREMARKET_OPEN` 뒤, `afterhours`이면 오늘 정규장 마감 뒤 체결만 쓴다. 그 체결이 없으면 앞 회차 값을 두고,
 앞 회차 값도 없으면 null이다. 지도의 첫 날짜보다 앞선 날짜의 값은 지운다.
@@ -71,11 +71,11 @@ TIMEOUT = 15
 ENCODING = "gzip, deflate"  # 토스 응답의 압축 방식. toss-trader 클라이언트와 같이 zstd를 뺀다
 SPARK = "https://query1.finance.yahoo.com/v7/finance/spark"
 SPARK_BATCH = 20  # 야후 spark 한 번에 묻는 심볼 수 상한
-CANDLE_WAIT = 0.05  # 토스 1분봉을 이어 부를 때 사이를 띄우는 초. 차트 조회는 초당 20회까지 받는다
+CANDLE_WAIT = 0.05  # 토스 일봉을 이어 부를 때 사이를 띄우는 초. 차트 조회는 초당 20회까지 받는다
 # 초당 상한은 같은 자격증명을 쓰는 toss-trader·판단 배치와 함께 센다. 그래서 429로 거절된 조회는 `RETRY_WAIT`초 뒤 `ATTEMPTS`번까지 부른다.
 RETRY_WAIT = 2
 ATTEMPTS = 3
-CLOSE_WAIT = dt.timedelta(minutes=5)  # 마감 체결이 1분봉에 실리기를 기다리는 시간
+CLOSE_WAIT = dt.timedelta(minutes=5)  # 마감 경매의 공식 종가가 일봉에 실리기를 기다리는 시간
 KEEP_DAYS = 7  # `DATA`의 날짜 붙은 파일을 남기는 날 수
 NAMES = ("premarket", "afterhours", "index")
 INDEX_SYMBOLS = (*SECTOR_INDEX_TICKERS.values(), OIL_TICKER)  # `index` 값에 적는 야후 심볼
@@ -248,42 +248,26 @@ def public_prices(symbols: list[str], toss: Toss | None = None) -> dict[str, tup
     return found
 
 
-def close_trades(symbols: list[str], closed: dt.datetime, toss: Toss) -> dict[str, tuple[float, str]]:
-    """심볼마다 정규장 마감 시각까지 끝난 마지막 1분봉의 (종가, 체결 끝 시각 ISO). 토스 1분봉에서, 답하지 않은 심볼은 야후에서 받는다.
+def session_closes(symbols: list[str], session: str, toss: Toss) -> dict[str, float]:
+    """심볼마다 `session` 정규장 공식 종가. 토스 일봉에서, 답하지 않은 심볼은 야후 일봉에서 받는다.
 
-    토스 1분봉의 시각은 봉이 끝나는 시각이다. 그래서 마감 시각이 붙은 봉이 마감 경매 체결까지 담은 마지막 봉이다.
+    일봉 종가는 마감 경매에서 정해지는 공식 종가다.
     """
     found = {}
     for symbol in symbols:
         try:
-            page = toss.get("/api/v1/candles", {"symbol": toss_symbol(symbol), "interval": "1m", "count": 1, "before": closed.isoformat()})
-            if candles := page.get("candles"):
-                found[symbol] = (float(candles[0]["closePrice"]), dt.datetime.fromisoformat(candles[0]["timestamp"]).isoformat())
-        except (requests.RequestException, RuntimeError, ValueError, KeyError) as error:
-            print(f"토스 1분봉이 답하지 않음: {type(error).__name__}", file=sys.stderr)
-        time.sleep(CANDLE_WAIT)
-    for symbol, response in spark([symbol for symbol in symbols if symbol not in found], includePrePost="true").items():
-        if trade := bars(response, closed):
-            found[symbol] = trade
-    return found
-
-
-def base_closes(session: str, toss: Toss) -> dict[str, float]:
-    """지수 ETF마다 앞 세션 정규장 종가. 토스 일봉에서, 답하지 않은 ETF는 야후 일봉에서 받는다."""
-    found = {}
-    for etf in sorted(set(SECTOR_DB_TICKERS.values())):
-        try:
-            page = toss.get("/api/v1/candles", {"symbol": toss_symbol(etf), "interval": "1d", "count": 5})
+            page = toss.get("/api/v1/candles", {"symbol": toss_symbol(symbol), "interval": "1d", "count": 5})
             for candle in page.get("candles") or []:
                 if candle["timestamp"][:10] == session:
-                    found[etf] = float(candle["closePrice"])
+                    found[symbol] = float(candle["closePrice"])
         except (requests.RequestException, RuntimeError, ValueError, KeyError) as error:
             print(f"토스 일봉이 답하지 않음: {type(error).__name__}", file=sys.stderr)
-    for etf, response in spark([etf for etf in sorted(set(SECTOR_DB_TICKERS.values())) if etf not in found], range="5d", interval="1d").items():
+        time.sleep(CANDLE_WAIT)
+    for symbol, response in spark([symbol for symbol in symbols if symbol not in found], range="5d", interval="1d").items():
         closes = (response.get("indicators", {}).get("quote") or [{}])[0].get("close") or []
         for stamp, close in zip(response.get("timestamp") or [], closes):
             if close is not None and dt.datetime.fromtimestamp(stamp, NEW_YORK).date().isoformat() == session:
-                found[etf] = float(close)
+                found[symbol] = float(close)
     return found
 
 
@@ -524,7 +508,7 @@ def tick(now: dt.datetime | None = None, toss: Toss | None = None) -> dict[str, 
     else:
         board = public_board()
         if "base" not in day:
-            day["base"] = base_closes(day["session"], toss)
+            day["base"] = session_closes(sorted(set(SECTOR_DB_TICKERS.values())), day["session"], toss)
             save(DATA / f"session-{today}.json", day)
         public = sorted({stock["symbol"] for found in board.values() for stock in found["stocks"]} | set(SECTOR_DB_TICKERS.values()))
         held = sorted({*holding_symbols(), *(etf for etfs in etf_table().values() for etf in etfs)})
@@ -533,7 +517,7 @@ def tick(now: dt.datetime | None = None, toss: Toss | None = None) -> dict[str, 
             raise RuntimeError("토스와 야후 모두 체결가를 주지 않음")
         if "premarket" in due:
             end, span = due["premarket"]
-            use = close_trades(public, end, toss) if span == "close" else trades
+            use = {symbol: (close, end.isoformat()) for symbol, close in session_closes(public, today, toss).items()} if span == "close" else trades
             ohlc = session_ohlc(quotes, dt.datetime.combine(now.date(), PREMARKET_CLOSE, NEW_YORK), end) if span != "pre" else None
             written["premarket"] = assemble(kept["premarket"], board, use, end, span, day, ohlc=ohlc)
         if "afterhours" in due:
