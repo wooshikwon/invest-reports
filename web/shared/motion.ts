@@ -4,6 +4,8 @@ import { feelSlide } from "./telegram";
 // 좌우로 넘기는 동작은 모두 `--glide`와 같은 0.3초, 같은 감속 곡선(cubic-bezier(.33, 1, .68, 1))으로 움직인다.
 // `glide`는 값을 `from`에서 `to`까지 그 곡선으로 바꾸며 매 프레임 `set`을 부르고, 다 바꾸면 `done`을 부른다. 멈추는 함수를 돌려준다.
 export const motion = matchMedia("(prefers-reduced-motion: reduce)");
+// 화면 좌우 끝 24px 띠. 이 띠에서 시작한 가로 밀기는 바로가기 탭을 넘기므로(`jump`), 절 안의 넘기기는 받지 않는다.
+export const atEdge = (x) => x < 24 || x > innerWidth - 24;
 export const GLIDE = 300, EASE = "cubic-bezier(.33, 1, .68, 1)";
 export const glide = (from, to, set, done) => {
   const begin = performance.now(), span = motion.matches ? 0 : GLIDE;
@@ -125,7 +127,7 @@ export function slider(slides, after, { fit = false, start = 0, change = null, n
     document.addEventListener("touchstart", (event) => {
       begin = null;
       const { target, touches } = event;
-      if (touches.length !== 1 || area.closest(".page.off") || track.contains(target) || target.closest(".viewer, .help-card, .days, .back-edge, .frozen, input")) return;
+      if (touches.length !== 1 || atEdge(touches[0].clientX) || area.closest(".page.off") || track.contains(target) || target.closest(".viewer, .help-card, .days, .back-edge, .frozen, input")) return;
       let next = area.nextElementSibling;
       while (next && next.tagName !== "H2") next = next.nextElementSibling;
       const y = touches[0].clientY;

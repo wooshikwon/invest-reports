@@ -10,7 +10,7 @@ import { indexPick, latest } from "../shared/chrome";
 import { marketed, relist } from "../shared/data";
 import { help } from "../shared/help";
 import { subscribe } from "../shared/live";
-import { motion, settle, settleStart } from "../shared/motion";
+import { atEdge, motion, settle, settleStart } from "../shared/motion";
 import { key, life, query, report, reshow, returned } from "../shared/route";
 import { fold, notes, toneTags, trail } from "../shared/sections";
 import { feelPress, feelSlide } from "../shared/telegram";
@@ -250,6 +250,10 @@ const unturn = () => { turn = toCalendar = null; };
 // `turn`이 `head`를 받으면 그 절 제목 글자가 화면 맨 위에서 본 페이지 첫 절 제목 글자의 높이에 오도록 옮긴다. 문서 끝이 모자라면 그 페이지 아래 여백을 늘린다.
 // 다른 페이지를 열면 페이지들이 바로가기 단추 순서대로 옆으로 흘러간다(`flow`). 오른쪽 페이지를 열면 화면이 왼쪽으로, 왼쪽 페이지를 열면 오른쪽으로 흐르고,
 // 두 칸 떨어진 페이지를 열면 가운데 페이지가 맨 위부터 한가운데를 지나간다. `turn`이 `still`을 받거나 움직임 줄이기 설정이면 흐르지 않고 바로 바꾼다.
+// 화면 좌우 끝 띠(`atEdge`)에서 시작해 가로로 40px 넘게, 세로 이동의 1.5배 넘게 안쪽으로 밀고 손을 떼면 옆 페이지를 연다. 오른쪽 끝에서 밀면 다음 페이지,
+// 왼쪽 끝에서 밀면 앞 페이지다. 뒤로 가기 띠(`.back-edge`)와 넘기기 묶음, 그림 화면, 설명 상자 위에서 시작한 밀기는 받지 않는다.
+// 바로가기 알약을 다시 만들면 앞 알약의 끝 밀기 손길을 걷는다(`edgeSwipe`).
+let edgeSwipe = null;
 export function jump(pages, names) {
   const nav = document.createElement("nav");
   nav.className = "jump";
@@ -352,6 +356,22 @@ export function jump(pages, names) {
   };
   nav.addEventListener("pointerup", end);
   nav.addEventListener("pointercancel", end);
+  edgeSwipe?.abort();
+  const own = edgeSwipe = new AbortController(), { signal } = own;
+  life.signal.addEventListener("abort", () => own.abort(), { once: true, signal });
+  let edge = null;
+  document.addEventListener("touchstart", (event) => {
+    const { target, touches } = event;
+    edge = touches.length === 1 && atEdge(touches[0].clientX) && !target.closest(".back-edge, .carousel, .viewer, .help-card, nav.jump") ? { x: touches[0].clientX, y: touches[0].clientY } : null;
+  }, { passive: true, signal });
+  document.addEventListener("touchend", (event) => {
+    if (!edge) return;
+    const touch = event.changedTouches[0], dx = touch.clientX - edge.x, dy = touch.clientY - edge.y, to = page + (edge.x > innerWidth / 2 ? 1 : -1);
+    edge = null;
+    if (Math.abs(dx) <= 40 || Math.abs(dx) <= 1.5 * Math.abs(dy) || Math.sign(dx) !== (to > page ? -1 : 1) || to < 0 || to >= pages.length) return;
+    feelSlide();
+    open(to);
+  }, { passive: true, signal });
   document.body.append(nav);
   return open;
 }

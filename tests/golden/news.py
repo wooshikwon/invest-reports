@@ -64,10 +64,10 @@ def open_news(run, key: str):
     return page
 
 
-def swipe(page, dx):
-    """상세 이슈 해설 절의 탭 줄 아래를 손가락으로 가로로 민다(CDP 터치 이벤트). `dx`가 음수이면 왼쪽으로 민다."""
+def swipe(page, dx, x0=None):
+    """상세 이슈 해설 절의 탭 줄 아래를 손가락으로 가로로 민다(CDP 터치 이벤트). `dx`가 음수이면 왼쪽으로 민다. `x0`를 주면 그 자리에서 시작한다."""
     box = page.locator("h2.tabbed").first.bounding_box()
-    x0, y = 195 - dx / 2, box["y"] + box["height"] + 60
+    x0, y = 195 - dx / 2 if x0 is None else x0, box["y"] + box["height"] + 60
     cdp = page.context.new_cdp_session(page)
     point = lambda x: [{"x": x, "y": y, "id": 1}]
     cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": point(x0)})
@@ -126,6 +126,13 @@ def main() -> int:
         check("절 안에서 왼쪽으로 밀면 종목 뉴스 탭으로 넘어간다", page.evaluate(BAR)["tab"] == "종목 뉴스", page.evaluate(BAR))
         swipe(page, 160)
         check("절 안에서 오른쪽으로 밀면 상세 이슈 해설 탭으로 돌아온다", page.evaluate(BAR)["tab"] == "상세 이슈 해설", page.evaluate(BAR))
+        # 화면 좌우 끝에서 밀면 바로가기 탭을 넘기고, 절 안의 탭은 넘기지 않는다
+        swipe(page, -160, 382)
+        on = page.evaluate("() => document.querySelector('nav.jump button.on')?.textContent")
+        check("오른쪽 끝에서 왼쪽으로 밀면 다음 바로가기 탭(시장)을 연다", on == "시장" and page.evaluate(BAR)["tab"] == "상세 이슈 해설", on)
+        swipe(page, 160, 8)
+        on = page.evaluate("() => document.querySelector('nav.jump button.on')?.textContent")
+        check("왼쪽 끝에서 오른쪽으로 밀면 앞 바로가기 탭(이슈)으로 돌아온다", on == "이슈" and page.evaluate(BAR)["tab"] == "상세 이슈 해설", on)
         run.close()
 
         # 적힌 탭이 없는 가장 늦은 리포트는 분석 완료 시각과 가장 최근 회차 시각 가운데 늦은 쪽의 탭으로 연다.
