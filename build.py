@@ -86,7 +86,7 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 달력 위 `나스닥 | 바이오` 단추로 지수를 바꾸면 달력은 그 지수의 리포트 날짜로 다시 그려지고, 날짜를 누르면 그 날짜의 그 지수 리포트가 열린다.
 `moves`에는 리포트 날짜 전날 정규장 종가의 앞 세션 종가 대비 등락률(`session`, %)과 기준 가격의 기준 가격 날짜 종가 대비
 등락률(`after`, %), 기준 가격 날짜의 환산 종가(`close`, 달러)와 기준 가격(`base`, 달러)을 적는다. 전날이 휴장일이면 `session`은 `null`이다.
-두 등락률과 두 가격은 `path-bands.json`의 ^NDX·^NBI 환산 가격과 `reference.db` 환산 종가로 재므로 12M + Predictions 그림의 종가 선, 기준 가격과 같은 눈금이다.
+두 등락률과 두 가격은 `path-bands.json`의 ^NDX·^NBI 환산 가격과 `reference.db` 환산 종가로 재므로 판단 기록과 같은 눈금이다.
 
 `r/market.json`의 `map`에는 지수마다 비중 상위 20종목(나스닥 100, 나스닥 바이오테크놀로지)의 한글 이름, 주식 수, 날짜별 종가를 적는다(`market`, `index_map`).
 날짜별 애프터장 마지막 체결가도 적는다. 마지막 날짜의 값은 그날 애프터장이 끝난 뒤(20:00 ET) 받고, 앞 날짜의 값은 앞서 쓴 `r/market.json`에서 옮긴다(`after_prices`).
@@ -131,8 +131,7 @@ live.py가 나스닥 값의 `ratio`를 애프터장 마지막 비율 × NQ=F 등
 미국 거시 지표의 유가 카드는 그림 아래 줄 오른쪽 끝에 선·봉 단추를 둔다. 봉 그림은 3년·2년 기간은 월봉, 1년은 주봉, 6개월·3개월은 일봉으로 그린다.
 처음에는 봉 그림이고, 고른 그림 종류는 기기에 남겨 다른 리포트와 종목에도 쓴다.
 
-`system/simulation.json`의 `quantiles`에 5% 값이 있는 리포트는 요약 절 세 그림을 그림 파일 대신 값으로 그린다.
-그런 리포트의 공개본에서는 12M + Predictions·Montecarlo·권장 추종 배율 그림을 빼고, 카드 값을
+`system/simulation.json`의 `quantiles`에 5% 값이 있는 리포트는 요약 절 세 그림을 그림 파일 대신 값으로 그리고, 카드 값을
 `r/{키}/cards.json`에 적는다. 카드 값은 `PRICE_YEARS`년 종가와 날짜, 지난 리포트가 예측한 25거래일 뒤 가격,
 그날 25·50·75% 가격, 10~90% 수익률 분위수와 사안 일정, 체류 적분 밀도를 담는다(`summary_cards`). 종가와 가격은 예측을 계산한
 ETF 눈금을 지수 눈금으로 늘려 적는다(`card_scale`). 공개본이 있는 그 지수 리포트
@@ -369,7 +368,7 @@ def card_frame(date: str, folder: Path, scale: float) -> dict | None:
 def past_cards(index: str, date: str, dates: list[str], reach: int, scale: float, vault: Path, skip: str | None = None) -> list[list[float]]:
     """리포트 날짜 `date` 앞 리포트들이 예측한 25거래일 뒤 가격을 `[가로 위치, 25·50·75% 가격]` 줄로 가로 위치 순서에 둔다.
 
-    가로 위치는 종가 날짜 `dates`의 번호로 센다. 줄은 12M + Predictions 그림과 같은 줄을 고르고, 가격에는 `card_scale`의 `scale`을 곱한다.
+    가로 위치는 종가 날짜 `dates`의 번호로 센다. 줄은 판단 기록(`predictions_chart.past_judgments`)이 고른 줄이고, 가격에는 `card_scale`의 `scale`을 곱한다.
     기준 가격 날짜가 `dates`에 없거나 `skip`인 줄과 가로 위치가 `reach`보다 오른쪽인 줄은 뺀다.
     """
     chart = predictions_chart(vault)
@@ -1487,8 +1486,6 @@ def build(date: str, index: str, vault: Path, out: Path) -> str:
 
     text = source.read_text(encoding="utf-8")
     card = summary_cards(index, date, source.parent, vault)
-    if card:
-        text = re.sub(rf"^!\[\[[^\]]*/(?:chart|tree|predict)-{index}\.png\]\]\s*\n", "", text, flags=re.MULTILINE)
     text = mark_terms(text, source.parent / "system" / "terms.json", vault)
     markdown = public_markdown(text, vault, target, f"r/{key}")
     day = dt.date.fromisoformat(date)
