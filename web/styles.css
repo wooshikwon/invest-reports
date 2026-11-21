@@ -501,7 +501,7 @@ table.judged tbody tr.more button svg { color: var(--dim); }
 .gauge p { margin: 20px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--hint); }
 /* 요약 절 그림 카드는 위 줄에 회색 맥락 글씨, 그 아래 이름 줄에 지수 이름, 가운데 줄에 값과 상태를 두고, 그림은 카드 폭에 맞춘 SVG로 그린다. 카드의 그림은 모두 높이와
    가로축 높이가 같아, 카드를 넘겨도 가로축이 같은 높이에 있다. 카드의 상태 글씨와 점(`--card-color`)은 카드마다 정한 색으로 칠하고,
-   일정과 예측·권장 배율 카드(`ink`)는 큰 값을 절 제목 글씨와 같은 지수색 그라데이션(`--index-ink`)으로 칠하고, 주가와 예측 카드는 정규장 등락률 색(`up`·`down`)으로 칠한다.
+   예측과 일정·권장 배율 카드(`ink`)는 큰 값을 절 제목 글씨와 같은 지수색 그라데이션(`--index-ink`)으로 칠하고, 주가 카드는 정규장 등락률 색(`up`·`down`)으로 칠한다.
    범위 값의 물결표는 흐린 글씨로 띄어 쓴다. */
 .gauge .ctx { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
 .gauge.summary .state { color: var(--card-color); }
@@ -516,9 +516,9 @@ table.judged tbody tr.more button svg { color: var(--dim); }
 /* 기간을 바꾸면 최고·최저 글씨는 그림이 멈춘 뒤 0.25초에 걸쳐 나타난다. */
 .gauge .marks { animation: marks-in .25s ease-out; }
 @keyframes marks-in { from { opacity: 0; } }
-/* 그림 아래 줄은 모든 카드가 같은 높이로 둔다. 주가와 예측 카드는 기간을 한 단계씩 줄이고 늘리는 단추와 다섯 단계 가운데 고른 단계의 점을,
-   일정과 예측 카드는 고른 번호의 일정을 둔다. 일정은 번호, 날짜, 이름을 한 줄에 왼쪽부터 적어 −와 + 단추와 같은 높이에 두고, 같은 날 일정은 쉼표로 잇는다.
-   한 줄을 넘는 이름은 말줄임표로 줄인다. 고른 단계는 점 대신 작은 돋보기로 그린다. 주가와 예측 카드와 종목 주가 카드는 그 줄 오른쪽 끝에 선·봉 단추를 둔다. */
+/* 그림 아래 줄은 모든 카드가 같은 높이로 둔다. 주가 카드는 기간을 한 단계씩 줄이고 늘리는 단추와 다섯 단계 가운데 고른 단계의 점을,
+   예측과 예측과 일정 카드는 고른 번호의 일정을 둔다. 일정은 번호, 날짜, 이름을 한 줄에 왼쪽부터 적어 −와 + 단추와 같은 높이에 두고, 같은 날 일정은 쉼표로 잇는다.
+   한 줄을 넘는 이름은 말줄임표로 줄인다. 고른 단계는 점 대신 작은 돋보기로 그린다. 주가 카드와 종목 주가 카드는 그 줄 오른쪽 끝에 선·봉 단추를 둔다. */
 .gauge .foot { min-height: 28px; margin-top: 12px; }
 .gauge.summary { padding-bottom: 4px; }
 .gauge .zoom { position: relative; display: flex; justify-content: center; align-items: center; gap: 10px; }
@@ -565,7 +565,7 @@ table.judged tbody tr.more button svg { color: var(--dim); }
 /* 세션 단추(`session`)는 정규장을 해, 애프터장을 초승달, 프리장을 언덕 위로 해가 오르는 새벽 그림으로 그리고, 그림의 닫힌 면(`f`)을 선과 같은 색으로 채운다.
    고른 단추는 밝은 바탕에 세션 색으로 칠한다. 정규장은 노랑, 애프터장은 보라, 프리장은 주황이고, 등락률의 빨강·파랑과 겹치지 않는 색이다. 고르지 않은 단추는 회색이다.
    지도와 카드의 기준 시각 글씨(`kind`)도 그 값의 세션 색으로 쓴다. 종가 글씨 "미국 11/17 정규장, 06:00 KST"는 정규장 색이다.
-   지도에서는 위 줄 오른쪽 끝에, 주가 카드와 주가와 예측 카드에서는 이름 줄 오른쪽 끝에 두되 그 줄 높이를 늘리지 않는다. 끈 단추(`disabled`)는 고른 칸 없이 회색으로 흐리게 쓴다.
+   지도에서는 위 줄 오른쪽 끝에, 주가 카드와 주가 카드에서는 이름 줄 오른쪽 끝에 두되 그 줄 높이를 늘리지 않는다. 끈 단추(`disabled`)는 고른 칸 없이 회색으로 흐리게 쓴다.
    애프터마켓·프리마켓 값을 고른 카드(`ext`)는 다음 정규장 전의 임시 값이므로 값과 등락률을 회색으로 쓴다. 리포트 날짜의 정규장 값을 그리는 카드는 정규장 단추 하나만 두고 회색으로 쓰지 않는다. */
 .session { display: flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, .06); }
 .session button { display: grid; place-items: center; width: 34px; height: 22px; padding: 0; border: 0; border-radius: 7px; background: none;
@@ -582,7 +582,7 @@ table.judged tbody tr.more button svg { color: var(--dim); }
 :is(.indexmap > .top, .gauge .top) .session { flex: none; margin: -6px 0 -6px auto; align-self: center; }
 /* 요약 절 그림 카드와 종목 상세 주가 카드는 맨 위 줄에 흐린 작은 글씨를 쓰고, 그 아래 이름 줄에 지수나 종목 이름과 단추를 둔다. */
 .gauge .top.title { margin-top: 3px; }
-/* 주가와 예측 카드는 이름 줄의 세션 단추 왼쪽에 예측 단추(`aim`)를 둔다. 단추는 세션 단추 한 쌍과 같은 높이와 바탕에 "예측"을 쓰고, 켜면 바탕을 밝히고 글씨를 예측 선과 같은 지수색 그라데이션으로 칠한다.
+/* 주가 카드는 이름 줄의 세션 단추 왼쪽에 예측 단추(`aim`)를 둔다. 단추는 세션 단추 한 쌍과 같은 높이와 바탕에 "예측"을 쓰고, 켜면 바탕을 밝히고 글씨를 예측 선과 같은 지수색 그라데이션으로 칠한다.
    가장 늦은 리포트를 보는 동안 판단 배치의 단계를 글씨로 쓴다. 판단 날짜 지점의 정규장이 시작한 뒤 배치가 돌기 전이면 회색 "예측 업데이트 전", 판단 배치가 도는 동안은 노란 "예측 중 NN%"이고, 진척률 숫자는 자리 폭이 같은 숫자로 쓴다.
    켜면 세 단계 모두 지수색 글씨를 쓴다. */
 .gauge .top .aim { flex: none; height: 26px; margin: -6px 0 -6px auto; padding: 0 11px; border: 0; border-radius: 9px; align-self: center;

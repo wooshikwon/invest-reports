@@ -93,7 +93,7 @@ def to_cards(page):
 
 
 def price(page):
-    """주가와 예측 카드의 머리 글씨, 점선 수, '현재' 표시[세션, 가로 자리]."""
+    """주가 카드의 머리 글씨, 점선 수, '현재' 표시[세션, 가로 자리]."""
     return page.evaluate("""() => { const g = document.querySelector('.carousel.cards .slide .gauge');
       return { top: g.querySelector('.top .ctx')?.textContent, val: g.querySelector('.val b')?.textContent, state: g.querySelector('.val .state')?.textContent,
         dashed: g.querySelectorAll('.fig svg path[stroke-dasharray="2 2"]').length,
@@ -102,7 +102,7 @@ def price(page):
 
 
 def tap(page, fraction):
-    """주가와 예측 카드 그림의 가로 `fraction` 자리를 누른다."""
+    """주가 카드 그림의 가로 `fraction` 자리를 누른다."""
     svg = page.locator(".carousel.cards .slide .gauge .fig svg").first
     box = svg.bounding_box()
     svg.click(position={"x": box["width"] * fraction, "y": box["height"] * 0.5})
@@ -165,7 +165,7 @@ def main():
         to_cards(page)
         swipe(page, -240)
         s = state(page)
-        check("c 판단 전 최신: 밀면 일정 카드로 넘어가고 알림이 없다", s["tab"] == 1 and s["toast"] is None, s)
+        check("c 판단 전 최신: 밀면 예측과 일정 카드로 넘어가고 알림이 없다", s["tab"] == 1 and s["toast"] is None, s)
         page.locator(".carousel.cards .tabs button").nth(2).click()
         page.wait_for_timeout(900)
         s = state(page)
@@ -193,7 +193,7 @@ def main():
         page.locator(".carousel.cards .tabs button").nth(1).click()
         page.wait_for_timeout(900)
         s = state(page)
-        check("d 새 판단의 일정 카드가 같은 화면에 그려짐", s["tab"] == 1 and s["toast"] is None, s)
+        check("d 새 판단의 예측과 일정 카드가 같은 화면에 그려짐", s["tab"] == 1 and s["toast"] is None, s)
         page.screenshot(path=str(shots / "d-arrival-schedule.png"))
         w.close()
 

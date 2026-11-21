@@ -22,7 +22,7 @@ export const unmount = () => unturn();
 // 판단이 올라와 화면을 그 자리에서 다시 그릴 때(`arrive`) 보던 페이지와 화면 위치, 예측 단추 상태를 다음 화면에 넘긴다.
 let carry = null;
 const OUTLOOK = ["현재 상태", "주요 분기와 예측", "종합 시나리오"];
-const NOTE_OF = { "주가와 예측": "현재 상태", "일정": "주요 분기와 예측", "권장 배율": "종합 시나리오" };
+const NOTE_OF = { "주가": "현재 상태", "예측과 일정": "주요 분기와 예측", "권장 배율": "종합 시나리오" };
 function reportPage(body, listing, cards, history, given) {
   const { signal } = life;
   const kept = carry;
@@ -32,7 +32,7 @@ function reportPage(body, listing, cards, history, given) {
   // `due`는 가장 늦은 리포트의 판단 날짜 지점(`entry.point`)의 정규장이 시작했거나 그보다 늦은 날짜 지점의 실시간 값이 들어왔는지다.
   // 그때부터 다음 판단이 올라올 때까지 화면의 예측은 업데이트를 기다리는 값이다.
   // 설명 세 절(`noted`)은 화면을 그릴 때 받은 가장 늦은 판단의 `outlook.json`(`given`)으로 채우고, 예측 단추(`aimed`)의 상태를 받지 않는다.
-  // 설명 절은 그 절에 맞는 그림 카드와 한 장에 넣어 카드와 함께 넘긴다(`NOTE_OF`). 주가와 예측 카드는 현재 상태, 일정 카드는 주요 분기와 예측, 권장 배율 카드는 종합 시나리오다.
+  // 설명 절은 그 절에 맞는 그림 카드와 한 장에 넣어 카드와 함께 넘긴다(`NOTE_OF`). 주가 카드는 현재 상태, 예측과 일정 카드는 주요 분기와 예측, 권장 배율 카드는 종합 시나리오다.
   // `due`인 동안(판단 배치가 도는 동안 포함)에는 설명 절의 제목과 내용을 회색으로 흐리게 보인다.
   let due = false, cardSet = null, noted = null, aimed = !!kept?.aim;
   // 예측 단추의 글자는 판단 배치의 단계(`stage`)로 정하고, 단계 판정은 여기서 하며 `outlook.ts`는 받은 글자와 상태만 그린다.
@@ -152,7 +152,7 @@ function reportPage(body, listing, cards, history, given) {
   }
   settle();
   if (kept) scrollTo(0, kept.y);
-  // 일정과 예측처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
+  // 예측과 일정처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
   // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
   // 손가락을 움직이지 않고 한 번 누르면 닫는다.
   // 이슈 목록 상자의 썸네일은 누르면 이슈를 열므로 띄우지 않는다.

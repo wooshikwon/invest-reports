@@ -11,10 +11,10 @@ import { key, report } from "../shared/route";
 import { SESSION_NAME, afterEnd, closeAt, sessionAt, sessionSeg, sessionTag } from "../shared/session";
 import { DIMS, PRICE, candleGroups, candleLate, candleOn, candleUnit, drawCandles, ease, kindButton, markText, nowMark, onTap, shape, zoomDrag } from "../shared/svg";
 import { feelPress } from "../shared/telegram";
-// 요약의 Outlook 그림 자리에 12M + Predictions(지수와 예측), Montecarlo(일정과 예측), Outlook(권장 배율) 순서로 넘기는 묶음을 둔다.
+// 요약의 Outlook 그림 자리에 12M + Predictions(주가), Montecarlo(예측과 일정), Outlook(권장 배율) 순서로 넘기는 묶음을 둔다.
 // Montecarlo 그림은 원래 이벤트 캘린더 절에 있으므로 그 자리에서는 뺀다. 12M + Predictions가 없는 리포트는 두 장을 넘긴다.
 // 묶음 위에는 그림 이름 탭을 둔다. 탭을 누르면 그 그림으로 넘기고, 넘기면 보고 있는 그림의 탭을 밝힌다.
-// 그림 카드 값(`given`, `build.py`가 쓴 `r/{키}/cards.json`. 그 파일이 없는 지난 리포트는 리포트 끝의 `#cards`)이 있는 리포트는 그림 대신 주가와 예측, 일정, 권장 배율 카드 세 장을 넘긴다.
+// 그림 카드 값(`given`, `build.py`가 쓴 `r/{키}/cards.json`. 그 파일이 없는 지난 리포트는 리포트 끝의 `#cards`)이 있는 리포트는 그림 대신 주가, 예측과 일정, 권장 배율 카드 세 장을 넘긴다.
 export function figures(given = null, view = { aim: false, stage: () => ({ state: "done", text: "예측" }), watch() {} }) {
   const data = report.querySelector("#cards");
   data?.remove();
@@ -43,7 +43,7 @@ export function figures(given = null, view = { aim: false, stage: () => ({ state
   const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
   const chart = pick("chart"), tree = pick("tree"), predict = pick("predict");
   if (!chart || !tree) return;
-  const shown = [[predict, "지수와 예측"], [tree, "일정"], [chart, "권장 배율"]].filter(([img]) => img);
+  const shown = [[predict, "주가"], [tree, "예측과 일정"], [chart, "권장 배율"]].filter(([img]) => img);
   shown.forEach(([img]) => (img.closest("p") || img).remove());
   const bar = document.createElement("div");
   bar.className = "tabs";
@@ -57,9 +57,8 @@ export function figures(given = null, view = { aim: false, stage: () => ({ state
   box.prepend(bar);
 }
 
-// 요약 절의 그림 카드 세 장(주가와 예측, 일정과 예측, 권장 배율)을 만든다. 카드 이름 탭에는 "주가와 예측", "일정", "권장 배율"로 쓴다. `data`는 `build.py` `summary_cards`의 값이다.
-// 돌려준 `show(frame)`은 되감기 슬라이더가 고른 날짜의 판단(`cards.json`의 프레임)으로 카드를 다시 그린다.
-// 주가와 예측 카드의 종가 바탕(날짜·종가·지난 예측)은 늘 리포트 날짜의 값이고, 고른 날짜의 판단만 그 위에 바꿔 그린다.
+// 요약 절의 그림 카드 세 장(주가, 예측과 일정, 권장 배율)을 만든다. 카드 이름 탭에는 "주가", "예측과 일정", "권장 배율"로 쓴다. `data`는 `build.py` `summary_cards`의 값이다.
+// 주가 카드의 종가 바탕(날짜·종가·지난 예측)은 늘 리포트 날짜의 값이고, 고른 날짜의 판단만 그 위에 바꿔 그린다.
 export function summaryCards(data, view) {
   // 카드는 모두 같은 높이(`H`)의 그림에 같은 높이(`B`)의 가로축을 긋는다.
   const dates = data.dates, hist = data.history, W = 320, H = 236, B = 212;
@@ -104,7 +103,7 @@ export function summaryCards(data, view) {
     return { regulars, latest: latest ?? [data.base, sessionAt("애프터마켓", afterEnd(data.base_date)), "after", afterEnd(data.base_date), null, 1, hist[close]] };
   };
 
-  // 주가와 예측 카드(`price`): 이름 줄 오른쪽에 예측 단추와 세션 단추를 둔다.
+  // 주가 카드(`price`): 이름 줄 오른쪽에 예측 단추와 세션 단추를 둔다.
   // 그림 아래 −·+ 단추로 종가를 그릴 기간을 고른다. 기간은 3년, 2년, 1년, 6개월, 3개월 다섯 단계이고, +는 한 단계 짧게, −는 한 단계 길게 바꾼다.
   // 기간은 가로축 전체의 길이다. 단추 사이의 점 묶음은 누른 채 끌어 기간을 바로 고른다(`zoomDrag`).
   // 처음에는 가장 짧은 3개월을 그린다. 봉 비율(`r/candles.json`)이 있으면 그 줄 오른쪽 끝에 선·봉 단추(`kindButton`)를 두고,
@@ -385,12 +384,12 @@ export function summaryCards(data, view) {
     return { box: c.box, show, label };
   })();
 
-  // 일정과 예측: 등락률 분위수의 10~90% 옅은 면과 25~75% 면, 50% 실선을 주가와 예측 카드의 예측과 같은 지수색으로 그린다. 위쪽 번호는 이슈 일정이 있는 날이고,
+  // 예측과 일정: 등락률 분위수의 10~90% 옅은 면과 25~75% 면, 50% 실선을 주가 카드의 예측과 같은 지수색으로 그린다. 위쪽 번호는 이슈 일정이 있는 날이고,
   // 마지막 거래일에는 일정이 없어도 번호를 달고, 처음에는 첫 번호를 고른다. 번호를 누르면 위 값을 그날의 25~75% 등락률로 바꾸고
   // 세로선과 범위 끝이 만나는 곳에 그날의 등락률을 적는다. 그림 아래 줄 가운데에는 고른 일정의 날짜와 이름을 적고, 이름이 줄을 넘으면 말줄임표로 줄인다.
   // 그 줄 양옆의 꺽쇠를 누르면 앞뒤 일정을 고르고, 일정 이름을 누르면 같은 페이지 아래의 이벤트 캘린더에서 같은 거래일을 연다(`toCalendar`).
   // 그림의 왼쪽 끝은 판단의 첫 날짜 지점(`days[1]`)이고, 등락률은 판단의 기준 가격 대비 값이다.
-  // 기준 가격 날짜 종가에서 실시간 값의 사슬(`sessions`)을 지점 순번의 거래일 자리에 주가와 예측 카드처럼 잇는다. 정규장 값은 실선으로, 그 뒤의 프리장·애프터장·선물 시간대 값은
+  // 기준 가격 날짜 종가에서 실시간 값의 사슬(`sessions`)을 지점 순번의 거래일 자리에 주가 카드처럼 잇는다. 정규장 값은 실선으로, 그 뒤의 프리장·애프터장·선물 시간대 값은
   // 앞 점을 찍고 점선으로 잇고, 사슬의 마지막 값(없으면 기준 가격 날짜 종가)에 '현재' 표시를 찍는다. 1분 값이 바뀌면 다시 그린다. 세션 단추는 두지 않는다.
   const tree = (() => {
     const c = card("25거래일 뒤 범위"), s = c.svg;
@@ -530,7 +529,7 @@ export function summaryCards(data, view) {
     };
   })();
 
-  const parts = [[price, "주가와 예측"], [tree, "일정"], [chart, "권장 배율"]];
+  const parts = [[price, "주가"], [tree, "예측과 일정"], [chart, "권장 배율"]];
   const show = () => parts.forEach(([part]) => part.show(data));
   show();
   // 머리 상자 시세는 위 줄에 사슬의 마지막 정규장 값(없으면 기준 가격 날짜의 정규장 종가)과 그 앞 세션 종가 대비 등락률을 쓴다.

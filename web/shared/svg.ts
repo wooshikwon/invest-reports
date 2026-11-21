@@ -15,7 +15,7 @@ export const shape = (tag, attrs = {}, text) => {
 export const canvas = (height) => shape("svg", { viewBox: `0 ${(height - FIGURE) / 2} 320 ${FIGURE}` });
 export const zoneOf = (zones, value) => zones.find(([to]) => value <= to) || zones[zones.length - 1];
 export const KNOB = { fill: "#EAEAEA", stroke: "#1d1e21", "stroke-width": 3 }, DIM = 0.35;
-// 글씨·축 색과 종가 선 색. 주가와 예측 카드와 일별 선 그림이 같이 쓴다.
+// 글씨·축 색과 종가 선 색. 주가 카드와 일별 선 그림이 같이 쓴다.
 export const DIMS = "#7A828C", PRICE = "#C9CDD3";
 // 글자 폭의 어림값. 그림을 화면에 붙이기 전에 그리므로 글자를 재지 않고, 영숫자는 글자 크기의 0.6배, 한글은 1배로 센다.
 export const textWidth = (text, size) => [...text].reduce((sum, c) => sum + (/[\x00-\x7f]/.test(c) ? 0.6 : 1) * size, 0);
@@ -30,7 +30,7 @@ export const markText = (parent, x, y, up, gap, words, left, right) => {
   parent.append(shape("text", { x: start + m.actualBoundingBoxLeft, y: up ? y - gap - m.actualBoundingBoxDescent : y + gap + m.actualBoundingBoxAscent,
                                 "font-size": 11, fill: DIMS }, words));
 };
-// 주가와 예측 카드, 종목 주가 카드와 유가 카드의 그림 종류. 봉 그림이면 참이고, 처음에는 봉 그림이다. 고른 종류는 기기에 남겨 다른 리포트와 종목에도 쓴다.
+// 주가 카드, 종목 주가 카드와 유가 카드의 그림 종류. 봉 그림이면 참이고, 처음에는 봉 그림이다. 고른 종류는 기기에 남겨 다른 리포트와 종목에도 쓴다.
 export const CANDLE_KEY = "chart-kind", kindCards = new Set();
 export let candleOn = (() => { try { return localStorage.getItem(CANDLE_KEY) !== "line"; } catch { return true; } })();
 export const CANDLE_ICON = '<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M6.5 2.5V17" stroke="#ff5c5c" stroke-width="1.4"/><rect x="4" y="5.5" width="5" height="8.5" rx=".8" fill="#ff5c5c"/>'

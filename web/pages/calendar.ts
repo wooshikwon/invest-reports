@@ -5,7 +5,7 @@ import { key, life, report, visit } from "../shared/route";
 import { feelPress } from "../shared/telegram";
 // 이벤트 캘린더를 발표가 주가에 닿는 거래일마다 한 장으로 모아 넘기는 묶음으로 바꾸고, 위에 날짜 띠를 둔다.
 // 날짜 띠에는 리포트 날짜 뒤 35일까지 이벤트가 있는 날짜와 리포트 날짜를 두고, 리포트 날짜 전에는 `build.py`가 넣은 지난 이벤트의 날짜를 모두 둔다.
-// 거래일은 `build.py`가 소제목에 단 `data-day`를 쓰고, 35일 뒤 이벤트는 지운다. 일정과 예측 카드도 같은 거래일에 일정을 둔다. 처음에는 리포트 날짜를 보여 주고,
+// 거래일은 `build.py`가 소제목에 단 `data-day`를 쓰고, 35일 뒤 이벤트는 지운다. 예측과 예측과 일정 카드도 같은 거래일에 일정을 둔다. 처음에는 리포트 날짜를 보여 주고,
 // 그날 이벤트가 없으면 빈 안내 한 줄을 둔다. 날짜를 누르면 그 날짜의 장으로 넘어간다. 이벤트는 소제목과 표를 늘 펼쳐 둔다.
 // 날짜를 꾹 누르면 그 날짜 위에 말풍선을 띄운다. 말풍선에는 그 날짜의 리포트로 가는 단추를 둔다.
 // 지난 리포트에서 `title` 절의 제목부터 다음 절 제목 앞까지를 상자 하나에 담아 막을 씌우고, 막 위에 `target` 리포트로 가는 단추를 둔다.
@@ -142,7 +142,7 @@ export function events(date, listing) {
   box.addEventListener("pointerdown", hold, { passive: true });
   box.querySelector(".track").addEventListener("touchstart", () => (aim = null), { passive: true });
   // 이벤트 캘린더 밖에서 일정을 고를 때 쓴다. 띠를 그 일정의 날짜로 바로 옮기고 그 날짜의 장을 바로 보여 준다.
-  // 캘린더와 일정과 예측 카드는 모두 일정이 주가에 닿는 거래일에 일정을 두므로 `day`의 장을 연다.
+  // 캘린더와 예측과 예측과 일정 카드는 모두 일정이 주가에 닿는 거래일에 일정을 두므로 `day`의 장을 연다.
   // 35일 뒤라 장이 없는 날짜면 `day`에 가장 가까운 날짜를 고르고, 앞뒤 날짜가 같은 거리면 뒤 날짜를 고른다.
   head.pick = (day) => {
     const far = (d) => Math.abs(Date.parse(d) - Date.parse(day));

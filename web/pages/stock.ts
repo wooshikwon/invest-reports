@@ -64,7 +64,7 @@ function stockDetail(data) {
     const candles = data.candles?.some(Boolean) ? data.candles : null;
     const SPAN = [...new Set([252, 126, 63].map((days) => Math.min(days, closes.length)))];
     let span = SPAN.length - 1;
-    // 그림 높이는 주가와 예측 카드의 그림 높이와 같다.
+    // 그림 높이는 주가 카드의 그림 높이와 같다.
     const PLOT = 236;
     // 고른 기간의 봉 그림 설정. 선 그림이면 null이다.
     const candle = () => (candleOn && candles ? { ratios: candles, unit: candleUnit(SPAN[span]), label } : null);
@@ -113,7 +113,7 @@ function stockDetail(data) {
     const draw = (start = begin(span), bounds = null, marks = true) => {
       card.querySelector(":scope > svg").replaceWith(tappable(GAUGES.daily({ ...figure(start), bounds, marks })));
     };
-    // `from` 기간에서 `to` 기간으로 가는 도중 `t`(0~1) 지점의 그림. 주가와 예측 카드처럼 왼쪽 끝과 세로 범위를 같은 곡선으로 옮기고,
+    // `from` 기간에서 `to` 기간으로 가는 도중 `t`(0~1) 지점의 그림. 주가 카드처럼 왼쪽 끝과 세로 범위를 같은 곡선으로 옮기고,
     // 넓히는 동안 새로 들어온 과거 종가가 범위 밖이면 범위를 그만큼 먼저 넓힌다. 최고·최저 글자는 기간이 정해진 뒤에만 적는다.
     let raf = 0;
     const tween = (from, to, t) => {

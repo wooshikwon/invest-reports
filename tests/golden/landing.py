@@ -175,7 +175,7 @@ def main():
                                 else (got["text"].startswith("예측 중 ") and got["text"].endswith("%") and got["running"]))
                 check(f"p2 {case['name']} {stage}: 단추 글자", bool(good), got)
                 notes = page.evaluate("() => { const slides = [...document.querySelectorAll('.carousel.cards .track > .slide')], on = [...document.querySelectorAll('.carousel.cards .tabs button')].findIndex((b) => b.classList.contains('on')); return [...document.querySelectorAll('[data-point]')].map((n) => [n.dataset.point, slides.indexOf(n.closest('.slide')) !== on, n.dataset.note]); }")
-                check(f"p2 {case['name']} {stage}: 예측을 켜기 전에도 주가와 예측 카드의 설명 절(현재 상태)이 보임", dp.shows({"notes": notes, "tab": 0}), notes)
+                check(f"p2 {case['name']} {stage}: 예측을 켜기 전에도 주가 카드의 설명 절(현재 상태)이 보임", dp.shows({"notes": notes, "tab": 0}), notes)
                 faded = page.evaluate("() => [...document.querySelectorAll('[data-note]')].map((n) => n.classList.contains('stale'))")
                 # 판단 날짜 지점의 정규장이 시작한 뒤(`ahead`가 있는 경우의 pre·running)만 회색이다. 월요일 배치는 정규장 전에 돌므로 회색이 아니다.
                 check(f"p2 {case['name']} {stage}: 설명 절은 정규장 시작 뒤 업데이트를 기다리는 동안만 회색", bool(faded) and all(f == (stage != "done" and bool(case["ahead"])) for f in faded), faded)

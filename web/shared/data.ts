@@ -4,7 +4,7 @@ import { cache } from "./pull";
 export let listed = null;
 // `r/market.json`은 build.py가 지수마다 적는 상위 20종목의 이름, 주식 수, 일별 종가(`map`)다. 시장 페이지의 지수 지도가 쓴다.
 export let marketed = null;
-// `r/candles.json`은 build.py가 지수마다 날짜별로 적는 [시가, 고가, 저가] ÷ 종가 비율이다. 주가와 예측 카드가 봉 그림을 그릴 때 그날 종가에 곱한다.
+// `r/candles.json`은 build.py가 지수마다 날짜별로 적는 [시가, 고가, 저가] ÷ 종가 비율이다. 주가 카드가 봉 그림을 그릴 때 그날 종가에 곱한다.
 export let candled = null;
 // 리포트 본문은 이름마다 한 번만 받는다(`reportText`). 화면을 그리면 그 본문을 지우므로, 다시 돌아온 리포트는 서버에 바뀌었는지 다시 묻는다.
 export const texts = {};
