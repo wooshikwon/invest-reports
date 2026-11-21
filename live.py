@@ -15,12 +15,13 @@ cron(`~/scripts/cron/invest-live-tick.sh`)이 1분마다 `tick()`을 부른다. 
 앞 회차 값도 없으면 null이다. 지도의 첫 날짜보다 앞선 날짜의 값은 지운다.
 지수 값마다 날짜 지점(`point`)을 적는다. 날짜 지점은 뉴욕 세션 날짜이고, `premarket` 값은 그 세션, `afterhours` 값은 XNYS 달력의 다음 세션이다.
 
-앞 세션과 다음 세션 사이에 주말이나 휴장일이 있으면, 앞 세션 `AFTER_CLOSE`부터 다음 세션 `PREMARKET_OPEN`까지가 선물 시간대(`futures`)다.
-선물 시간대 회차는 토스를 부르지 않는다. 나스닥 선물(`FUTURES`)이 애프터장 마지막 체결 뒤 새 1분봉을 내면, 앞 세션의 나스닥 `afterhours` 값을
+앞 세션과 다음 세션 사이에 주말이나 휴장일이 있으면, 다음 세션 전날의 `AFTER_OPEN`부터 `AFTER_CLOSE`까지가 선물 시간대(`futures`)다.
+다음 세션의 날짜 지점에는 그 전날 애프터장이 없으므로, 선물 시간대가 그 애프터장 자리를 나스닥 선물(`FUTURES`) 값으로 채운다.
+선물 시간대 회차는 토스를 부르지 않는다. 나스닥 선물이 애프터장 마지막 체결 뒤 새 1분봉을 내면, 앞 세션의 나스닥 `afterhours` 값을
 애프터장 마지막 비율 × (선물 마지막 체결가 ÷ 애프터장 마지막 체결 시각까지 끝난 선물 1분봉 종가)로 바꾸고 `basis`·`futures_time`을 단다.
 애프터장 마지막 비율과 그 시각의 선물 종가는 선물 시간대 첫 회차에 `futures-{앞 세션}.json`에 둔다. 바이오 값은 바꾸지 않는다.
-선물 시간대에도 계좌 가격은 invest-account에 쓴다. 앞 정규 회차가 `account.json`에 남긴 마지막 체결가에서 나스닥 ETF만 `× (1 + 배율 × 선물 등락)`으로 바꾸고,
-바이오와 그 밖의 보유 종목은 마지막 체결가 그대로 쓴다.
+나스닥 값을 바꾼 회차는 계좌 가격도 같은 선물 1분봉으로 invest-account에 쓰고, 그 시각은 `futures_time`이다. 앞 정규 회차가 `account.json`에 남긴
+마지막 체결가에서 나스닥 ETF만 `× (1 + 배율 × 선물 등락)`으로 바꾸고, 바이오와 그 밖의 보유 종목은 마지막 체결가 그대로 쓴다.
 장 밖과 휴장일 가운데 선물 시간대가 아닌 회차, 마감 뒤 `CLOSE_WAIT` 안, 그날 값을 이미 다 받은 회차는 아무것도 부르지 않고 끝난다.
 
 회차마다 지수(`INDEX_SYMBOLS`)를 야후 spark 묶음 요청 한 번으로 받는다. 선물 시간대에는 선물 심볼도 같은 묶음에 넣는다.
@@ -323,28 +324,21 @@ def calendar_day(day: dt.date) -> dict:
 def futures_window(now: dt.datetime, day: dict) -> tuple[str, str] | None:
     """`now`가 선물 시간대이면 (앞 세션, 다음 세션) 날짜. 아니면 None.
 
-    앞 세션 `AFTER_CLOSE`부터 다음 세션 `PREMARKET_OPEN` 전까지이고, 두 세션 사이에 주말이나 휴장일이 있을 때만이다.
+    선물 시간대는 세션이 아닌 날 가운데 다음 날이 세션인 날의 `AFTER_OPEN`부터 `AFTER_CLOSE`까지다. 그날은 앞 세션과 다음 세션 사이에 있으므로
+    두 세션 사이에 주말이나 휴장일이 있을 때만 생긴다. `AFTER_CLOSE`에 시작한 회차도 든다.
     """
-    if not day["open"]:
-        pair = day["session"], day["next"]
-    elif now.time() >= AFTER_CLOSE:
-        pair = day["date"], day["next"]
-    elif now.time() < PREMARKET_OPEN:
-        pair = day["session"], day["date"]
-    else:
+    if day["open"] or dt.date.fromisoformat(day["next"]) - now.date() != dt.timedelta(days=1):
         return None
-    return pair if dt.date.fromisoformat(pair[1]) - dt.date.fromisoformat(pair[0]) > dt.timedelta(days=1) else None
+    return (day["session"], day["next"]) if AFTER_OPEN <= now.replace(second=0, microsecond=0).time() <= AFTER_CLOSE else None
 
 
 def rounds(now: dt.datetime, day: dict, kept: dict[str, dict]) -> dict[str, tuple[dt.datetime, str]]:
-    """이번 회차에 쓸 값 이름마다 (끝 시각, 구간). 구간은 프리장 `pre`, 정규장 `regular`, 마감 고정 `close`, 애프터장 `after`, 선물 시간대 `futures`다.
-
-    선물 시간대 구간은 그날 애프터장 마지막 값을 받은 뒤에만 든다.
-    """
+    """이번 회차에 쓸 값 이름마다 (끝 시각, 구간). 구간은 프리장 `pre`, 정규장 `regular`, 마감 고정 `close`, 애프터장 `after`, 선물 시간대 `futures`다."""
     minute = now.replace(second=0, microsecond=0)
-    futures = {"afterhours": (minute, "futures")} if futures_window(now, day) else {}
-    if not day["open"] or now.time() < PREMARKET_OPEN:
-        return futures
+    if not day["open"]:
+        return {"afterhours": (minute, "futures")} if futures_window(now, day) else {}
+    if now.time() < PREMARKET_OPEN:
+        return {}
     today = now.date()
     closed = dt.datetime.fromisoformat(day["closed"])
     written = lambda name: {kept[name].get(index, {}).get(today.isoformat(), {}).get("time") for index in SECTOR_DB_TICKERS}
@@ -357,7 +351,7 @@ def rounds(now: dt.datetime, day: dict, kept: dict[str, dict]) -> dict[str, tupl
         end = min(minute, dt.datetime.combine(today, AFTER_CLOSE, NEW_YORK))
         if written("afterhours") != {end.isoformat()}:
             due["afterhours"] = (end, "after")
-    return due or futures
+    return due
 
 
 def futures_base(before: str, kept: dict, quotes: dict[str, dict]) -> dict:
@@ -420,7 +414,7 @@ def etf_table() -> dict[str, dict[str, float]]:
 def futures_prices(base: dict, quotes: dict[str, dict], end: dt.datetime) -> dict[str, float]:
     """선물 시간대 계좌 가격. 앞 정규 회차가 남긴 마지막 체결가(`account.json`)에서, 선물이 있는 지수의 ETF만 `체결가 × (1 + 배율 × 선물 등락)`으로 바꾼다.
 
-    선물 등락은 `futures_value`와 같은 기준(`base`)에서 `end`까지 끝난 마지막 선물 1분봉 종가까지의 비율이고, 새 봉이 없으면 0이다.
+    선물 등락은 `futures_value`와 같은 기준(`base`)에서 `end`까지 끝난 마지막 선물 1분봉 종가까지의 비율이고, 기준 뒤 봉이 없으면 0이다.
     선물이 없는 지수(바이오)와 지수 밖 보유 종목은 마지막 체결가 그대로다. 마지막 체결가가 없으면 빈 값이다.
     """
     prices = load(DATA / "account.json", {})
@@ -433,14 +427,17 @@ def futures_prices(base: dict, quotes: dict[str, dict], end: dt.datetime) -> dic
     return prices
 
 
-def post_account(now: dt.datetime, prices: dict[str, float]) -> None:
+def post_account(now: dt.datetime, prices: dict[str, float], futures: str | None = None) -> None:
     """invest-account Worker의 DO에 보유 종목 체결가를 `POST /live`로 덮어쓴다. 비밀 값은 ~/.cloudflare_env의 `ACCOUNT_SECRET`으로만 받는다.
+
+    선물 시간대 체결가이면 `futures`에 선물로 대신한 애프터장의 세션 날짜를 적는다.
 
     Worker가 204를 답하지 않으면 RuntimeError를 낸다.
     """
     if not os.environ.get("ACCOUNT_SECRET"):
         raise EnvironmentError("환경변수 없음: ACCOUNT_SECRET")
-    answer = requests.post(f"{ACCOUNT_URL}/live", json={"time": now.isoformat(timespec="seconds"), "prices": prices}, timeout=TIMEOUT,
+    body = {"time": now.isoformat(timespec="seconds"), "prices": prices, **({"futures": futures} if futures else {})}
+    answer = requests.post(f"{ACCOUNT_URL}/live", json=body, timeout=TIMEOUT,
                            headers={"X-Account-Secret": os.environ["ACCOUNT_SECRET"], "User-Agent": "invest-reports"})
     if answer.status_code != 204:
         raise RuntimeError(f"invest-account 쓰기 실패: {answer.status_code}")
@@ -498,7 +495,8 @@ def pointed(name: str, value: dict) -> dict:
 def tick(now: dt.datetime | None = None, toss: Toss | None = None) -> dict[str, dict]:
     """1분 회차. 장 시간 판정, 일괄 조회, 값 조립, invest-live 쓰기, invest-account 쓰기를 차례로 부르고, invest-live에 쓴 값을 이름마다 돌려준다.
 
-    선물 시간대 구간 회차는 토스를 부르지 않고 지수 묶음 요청만 부르며, 앞 회차가 남긴 마지막 체결가에 선물 등락을 걸어 invest-account에 쓴다.
+    선물 시간대 구간 회차는 토스를 부르지 않고 지수 묶음 요청만 부르며, 나스닥 값을 바꾼 회차만 앞 회차가 남긴 마지막 체결가에 선물 등락을 걸어
+    선물 1분봉이 끝난 시각으로 invest-account에 쓴다.
     계좌 가격은 invest-account에만 쓰고 invest-live에는 쓰지 않는다.
     """
     now = now or dt.datetime.now(NEW_YORK)
@@ -520,8 +518,9 @@ def tick(now: dt.datetime | None = None, toss: Toss | None = None) -> dict[str, 
         base = futures_base(window[0], kept["afterhours"], quotes)
         if (value := futures_value(kept["afterhours"], base, quotes, end, window[0])) is not None:
             written["afterhours"] = value
-        if prices := futures_prices(base, quotes, end):
-            post_account(now, prices)
+            moved = max(value[index][window[0]]["futures_time"] for index in FUTURES if "futures_time" in value.get(index, {}).get(window[0], {}))
+            if prices := futures_prices(base, quotes, end):
+                post_account(dt.datetime.fromisoformat(moved), prices, window[0])
     else:
         board = public_board()
         if "base" not in day:

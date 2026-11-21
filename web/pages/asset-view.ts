@@ -45,16 +45,19 @@ export const assetSignal = (signal, index) => {
   return `<div class="signal${go}"><div class="gate"><i class="lamp ${value.color}"></i><div><strong>${name}</strong><p>${assetText(value.reason)}</p></div></div></div>`;
 };
 // 시각 `time`의 기준 시각 글씨. 요약 절의 그림 카드처럼 "미국 11/20 정규장, 23:43 KST"로 쓰고, 뉴욕 시각으로 세션을 정해 그 세션의 색으로 칠한다.
-// 04:00~09:30 ET는 프리마켓, 09:30~16:00 ET는 정규장, 16:00~20:00 ET는 애프터마켓이고, 그 밖은 주간거래다. 20:00 ET 뒤의 주간거래는 다음 날 세션의 날짜를 쓴다.
+// 04:00~09:30 ET는 프리마켓, 09:30~16:00 ET는 정규장이고, 그 밖은 애프터마켓이다. 04:00 ET 전의 애프터마켓은 앞 날짜를 쓴다.
+// 선물 시간대 체결가이면 주가 카드처럼 선물로 대신한 애프터장의 세션 날짜(`futures`)로 "미국 11/20 애프터마켓, 08:30 KST · 선물 가격"이라고 쓴다.
 const NY_CLOCK = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-const stamp = (time) => {
-  const at = Date.parse(time), part = Object.fromEntries(NY_CLOCK.formatToParts(at).map(({ type, value }) => [type, value])), clock = +part.hour * 60 + +part.minute;
-  const [kind, name] = clock >= 240 && clock < 570 ? ["pre", "프리마켓"] : clock >= 570 && clock < 960 ? ["regular", "정규장"] : clock >= 960 && clock < 1200 ? ["after", "애프터마켓"] : ["day", "주간거래"];
-  const day = clock >= 1200 ? new Date(Date.UTC(+part.year, +part.month - 1, +part.day + 1)).toISOString().slice(0, 10) : `${part.year}-${part.month}-${part.day}`;
-  return sessionTag(kind, `미국 ${day.slice(5, 7)}/${day.slice(8, 10)} ${name}, ${new Date(at + 9 * 3600e3).toISOString().slice(11, 16)} KST`);
+const stamp = (time, futures) => {
+  if (futures) return sessionTag("after", `${sessionAt("애프터마켓", futures, time)} · 선물 가격`);
+  const part = Object.fromEntries(NY_CLOCK.formatToParts(Date.parse(time)).map(({ type, value }) => [type, value])), clock = +part.hour * 60 + +part.minute;
+  const [kind, name] = clock >= 240 && clock < 570 ? ["pre", "프리마켓"] : clock >= 570 && clock < 960 ? ["regular", "정규장"] : ["after", "애프터마켓"];
+  const day = clock < 240 ? new Date(Date.UTC(+part.year, +part.month - 1, +part.day - 1)).toISOString().slice(0, 10) : `${part.year}-${part.month}-${part.day}`;
+  return sessionTag(kind, sessionAt(name, day, time));
 };
 // 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 지수(`index`)는 이름 줄과 큰 값을 굴리는 자리 이름에 쓴다.
-// `times`는 최신 날짜 점을 셈한 체결가의 시각(`live`)과 계좌 요약을 만든 시각(`summary`)이다. 체결가가 계좌 요약보다 이르면 Worker가 `live`를 빼고 최신 날짜 점을 요약 시각의 가격으로 셈하므로, 그때 `live`는 요약 시각이다. 카드 이름과 상자 목록(`cards`)과 다시 그리는 함수(`show`)를 돌려준다.
+// `times`는 최신 날짜 점을 셈한 체결가의 시각(`live`)과 계좌 요약을 만든 시각(`summary`), 그 체결가가 선물 시간대 값이면 선물로 대신한 애프터장의 세션 날짜(`futures`)다.
+// 실시간 체결가가 없으면 Worker가 최신 날짜 점을 요약의 가격으로 셈하므로, 그때 `live`는 요약 시각이다. 카드 이름과 상자 목록(`cards`)과 다시 그리는 함수(`show`)를 돌려준다.
 // 카드는 요약 절의 그림 카드처럼 맨 위 줄에 값의 기준 시각을, 그 아래 이름 줄 왼쪽에 "나스닥 100"처럼 지수 이름을 쓴다. 이름 줄 오른쪽에는 수익률 카드면 판단 보기 단추를,
 // 배율 카드면 목표 배율을 흐린 글씨로 둔다. 판단 보기 단추는 두 수익률 카드에서 판단 선(지수색)을 함께 보이거나 감추고, 그 상태(`view.judge`)를 기기에 남긴다(`remember`).
 // 카드 순서는 누적 수익률, 초과 수익률, 배율이다. 누적 수익률 카드는 첫날 대비 고정 배율·판단·집행 누적 수익률을,
@@ -150,7 +153,7 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
     const gap = (values) => values.map((v, i) => v - anchor[i]);
     const paint = () => {
       const at = pin.day == null ? days.length - 1 : Math.max(0, days.filter((day) => day <= pin.day).length - 1), first = at < 1;
-      const when = at < days.length - 1 || !now ? settled(days[at]) : stamp(times.live);
+      const when = at < days.length - 1 || !now ? settled(days[at]) : stamp(times.live, times.futures);
       figureOf(cum, first ? null : realized[at], "%", when);
       figureOf(over, first ? null : realized[at] - anchor[at], "%p", when.cloneNode(true));
       const tap = (i) => { feelPress(); pin.day = i === days.length - 1 ? null : days[i]; paint(); };
@@ -199,7 +202,7 @@ export function assetPage(page) {
       + `<button type="button" class="asset-trades">거래 내역${chevron}</button><h2>내 계좌</h2>` + assetRow("원화", "주문 가능", assetMoney(accounts.KRW.cash, "KRW")) + assetRow("달러", "주문 가능", assetMoney(accounts.USD.cash, "USD"))
       + (waiting ? item({ ...waiting, name: "대기자금" }, `${waiting.symbol} ${assetShares(waiting.quantity)}`) : "");
     roll(page.querySelector(".asset-sum b:not(.veiled)"), `${view.whole ? "whole" : index}-sum-${unit}`);
-    const perf = data.performance?.sectors?.[index], cards = assetCards(perf, index, { live: data.live?.time || data.time, summary: data.time }, pin, view, remember);
+    const perf = data.performance?.sectors?.[index], cards = assetCards(perf, index, { live: data.live?.time || data.time, summary: data.time, futures: data.live?.futures }, pin, view, remember);
     if (!cards.length) return page.querySelector(".asset-sum").insertAdjacentHTML("afterend", '<p class="status">그림 값이 아직 없다.</p>');
     const bar = document.createElement("div");
     bar.className = "tabs";
