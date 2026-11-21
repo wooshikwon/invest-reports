@@ -1,10 +1,8 @@
 // @ts-nocheck
 import { backward } from "../shared/back";
-import { marketed } from "../shared/data";
 import { issueChart } from "../shared/gauge";
 import { EASE, GLIDE, glide, motion } from "../shared/motion";
 import { key, life, report, visit } from "../shared/route";
-import { trail } from "../shared/sections";
 import { feelPress } from "../shared/telegram";
 import { gallery, viewer } from "../shared/viewer";
 import { NEWS_HELP, question } from "../shared/help";
@@ -26,18 +24,9 @@ const ask = (path) => (asked[path] ||= fetch(`${NEWS_URL}${path}`, { signal: Abo
   .catch((error) => { delete asked[path]; throw error; }));
 export const newsList = (query) => ask(`/list?${query}`).then((value) => value.articles);
 export const newsArticle = (id) => ask(`/articles/${encodeURIComponent(id)}`);
-// 종목 스티커에 쓰는 한글 이름. `r/market.json` 지도의 두 지수 종목 이름이고, 지도에 없는 종목은 티커를 그대로 쓴다.
-const names = () => marketed.then(({ map }) => Object.fromEntries(Object.values(map || {}).flatMap(({ stocks }) => stocks.map((stock) => [stock.symbol, stock.name]))));
 // 회차 시작 시각 "2026-11-19T18:00:00+09:00"을 "11/19 18:00"으로 쓴다. 시각은 서울 시각 그대로다.
 const clock = (time) => `${+time.slice(5, 7)}/${+time.slice(8, 10)} ${time.slice(11, 16)}`;
 const empty = (text) => Object.assign(document.createElement("p"), { className: "empty", textContent: text });
-// 뉴스 상세의 기사 제목. 이슈 제목의 방향 표식처럼 제목 끝에 종목마다 한글 이름 스티커를 붙인다.
-const heading = (item, named) => {
-  const h3 = Object.assign(document.createElement("h3"), { textContent: item.title });
-  h3.append(...item.tickers.map((ticker) => Object.assign(document.createElement("code"), { className: "ticker", textContent: named[ticker] || ticker })));
-  trail(h3);
-  return h3;
-};
 
 // 리포트 화면의 상세 이슈 해설 절 제목을 "상세 이슈 해설 | 종목 뉴스" 탭 줄로 바꾼다. 탭 줄 아래 줄에는 왼쪽에 "마지막 업데이트 MM/DD HH:MM KST"를,
 // 상세 이슈 해설 탭이면 오른쪽에 절 제목의 물음표 단추를 둔다. 상세 이슈 해설 탭은 분석 완료 시각과 이슈 목록을, 종목 뉴스 탭은 보고 있는 리포트 지수(`index`)의 종목 기사 목록을 보인다. 고른 탭 아래 막대는 다른 탭을 고르면 그 탭 아래로 옮겨 간다.
@@ -197,7 +186,7 @@ export function headlines(after, symbol) {
 }
 
 // 뉴스 상세를 이슈 화면과 같은 틀에 그린다. `data`는 `GET /articles/{ID}`의 기사이고, `ticker`가 있으면 종목 상세에서 연 기사다.
-// 절 제목은 "종목 뉴스"이고, 위쪽 한 줄 띠에는 기사 제목을 쓴다. 기사는 이슈 문단처럼 제목과 종목 스티커, 소제목 줄, 그림 묶음, 이슈 해설 말머리, 회차 시각, 본문을 차례로 쓴다.
+// 절 제목은 "종목 뉴스"이고, 위쪽 한 줄 띠에는 기사 제목을 쓴다. 기사는 이슈 문단처럼 제목, 소제목 줄, 그림 묶음, 이슈 해설 말머리, 회차 시각, 본문을 차례로 쓴다.
 // 소제목 줄은 제목 아래에 굵지 않은 동그라미 목록으로 쓰고, 소제목 줄 없이 올린 기사는 목록을 두지 않는다.
 // 본문의 이슈 그래프 카드와 그림은 이슈 화면의 그리기 함수로 그린다.
 // 기사 끝에는 들어온 목록의 앞 기사와 다음 기사로 가는 칸을 이슈 문단 끝의 칸과 같은 모양으로 둔다. 목록은 종목 상세에서 열었으면 그 종목의 최신 기사 열 편이고,
@@ -217,10 +206,10 @@ function newsDetail(data, ticker) {
     bar.textContent = title;
     bar.animate([{ opacity: 0 }, { opacity: 1 }], { duration: motion.matches ? 0 : GLIDE });
   };
-  let named = {}, items = [], busy = false, current = null;
+  let items = [], busy = false, current = null;
   const page = (article) => {
     const node = Object.assign(document.createElement("div"), { className: "issue-page" });
-    node.append(heading(article, named));
+    node.append(Object.assign(document.createElement("h3"), { textContent: article.title }));
     if (article.subheads?.length) {
       const list = node.appendChild(Object.assign(document.createElement("ul"), { className: "subheads" }));
       list.append(...article.subheads.map((line) => Object.assign(document.createElement("li"), { textContent: line })));
@@ -304,17 +293,13 @@ function newsDetail(data, ticker) {
       }, options.duration);
     }, () => { busy = false; });
   };
-  return names().then((found) => {
+  current = page(data);
+  current.classList.add("on");
+  box.append(current);
+  rename(data.title);
+  newsList(ticker ? `ticker=${encodeURIComponent(ticker)}&limit=10` : `index=${key.split("-")[1]}&days=7`).then((found) => {
     if (signal.aborted) return;
-    named = found;
-    current = page(data);
-    current.classList.add("on");
-    box.append(current);
-    rename(data.title);
-    newsList(ticker ? `ticker=${encodeURIComponent(ticker)}&limit=10` : `index=${key.split("-")[1]}&days=7`).then((found) => {
-      if (signal.aborted) return;
-      items = found;
-      neighbors(current, items.findIndex((item) => item.id === data.id));
-    }, () => {});
-  });
+    items = found;
+    neighbors(current, items.findIndex((item) => item.id === data.id));
+  }, () => {});
 }

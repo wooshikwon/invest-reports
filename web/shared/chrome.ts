@@ -65,7 +65,7 @@ export const INDEX = { nasdaq: ["#8FBCE6", "#AFA6EC"], biotech: ["#AE9CE6", "#E0
 // build.py card_scale이 카드 가격을 지수 눈금으로 늘려 적으므로 머리 상자 가격은 시장 탭의 같은 이름 지수 값과 같다.
 export const INDEX_NAME = { nasdaq: "나스닥", biotech: "바이오" };
 // 주가와 예측 카드의 이름 줄에 쓰는 지수 이름이다.
-export const INDEX_TITLE = { nasdaq: "나스닥 100", biotech: "나스닥 바이오테크놀로지" };
+export const INDEX_TITLE = { nasdaq: "나스닥 100", biotech: "나스닥 바이오" };
 export const paint = () => {
   const tint = INDEX[key.split("-")[1]];
   if (!tint) return;
