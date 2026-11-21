@@ -21,9 +21,10 @@ export const assetRow = (name, sub, value, tail) => `<div class="asset-item"><di
   + `<div><strong>${value}</strong>${tail ? `<small>${tail}</small>` : ""}</div></div>`;
 export const assetDay = (date) => `${+date.slice(5, 7)}.${+date.slice(8, 10)}`;
 // 금액 단위와 내 자산 페이지에서 보던 그림 카드는 기기에 적어 두고 다음에 열 때도 그대로 쓴다. 내 자산 페이지와 거래 내역 화면은 같은 금액 단위를 쓴다.
+// 내 자산 화면의 고른 상태. 금액 단위(`unit`), 그림 카드(`card`), 총 자산 단추를 켰는지(`whole`)를 기기에 남긴다.
 export const assetView = () => {
-  const view = { unit: "KRW", card: 0 };
-  try { const kept = JSON.parse(localStorage.getItem("asset-view")); view.unit = kept.unit === "USD" ? "USD" : "KRW"; view.card = kept.card | 0; } catch {}
+  const view = { unit: "KRW", card: 0, whole: false };
+  try { const kept = JSON.parse(localStorage.getItem("asset-view")); view.unit = kept.unit === "USD" ? "USD" : "KRW"; view.card = kept.card | 0; view.whole = kept.whole === true; } catch {}
   return view;
 };
 export const assetRemember = (view) => { try { localStorage.setItem("asset-view", JSON.stringify(view)); } catch {} };
@@ -164,6 +165,8 @@ export function assetPage(page) {
   // 평가 금액의 가림을 벗겼는지(`bare`)는 미니 앱을 닫을 때까지만 기억하고 기기에는 적지 않으므로, 미니 앱을 열 때마다 보이는 채로 시작한다. 평가 금액을 누르면 가리고 다시 누르면 보인다.
   let last = null, bare = true;
   // 첫 절 내 투자는 보고 있는 리포트 지수의 종목(`sector`)만 모아 평가금 합계와 수익·수익률을 쓰고, 그 아래 그림 카드와 집행 신호등 카드를 둔다.
+  // 제목 오른쪽 금액 단위 단추 옆의 총 자산 단추를 켜면(`whole`), 합계 자리에 두 지수 종목과 그 밖의 종목, 대기자금, 원화·달러 현금을 모두 더한 총 자산을 쓰고,
+  // 수익·수익률은 모든 보유 종목의 수익과 매입액으로 쓴다. 값은 계좌 요약을 새로 받을 때(1분마다)마다 다시 쓴다.
   // 둘째 절 상세 보유 종목은 그 종목들의 종목 줄을 쓰고, 그 아래 거래 내역 단추를 둔다.
   // 맨 아래 절 내 계좌는 원화·달러 주문 가능 현금을 그 통화로, 대기자금(SGOV)을 고른 단위로 쓴다. SGOV를 들고 있지 않으면 대기자금 줄을 두지 않는다.
   // 그림 카드에서 고른 날짜는 화면을 닫을 때까지 기억해, 새 계좌 요약을 받아 다시 그려도 그 날짜로 그린다.
@@ -176,15 +179,17 @@ export function assetPage(page) {
     const change = (v, r, bare) => `<span class="${tone(v)}">${assetSign(v)}${assetMoney(v, unit, bare)} (${Math.abs(r * 100).toFixed(1)}%)</span>`;
     const held = data.items.map((item) => ({ ...item, value: into(item.value, item.currency), profit: into(item.profit, item.currency), purchase: into(item.purchase, item.currency) }));
     const mine = held.filter((item) => item.sector === index), waiting = held.find((item) => item.sector === "sgov");
-    const total = (field) => mine.reduce((sum, item) => sum + item[field], 0), profit = total("profit"), purchase = total("purchase");
+    const total = (field) => (view.whole ? held : mine).reduce((sum, item) => sum + item[field], 0), profit = total("profit"), purchase = total("purchase");
+    const cash = Object.entries(accounts).reduce((sum, [currency, summed]) => sum + into(summed.cash, currency), 0), value = total("value") + (view.whole ? cash : 0);
     const item = (it, sub) => assetRow(assetText(it.name), sub, assetMoney(it.value, unit), change(it.profit, it.rate, true));
-    page.innerHTML = `<h2 class="asset-head">내 투자${assetUnits(unit)}</h2><div class="asset-sum${bare ? "" : " veil"}" role="button" tabindex="0"><b class="veiled">평가 금액 보기</b>`
-      + `<b>${assetMoney(total("value"), unit)}</b>${change(profit, purchase ? profit / purchase : 0)}</div>`
+    const toggle = `<button type="button" class="whole${view.whole ? " on" : ""}" aria-pressed="${view.whole}">총 자산</button>`;
+    page.innerHTML = `<h2 class="asset-head">내 투자<span class="tools">${toggle}${assetUnits(unit)}</span></h2><div class="asset-sum${bare ? "" : " veil"}" role="button" tabindex="0"><b class="veiled">평가 금액 보기</b>`
+      + `<b>${assetMoney(value, unit)}</b>${change(profit, purchase ? profit / purchase : 0)}</div>`
       + `${assetSignal(data.trades?.signal, index)}<h2>상세 보유 종목</h2>`
       + (mine.length ? mine.map((it) => item(it, assetShares(it.quantity))).join("") : `<p class="status">${INDEX_NAME[index]} 종목을 들고 있지 않다.</p>`)
       + `<button type="button" class="asset-trades">거래 내역${chevron}</button><h2>내 계좌</h2>` + assetRow("원화", "주문 가능", assetMoney(accounts.KRW.cash, "KRW")) + assetRow("달러", "주문 가능", assetMoney(accounts.USD.cash, "USD"))
       + (waiting ? item({ ...waiting, name: "대기자금" }, `${waiting.symbol} ${assetShares(waiting.quantity)}`) : "");
-    roll(page.querySelector(".asset-sum b:not(.veiled)"), `${index}-sum-${unit}`);
+    roll(page.querySelector(".asset-sum b:not(.veiled)"), `${view.whole ? "whole" : index}-sum-${unit}`);
     const perf = data.performance?.sectors?.[index], cards = assetCards(perf, index, { live: data.live?.time || data.time, summary: data.time }, pin);
     if (!cards.length) return page.querySelector(".asset-sum").insertAdjacentHTML("afterend", '<p class="status">그림 값이 아직 없다.</p>');
     const bar = document.createElement("div");
@@ -201,6 +206,7 @@ export function assetPage(page) {
   page.addEventListener("click", (event) => {
     const unit = event.target.closest("[data-unit]");
     if (unit && unit.dataset.unit !== view.unit) { feelSlide(); view.unit = unit.dataset.unit; remember(); fill(last); }
+    if (event.target.closest(".asset-head .whole")) { feelSlide(); view.whole = !view.whole; remember(); fill(last); }
     if (event.target.closest(".asset-trades, .signal.go")) { feelPress(); visit(key, { trades: key.split("-")[1] }); }
     const sum = event.target.closest(".asset-sum");
     if (sum) { feelPress(); bare = !bare; sum.classList.toggle("veil", !bare); }

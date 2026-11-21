@@ -86,6 +86,25 @@ def main():
         capture.settle(page)
         capture.turn(page, "자산")
 
+        # 총 자산 단추: 모든 보유 종목과 원화·달러 현금을 원화로 더한 값을 쓰고, 고른 상태를 기기에 남긴다.
+        sum_text = lambda: page.locator(".asset-sum b:not(.veiled)").first.text_content()
+        sector_sum = sum_text()
+        page.locator(".asset-head .whole").click()
+        capture.settle(page, 600)
+        rate = account["rate"]
+        won = lambda v, c: v * rate if c == "USD" else v
+        expected = sum(won(it["value"], it["currency"]) for it in account["items"]) + sum(won(a["cash"], c) for c, a in account["accounts"].items())
+        whole_sum = sum_text()
+        check("A1 총 자산 단추를 켜면 모든 보유 종목과 현금의 합계를 쓴다",
+              whole_sum != sector_sum and abs(int(whole_sum.replace(",", "").replace("원", "")) - round(expected)) <= 1, [sector_sum, whole_sum, round(expected)])
+        page.reload(wait_until="networkidle")
+        capture.settle(page)
+        capture.turn(page, "자산")
+        check("A1 총 자산 단추를 켠 상태가 다시 열어도 남는다", page.locator(".asset-head .whole.on").count() == 1 and sum_text() == whole_sum, sum_text())
+        page.locator(".asset-head .whole").click()
+        capture.settle(page, 600)
+        check("A1 다시 누르면 보고 있는 지수 종목의 합계로 돌아간다", sum_text() == sector_sum, sum_text())
+
         names = page.locator(f"{CARDS} .tabs button").all_text_contents()
         check("A2 단추 순서", names == ["누적 수익률", "초과 수익률", "배율"], names)
 
