@@ -10,9 +10,9 @@ import { NEWS_HELP, question } from "../shared/help";
 // `GET /list?index={지수}&days={일수}`와 `GET /list?ticker={티커}&limit={편수}`는 기사마다 ID, 회차 시작 시각(`time`), 종목, 제목, 머리 줄, 첫 그림 주소(`image`)를 최신순으로 주고,
 // `GET /articles/{ID}`는 기사 한 편의 소제목 세 줄(`subheads`), 본문 HTML(`html`), 그림 주소와 사진 설명(`images`)을 더 준다. 목록의 머리 줄은 첫 소제목이다. 본문 HTML은 build.py `issue_articles`가 만든 이슈 본문과 같은 조각이라
 // 본문 소제목(`h5`), 이슈 그래프 카드(`figure.issue-chart`), 단어표 용어 단추(`button.term`)가 들어 있다.
-// 리포트 화면의 상세 이슈 해설 절은 "상세 이슈 해설"과 "종목 뉴스" 두 탭을 두고(`newsTab`), 종목 상세는 공시 상세 위에 주요뉴스 절을 둔다(`headlines`).
+// 리포트 화면의 상세 이슈 해설 절은 "상세 이슈 해설"과 "종목 뉴스" 두 탭을 두고(`newsTab`), 종목 상세는 공시 상세 위에 주요 뉴스 절을 둔다(`headlines`).
 // 기사를 누르면 주소의 `news`에 기사 ID를 적어 뉴스 상세를 연다. 종목 상세에서 열면 `ticker`에 그 티커도 적는다.
-// Worker가 답하지 않으면 종목 뉴스 탭과 주요뉴스 절에 빈 상태 문구를 쓰고, 상세 이슈 해설 탭은 그대로 둔다.
+// Worker가 답하지 않으면 종목 뉴스 탭과 주요 뉴스 절에 빈 상태 문구를 쓰고, 상세 이슈 해설 탭은 그대로 둔다.
 export const NEWS_URL = "https://invest-news.wonwooshik.workers.dev";
 const DAY = 864e5;
 // Worker를 기다리는 시간. 넘기면 답하지 않은 것으로 본다.
@@ -167,11 +167,11 @@ export function newsTab(index, written) {
   }, () => {});
 }
 
-// 종목 상세에서 `after` 바로 뒤에 주요뉴스 절을 두고, 절의 마지막 노드를 돌려준다. 절은 `symbol` 종목을 단 최신 기사 열 편까지 받아 처음에는 세 편의 날짜와 제목을 쓰고,
+// 종목 상세에서 `after` 바로 뒤에 주요 뉴스 절을 두고, 절의 마지막 노드를 돌려준다. 절은 `symbol` 종목을 단 최신 기사 열 편까지 받아 처음에는 세 편의 날짜와 제목을 쓰고,
 // 상자 아래 끝의 펼침 단추를 누르면 열 편까지 펼친다. 모양은 이슈 화면의 히스토리 상자와 같다. 제목을 누르면 그 기사의 뉴스 상세를 연다.
 export function headlines(after, symbol) {
   const { signal } = life;
-  const head = Object.assign(document.createElement("h2"), { className: "issues inside", textContent: "주요뉴스" });
+  const head = Object.assign(document.createElement("h2"), { className: "issues inside", textContent: "주요 뉴스" });
   const box = Object.assign(document.createElement("div"), { className: "headlines" });
   after.after(head, box);
   newsList(`ticker=${encodeURIComponent(symbol)}&limit=10`).then((items) => {
@@ -203,7 +203,7 @@ export function headlines(after, symbol) {
     });
     label();
   }, () => {
-    if (!signal.aborted) box.replaceChildren(empty("주요뉴스를 불러오지 못했다."));
+    if (!signal.aborted) box.replaceChildren(empty("주요 뉴스를 불러오지 못했다."));
   });
   return box;
 }

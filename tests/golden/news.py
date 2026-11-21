@@ -1,4 +1,4 @@
-"""종목 뉴스 화면의 동작 시험. 리포트 화면의 "상세 이슈 해설 | 종목 뉴스" 탭, 뉴스 상세, 종목 상세의 주요뉴스 절을 `fixtures.NEWS`의 SAMPLE 기사로 연다.
+"""종목 뉴스 화면의 동작 시험. 리포트 화면의 "상세 이슈 해설 | 종목 뉴스" 탭, 뉴스 상세, 종목 상세의 주요 뉴스 절을 `fixtures.NEWS`의 SAMPLE 기사로 연다.
 
     python3 tests/golden/news.py --data ~/repos/invest-reports-news --shots /tmp/sn-u8/shots
 
@@ -185,18 +185,18 @@ def main() -> int:
         page.screenshot(path=str(shots / "news-detail.png"))
         run.close()
 
-        # 종목 상세의 주요뉴스와 그 종목 목록의 다음 기사
+        # 종목 상세의 주요 뉴스와 그 종목 목록의 다음 기사
         page = run.open(f"?r={NASDAQ}&stock=NVDA")
         order = page.evaluate("() => [...document.querySelectorAll('#report > h2')].map((h) => h.textContent.trim())")
-        check("주요뉴스 절은 공시 상세 절 위에 있다", order[-2:] == ["주요뉴스", "공시 상세"], str(order))
+        check("주요 뉴스 절은 공시 상세 절 위에 있다", order[-2:] == ["주요 뉴스", "공시 상세"], str(order))
         rows = page.evaluate(ROWS)
-        check("주요뉴스 절에는 기사 제목이 세 개 보인다", rows == NVDA[:3], " | ".join(rows))
-        capture.top(page, page.locator("#report > h2", has_text="주요뉴스"), 60)
+        check("주요 뉴스 절에는 기사 제목이 세 개 보인다", rows == NVDA[:3], " | ".join(rows))
+        capture.top(page, page.locator("#report > h2", has_text="주요 뉴스"), 60)
         page.screenshot(path=str(shots / "stock-headlines.png"))
         page.locator(".headlines button.unfold").click()
         capture.settle(page, 400)
         rows = page.evaluate(ROWS)
-        check("주요뉴스 절을 펼치면 기사 제목이 열 개 보인다", rows == NVDA, f"{len(rows)}개")
+        check("주요 뉴스 절을 펼치면 기사 제목이 열 개 보인다", rows == NVDA, f"{len(rows)}개")
         page.locator(".headlines .entry", has_text=NVDA[1]).click()
         capture.settle(page)
         found = page.evaluate(PAGE)
@@ -226,7 +226,7 @@ def main() -> int:
         run.close()
         page = run.open(f"?r={NASDAQ}&stock=NVDA")
         empty = page.evaluate("() => document.querySelector('.headlines .empty')?.textContent")
-        check("Worker가 응답하지 않으면 주요뉴스 절에 빈 상태 문구가 보인다", empty == "주요뉴스를 불러오지 못했다.", str(empty))
+        check("Worker가 응답하지 않으면 주요 뉴스 절에 빈 상태 문구가 보인다", empty == "주요 뉴스를 불러오지 못했다.", str(empty))
         run.close()
         browser.close()
     print(f"{len(FAILS)} FAIL" if FAILS else "ALL PASS", f"· 스크린숏 {shots}")
