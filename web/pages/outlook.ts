@@ -221,20 +221,22 @@ export function summaryCards(data, view) {
       const stroke = { fill: "none", stroke: PRICE, "stroke-width": width, "stroke-linejoin": "round" };
       // 봉 그림이면 그림 왼쪽 끝부터 마지막 종가까지 보이는 봉이다.
       const unit = candleUnit(DAYS[span]), groups = candle() ? candleGroups(dates, hist, ratios, unit, last).filter((group) => group[1] >= i0) : null;
-      // 최고·최저 글씨는 기간이 정해진 뒤에만 그리고, 가운데를 그림 양 끝에서 30px 안쪽에 둔다. 봉 그림이면 점 없이 가장 높은 고가와 가장 낮은 저가를 봉 위아래에 적는다.
+      // 최고·최저 글씨는 기간이 정해진 뒤에만 그리고, 가운데를 그림 양 끝에서 30px 안쪽에 둔다. 최고·최저는 기간 안 종가와 사슬의 정규장 값에서 고르므로,
+      // 지금 정규장 값이 기간의 최고나 최저면 그 점에 붙는다. 봉 그림이면 점 없이 정규장 잠정 봉까지 포함한 가장 높은 고가와 가장 낮은 저가를 봉 위아래에 적는다.
       const extremes = () => {
         const group = s.appendChild(shape("g", { class: "marks" }));
         if (groups) {
-          const high = groups.reduce((a, b) => (b[3] > a[3] ? b : a)), low = groups.reduce((a, b) => (b[4] < a[4] ? b : a));
+          const bars = drawn.filter((bar) => !bar[7]), high = bars.reduce((a, b) => (b[3] > a[3] ? b : a)), low = bars.reduce((a, b) => (b[4] < a[4] ? b : a));
           [[high, high[3], -5, "최고"], [low, low[4], 13, "최저"]].forEach(([[a, b], v, dy, text]) => {
             group.append(shape("text", { x: Math.min(Math.max(X((a + b) / 2), L + 30), R - 30), y: Y(v) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${fmt(v)}`));
           });
           return;
         }
-        const shown = hist.slice(i0, last + 1);
-        [[i0 + shown.indexOf(Math.max(...shown)), -7, "최고"], [i0 + shown.indexOf(Math.min(...shown)), 15, "최저"]].forEach(([i, dy, text]) => {
-          group.append(shape("circle", { cx: X(i), cy: Y(hist[i]), r: 2.5, fill: PRICE }));
-          group.append(shape("text", { x: Math.min(Math.max(X(i), L + 30), R - 30), y: Y(hist[i]) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${fmt(hist[i])}`));
+        const shown = [...hist.slice(i0, last + 1).map((v, k) => [i0 + k, v]), ...track.filter((entry) => entry[2] === "regular").map((entry) => [last + entry[5], entry[0]])];
+        const high = shown.reduce((a, b) => (b[1] > a[1] ? b : a)), low = shown.reduce((a, b) => (b[1] < a[1] ? b : a));
+        [[high, -7, "최고"], [low, 15, "최저"]].forEach(([[i, v], dy, text]) => {
+          group.append(shape("circle", { cx: X(i), cy: Y(v), r: 2.5, fill: PRICE }));
+          group.append(shape("text", { x: Math.min(Math.max(X(i), L + 30), R - 30), y: Y(v) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${fmt(v)}`));
         });
       };
       const step = (R - L) / (end - x0);
