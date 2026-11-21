@@ -124,7 +124,9 @@ export function summaryCards(data, view) {
   // 처음 상태로 돌아온다. 세션 단추나 예측 단추를 누르거나 고른 거래일이 기간 밖으로 나가도 처음 상태로 돌아온다.
   // 예측 단추(`aim`)를 켜면 판단의 예측과 지난 리포트의 예측을 그리고, '현재' 표시를 가장 늦은 값에 찍으며 세션 단추를 모두 끈다. 처음에는 끈 채로 연다.
   // 켠 카드는 위 줄에 "25거래일 뒤 예측 중앙값"을, 가운데 줄에 그 값을 지수색 그라데이션으로 쓰고 지수색 점 뒤에 기준 가격 대비 등락률을 적는다.
-  // 켠 카드에서 예측 자리를 누르면 그 거래일의 예측 중앙값으로 머리 글씨와 '현재' 표시를 옮긴다.
+  // 켠 카드에서 지난 거래일을 누르면 그날 종가를 기준 가격으로 내린 판단(`r/rewind-{지수}/cards.json`의 프레임)의 예측 범위와 50% 선을 오늘 판단의 예측 대신 그리고,
+  // '현재' 표시를 그날 종가에 찍으며, 머리 글씨를 그 판단의 25거래일 뒤 예측 중앙값과 그날 기준 가격 대비 등락률로 바꾼다. 그날 판단이 없는 거래일은 눌러도 바뀌지 않는다.
+  // 기준 가격 날짜 종가나 그 뒤 자리를 누르면 오늘 판단의 예측으로 돌아온다.
   // 끈 카드의 가로축은 사슬의 마지막 거래일 자리(없으면 기준 가격 날짜 다음 거래일)에서 끝나고, 켠 카드의 가로축은 기준 가격 날짜 뒤 25거래일에서 끝난다. 그림 왼쪽 끝도 같은 거래일 수만큼 옮겨 기간을 지킨다.
   // 단추를 누르면 기간을 바꿀 때와 같은 곡선으로 가로축과 세로 범위를 옮기면서 예측을 서서히 나타내거나 지운다.
   // 판단의 예측은 기준 가격 점에서 출발하는 25~75% 범위와 50% 선이다. 기준 가격 점은 기준 가격 날짜 다음 거래일 자리에 찍고,
@@ -134,7 +136,7 @@ export function summaryCards(data, view) {
   const price = (() => {
     const c = card(""), s = c.svg, clipId = "price-clip", title = c.title;
     c.box.querySelector(".val b").className = "";
-    // `track`은 그림에 잇는 사슬의 값들이고, `picked`는 그림을 눌러 고른 자리(종가 거래일 번호 `i`나 예측 거래일 `k`)다.
+    // `track`은 그림에 잇는 사슬의 값들이고, `picked`는 그림을 눌러 고른 자리(종가 거래일 번호 `i`, 켠 카드면 그날 판단 `f`)다.
     let late = false, chosen = false, track = [], picked = null, aim = false, want = !!view.aim, first = true;
     const toggle = Object.assign(document.createElement("button"), { type: "button", className: "aim", innerHTML: "<span>예측</span>" });
     title.append(toggle);
@@ -181,14 +183,19 @@ export function summaryCards(data, view) {
     };
     const past = (data.past ?? []).map(([x, lo, mid, hi]) => ({ x, lo, mid, hi }));
     const at = (f) => dates.indexOf(f.base_date);
+    // 지난 판단을 기준 가격 날짜마다 둔다. 이 리포트 날짜보다 늦은 판단과 이 리포트 판단은 넣지 않는다. `active()`는 그리는 판단(고른 지난 판단이나 이 리포트 판단)이다.
+    const judged = {}, active = () => picked?.f ?? frame;
+    fetch(`r/rewind-${key.split("-")[1]}/cards.json`, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : null)).then((found) => {
+      found?.frames.forEach((g) => { if (g.predict && g.day <= data.day && g.base_date !== data.base_date) judged[g.base_date] = g; });
+    }).catch(() => {});
     // 기간마다 세로 범위: 보이는 종가(봉 그림이면 보이는 봉의 고가와 저가)·사슬 값을 담고, 예측을 켰으면(`r`가 0보다 크면) 예측 면과 지난 예측도 담는다.
-    // 사슬 값까지 담은 가장 낮은 값 아래에는 최저 글씨가 들어갈 20px을 비운다.
+    // 사슬 값과 예측 범위까지 담은 가장 낮은 값 아래에는 최저 글씨가 들어갈 20px을 비운다.
     const range = (x0, r) => {
       const shown = candle() ? candleGroups(dates, hist, ratios, candleUnit(DAYS[span]), last).filter((group) => group[1] >= x0).flatMap((group) => [group[3], group[4]]) : hist.slice(x0, last + 1);
-      const band = (r > 0 && frame.predict) || { q25: [], q75: [] }, before = r > 0 ? past : [], more = track.flatMap((entry) => [entry[0], liveBar(entry).high, liveBar(entry).low].filter((v) => v != null));
+      const band = (r > 0 && active().predict) || { q25: [], q75: [] }, before = r > 0 ? past : [], more = track.flatMap((entry) => [entry[0], liveBar(entry).high, liveBar(entry).low].filter((v) => v != null));
       let lo = Math.min(...shown, ...band.q25, ...before.map((q) => q.lo), ...more);
       const hi = Math.max(...shown, ...band.q75, ...before.map((q) => q.hi), ...more);
-      const low = Math.min(...shown, ...more);
+      const low = Math.min(...shown, ...more, ...band.q25);
       lo = Math.min(lo, low - (hi - low) * 20 / (B - T - 20));
       return [lo, hi];
     };
@@ -196,7 +203,7 @@ export function summaryCards(data, view) {
     // 예측의 선과 면, 점은 `r`만큼 흐리게 그린다.
     const draw = (x0, lo, hi, marks, r) => {
       s.replaceChildren();
-      const f = frame, fx = at(f), p = r > 0 ? f.predict : null, end = xmax(r);
+      const f = active(), fx = at(f), p = r > 0 ? f.predict : null, end = xmax(r);
       const X = (i) => L + (i - x0) / (end - x0) * (R - L), Y = (v) => B - (v - lo) / (hi - lo) * (B - T);
       // 덧붙인 잠정 봉이 그림 오른쪽 끝에서 3px까지 나가므로 그 3px도 그린다.
       const clip = shape("clipPath", { id: clipId });
@@ -229,9 +236,11 @@ export function summaryCards(data, view) {
       const extremes = () => {
         const group = s.appendChild(shape("g", { class: "marks" })), now = track.at(-1)?.[0] ?? hist[last];
         const ys = track.flatMap((entry) => [entry[0], ...(groups ? [liveBar(entry).high, liveBar(entry).low] : [])]).filter((v) => v != null).map(Y);
-        const floor = Math.max(...ys), ceiling = Math.min(...ys);
+        // 글씨가 예측 범위의 가로 자리 근처(양옆 60px)에 놓이면 범위의 위 끝 위나 아래 끝 아래로 옮겨 범위와 겹치지 않게 한다.
+        const fan = p && { from: xs[0] - 60, to: xs.at(-1) + 60, top: Math.min(...p.q75.map(Y)), bottom: Math.max(...p.q25.map(Y)) };
+        const floor = Math.max(...ys), ceiling = Math.min(...ys), near = (x) => fan && x > fan.from && x < fan.to;
         const write = (x, y, up, gap, text, v) =>
-          markText(group, x, up ? Math.min(y, ceiling) : Math.max(y, floor), up, gap, `${text} ${fmt(v)}${now === v ? "" : ` (${signed((now / v - 1) * 100)}%)`}`, L, R);
+          markText(group, x, up ? Math.min(y, ceiling, near(x) ? fan.top : y) : Math.max(y, floor, near(x) ? fan.bottom : y), up, gap, `${text} ${fmt(v)}${now === v ? "" : ` (${signed((now / v - 1) * 100)}%)`}`, L, R);
         if (groups) {
           const bars = drawn.filter((bar) => !bar[7]), high = bars.reduce((a, b) => (b[3] > a[3] ? b : a)), low = bars.reduce((a, b) => (b[4] < a[4] ? b : a));
           [[high, high[3], true, "최고"], [low, low[4], false, "최저"]].forEach(([[a, b], v, up, text]) => write(X((a + b) / 2), Y(v), up, 4, text, v));
@@ -278,14 +287,15 @@ export function summaryCards(data, view) {
         tip = to;
       });
       // '현재' 표시는 고른 자리에, 고르지 않았으면 사슬의 마지막 값(없으면 기준 가격 날짜 종가)에 찍는다. 봉 그림이면 그 거래일이 든 봉의 고가 위에 찍는다.
-      if (picked?.k != null) { if (p) nowMark(now, xs[picked.k], Y(p.q50[picked.k]), "regular"); }
-      else if (picked) { if (picked.i >= i0) nowMark(now, center(picked.i), mark(picked.i, Y(hist[picked.i])), "regular"); }
+      if (picked) { if (picked.i >= i0) nowMark(now, center(picked.i), mark(picked.i, Y(hist[picked.i])), "regular"); }
       else nowMark(now, tip[0], mark(last + (track.at(-1)?.[5] ?? 0), tip[1]), track.at(-1)?.[2] ?? "regular");
-      // 그림을 누르면 누른 자리의 거래일을 고른다. 켠 카드의 예측 자리는 예측 거래일을 고르고, 기준 가격 날짜 종가나 그 뒤 자리는 처음 상태로 돌린다.
+      // 그림을 누르면 누른 자리의 거래일을 고른다. 켠 카드는 그날 판단이 있는 거래일만 고르고, 기준 가격 날짜 종가나 그 뒤 자리는 처음 상태로 돌린다.
       onTap(s, (x) => {
         const i = Math.round(x0 + (x - L) / (R - L) * (end - x0));
+        const day = i < last ? Math.max(i0, i) : null;
+        if (aim && day != null && !judged[dates[day]]) return;
         feelPress();
-        picked = p && i > fx ? { k: Math.min(p.q50.length - 1, i - fx) } : i < last ? { i: Math.max(i0, i) } : null;
+        picked = day == null ? null : aim ? { i: day, f: judged[dates[day]] } : { i: day };
         head();
         tween(span, span, 1);
       });
@@ -346,14 +356,14 @@ export function summaryCards(data, view) {
       [...seg.box.children].forEach((button) => (button.disabled = aim));
       title.append(seg.box);
       head = () => {
-        const p = aim ? f.predict : null, tip = track.at(-1), rate = (a, b) => Math.round((a / b - 1) * 1e4) / 100;
-        const forecast = p && picked?.k != null, ink = !!p && (!picked || forecast), value = forecast ? p.q50[picked.k] : p?.q50.at(-1);
+        const g = aim ? active() : null, p = g?.predict, tip = track.at(-1), rate = (a, b) => Math.round((a / b - 1) * 1e4) / 100;
+        const ink = !!p && (!picked || !!picked.f), value = p?.q50.at(-1);
         c.box.classList.toggle("ext", !p && !picked && !!tip && tip[2] !== "regular");
         c.box.classList.toggle("ink", ink);
         c.box.querySelector(".val b").className = ink ? "ink" : "";
         if (ink) {
           c.box.querySelector(".state").className = "state";
-          return c.head(`${signed((value / f.base - 1) * 100)}%`, fmt(value), `${forecast ? picked.k : 25}거래일 뒤 예측 중앙값`);
+          return c.head(`${signed((value / g.base - 1) * 100)}%`, fmt(value), picked ? `${+g.day.slice(5, 7)}/${+g.day.slice(8, 10)} 판단 · 25거래일 뒤 예측 중앙값` : "25거래일 뒤 예측 중앙값");
         }
         const i = picked?.i ?? last;
         if (picked || !tip) {
