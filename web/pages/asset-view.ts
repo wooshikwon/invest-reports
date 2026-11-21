@@ -8,7 +8,7 @@ import { slider } from "../shared/motion";
 import { roll } from "../shared/roll";
 import { closeAt, sessionAt, sessionTag } from "../shared/session";
 import { key, visit } from "../shared/route";
-import { DIMS, nearest, nowMark, onTap, shape } from "../shared/svg";
+import { DIMS, PRICE, nearest, nowMark, onTap, shape } from "../shared/svg";
 import { feelPress, feelSlide, tg } from "../shared/telegram";
 // 내 자산 조각. 내 자산 페이지와 거래 내역 화면의 글씨와 그림은 모두 이 파일에 있고, 공개 화면(`asset.ts`, `trades.ts`)은 Worker가 계좌 요약을 건넨 뒤에만
 // 이 파일을 `import()`로 불러온다. 빌드는 이 파일과 `asset-view.css`를 `assets/asset-view-*.js`·`assets/asset-view-*.css`로 따로 낸다.
@@ -21,10 +21,13 @@ export const assetRow = (name, sub, value, tail) => `<div class="asset-item"><di
   + `<div><strong>${value}</strong>${tail ? `<small>${tail}</small>` : ""}</div></div>`;
 export const assetDay = (date) => `${+date.slice(5, 7)}.${+date.slice(8, 10)}`;
 // 금액 단위와 내 자산 페이지에서 보던 그림 카드는 기기에 적어 두고 다음에 열 때도 그대로 쓴다. 내 자산 페이지와 거래 내역 화면은 같은 금액 단위를 쓴다.
-// 내 자산 화면의 고른 상태. 금액 단위(`unit`), 그림 카드(`card`), 총 자산 단추를 켰는지(`whole`)를 기기에 남긴다.
+// 내 자산 화면의 고른 상태. 금액 단위(`unit`), 그림 카드(`card`), 총 자산 단추를 켰는지(`whole`), 판단 선을 보이는지(`judge`)를 기기에 남긴다.
 export const assetView = () => {
-  const view = { unit: "KRW", card: 0, whole: false };
-  try { const kept = JSON.parse(localStorage.getItem("asset-view")); view.unit = kept.unit === "USD" ? "USD" : "KRW"; view.card = kept.card | 0; view.whole = kept.whole === true; } catch {}
+  const view = { unit: "KRW", card: 0, whole: false, judge: true };
+  try {
+    const kept = JSON.parse(localStorage.getItem("asset-view"));
+    view.unit = kept.unit === "USD" ? "USD" : "KRW"; view.card = kept.card | 0; view.whole = kept.whole === true; view.judge = kept.judge !== false;
+  } catch {}
   return view;
 };
 export const assetRemember = (view) => { try { localStorage.setItem("asset-view", JSON.stringify(view)); } catch {} };
@@ -53,20 +56,21 @@ const stamp = (time) => {
 };
 // 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 지수(`index`)는 이름 줄과 큰 값을 굴리는 자리 이름에 쓴다.
 // `times`는 최신 날짜 점을 셈한 체결가의 시각(`live`)과 계좌 요약을 만든 시각(`summary`)이다. 체결가가 계좌 요약보다 이르면 Worker가 `live`를 빼고 최신 날짜 점을 요약 시각의 가격으로 셈하므로, 그때 `live`는 요약 시각이다. 카드 이름과 상자 목록(`cards`)과 다시 그리는 함수(`show`)를 돌려준다.
-// 카드는 요약 절의 그림 카드처럼 맨 위 줄에 값의 기준 시각을, 그 아래 이름 줄 왼쪽에 "나스닥 100"처럼 지수 이름을, 오른쪽에 큰 값의 기준을 흐린 글씨로 쓴다.
+// 카드는 요약 절의 그림 카드처럼 맨 위 줄에 값의 기준 시각을, 그 아래 이름 줄 왼쪽에 "나스닥 100"처럼 지수 이름을 쓴다. 이름 줄 오른쪽에는 수익률 카드면 판단 보기 단추를,
+// 배율 카드면 목표 배율을 흐린 글씨로 둔다. 판단 보기 단추는 두 수익률 카드에서 판단 선(지수색)을 함께 보이거나 감추고, 그 상태(`view.judge`)를 기기에 남긴다(`remember`).
 // 카드 순서는 누적 수익률, 초과 수익률, 배율이다. 누적 수익률 카드는 첫날 대비 고정 배율·판단·집행 누적 수익률을,
 // 초과 수익률 카드는 판단과 집행의 누적 수익률에서 고정 배율 누적 수익률을 뺀 값을 날짜 지점 축에 그린다. 큰 값은 집행 선의 값이다.
 // 축은 정산한 거래일마다 한 점이고, Worker가 1분마다 다시 셈한 최신 날짜 지점의 값(`returns.now`)이 있으면 그 날짜 점을 하나 더 둔다.
 // 최신 날짜 점의 고정 배율·판단 값은 기준 배율과 목표 배율을 그대로 들고 있다고 본 값이다. Worker가 판단 값을 셈하지 못하면 판단 선은 마지막 정산일에서 끝난다.
 // 수익률 카드의 기준 시각은 최신 날짜 점이 있으면 체결가 시각, 없으면 마지막 거래일의 정규장 종가 시각이다.
-// 배율 카드는 이름 줄 오른쪽에 목표 배율을, 큰 값에 현재 배율을 현재 배율 선과 같은 주황 글씨로 쓰고, 기준 시각은 계좌 요약을 만든 시각이다. 그림에는 오늘 가격 경로들의 배율 분포(지수색 면)와 이슈가 없을 때의 분포(회색 면)를 배율 축에 그리고,
-// 목표 배율에 지수색 실선, 현재 배율에 주황 점선을 긋는다.
+// 배율 카드는 이름 줄 오른쪽에 목표 배율을, 큰 값에 현재 배율을 흰 글씨로 쓰고, 기준 시각은 계좌 요약을 만든 시각이다. 그림에는 오늘 가격 경로들의 배율 분포(지수색 면)와 이슈가 없을 때의 분포(회색 면)를 배율 축에 그리고,
+// 목표 배율에 지수색 실선, 현재 배율에 흰 점선을 긋는다. 집행 선과 현재 배율 선은 다른 페이지의 가격 선과 같은 흰색(`PRICE`)이다.
 // 누적 수익률·초과 수익률 카드는 그림을 누르면 누른 가로 자리에서 가장 가까운 날짜 점으로 '현재' 표시(`nowMark`)를 옮기고, 큰 값을 그 점의 값으로,
 // 기준 시각을 그날 정규장 종가 시각으로 바꾼다. 선은 줄이지 않는다. 고른 점이 첫날이면 큰 값에 "기록 없음"을 쓰고, 가장 늦은 점을 누르면 처음 상태로 돌아간다.
 // 두 카드는 같은 날짜를 함께 고르고, 고른 날짜(`pin.day`)는 호출하는 쪽이 들고 있어 카드를 다시 만들어도 이어진다. 가장 늦은 점을 고르면 `pin.day`를 비워 새 최신 점을 따른다.
 // 배율 카드는 시간 축이 없어 누르기 동작이 없다.
-export function assetCards(perf, index, times = {}, pin = { day: null }) {
-  const W = 320, H = 236, B = 212, L = 6, R = W - 6, T = 22, color = indexInk(W), NOW = "#FF9F1C", BASE = "#A7ABB0";
+export function assetCards(perf, index, times = {}, pin = { day: null }, view = { judge: true }, remember = () => {}) {
+  const W = 320, H = 236, B = 212, L = 6, R = W - 6, T = 22, color = indexInk(W), NOW = PRICE, BASE = "#A7ABB0";
   const big = (text, unit) => [text, Object.assign(document.createElement("small"), { textContent: unit })];
   // 카드 틀에 이름 줄을 더한다. 이름 줄이 같은 높이를 차지해 카드를 넘겨도 값과 그림이 같은 높이에 있다.
   const card = (slot) => {
@@ -86,7 +90,7 @@ export function assetCards(perf, index, times = {}, pin = { day: null }) {
     c.value.className = "";
     c.head("", lev.current == null ? "기록 없음" : big(lev.current.toFixed(3), "배"), stamp(times.summary));
     c.side.textContent = `목표 ${lev.target.toFixed(3)}배`;
-    c.value.style.color = lev.current == null ? DIMS : NOW;
+    c.value.style.color = lev.current == null ? DIMS : "";
     const xs = Array.from({ length: n }, (_, i) => lev.anchor * (1 + lev.low + (lev.high - lev.low) * i / (n - 1)));
     const X = (v) => Math.min(R, Math.max(L, L + (v - xs[0]) / (xs[n - 1] - xs[0]) * (R - L))), peak = Math.max(...lev.today, ...lev.quiet);
     const Y = (v) => B - v / peak * (B - T);
@@ -134,9 +138,12 @@ export function assetCards(perf, index, times = {}, pin = { day: null }) {
     c.head("", v == null ? "기록 없음" : big(signed(v * 100, 2), unit), at);
   };
   if (ret?.days?.length > 1) {
-    const cum = card("cum"), over = card("over");
-    cum.side.textContent = `첫날 ${assetDay(ret.days[0])} 대비 집행`;
-    over.side.textContent = "고정 배율 대비 집행";
+    const cum = card("cum"), over = card("over"), toggles = [cum, over].map((c) => {
+      const button = Object.assign(document.createElement("button"), { type: "button", className: "aim", innerHTML: "<span>판단 보기</span>" });
+      c.side.replaceWith(button);
+      button.addEventListener("click", () => { feelPress(); view.judge = !view.judge; remember(); paint(); });
+      return button;
+    });
     const now = ret.now && ret.now.day > ret.days.at(-1) ? ret.now : null;
     const days = now ? [...ret.days, now.day] : ret.days;
     const anchor = now ? [...ret.anchor, now.anchor] : ret.anchor, realized = now ? [...ret.realized, now.realized] : ret.realized;
@@ -148,8 +155,10 @@ export function assetCards(perf, index, times = {}, pin = { day: null }) {
       figureOf(cum, first ? null : realized[at], "%", when);
       figureOf(over, first ? null : realized[at] - anchor[at], "%p", when.cloneNode(true));
       const tap = (i) => { feelPress(); pin.day = i === days.length - 1 ? null : days[i]; paint(); };
-      lines(cum, [[anchor, BASE, true], [target, color], [realized, NOW]], "%", false, days, at, tap);
-      lines(over, [[gap(target), color], [gap(realized), NOW]], "%p", true, days, at, tap);
+      toggles.forEach((button) => { button.classList.toggle("on", view.judge); button.setAttribute("aria-pressed", view.judge); });
+      const judged = (values) => (view.judge ? [[values, color]] : []);
+      lines(cum, [[anchor, BASE, true], ...judged(target), [realized, NOW]], "%", false, days, at, tap);
+      lines(over, [...judged(gap(target)), [gap(realized), NOW]], "%p", true, days, at, tap);
     };
     paint();
     cards.push(["누적 수익률", cum.box], ["초과 수익률", over.box]);
@@ -190,7 +199,7 @@ export function assetPage(page) {
       + `<button type="button" class="asset-trades">거래 내역${chevron}</button><h2>내 계좌</h2>` + assetRow("원화", "주문 가능", assetMoney(accounts.KRW.cash, "KRW")) + assetRow("달러", "주문 가능", assetMoney(accounts.USD.cash, "USD"))
       + (waiting ? item({ ...waiting, name: "대기자금" }, `${waiting.symbol} ${assetShares(waiting.quantity)}`) : "");
     roll(page.querySelector(".asset-sum b:not(.veiled)"), `${view.whole ? "whole" : index}-sum-${unit}`);
-    const perf = data.performance?.sectors?.[index], cards = assetCards(perf, index, { live: data.live?.time || data.time, summary: data.time }, pin);
+    const perf = data.performance?.sectors?.[index], cards = assetCards(perf, index, { live: data.live?.time || data.time, summary: data.time }, pin, view, remember);
     if (!cards.length) return page.querySelector(".asset-sum").insertAdjacentHTML("afterend", '<p class="status">그림 값이 아직 없다.</p>');
     const bar = document.createElement("div");
     bar.className = "tabs";

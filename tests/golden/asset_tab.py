@@ -15,7 +15,7 @@ import capture
 import fixtures
 
 FAILS = []
-NOW_COLOR = "#FF9F1C"
+NOW_COLOR = "#C9CDD3"
 CARDS = ".carousel.asset-cards"
 
 
@@ -104,6 +104,18 @@ def main():
         page.locator(".asset-head .whole").click()
         capture.settle(page, 600)
         check("A1 다시 누르면 보고 있는 지수 종목의 합계로 돌아간다", sum_text() == sector_sum, sum_text())
+
+        # 판단 보기 단추: 두 수익률 카드의 판단 선(지수색)을 함께 감추고 보이며, 상태를 기기에 남긴다.
+        judged = lambda: page.evaluate("""(cards) => [...document.querySelectorAll(cards + ' .slide')].slice(0, 2)
+          .map((slide) => slide.querySelectorAll('svg path[stroke="url(#index-ink)"]').length)""", CARDS)
+        check("A1 판단 선이 처음에는 보인다", judged() == [1, 1], judged())
+        page.locator(f"{CARDS} .slide").first.locator("button.aim").click()
+        capture.settle(page, 500)
+        check("A1 판단 보기 단추를 끄면 두 카드의 판단 선이 함께 사라진다", judged() == [0, 0] and page.locator(f"{CARDS} button.aim.on").count() == 0, judged())
+        check("A1 판단 보기 상태를 기기에 남긴다", page.evaluate("JSON.parse(localStorage.getItem('asset-view')).judge") is False)
+        page.locator(f"{CARDS} .slide").first.locator("button.aim").click()
+        capture.settle(page, 500)
+        check("A1 다시 켜면 판단 선이 돌아온다", judged() == [1, 1], judged())
 
         names = page.locator(f"{CARDS} .tabs button").all_text_contents()
         check("A2 단추 순서", names == ["누적 수익률", "초과 수익률", "배율"], names)
