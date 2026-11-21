@@ -29,13 +29,15 @@ function reportPage(body, listing, cards, history, given) {
   carry = null;
   settleStart();
   const index = key.split("-")[1], entry = listing[key], isLatest = key === latest(listing, index);
-  // `pend`는 가장 늦은 리포트의 판단 날짜 지점(`entry.point`)보다 늦은 실시간 값의 날짜 지점이다. 그 지점의 판단은 아직 올라오지 않았다.
+  // `due`는 가장 늦은 리포트의 판단 날짜 지점(`entry.point`)의 정규장이 시작했거나 그보다 늦은 날짜 지점의 실시간 값이 들어왔는지다.
+  // 그때부터 다음 판단이 올라올 때까지 화면의 예측은 업데이트를 기다리는 값이다.
   // 설명 세 절(`noted`)은 화면을 그릴 때 받은 가장 늦은 판단의 `outlook.json`(`given`)으로 채우고, 예측 단추(`aimed`)의 상태를 받지 않는다.
   // 그림 카드 묶음 아래에는 보고 있는 카드에 맞는 절 하나만 보인다(`NOTE_OF`). 주가와 예측 카드는 현재 상태, 일정 카드는 주요 분기와 예측, 권장 배율 카드는 종합 시나리오다.
-  let pend = null, cardSet = null, noted = null, aimed = !!kept?.aim;
+  // `due`인 동안(판단 배치가 도는 동안 포함)에는 설명 절의 제목과 내용을 회색으로 흐리게 보인다.
+  let due = false, cardSet = null, noted = null, aimed = !!kept?.aim;
   // 예측 단추의 글자는 판단 배치의 단계(`stage`)로 정하고, 단계 판정은 여기서 하며 `outlook.ts`는 받은 글자와 상태만 그린다.
   // 단계는 가장 늦은 리포트를 보는 동안만 정한다. 실시간 값의 `progress`가 보는 리포트의 날짜(`entry.date`)보다 늦은 날짜에 이 지수의 단계를 적었으면 판단 배치가 도는 중이라 "예측 중 N%"(`running`)이고,
-  // 그렇지 않은데 다음 날짜 지점의 값(`pend`)이 들어왔으면 배치가 시작하기 전이라 "예측 전"(`pre`)이다. 그 밖에는 "예측"(`done`)이다.
+  // 그렇지 않은데 `due`이면 배치가 시작하기 전이라 "예측 업데이트 전"(`pre`)이다. 그 밖에는 "예측"(`done`)이다.
   // 진척률은 지금 단계의 누적 분에 그 단계에 머문 분을 다음 단계의 몫까지만 더해 마지막 누적 분으로 나눈 값이고, 줄지 않으며 99%에서 멈춘다.
   let stage = { state: "done", text: "예측" }, shown = 0, shownFor = null;
   const view = { aim: aimed, stage: () => stage, watch: (on) => { aimed = on; } };
@@ -50,9 +52,9 @@ function reportPage(body, listing, cards, history, given) {
         shown = Math.max(shown, Math.min(99, Math.floor((plan[step] + inside) / plan.at(-1) * 100)));
         return [{ state: "running", text: `예측 중 ${shown}%` }, true];
       }
-      return [pend ? { state: "pre", text: "예측 전" } : { state: "done", text: "예측" }, !!pend];
+      return [due ? { state: "pre", text: "예측 업데이트 전" } : { state: "done", text: "예측" }, due];
     };
-    // 판단이 올라왔는지는 판단 배치가 돌거나 다음 날짜 지점의 값이 있는 동안 실시간 값을 받는 회차마다 `r/index.json`을 다시 받아 본다.
+    // 판단이 올라왔는지는 판단 배치가 돌거나 `due`인 동안 실시간 값을 받는 회차마다 `r/index.json`을 다시 받아 본다.
     // 이 지수의 목록 항목 가운데 날짜가 보는 리포트보다 늦은 것이 생기면 `arrive`로 화면을 그 자리에서 다시 그린다. 토요일 배치와 월요일 배치는 날짜 지점이 앞 리포트와 같거나 앞서 있어도 날짜로 알아본다.
     let asking = false;
     const arrive = (name) => {
@@ -63,9 +65,9 @@ function reportPage(body, listing, cards, history, given) {
       reshow(false);
     };
     subscribe((found) => {
-      const next = isLatest && entry.point
-        ? Object.keys(found.points?.[index] || {}).filter((point) => point > entry.point).sort()[0] ?? null : null;
-      pend = next;
+      const points = found.points?.[index] || {};
+      due = !!(isLatest && entry.point && (points[entry.point]?.regular || Object.keys(points).some((point) => point > entry.point)));
+      noted?.fade(due);
       const [now, waiting] = judge(found);
       stage = now;
       cardSet?.label?.();
@@ -111,6 +113,7 @@ function reportPage(body, listing, cards, history, given) {
       noted = notes(cardSet.box);
       noted.set(given?.sections, given?.point ?? "");
       cardSet.follow((name) => noted.show(NOTE_OF[name]));
+      noted.fade(due);
     }
     indicators();
     marketed.then(({ map }) => {

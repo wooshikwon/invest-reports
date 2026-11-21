@@ -74,8 +74,9 @@ def arrival(data: Path, case: dict, current: dict) -> dict:
 
 
 def live_for(data: Path, case: dict, stage: str) -> dict:
-    """`stage`가 `running`이면 배치가 도는 값, `pre`이면 앞선 날짜 지점의 1분 값만 온 값, `done`이면 둘 다 없는 값이다."""
-    live = fixtures.live(data, "closed")
+    """`stage`가 `running`이면 배치가 도는 값, `pre`이면 판단 날짜 지점의 정규장 값과 다음 날짜 지점의 1분 값이 온 값, `done`이면 판단 날짜 지점의 프리장 값만 온 값이다.
+    월요일 배치처럼 판단 날짜 지점이 새 판단과 같은 경우(`ahead`가 없음)는 배치가 그 지점의 정규장 전에 돌므로 프리장 값만 둔다."""
+    live = fixtures.live(data, "pre" if stage == "done" or not case["ahead"] else "closed")
     date, point = case["report"]
     board = json.loads((data / "r" / "market.json").read_text(encoding="utf-8"))["map"]
     for index in board:
@@ -163,7 +164,7 @@ def main():
         # 예측 단추 (P2)
         for case in (WEEKDAY, SATURDAY, MONDAY):
             base = story(data, case)
-            for stage, text in (("done", "예측"), ("pre", "예측 전"), ("running", None)):
+            for stage, text in (("done", "예측"), ("pre", "예측 업데이트 전"), ("running", None)):
                 if stage == "pre" and not case["ahead"]:
                     continue
                 w = Scene(p, data, base, live_for(data, case, stage), 2, False)
@@ -175,6 +176,9 @@ def main():
                 check(f"p2 {case['name']} {stage}: 단추 글자", bool(good), got)
                 notes = page.evaluate("() => [...document.querySelectorAll('[data-point]')].map((n) => [n.dataset.point, n.hidden, n.dataset.note])")
                 check(f"p2 {case['name']} {stage}: 예측을 켜기 전에도 주가와 예측 카드의 설명 절(현재 상태)이 보임", dp.shows({"notes": notes, "tab": 0}), notes)
+                faded = page.evaluate("() => [...document.querySelectorAll('[data-note]')].map((n) => n.classList.contains('stale'))")
+                # 판단 날짜 지점의 정규장이 시작한 뒤(`ahead`가 있는 경우의 pre·running)만 회색이다. 월요일 배치는 정규장 전에 돌므로 회색이 아니다.
+                check(f"p2 {case['name']} {stage}: 설명 절은 정규장 시작 뒤 업데이트를 기다리는 동안만 회색", bool(faded) and all(f == (stage != "done" and bool(case["ahead"])) for f in faded), faded)
                 # 세 상태 모두 눌러 가장 늦은 판단의 예측을 켠다
                 page.locator("button.aim").first.click()
                 capture.settle(page, 500)

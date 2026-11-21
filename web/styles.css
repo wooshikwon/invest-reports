@@ -209,6 +209,8 @@ h3 code.tone-both { background: #6f7984; }
 .carousel .track::-webkit-scrollbar { display: none; }
 .carousel .slide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; }
 .carousel .slide img { margin: 0; }
+/* 지수와 예측의 설명 절은 판단 날짜 지점의 정규장이 시작한 뒤 다음 판단이 올라오기 전까지(`stale`) 제목과 내용을 회색으로 흐리게 보인다. */
+[data-note].stale { filter: grayscale(1); opacity: .45; }
 /* 절 제목 아래 첫 요소는 절 제목의 아래 여백만큼 띄우고, 절 안의 항목 사이는 30px씩 띄운다.
    지수와 예측 절의 세 소제목 사이는 이슈 문단 사이만큼 띄운다. */
 /* 지수와 예측 절의 세 문단은 소제목만 보이고, 상세 이슈 해설의 이슈 해설 문단과 이벤트 캘린더의 이벤트마다 표는 펼쳐 둔다.
@@ -575,10 +577,13 @@ table.judged tbody tr.more button svg { color: var(--dim); }
 :is(.indexmap > .top, .gauge .top) .session { flex: none; margin: -6px 0 -6px auto; align-self: center; }
 /* 요약 절 그림 카드와 종목 상세 주가 카드는 맨 위 줄에 흐린 작은 글씨를 쓰고, 그 아래 이름 줄에 지수나 종목 이름과 단추를 둔다. */
 .gauge .top.title { margin-top: 3px; }
+/* 이름이 단추와 한 줄에 들지 않으면 낱말 사이에서만 줄을 바꿔, "나스닥 바이오테크놀로지"가 낱말 중간에서 끊기지 않게 한다. 이름 줄의 사이는 6px로 좁혀 이름에 자리를 더 준다. */
+.gauge .top.title { gap: 6px; }
+.gauge .top.title .name { word-break: keep-all; }
 /* 주가와 예측 카드는 이름 줄의 세션 단추 왼쪽에 예측 단추(`aim`)를 둔다. 단추는 세션 단추 한 쌍과 같은 높이와 바탕에 "예측"을 쓰고, 켜면 바탕을 밝히고 글씨를 예측 선과 같은 지수색 그라데이션으로 칠한다.
-   가장 늦은 리포트를 보는 동안 판단 배치의 단계를 글씨로 쓴다. 다음 날짜 지점의 값만 들어왔으면 회색 "예측 전", 판단 배치가 도는 동안은 노란 "예측 중 NN%"이고, 진척률 숫자는 자리 폭이 같은 숫자로 쓴다.
+   가장 늦은 리포트를 보는 동안 판단 배치의 단계를 글씨로 쓴다. 판단 날짜 지점의 정규장이 시작한 뒤 배치가 돌기 전이면 회색 "예측 업데이트 전", 판단 배치가 도는 동안은 노란 "예측 중 NN%"이고, 진척률 숫자는 자리 폭이 같은 숫자로 쓴다.
    켜면 세 단계 모두 지수색 글씨를 쓴다. */
-.gauge .top .aim { flex: none; height: 26px; margin: -6px 0 -6px auto; padding: 0 11px; border: 0; border-radius: 9px; align-self: center;
+.gauge .top .aim { flex: none; height: 26px; margin: -6px 0 -6px auto; padding: 0 8px; border: 0; border-radius: 9px; align-self: center;
                    background: rgba(255, 255, 255, .06); color: var(--hint); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .gauge .top .aim.pre span { color: var(--hint); }
 .gauge .top .aim.running span { color: #ffc857; font-variant-numeric: tabular-nums; }

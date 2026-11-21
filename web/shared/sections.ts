@@ -40,10 +40,10 @@ export function heads(title) {
 }
 // `anchor` 바로 뒤에 `outlook.json`의 설명 절(현재 상태·주요 분기와 예측·종합 시나리오)을 접기 상자로 붙인다.
 // `set(sections, point)`은 절 이름마다 HTML을 받아 절을 통째로 바꾼다. 절의 노드에는 절 이름을 `data-note`로, 설명 날짜를 `data-point`로 단다.
-// `show(name)`은 `name` 절만 보이고 나머지 절을 감춘다. 이름을 받기 전에는 모든 절을 보인다.
+// `show(name)`은 `name` 절만 보이고 나머지 절을 감춘다. 이름을 받기 전에는 모든 절을 보인다. `fade(on)`은 절을 회색으로 흐리게 보이거나(`stale`) 되돌린다.
 export function notes(anchor) {
-  let nodes = [], shown = null;
-  const show = () => nodes.forEach((node) => { node.hidden = !!shown && node.dataset.note !== shown; });
+  let nodes = [], shown = null, faded = false;
+  const show = () => nodes.forEach((node) => { node.hidden = !!shown && node.dataset.note !== shown; node.classList.toggle("stale", faded); });
   return {
     set(sections = {}, point = "") {
       nodes.forEach((node) => node.remove());
@@ -63,6 +63,10 @@ export function notes(anchor) {
     },
     show(name) {
       shown = name;
+      show();
+    },
+    fade(on) {
+      faded = on;
       show();
     },
   };
