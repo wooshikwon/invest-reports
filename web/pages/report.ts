@@ -32,7 +32,7 @@ function reportPage(body, listing, cards, history, given) {
   // `due`는 가장 늦은 리포트의 판단 날짜 지점(`entry.point`)의 정규장이 시작했거나 그보다 늦은 날짜 지점의 실시간 값이 들어왔는지다.
   // 그때부터 다음 판단이 올라올 때까지 화면의 예측은 업데이트를 기다리는 값이다.
   // 설명 세 절(`noted`)은 화면을 그릴 때 받은 가장 늦은 판단의 `outlook.json`(`given`)으로 채우고, 예측 단추(`aimed`)의 상태를 받지 않는다.
-  // 그림 카드 묶음 아래에는 보고 있는 카드에 맞는 절 하나만 보인다(`NOTE_OF`). 주가와 예측 카드는 현재 상태, 일정 카드는 주요 분기와 예측, 권장 배율 카드는 종합 시나리오다.
+  // 설명 절은 그 절에 맞는 그림 카드와 한 장에 넣어 카드와 함께 넘긴다(`NOTE_OF`). 주가와 예측 카드는 현재 상태, 일정 카드는 주요 분기와 예측, 권장 배율 카드는 종합 시나리오다.
   // `due`인 동안(판단 배치가 도는 동안 포함)에는 설명 절의 제목과 내용을 회색으로 흐리게 보인다.
   let due = false, cardSet = null, noted = null, aimed = !!kept?.aim;
   // 예측 단추의 글자는 판단 배치의 단계(`stage`)로 정하고, 단계 판정은 여기서 하며 `outlook.ts`는 받은 글자와 상태만 그린다.
@@ -110,9 +110,8 @@ function reportPage(body, listing, cards, history, given) {
     report.querySelectorAll("[data-drop]").forEach((node) => node.remove());
     cardSet = figures(cards, view);
     if (cardSet?.box) {
-      noted = notes(cardSet.box);
+      noted = notes(Object.fromEntries(Object.entries(cardSet.slides).map(([name, slide]) => [NOTE_OF[name], slide])));
       noted.set(given?.sections, given?.point ?? "");
-      cardSet.follow((name) => noted.show(NOTE_OF[name]));
       noted.fade(due);
     }
     indicators();

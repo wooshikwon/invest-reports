@@ -38,16 +38,16 @@ export function lift(first) {
 export function heads(title) {
   lift([...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === title)?.nextElementSibling);
 }
-// `anchor` 바로 뒤에 `outlook.json`의 설명 절(현재 상태·주요 분기와 예측·종합 시나리오)을 접기 상자로 붙인다.
+// `outlook.json`의 설명 절(현재 상태·주요 분기와 예측·종합 시나리오)을 접기 상자로 만들어 절 이름마다 정한 자리(`slots`, 그림 카드 묶음의 장)의 끝에 붙인다.
 // `set(sections, point)`은 절 이름마다 HTML을 받아 절을 통째로 바꾼다. 절의 노드에는 절 이름을 `data-note`로, 설명 날짜를 `data-point`로 단다.
-// `show(name)`은 `name` 절만 보이고 나머지 절을 감춘다. 이름을 받기 전에는 모든 절을 보인다. `fade(on)`은 절을 회색으로 흐리게 보이거나(`stale`) 되돌린다.
-export function notes(anchor) {
-  let nodes = [], shown = null, faded = false;
-  const show = () => nodes.forEach((node) => { node.hidden = !!shown && node.dataset.note !== shown; node.classList.toggle("stale", faded); });
+// `fade(on)`은 절을 회색으로 흐리게 보이거나(`stale`) 되돌린다.
+export function notes(slots) {
+  let nodes = [], faded = false;
+  const paint = () => nodes.forEach((node) => node.classList.toggle("stale", faded));
   return {
     set(sections = {}, point = "") {
       nodes.forEach((node) => node.remove());
-      nodes = Object.entries(sections).flatMap(([name, html]) => {
+      nodes = Object.entries(sections).filter(([name]) => slots[name]).flatMap(([name, html]) => {
         const temp = document.createElement("div");
         temp.innerHTML = html;
         toneTags(temp);
@@ -56,18 +56,14 @@ export function notes(anchor) {
         temp.querySelectorAll("h3").forEach(trail);
         const made = [...temp.children];
         made.forEach((node) => Object.assign(node.dataset, { note: name, point }));
+        slots[name].append(...made);
         return made;
       });
-      anchor.after(...nodes);
-      show();
-    },
-    show(name) {
-      shown = name;
-      show();
+      paint();
     },
     fade(on) {
       faded = on;
-      show();
+      paint();
     },
   };
 }

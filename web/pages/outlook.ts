@@ -33,16 +33,12 @@ export function figures(given = null, view = { aim: false, stage: () => ({ state
       button.addEventListener("click", () => box.go(i));
       bar.appendChild(button);
     });
-    // `follow(turned)`는 보고 있는 카드가 바뀔 때마다 그 카드 이름으로 `turned`를 부르고, 받자마자 지금 카드 이름으로 한 번 부른다.
-    let current = 0, turned = () => {};
-    const change = (i) => {
-      [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j));
-      current = i;
-      turned(set.names[i]);
-    };
-    const head = report.querySelector("h2"), box = slider(set.slides, head, { change, name: "cards", feel: true });
+    const change = (i) => [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j));
+    // 카드마다 한 장이고, 장의 높이는 보고 있는 장에 맞춘다. `slides`는 카드 이름마다의 장이라, 리포트 화면이 그 장의 카드 아래에 설명 절을 붙인다.
+    const head = report.querySelector("h2"), box = slider(set.slides, head, { change, name: "cards", feel: true, fit: true });
     box.prepend(bar);
-    return { box, label: () => set.label(), follow: (fn) => { turned = fn; fn(set.names[current]); } };
+    const slides = Object.fromEntries(set.names.map((name, i) => [name, box.querySelector(".track").children[i]]));
+    return { box, slides, label: () => set.label() };
   }
   const pick = (name) => [...report.querySelectorAll("img")].find((img) => img.getAttribute("src").includes(`/${name}-`));
   const chart = pick("chart"), tree = pick("tree"), predict = pick("predict");

@@ -290,8 +290,9 @@ details.fold > summary { list-style: none; cursor: pointer; }
 details.fold > summary::-webkit-details-marker { display: none; }
 details.fold { margin-top: 15.5px; }
 .carousel + details.fold { margin-top: 30px; }
-/* 지수와 예측의 설명 세 절은 한 번에 하나만 보이므로, 어느 절이든 그림 카드 묶음에서 같은 30px 아래에 둔다. */
+/* 지수와 예측의 설명 절은 그 절의 그림 카드와 한 장에 넣어 카드 아래 30px에 둔다. 장은 소제목에서 민 손길로 넘기고, 펼친 본문에서 민 손길로는 넘기지 않는다. */
 details.fold[data-note] { margin-top: 30px; }
+details.fold[data-note] > .body { touch-action: pan-y; }
 details.fold > summary :is(h3, h4) { margin: 0; }
 details.fold > .body { display: flow-root; padding-top: 6px; color: var(--hint); }
 details.fold > .body > * { margin-top: 0; }

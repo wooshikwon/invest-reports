@@ -73,13 +73,14 @@ NOTE_OF = ["현재 상태", "주요 분기와 예측", "종합 시나리오"]
 
 
 def shows(s) -> bool:
-    """고른 카드에 맞는 설명 절만 보이는지."""
+    """고른 카드의 장에 그 카드에 맞는 설명 절만 있는지. 다른 절은 다른 장에 있어 화면 밖이다."""
     return bool(s["notes"]) and {note for _, hidden, note in s["notes"] if not hidden} == {NOTE_OF[s["tab"]]}
 
 
 def state(page):
     return page.evaluate("""() => ({
-      notes: [...document.querySelectorAll('[data-point]')].map((n) => [n.dataset.point, n.hidden, n.dataset.note]),
+      notes: (() => { const slides = [...document.querySelectorAll('.carousel.cards .track > .slide')], on = [...document.querySelectorAll('.carousel.cards .tabs button')].findIndex((b) => b.classList.contains('on'));
+        return [...document.querySelectorAll('[data-point]')].map((n) => [n.dataset.point, slides.indexOf(n.closest('.slide')) !== on, n.dataset.note]); })(),
       aim: (() => { const b = document.querySelector('button.aim'); return b && { disabled: b.disabled, on: b.classList.contains('on'), text: b.textContent.trim() }; })(),
       tab: [...document.querySelectorAll('.carousel.cards .tabs button')].findIndex((b) => b.classList.contains('on')),
       toast: document.querySelector('.toast')?.textContent ?? null,
