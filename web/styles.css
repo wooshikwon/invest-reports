@@ -541,7 +541,9 @@ table.judged tbody tr.more button svg { color: var(--dim); }
 /* 점 묶음을 누르고 있는 동안 돋보기를 키운다. */
 .gauge .zoom .steps i.on { transition: transform .15s ease; }
 .gauge .zoom .steps.held i.on { transform: scale(1.3); }
-.gauge .evbox { display: flex; align-items: center; gap: 4px; height: 28px; font-size: 13px; color: var(--text); white-space: nowrap; }
+/* 예측과 일정 카드 아래 줄은 고른 일정의 날짜와 이름, 앞뒤 꺽쇠를 바로가기 알약처럼 옅은 바탕의 둥근 상자 하나에 담는다. */
+.gauge .evbox { display: flex; align-items: center; gap: 4px; height: 40px; padding: 0 4px; border-radius: 12px; background: rgba(255, 255, 255, .06);
+                font-size: 13.5px; font-weight: 600; color: var(--text); white-space: nowrap; }
 .gauge .evbox button { flex: none; appearance: none; border: 0; padding: 0; width: 28px; height: 28px; background: transparent; color: var(--text);
                        display: grid; place-items: center; cursor: pointer; }
 .gauge .evbox button:disabled { color: var(--dim); opacity: .45; cursor: default; }
