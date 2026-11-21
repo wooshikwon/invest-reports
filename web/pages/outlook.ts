@@ -182,13 +182,13 @@ export function summaryCards(data, view) {
     const past = (data.past ?? []).map(([x, lo, mid, hi]) => ({ x, lo, mid, hi }));
     const at = (f) => dates.indexOf(f.base_date);
     // 기간마다 세로 범위: 보이는 종가(봉 그림이면 보이는 봉의 고가와 저가)·사슬 값을 담고, 예측을 켰으면(`r`가 0보다 크면) 예측 면과 지난 예측도 담는다.
-    // 최저 점 아래에는 글씨가 들어갈 20px을 비운다.
+    // 사슬 값까지 담은 가장 낮은 값 아래에는 최저 글씨가 들어갈 20px을 비운다.
     const range = (x0, r) => {
       const shown = candle() ? candleGroups(dates, hist, ratios, candleUnit(DAYS[span]), last).filter((group) => group[1] >= x0).flatMap((group) => [group[3], group[4]]) : hist.slice(x0, last + 1);
       const band = (r > 0 && frame.predict) || { q25: [], q75: [] }, before = r > 0 ? past : [], more = track.flatMap((entry) => [entry[0], liveBar(entry).high, liveBar(entry).low].filter((v) => v != null));
       let lo = Math.min(...shown, ...band.q25, ...before.map((q) => q.lo), ...more);
       const hi = Math.max(...shown, ...band.q75, ...before.map((q) => q.hi), ...more);
-      const low = Math.min(...shown);
+      const low = Math.min(...shown, ...more);
       lo = Math.min(lo, low - (hi - low) * 20 / (B - T - 20));
       return [lo, hi];
     };
@@ -224,23 +224,26 @@ export function summaryCards(data, view) {
       // 최고·최저 글씨는 기간이 정해진 뒤에만 그린다. 최고·최저는 기간 안 종가와 사슬의 정규장 값에서 고르므로,
       // 지금 정규장 값이 기간의 최고나 최저면 그 점에 붙는다. 봉 그림이면 점 없이 정규장 잠정 봉까지 포함한 가장 높은 고가와 가장 낮은 저가를 봉 위아래에 적는다.
       // 최고·최저 값 뒤 괄호에는 현재가(사슬의 마지막 값, 없으면 기준 가격 날짜 종가)의 그 값 대비 등락률을 적는다. 현재가가 그 값이면 괄호를 쓰지 않는다.
-      // 글씨는 가운데를 그 점에 맞추되, 글씨 폭의 절반만큼 그림 양 끝 안쪽에 둔다.
+      // 글씨는 가운데를 그 점에 맞추되, 글씨 폭의 절반만큼 그림 양 끝 안쪽에 둔다. 세로로는 최저 글씨를 그 점과 사슬 값(봉 그림이면 잠정 봉의 저가) 가운데
+      // 가장 낮은 자리 아래에, 최고 글씨를 가장 높은 자리 위에 두어 선과 봉, '현재' 표시에 겹치지 않게 한다.
       const extremes = () => {
         const group = s.appendChild(shape("g", { class: "marks" })), now = track.at(-1)?.[0] ?? hist[last];
+        const ys = track.flatMap((entry) => [entry[0], ...(groups ? [liveBar(entry).high, liveBar(entry).low] : [])]).filter((v) => v != null).map(Y);
+        const floor = Math.max(...ys), ceiling = Math.min(...ys);
         const write = (x, y, text, v) => {
           const words = `${text} ${fmt(v)}${now === v ? "" : ` (${signed((now / v - 1) * 100)}%)`}`, half = textWidth(words, 11) / 2 + 2;
           group.append(shape("text", { x: Math.min(Math.max(x, L + half), R - half), y, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, words));
         };
         if (groups) {
           const bars = drawn.filter((bar) => !bar[7]), high = bars.reduce((a, b) => (b[3] > a[3] ? b : a)), low = bars.reduce((a, b) => (b[4] < a[4] ? b : a));
-          [[high, high[3], -5, "최고"], [low, low[4], 13, "최저"]].forEach(([[a, b], v, dy, text]) => write(X((a + b) / 2), Y(v) + dy, text, v));
+          [[high, high[3], -5, "최고"], [low, low[4], 13, "최저"]].forEach(([[a, b], v, dy, text]) => write(X((a + b) / 2), (dy > 0 ? Math.max(Y(v), floor) : Math.min(Y(v), ceiling)) + dy, text, v));
           return;
         }
         const shown = [...hist.slice(i0, last + 1).map((v, k) => [i0 + k, v]), ...track.filter((entry) => entry[2] === "regular").map((entry) => [last + entry[5], entry[0]])];
         const high = shown.reduce((a, b) => (b[1] > a[1] ? b : a)), low = shown.reduce((a, b) => (b[1] < a[1] ? b : a));
         [[high, -7, "최고"], [low, 15, "최저"]].forEach(([[i, v], dy, text]) => {
           group.append(shape("circle", { cx: X(i), cy: Y(v), r: 2.5, fill: PRICE }));
-          write(X(i), Y(v) + dy, text, v);
+          write(X(i), (dy > 0 ? Math.max(Y(v), floor) : Math.min(Y(v), ceiling)) + dy, text, v);
         });
       };
       const step = (R - L) / (end - x0);

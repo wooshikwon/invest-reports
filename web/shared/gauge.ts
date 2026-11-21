@@ -99,6 +99,7 @@ export const GAUGES = {
   // 마지막 점에서 점선으로 잇는다. 세로축은 그 값까지 담는다. '현재' 표시의 색은 `extra`의 세션(`kind`)으로 고른다.
   // 봉 비율과 봉 하나가 묶는 기간과 값 글자(`candle`, `{ ratios, unit, label }`)를 받으면 선 대신 봉을 그리고, 세로축을 봉의 고가와 저가까지 담는다.
   // 최고·최저 글자는 가장 높은 고가와 가장 낮은 저가를 봉 위아래에 적고, 정규장 다음 세션 값은 다음 거래일이 든 기간의 흐린 잠정 봉(`candleLate`)으로 그린다.
+  // 정규장 다음 세션 값이 최저보다 낮거나 최고보다 높으면 최저 글자는 그 값 아래에, 최고 글자는 그 값 위에 두어 점선과 '현재' 표시에 겹치지 않게 한다.
   // 봉 그림의 '현재' 표시는 마지막 봉의 고가 위에 찍는다.
   // `stop`을 받으면 점은 끝까지 그리고 '현재' 표시만 `stop`번 점에 찍는다. 봉 그림이면 그 점이 든 봉의 고가 위에 찍는다. `extra`는 `stop`이 마지막 점일 때만 준다.
   // `stop`번 점이 그림 왼쪽 끝 앞이면 '현재' 표시를 찍지 않는다.
@@ -111,6 +112,7 @@ export const GAUGES = {
     const span = Math.max(1, last + reach - start), hi = Math.max(...seen), low = Math.min(...seen);
     const [lo, top] = bounds ?? dailyBounds({ points, extra, candle, height, start });
     const X = (i) => L + (R - L) * (i - start) / span, Y = (v) => B - (v - lo) / (top - lo || 1) * (B - T);
+    const room = (v, dy) => (extra == null ? Y(v) : dy > 0 ? Math.max(Y(v), Y(extra)) : Math.min(Y(v), Y(extra))) + dy;
     // 왼쪽 끝에 걸친 선과 봉은 그림 왼쪽 끝에서 자르고, 덧붙인 잠정 봉이 오른쪽 끝에서 3px까지 나가므로 그 3px도 그린다.
     const clipId = `daily-clip-${nextClip()}`, clip = shape("clipPath", { id: clipId });
     clip.append(shape("rect", { x: L, y: 0, width: R - L + 3, height: B }));
@@ -127,7 +129,7 @@ export const GAUGES = {
       const late = extra != null && point != null, bars = late ? candleLate(groups, days, candle.unit, extra, point) : groups, centers = drawCandles(g, bars, X, Y, (R - L) / span, R + 3);
       const high = groups.reduce((a, b) => (b[3] > a[3] ? b : a)), lowest = groups.reduce((a, b) => (b[4] < a[4] ? b : a));
       if (marks) [[high, high[3], -5, "최고"], [lowest, lowest[4], 13, "최저"]].forEach(([[a, b], v, dy, text]) => {
-        s.append(shape("text", { x: Math.min(Math.max(X((a + b) / 2), L + 36), R - 36), y: Y(v) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${candle.label(v)}`));
+        s.append(shape("text", { x: Math.min(Math.max(X((a + b) / 2), L + 36), R - 36), y: room(v, dy), "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${candle.label(v)}`));
       });
       const at = late ? bars.length - 1 : bars.findLastIndex(([a]) => a <= stop);
       if (late || stop >= i0) nowMark(s, centers[at], Y(bars[at][3]) - 5, late ? kind : "regular");
@@ -137,7 +139,7 @@ export const GAUGES = {
                                "stroke-width": 1.4 - .4 * Math.max(0, Math.min(1, (last - start - 63) / 693)), "stroke-linejoin": "round" }));
       if (marks) [[i0 + seen.indexOf(hi), -7, "최고"], [i0 + seen.indexOf(low), 15, "최저"]].forEach(([i, dy, text]) => {
         s.append(shape("circle", { cx: X(i), cy: Y(values[i]), r: 2.5, fill: PRICE }));
-        s.append(shape("text", { x: Math.min(Math.max(X(i), L + 36), R - 36), y: Y(values[i]) + dy, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${points[i][2]}`));
+        s.append(shape("text", { x: Math.min(Math.max(X(i), L + 36), R - 36), y: room(values[i], dy), "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${points[i][2]}`));
       });
     }
     const [end, ahead] = extra != null ? [extra, 1] : [values[stop], 0];
