@@ -64,6 +64,19 @@ def open_news(run, key: str):
     return page
 
 
+def swipe(page, dx):
+    """상세 이슈 해설 절의 탭 줄 아래를 손가락으로 가로로 민다(CDP 터치 이벤트). `dx`가 음수이면 왼쪽으로 민다."""
+    box = page.locator("h2.tabbed").first.bounding_box()
+    x0, y = 195 - dx / 2, box["y"] + box["height"] + 60
+    cdp = page.context.new_cdp_session(page)
+    point = lambda x: [{"x": x, "y": y, "id": 1}]
+    cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": point(x0)})
+    for i in range(1, 11):
+        cdp.send("Input.dispatchTouchEvent", {"type": "touchMove", "touchPoints": point(x0 + dx * i / 10)})
+    cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+    capture.settle(page, 600)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", required=True)
@@ -108,6 +121,11 @@ def main() -> int:
         capture.settle(page, 600)
         back = page.evaluate(BAR)
         check("상세 이슈 해설 탭으로 돌아오면 막대도 돌아온다", back["tab"] == "상세 이슈 해설" and near(back["bar"][:2], before["bar"][:2]), str(back))
+        # 절 안에서 가로로 밀면 탭을 넘긴다
+        swipe(page, -160)
+        check("절 안에서 왼쪽으로 밀면 종목 뉴스 탭으로 넘어간다", page.evaluate(BAR)["tab"] == "종목 뉴스", page.evaluate(BAR))
+        swipe(page, 160)
+        check("절 안에서 오른쪽으로 밀면 상세 이슈 해설 탭으로 돌아온다", page.evaluate(BAR)["tab"] == "상세 이슈 해설", page.evaluate(BAR))
         run.close()
 
         # 적힌 탭이 없는 가장 늦은 리포트는 분석 완료 시각과 가장 최근 회차 시각 가운데 늦은 쪽의 탭으로 연다.
