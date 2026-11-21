@@ -19,6 +19,17 @@ export const KNOB = { fill: "#EAEAEA", stroke: "#1d1e21", "stroke-width": 3 }, D
 export const DIMS = "#7A828C", PRICE = "#C9CDD3";
 // 글자 폭의 어림값. 그림을 화면에 붙이기 전에 그리므로 글자를 재지 않고, 영숫자는 글자 크기의 0.6배, 한글은 1배로 센다.
 export const textWidth = (text, size) => [...text].reduce((sum, c) => sum + (/[\x00-\x7f]/.test(c) ? 0.6 : 1) * size, 0);
+// 최고·최저 글자. `words`를 문서 글꼴 11px로 캔버스에서 재어, 글자의 잉크 상자가 (x, y)에서 `gap`px 떨어진 위(`up`)나 아래에 오게 쓴다.
+// 상자의 가로 가운데를 x에 맞추되 상자가 그림의 [left, right] 안에 들게 옮긴다. 그래서 점이나 봉과 글자 상자 사이가 늘 `gap`px이다.
+let pen = null;
+export const markText = (parent, x, y, up, gap, words, left, right) => {
+  pen ||= document.createElement("canvas").getContext("2d");
+  pen.font = `11px ${getComputedStyle(document.body).fontFamily}`;
+  const m = pen.measureText(words), width = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
+  const start = Math.min(Math.max(x - width / 2, left), right - width);
+  parent.append(shape("text", { x: start + m.actualBoundingBoxLeft, y: up ? y - gap - m.actualBoundingBoxDescent : y + gap + m.actualBoundingBoxAscent,
+                                "font-size": 11, fill: DIMS }, words));
+};
 // 주가와 예측 카드, 종목 주가 카드와 유가 카드의 그림 종류. 봉 그림이면 참이고, 처음에는 봉 그림이다. 고른 종류는 기기에 남겨 다른 리포트와 종목에도 쓴다.
 export const CANDLE_KEY = "chart-kind", kindCards = new Set();
 export let candleOn = (() => { try { return localStorage.getItem(CANDLE_KEY) !== "line"; } catch { return true; } })();

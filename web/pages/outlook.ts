@@ -9,7 +9,7 @@ import { slider } from "../shared/motion";
 import { rolled } from "../shared/roll";
 import { key, report } from "../shared/route";
 import { SESSION_NAME, afterEnd, closeAt, sessionAt, sessionSeg, sessionTag } from "../shared/session";
-import { DIMS, PRICE, candleGroups, candleLate, candleOn, candleUnit, drawCandles, ease, kindButton, nowMark, onTap, shape, textWidth, zoomDrag } from "../shared/svg";
+import { DIMS, PRICE, candleGroups, candleLate, candleOn, candleUnit, drawCandles, ease, kindButton, markText, nowMark, onTap, shape, zoomDrag } from "../shared/svg";
 import { feelPress } from "../shared/telegram";
 // 요약의 Outlook 그림 자리에 12M + Predictions(지수와 예측), Montecarlo(일정과 예측), Outlook(권장 배율) 순서로 넘기는 묶음을 둔다.
 // Montecarlo 그림은 원래 이벤트 캘린더 절에 있으므로 그 자리에서는 뺀다. 12M + Predictions가 없는 리포트는 두 장을 넘긴다.
@@ -224,26 +224,24 @@ export function summaryCards(data, view) {
       // 최고·최저 글씨는 기간이 정해진 뒤에만 그린다. 최고·최저는 기간 안 종가와 사슬의 정규장 값에서 고르므로,
       // 지금 정규장 값이 기간의 최고나 최저면 그 점에 붙는다. 봉 그림이면 점 없이 정규장 잠정 봉까지 포함한 가장 높은 고가와 가장 낮은 저가를 봉 위아래에 적는다.
       // 최고·최저 값 뒤 괄호에는 현재가(사슬의 마지막 값, 없으면 기준 가격 날짜 종가)의 그 값 대비 등락률을 적는다. 현재가가 그 값이면 괄호를 쓰지 않는다.
-      // 글씨는 가운데를 그 점에 맞추되, 글씨 폭의 절반만큼 그림 양 끝 안쪽에 둔다. 세로로는 최저 글씨를 그 점과 사슬 값(봉 그림이면 잠정 봉의 저가) 가운데
-      // 가장 낮은 자리 아래에, 최고 글씨를 가장 높은 자리 위에 두어 선과 봉, '현재' 표시에 겹치지 않게 한다.
+      // 글씨 상자는 가운데를 그 점에 맞추되 그림 안에 들게 옮긴다(`markText`). 세로로는 최저 글씨를 그 점과 사슬 값(봉 그림이면 잠정 봉의 저가) 가운데
+      // 가장 낮은 자리에서 6px(봉이면 4px) 아래에, 최고 글씨를 가장 높은 자리에서 같은 거리 위에 두어 선과 봉, '현재' 표시에 겹치지 않게 한다.
       const extremes = () => {
         const group = s.appendChild(shape("g", { class: "marks" })), now = track.at(-1)?.[0] ?? hist[last];
         const ys = track.flatMap((entry) => [entry[0], ...(groups ? [liveBar(entry).high, liveBar(entry).low] : [])]).filter((v) => v != null).map(Y);
         const floor = Math.max(...ys), ceiling = Math.min(...ys);
-        const write = (x, y, text, v) => {
-          const words = `${text} ${fmt(v)}${now === v ? "" : ` (${signed((now / v - 1) * 100)}%)`}`, half = textWidth(words, 11) / 2 + 2;
-          group.append(shape("text", { x: Math.min(Math.max(x, L + half), R - half), y, "font-size": 11, fill: DIMS, "text-anchor": "middle" }, words));
-        };
+        const write = (x, y, up, gap, text, v) =>
+          markText(group, x, up ? Math.min(y, ceiling) : Math.max(y, floor), up, gap, `${text} ${fmt(v)}${now === v ? "" : ` (${signed((now / v - 1) * 100)}%)`}`, L, R);
         if (groups) {
           const bars = drawn.filter((bar) => !bar[7]), high = bars.reduce((a, b) => (b[3] > a[3] ? b : a)), low = bars.reduce((a, b) => (b[4] < a[4] ? b : a));
-          [[high, high[3], -5, "최고"], [low, low[4], 13, "최저"]].forEach(([[a, b], v, dy, text]) => write(X((a + b) / 2), (dy > 0 ? Math.max(Y(v), floor) : Math.min(Y(v), ceiling)) + dy, text, v));
+          [[high, high[3], true, "최고"], [low, low[4], false, "최저"]].forEach(([[a, b], v, up, text]) => write(X((a + b) / 2), Y(v), up, 4, text, v));
           return;
         }
         const shown = [...hist.slice(i0, last + 1).map((v, k) => [i0 + k, v]), ...track.filter((entry) => entry[2] === "regular").map((entry) => [last + entry[5], entry[0]])];
         const high = shown.reduce((a, b) => (b[1] > a[1] ? b : a)), low = shown.reduce((a, b) => (b[1] < a[1] ? b : a));
-        [[high, -7, "최고"], [low, 15, "최저"]].forEach(([[i, v], dy, text]) => {
+        [[high, true, "최고"], [low, false, "최저"]].forEach(([[i, v], up, text]) => {
           group.append(shape("circle", { cx: X(i), cy: Y(v), r: 2.5, fill: PRICE }));
-          write(X(i), (dy > 0 ? Math.max(Y(v), floor) : Math.min(Y(v), ceiling)) + dy, text, v);
+          write(X(i), Y(v), up, 6, text, v);
         });
       };
       const step = (R - L) / (end - x0);

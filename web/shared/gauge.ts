@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { DIM, DIMS, FIGURE, KNOB, PRICE, candleGroups, candleLate, canvas, nextClip, dailyBounds, drawCandles, drawMap, frame, legend, mapOf, nowMark, shape, textWidth, zoneOf } from "./svg";
+import { DIM, DIMS, FIGURE, KNOB, PRICE, candleGroups, candleLate, canvas, nextClip, dailyBounds, drawCandles, drawMap, frame, legend, mapOf, markText, nowMark, shape, textWidth, zoneOf } from "./svg";
 // 시간 축 그림을 누를 수 있는 자리. 점이나 막대마다 그림 좌표의 가로 자리와, 그 자리가 가리키는 점 번호를 돌려준다.
 // 가로 자리는 `columns`와 `daily`가 점을 그리는 식과 같다.
 export const columnTaps = ({ bars }) => {
@@ -112,7 +112,7 @@ export const GAUGES = {
     const span = Math.max(1, last + reach - start), hi = Math.max(...seen), low = Math.min(...seen);
     const [lo, top] = bounds ?? dailyBounds({ points, extra, candle, height, start });
     const X = (i) => L + (R - L) * (i - start) / span, Y = (v) => B - (v - lo) / (top - lo || 1) * (B - T);
-    const room = (v, dy) => (extra == null ? Y(v) : dy > 0 ? Math.max(Y(v), Y(extra)) : Math.min(Y(v), Y(extra))) + dy;
+    const room = (v, up) => (extra == null ? Y(v) : up ? Math.min(Y(v), Y(extra)) : Math.max(Y(v), Y(extra)));
     // 왼쪽 끝에 걸친 선과 봉은 그림 왼쪽 끝에서 자르고, 덧붙인 잠정 봉이 오른쪽 끝에서 3px까지 나가므로 그 3px도 그린다.
     const clipId = `daily-clip-${nextClip()}`, clip = shape("clipPath", { id: clipId });
     clip.append(shape("rect", { x: L, y: 0, width: R - L + 3, height: B }));
@@ -128,18 +128,16 @@ export const GAUGES = {
     if (groups) {
       const late = extra != null && point != null, bars = late ? candleLate(groups, days, candle.unit, extra, point) : groups, centers = drawCandles(g, bars, X, Y, (R - L) / span, R + 3);
       const high = groups.reduce((a, b) => (b[3] > a[3] ? b : a)), lowest = groups.reduce((a, b) => (b[4] < a[4] ? b : a));
-      if (marks) [[high, high[3], -5, "최고"], [lowest, lowest[4], 13, "최저"]].forEach(([[a, b], v, dy, text]) => {
-        s.append(shape("text", { x: Math.min(Math.max(X((a + b) / 2), L + 36), R - 36), y: room(v, dy), "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${candle.label(v)}`));
-      });
+      if (marks) [[high, high[3], true, "최고"], [lowest, lowest[4], false, "최저"]].forEach(([[a, b], v, up, text]) => markText(s, X((a + b) / 2), room(v, up), up, 4, `${text} ${candle.label(v)}`, L, R));
       const at = late ? bars.length - 1 : bars.findLastIndex(([a]) => a <= stop);
       if (late || stop >= i0) nowMark(s, centers[at], Y(bars[at][3]) - 5, late ? kind : "regular");
       return s;
     } else {
       g.append(shape("path", { d: `M${seen.map((v, k) => `${X(i0 + k)} ${Y(v)}`).join("L")}`, fill: "none", stroke: PRICE,
                                "stroke-width": 1.4 - .4 * Math.max(0, Math.min(1, (last - start - 63) / 693)), "stroke-linejoin": "round" }));
-      if (marks) [[i0 + seen.indexOf(hi), -7, "최고"], [i0 + seen.indexOf(low), 15, "최저"]].forEach(([i, dy, text]) => {
+      if (marks) [[i0 + seen.indexOf(hi), true, "최고"], [i0 + seen.indexOf(low), false, "최저"]].forEach(([i, up, text]) => {
         s.append(shape("circle", { cx: X(i), cy: Y(values[i]), r: 2.5, fill: PRICE }));
-        s.append(shape("text", { x: Math.min(Math.max(X(i), L + 36), R - 36), y: room(values[i], dy), "font-size": 11, fill: DIMS, "text-anchor": "middle" }, `${text} ${points[i][2]}`));
+        markText(s, X(i), room(values[i], up), up, 6, `${text} ${points[i][2]}`, L, R);
       });
     }
     const [end, ahead] = extra != null ? [extra, 1] : [values[stop], 0];
