@@ -119,6 +119,16 @@ def main():
 
         names = page.locator(f"{CARDS} .tabs button").all_text_contents()
         check("A2 단추 순서", names == ["누적 수익률", "초과 수익률", "배율"], names)
+        on = lambda: page.evaluate("(cards) => [...document.querySelectorAll(cards + ' .tabs button')].findIndex((b) => b.classList.contains('on'))", CARDS)
+        tab(page, 2)
+        capture.turn(page, "예측")
+        capture.turn(page, "자산")
+        check("A2 바로가기 탭을 옮기고 돌아오면 누적 수익률 카드로 돌아간다", on() == 0, on())
+        tab(page, 2)
+        page.reload(wait_until="networkidle")
+        capture.settle(page)
+        capture.turn(page, "자산")
+        check("A2 다시 열면 누적 수익률 카드로 연다", on() == 0 and "card" not in page.evaluate("JSON.parse(localStorage.getItem('asset-view'))"), on())
 
         tab(page, 0)
         latest = read(page, 0)

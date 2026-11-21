@@ -20,12 +20,29 @@ export const glide = (from, to, set, done) => {
   return () => cancelAnimationFrame(frame);
 };
 
+// 나란한 항목 가운데 하나를 골라 보는 묶음(주가·예측과 일정·권장 배율 카드, 누적 수익률·초과 수익률·배율 카드, 이벤트 캘린더 날짜, 상세 이슈 해설·종목 뉴스 탭,
+// 미국 거시 지표)은 고른 항목을 남기지 않는다. 바로가기 탭을 옮기거나, 상세 화면을 열거나, 미니 앱을 떠나면 처음 항목으로 돌아간다.
+// 묶음은 자기 노드(`node`)와 처음 항목으로 돌리는 함수(`back`)를 `homing`으로 걸고, 화면 수명이 끝나거나 노드가 문서에서 빠지면 뗀다.
+// `home(keep)`은 `keep` 안에 있지 않은 묶음을 모두 처음 항목으로 돌린다. 화면이 가려지면(상세 화면으로 옮기거나 앱을 떠나면) 모든 묶음을 돌리고,
+// 바로가기 탭은 다른 페이지를 열고 나서 연 페이지 밖의 묶음을 돌린다(`report.ts` `jump`).
+const homes = new Set();
+export const homing = (node, back) => {
+  const entry = { node, back };
+  homes.add(entry);
+  life.signal.addEventListener("abort", () => homes.delete(entry), { once: true });
+};
+export const home = (keep = null) => homes.forEach((entry) => {
+  if (!entry.node.isConnected) return homes.delete(entry);
+  if (!keep?.contains(entry.node)) entry.back();
+});
+document.addEventListener("visibilitychange", () => { if (document.hidden) home(); });
+
 // 슬라이드마다 노드 목록을 받아 좌우로 넘기는 묶음을 만들고 `after` 뒤에 둔다. 묶음 상자를 돌려준다.
 // `fit`이면 넘기기가 멈춘 뒤와 슬라이드 높이가 바뀐 뒤 묶음 높이를 보고 있는 슬라이드에 맞춘다. `change`가 있으면 보고 있는
 // 슬라이드가 바뀔 때마다 그 번호로 `change`를 부른다. `start`번 슬라이드부터 보여 준다.
-// `feel`이면 보고 있는 슬라이드가 바뀔 때마다 선택 변경 진동을 낸다. 상자의 `go(i)`는 i번 슬라이드로 넘기고, `go(i, true)`는 넘기는 움직임 없이 바로 옮긴다.
+// `home`을 받으면 `homing`으로 걸어, 처음 항목으로 돌릴 때 움직임 없이 `home`번 슬라이드로 옮긴다. `feel`이면 보고 있는 슬라이드가 바뀔 때마다 선택 변경 진동을 낸다. 상자의 `go(i)`는 i번 슬라이드로 넘기고, `go(i, true)`는 넘기는 움직임 없이 바로 옮긴다.
 // `lock(i)`이 알림 문구를 돌려주면 i번 슬라이드로 옮기지 못한다. 밀어서 넘기면 손을 뗀 뒤 보던 슬라이드로 튕겨 돌아오고, `go(i)`는 움직이지 않으며, 두 경우 모두 그 문구로 짧은 알림(`toast`)을 띄운다.
-export function slider(slides, after, { fit = false, start = 0, change = null, name = "", area = null, feel = false, lock = null } = {}) {
+export function slider(slides, after, { fit = false, start = 0, change = null, name = "", area = null, feel = false, lock = null, home = null } = {}) {
   const box = document.createElement("div");
   box.className = ["carousel", fit && "fit", name].filter(Boolean).join(" ");
   box.innerHTML = '<div class="track"></div>';
@@ -120,6 +137,13 @@ export function slider(slides, after, { fit = false, start = 0, change = null, n
     stop();
     track.scrollLeft = goal * step();
   };
+  // 가려진 화면은 스크롤 손길을 늦게 받으므로, 처음 항목으로 돌릴 때는 `change`와 높이 맞추기를 바로 부른다.
+  if (home !== null) homing(box, () => {
+    felt = rest = home;
+    box.go(home, true);
+    if (change && shown !== home) change((shown = home));
+    fitHeight();
+  });
   // 절 제목 `area`를 받으면 그 제목부터 다음 절 제목 앞까지(마지막 절이면 문서 끝까지)를 넘기기 영역으로 쓴다. 넘기기 묶음과 날짜 띠 밖에서
   // 가로로 40px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 민 방향의 다음 장으로 넘긴다. 절이 가린 페이지에 있으면 넘기지 않는다.
   if (area) {

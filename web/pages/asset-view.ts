@@ -21,12 +21,12 @@ export const assetShares = (v) => `${v.toLocaleString("en-US", { maximumFraction
 export const assetRow = (name, sub, value, tail) => `<div class="asset-item"><div><strong>${name}</strong><small>${sub}</small></div>`
   + `<div><strong>${value}</strong>${tail ? `<small>${tail}</small>` : ""}</div></div>`;
 export const assetDay = (date) => `${+date.slice(5, 7)}.${+date.slice(8, 10)}`;
-// 내 자산 페이지와 거래 내역 화면의 고른 상태. 금액 단위(`unit`), 그림 카드(`card`), 총 자산 단추를 켰는지(`whole`), 판단 선을 보이는지(`judge`),
+// 내 자산 페이지와 거래 내역 화면의 고른 상태. 금액 단위(`unit`), 총 자산 단추를 켰는지(`whole`), 판단 선을 보이는지(`judge`),
 // 거래 내역의 출처 필터(`filter`)와 조회 기간(`period`, 최근 3개월이면 `null`)을 기기의 `asset-view`에 남긴다(`keep.ts`). 두 화면은 같은 금액 단위를 쓴다.
 // 상태를 바꾼 화면은 바꾼 값(`change`)만 넘기고, 남기는 쪽이 기기에 적힌 값을 다시 읽어 그 값만 바꿔 적는다.
 export const assetView = () => {
   const saved = kept("asset-view") || {};
-  return { unit: saved.unit === "USD" ? "USD" : "KRW", card: saved.card | 0, whole: saved.whole === true, judge: saved.judge !== false,
+  return { unit: saved.unit === "USD" ? "USD" : "KRW", whole: saved.whole === true, judge: saved.judge !== false,
            filter: TRADE_SOURCE[saved.filter] ? saved.filter : "all", period: saved.period?.start && saved.period?.end ? saved.period : null };
 };
 export const assetRemember = (change) => keep("asset-view", { ...assetView(), ...change });
@@ -168,7 +168,8 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
 
 // 내 자산 페이지(`page`)를 그리는 함수를 돌려준다. 공개 화면 `asset.ts`가 Worker가 건넨 계좌 요약(`data`)마다 이 함수를 부른다.
 export function assetPage(page) {
-  const view = assetView(), remember = () => assetRemember({ unit: view.unit, card: view.card, whole: view.whole, judge: view.judge });
+  // 보고 있는 그림 카드(`card`)는 기기에 남기지 않고, 페이지를 1분마다 다시 그리는 동안만 쓴다. 처음 항목으로 돌리는 규칙은 `motion.ts` `homing`이 정한다.
+  const view = { ...assetView(), card: 0 }, remember = () => assetRemember({ unit: view.unit, whole: view.whole, judge: view.judge });
   const chevron = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // 평가 금액의 가림을 벗겼는지(`bare`)는 미니 앱을 닫을 때까지만 기억하고 기기에는 적지 않으므로, 미니 앱을 열 때마다 보이는 채로 시작한다. 평가 금액을 누르면 가리고 다시 누르면 보인다.
   let last = null, bare = true;
@@ -207,8 +208,8 @@ export function assetPage(page) {
       button.addEventListener("click", () => box.go(i));
       bar.appendChild(button);
     });
-    const pick = (i) => { [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j)); if (view.card !== i) { view.card = i; remember(); } };
-    const box = slider(cards.map(([, card]) => [card]), page.querySelector(".asset-sum"), { start: Math.min(view.card, cards.length - 1), change: pick, name: "asset-cards", feel: true });
+    const pick = (i) => { [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j)); view.card = i; };
+    const box = slider(cards.map(([, card]) => [card]), page.querySelector(".asset-sum"), { start: Math.min(view.card, cards.length - 1), change: pick, name: "asset-cards", feel: true, home: 0 });
     box.prepend(bar);
   };
   page.addEventListener("click", (event) => {

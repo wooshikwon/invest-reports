@@ -169,7 +169,7 @@ def main() -> int:
         page.locator("button.back").click()
         capture.settle(page)
         state = page.evaluate("() => [document.querySelector('h2.tabbed .tabline > button.on')?.textContent, location.search]")
-        check("뉴스 상세에서 뒤로 가면 종목 뉴스 탭을 고른 리포트 화면으로 돌아온다", state == ["종목 뉴스", f"?r={NASDAQ}"], str(state))
+        check("뉴스 상세에서 뒤로 가면 리포트 화면의 처음 탭(상세 이슈 해설)으로 돌아온다", state == ["상세 이슈 해설", f"?r={NASDAQ}"], str(state))
         run.close()
 
         # 뉴스 상세의 모양

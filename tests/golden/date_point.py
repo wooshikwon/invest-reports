@@ -1,4 +1,4 @@
-"""리포트 화면 그림 카드의 동작 시험. 판단 전과 후, 실시간 값의 사슬, 그림 누르기, 카드 넘기기, 판단 도착, 카드별 설명 절, 기기에 남기는 예측·지수 단추 상태를 연다.
+"""리포트 화면 그림 카드의 동작 시험. 판단 전과 후, 실시간 값의 사슬, 그림 누르기, 카드 넘기기, 판단 도착, 카드별 설명 절, 기기에 남기는 예측·지수 단추 상태, 처음 항목으로 돌아가는 나란한 항목 묶음을 연다.
 
     python3 tests/golden/date_point.py --data /tmp/dp-u4/out --after /tmp/dp-u4/out-after --shots /tmp/dp-u4/shots
 
@@ -224,6 +224,45 @@ def main():
         page = w.open()
         tint = page.evaluate("document.documentElement.style.getPropertyValue('--index')")
         check("e 리포트 키 없이 다시 열면 마지막에 고른 지수의 리포트를 연다", tint == "#AE9CE6" and state(page)["aim"]["on"], (tint, state(page)["aim"]))
+        w.close()
+
+        # (f) 나란한 항목 묶음(그림 카드, 캘린더 날짜, 이슈 탭, 거시 지표)은 바로가기 탭을 옮기거나 화면이 가려지면 처음 항목으로 돌아간다.
+        w = World(p, after, {})
+        page = w.open()
+        chosen = lambda: page.evaluate("""() => {
+          const on = (q) => [...document.querySelectorAll(q)].findIndex((b) => b.classList.contains('on'));
+          return { cards: on('.carousel.cards .tabs button'), day: on('.days .strip button'),
+                   today: [...document.querySelectorAll('.days .strip button')].findIndex((b) => b.classList.contains('today')),
+                   news: on('h2.tabbed .tabline button'), macro: on('.carousel.indicators .tabs .strip button') }; }""")
+        first = chosen()
+        check("f 처음 항목: 주가 카드, 리포트 날짜, 첫 거시 지표", first["cards"] == 0 and first["day"] == first["today"] >= 0 and first["macro"] in (-1, 0), first)
+
+        def move_all():
+            # 다른 바로가기 페이지의 단추는 화면에 보이지 않으므로 문서에서 바로 누른다.
+            press = lambda q, n: page.evaluate("([q, n]) => document.querySelectorAll(q)[n]?.click()", [q, n])
+            press(".carousel.cards .tabs button", 2)
+            press(".days .strip button", 0 if first["today"] else 1)
+            press("h2.tabbed .tabline button", 1 - first["news"])
+            press(".carousel.indicators .tabs .strip button", 1)
+            capture.settle(page, 900)
+            moved = chosen()
+            return moved["cards"] == 2 and moved["day"] != first["day"] and moved["news"] != first["news"] and (first["macro"] < 0 or moved["macro"] == 1), moved
+
+        moved = move_all()
+        check("f 묶음마다 다른 항목을 고른다", *moved)
+        capture.turn(page, "이슈")
+        capture.turn(page, "예측")
+        check("f 바로가기 탭을 옮기고 돌아오면 처음 항목으로 돌아간다", chosen() == first, chosen())
+        moved = move_all()
+        page.evaluate("Object.defineProperty(document, 'hidden', { value: true, configurable: true }); document.dispatchEvent(new Event('visibilitychange'));"
+                      "Object.defineProperty(document, 'hidden', { value: false, configurable: true }); document.dispatchEvent(new Event('visibilitychange'));")
+        capture.settle(page, 400)
+        check("f 화면이 가려졌다 돌아오면(상세 화면, 앱 밖) 처음 항목으로 돌아간다", moved[0] and chosen() == first, (moved, chosen()))
+        moved = move_all()
+        page.reload(wait_until="networkidle")
+        capture.settle(page)
+        check("f 다시 열면 처음 항목으로 연다", moved[0] and chosen() == first, (moved, chosen()))
+        check("f 오류 0건", not w.server.errors, w.server.errors)
         w.close()
         print("서버 오류", w.server.errors, "외부 요청", w.server.escaped)
     print("FAILS", FAILS)

@@ -91,7 +91,7 @@ export function indicators() {
     strip.style.transform = `translateX(${-Math.min(room, strip.children[(seen = i)].offsetLeft)}px)`;
   };
   anchor.after(bar);
-  const box = slider(slides, bar, { fit: true, change, name: "indicators", area: head, feel: true });
+  const box = slider(slides, bar, { fit: true, change, name: "indicators", area: head, feel: true, home: 0 });
   box.prepend(bar);
   later(() => change(seen));
   const resize = new ResizeObserver(() => {

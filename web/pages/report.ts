@@ -11,7 +11,7 @@ import { marketed, relist } from "../shared/data";
 import { help } from "../shared/help";
 import { keep, kept } from "../shared/keep";
 import { subscribe } from "../shared/live";
-import { atEdge, motion, settle, settleStart } from "../shared/motion";
+import { atEdge, home, motion, settle, settleStart } from "../shared/motion";
 import { key, life, query, report, reshow, returned } from "../shared/route";
 import { fold, notes, toneTags, trail } from "../shared/sections";
 import { feelPress, feelSlide } from "../shared/telegram";
@@ -253,6 +253,7 @@ const unturn = () => { turn = toCalendar = null; };
 // 두 칸 떨어진 페이지를 열면 가운데 페이지가 맨 위부터 한가운데를 지나간다. `turn`이 `still`을 받거나 움직임 줄이기 설정이면 흐르지 않고 바로 바꾼다.
 // 화면 좌우 끝 띠(`atEdge`)에서 시작해 가로로 40px 넘게, 세로 이동의 1.5배 넘게 안쪽으로 밀고 손을 떼면 옆 페이지를 연다. 오른쪽 끝에서 밀면 다음 페이지,
 // 왼쪽 끝에서 밀면 앞 페이지다. 뒤로 가기 띠(`.back-edge`)와 넘기기 묶음, 그림 화면, 설명 상자 위에서 시작한 밀기는 받지 않는다.
+// 다른 페이지를 열면 흐름이 끝난 뒤(흐르지 않으면 바로) 연 페이지 밖의 나란한 항목 묶음을 처음 항목으로 돌린다(`motion.ts` `home`).
 // 바로가기 알약을 다시 만들면 앞 알약의 끝 밀기 손길을 걷는다(`edgeSwipe`).
 let edgeSwipe = null;
 export function jump(pages, names) {
@@ -283,6 +284,7 @@ export function jump(pages, names) {
       flowing = null;
       report.classList.remove("flow");
       pages.forEach((node, j) => node.classList.toggle("off", j !== page));
+      home(pages[page]);
     });
   };
   const wave = (i) => {
@@ -312,6 +314,7 @@ export function jump(pages, names) {
       if (lack > 0) pages[i].style.paddingBottom = `${parseFloat(getComputedStyle(pages[i]).paddingBottom) + lack}px`;
     }
     if (from >= 0 && from !== i && !still && !motion.matches) flow(from, i, top, left);
+    else if (from >= 0 && from !== i) home(pages[i]);
     scrollTo(0, top);
   };
   const press = (i) => {

@@ -35,7 +35,7 @@ export function figures(given = null, view = { aim: false, stage: () => ({ state
     });
     const change = (i) => [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j));
     // 카드마다 한 장이고, 장의 높이는 보고 있는 장에 맞춘다. `slides`는 카드 이름마다의 장이라, 리포트 화면이 그 장의 카드 아래에 설명 절을 붙인다.
-    const head = report.querySelector("h2"), box = slider(set.slides, head, { change, name: "cards", feel: true, fit: true });
+    const head = report.querySelector("h2"), box = slider(set.slides, head, { change, name: "cards", feel: true, fit: true, home: 0 });
     box.prepend(bar);
     const slides = Object.fromEntries(set.names.map((name, i) => [name, box.querySelector(".track").children[i]]));
     return { box, slides, label: () => set.label() };
@@ -53,7 +53,7 @@ export function figures(given = null, view = { aim: false, stage: () => ({ state
     bar.appendChild(button);
   });
   const change = (i) => [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j));
-  const box = slider(shown.map(([img]) => [img]), report.querySelector("h2"), { change, feel: true });
+  const box = slider(shown.map(([img]) => [img]), report.querySelector("h2"), { change, feel: true, home: 0 });
   box.prepend(bar);
 }
 

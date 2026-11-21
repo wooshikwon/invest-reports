@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { masthead } from "../shared/chrome";
-import { glide, slider } from "../shared/motion";
+import { glide, homing, slider } from "../shared/motion";
 import { key, life, report, visit } from "../shared/route";
 import { feelPress } from "../shared/telegram";
 // 이벤트 캘린더를 발표가 주가에 닿는 거래일마다 한 장으로 모아 넘기는 묶음으로 바꾸고, 위에 날짜 띠를 둔다.
@@ -74,7 +74,9 @@ export function events(date, listing) {
   });
   // 띠를 i번 날짜 상자가 화면 가운데에 오는 위치로 옮긴다. `now`면 바로 옮기고, 아니면 `glide`로 미끄러뜨린다. 띠에 손을 대면 미끄러뜨리기를 멈춘다.
   // 날짜를 눌러 장이 여러 장을 지나가는 동안에는 지나가는 날짜마다 띠를 옮기지 않고, 누른 날짜로만 옮긴다.
-  let seen = days.includes(history.state?.day) ? days.indexOf(history.state.day) : days.indexOf(date), aim = null, sliding = null;
+  // 처음에는 리포트 날짜의 장을 보이고, 처음 항목으로 돌릴 때(`motion.ts` `homing`)도 그 장으로 돌아간다.
+  const first = Math.max(0, days.indexOf(date));
+  let seen = first, aim = null, sliding = null;
   const reach = (i, now = false) => {
     sliding?.();
     const spot = strip.children[i].getBoundingClientRect();
@@ -84,11 +86,9 @@ export function events(date, listing) {
     else sliding = glide(bar.scrollLeft, left, (x) => (bar.scrollLeft = x), () => (sliding = null));
   };
   bar.addEventListener("touchstart", () => { sliding?.(); sliding = null; }, { passive: true });
-  // 고른 날짜는 자기 기록(`day`)에 적고, 뒤로 가기로 다시 연 리포트 화면은 그 날짜의 장부터 보여 준다.
   const change = (i) => {
     [...strip.children].forEach((button, j) => button.classList.toggle("on", i === j));
     seen = i;
-    history.replaceState({ ...history.state, day: days[i] }, "");
     if (aim === null) reach(i); else if (aim === i) aim = null;
   };
   // 날짜 상자는 가장 넓은 상자의 폭으로 맞추고, 띠를 보고 있는 날짜나 누른 날짜(`aim`)로 바로 옮긴다. 띠가 미끄러지는 중이면 그 날짜로 다시 미끄러뜨린다.
@@ -112,8 +112,10 @@ export function events(date, listing) {
   };
   bar.addEventListener("scroll", nudge, { passive: true });
   head.after(rail);
-  const box = slider(days.map((day) => groups.get(day)), rail, { fit: true, start: seen, change, name: "events", area: frozen ? null : head, feel: true });
+  const box = slider(days.map((day) => groups.get(day)), rail, { fit: true, start: first, change, name: "events", area: frozen ? null : head, feel: true, home: first });
   box.prepend(rail);
+  // 묶음이 처음 장으로 돌아가면 날짜 띠도 미끄러뜨리지 않고 리포트 날짜로 바로 옮긴다.
+  homing(box, () => { aim = null; reach(first, true); });
   const resize = new ResizeObserver(() => { fill(); nudge(); });
   resize.observe(box);
   life.signal.addEventListener("abort", () => resize.disconnect());

@@ -74,7 +74,7 @@ def open_page(p, data: Path, kept: dict, unit="USD"):
     context.add_init_script(capture.mock(1))
     context.add_init_script("try { localStorage.setItem('asset', '1'); } catch {}")
     if unit:
-        context.add_init_script(f"try {{ localStorage.getItem('asset-view') || localStorage.setItem('asset-view', JSON.stringify({{ unit: '{unit}', card: 2 }})); }} catch {{}}")
+        context.add_init_script(f"try {{ localStorage.getItem('asset-view') || localStorage.setItem('asset-view', JSON.stringify({{ unit: '{unit}' }})); }} catch {{}}")
     context.route("**/*", server.handler({}, kept))
     page = context.new_page()
     page.on("pageerror", lambda e: server.errors.append(f"pageerror: {str(e)[:300]}"))
@@ -167,8 +167,8 @@ def main():
         order = page.locator(".trade:has(.act) .asset-item").inner_text()
         check("e 원 단위: 보낼 주문은 원화 금액 아래 달러 어림값", all(v in order for v in KRW["order"]) and order.index("원") < order.index("$"), order)
         kept = page.evaluate("JSON.parse(localStorage.getItem('asset-view'))")
-        check("e 단위를 기기에 적고 그림 카드 번호와 총 자산·판단 보기 단추, 필터와 조회 기간은 지킨다",
-              kept == {"unit": "KRW", "card": 2, "whole": False, "judge": True, "filter": "all", "period": None}, kept)
+        check("e 단위를 기기에 적고 총 자산·판단 보기 단추, 필터와 조회 기간은 지킨다",
+              kept == {"unit": "KRW", "whole": False, "judge": True, "filter": "all", "period": None}, kept)
         page.screenshot(path=str(shots / "trades-krw.png"))
         page.locator(".trade-head [data-unit='USD']").click()
         capture.settle(page, 300)

@@ -11,7 +11,7 @@ export function backward(names, page) {
   back.innerHTML = '<svg width="12" height="20" viewBox="0 0 12 20" aria-hidden="true"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // 단추 이름은 어디서 열었든 "뒤로가기"이고, 돌아가는 곳은 이 화면을 연 곳이다. 이슈 화면 안에서 다른 이슈로 넘겨도 돌아가는 곳은 바뀌지 않는다.
   back.setAttribute("aria-label", "뒤로가기");
-  // 리포트 화면(이슈 목록이나 종목 뉴스 목록, 이벤트 캘린더, 지수 지도 말풍선의 "자세히 보기")에서 연 화면의 단추는 뒤로 가서, 떠날 때의 리포트 화면(페이지와 캘린더 날짜, 화면 위치)으로 돌아간다.
+  // 리포트 화면(이슈 목록이나 종목 뉴스 목록, 이벤트 캘린더, 지수 지도 말풍선의 "자세히 보기")에서 연 화면의 단추는 뒤로 가서, 떠날 때의 리포트 화면(페이지와 화면 위치)으로 돌아간다.
   // 종목 상세의 주요 뉴스에서 연 뉴스 상세의 단추도 뒤로 가서 그 종목 상세로 돌아간다.
   // 주소로 바로 연 이슈 화면의 단추는 이슈 화면 기록을 이 이슈를 담은 리포트 화면으로 바꾸며 이슈 페이지를 맨 위부터 연다(`land`). 종목 상세는 시장 페이지를, 뉴스 상세는 이슈 페이지를 연다. 깊이는 그대로 넘긴다.
   back.addEventListener("click", () => {

@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { backward } from "../shared/back";
 import { issueChart } from "../shared/gauge";
-import { EASE, GLIDE, atEdge, glide, motion } from "../shared/motion";
+import { EASE, GLIDE, atEdge, glide, homing, motion } from "../shared/motion";
 import { key, life, report, visit } from "../shared/route";
 import { feelPress, feelSlide } from "../shared/telegram";
 import { gallery, viewer } from "../shared/viewer";
@@ -31,12 +31,13 @@ const empty = (text) => Object.assign(document.createElement("p"), { className: 
 // 리포트 화면의 상세 이슈 해설 절 제목을 "상세 이슈 해설 | 종목 뉴스" 탭 줄로 바꾼다. 탭 줄 아래 줄에는 왼쪽에 "마지막 업데이트 MM/DD HH:MM KST"를,
 // 상세 이슈 해설 탭이면 오른쪽에 절 제목의 물음표 단추를 둔다. 상세 이슈 해설 탭은 분석 완료 시각과 이슈 목록을, 종목 뉴스 탭은 보고 있는 리포트 지수(`index`)의 종목 기사 목록을 보인다. 고른 탭 아래 막대는 다른 탭을 고르면 그 탭 아래로 옮겨 간다.
 // 기사 목록은 종목 뉴스 탭을 처음 고를 때 7일 치를 한 번 받아, 회차 시작 시각이 지금부터 3일 안인 기사를 먼저 보이고 "더 보기"를 누르면 7일 치를 모두 보인다.
-// 날짜 슬라이드로 지난 리포트를 열어도 지금 기준 최신 기사를 보인다. 고른 탭과 더 보기 여부는 `history.state`에 적어, 뉴스 상세에서 뒤로 돌아와도 그대로 연다.
+// 날짜 슬라이드로 지난 리포트를 열어도 지금 기준 최신 기사를 보인다. 더 보기 여부는 `history.state`에 적어, 뉴스 상세에서 뒤로 돌아와도 그대로 연다.
 // 절 제목부터 다음 절 제목 앞까지(마지막 절이면 문서 끝까지)에서 가로로 40px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 민 방향의 탭으로 넘긴다.
 // 왼쪽으로 밀면 종목 뉴스, 오른쪽으로 밀면 상세 이슈 해설이다. 화면 좌우 끝 띠(`atEdge`)에서 시작한 밀기, 넘기기 묶음과 그림 화면, 설명 상자 안에서 민 것,
 // 절이 가린 페이지에 있을 때는 넘기지 않는다.
-// 적힌 탭이 없는 가장 늦은 리포트는 기사 목록을 바로 받아, 가장 최근 회차의 시작 시각이 리포트의 분석 완료 시각(`written`, "2026-11-20 11:43" 같은 서울 시각)보다 늦으면 종목 뉴스 탭으로 바꾼다.
-// 목록을 받기 전에 탭을 누르면 바꾸지 않는다. 지난 리포트는 상세 이슈 해설 탭으로 연다.
+// 처음 탭(`first`)은 상세 이슈 해설이다. 가장 늦은 리포트는 기사 목록을 바로 받아, 가장 최근 회차의 시작 시각이 리포트의 분석 완료 시각(`written`, "2026-11-20 11:43" 같은 서울 시각)보다 늦으면
+// 처음 탭을 종목 뉴스로 바꾸고 그 탭으로 넘긴다. 목록을 받기 전에 탭을 누르면 넘기지 않는다. 지난 리포트는 상세 이슈 해설 탭으로 연다.
+// 고른 탭은 남기지 않고, 처음 항목으로 돌릴 때(`motion.ts` `homing`) 처음 탭으로 돌아간다.
 // 종목 뉴스 탭의 마지막 업데이트 시각은 받은 기사 가운데 가장 최근 회차의 시작 시각이다. 목록 블록은 이슈 목록 상자와 같은 모양으로 제목과 머리 줄(첫 소제목), 회차 시각을 쓴다.
 export function newsTab(index, written) {
   const { signal } = life;
@@ -81,7 +82,7 @@ export function newsTab(index, written) {
   }
   head.replaceChildren(line);
   head.classList.add("tabbed");
-  let shown = -1, filled = false, touched = false, more = !!history.state?.more;
+  let shown = -1, first = 0, filled = false, touched = false, more = !!history.state?.more;
   const pick = (i, move) => {
     shown = i;
     tabs.forEach((tab, j) => tab.classList.toggle("on", i === j));
@@ -92,7 +93,6 @@ export function newsTab(index, written) {
     bar.style.transition = "";
     own.forEach((node) => { node.hidden = i === 1; });
     box.hidden = i === 0;
-    history.replaceState({ ...history.state, tab: i ? "news" : "issues" }, "");
     if (i && !filled) fill();
   };
   const fill = () => {
@@ -158,12 +158,14 @@ export function newsTab(index, written) {
     feelSlide();
     pick(to, true);
   }, { passive: true, signal });
-  const kept = history.state?.tab;
-  pick(kept === "news" ? 1 : 0, false);
-  if (kept || document.documentElement.classList.contains("past")) return;
+  pick(first, false);
+  homing(head, () => { touched = false; if (shown !== first) pick(first, false); });
+  if (document.documentElement.classList.contains("past")) return;
   newsList(`index=${index}&days=7`).then((items) => {
     const newest = Math.max(...items.map((item) => Date.parse(item.time)));
-    if (!signal.aborted && !touched && newest > (written ? Date.parse(`${written.replace(" ", "T")}:00+09:00`) : 0)) pick(1, false);
+    if (signal.aborted || newest <= (written ? Date.parse(`${written.replace(" ", "T")}:00+09:00`) : 0)) return;
+    first = 1;
+    if (!touched) pick(1, false);
   }, () => {});
 }
 
