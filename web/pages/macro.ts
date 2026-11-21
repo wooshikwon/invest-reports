@@ -2,7 +2,6 @@
 import { candled } from "../shared/data";
 import { GAUGES, columnTaps, dailyTaps, gauge } from "../shared/gauge";
 import { question } from "../shared/help";
-import { subscribe } from "../shared/live";
 import { later, slider } from "../shared/motion";
 import { life, report } from "../shared/route";
 import { candleOn, candleUnit, kindButton, nearest, onTap } from "../shared/svg";
@@ -12,7 +11,6 @@ import { feelPress } from "../shared/telegram";
 // 탭을 누르면 그 지표로 넘기고, 넘기면 보고 있는 지표의 탭을 밝힌다. 카드 아래 점은 보고 있는 장을 따른다.
 // 카드 이름 뒤의 물음표 단추는 그 지표의 `help` 문단을 보여 준다. 주별 막대 그림과 일별 선 그림은 누른 자리에서 가장 가까운 막대나 점을 고른다. 고른 막대나 점은 그림에서 강조하고(막대는 흰색, 선은 '현재' 표시), 카드의 큰 값과 기준일 글씨를 그 값과 날짜로 바꾸며, 앞 1년 순위(`state`)는 마지막 값의 것이므로 숨긴다. 마지막 막대나 점을 누르면 처음 상태로 돌아간다. 반원 속도계와 금리 경로는 점마다 값이 없어 누르기를 두지 않는다.
 // 일별 선 그림(`daily`)을 그리는 유가 카드는 WTI 봉 비율(`r/candles.json`의 `oil`)이 오면 그림 아래 줄 오른쪽 끝에 선·봉 단추(`kindButton`)를 두고,
-// 유가 카드는 실시간 값의 WTI 1분 값(`index`의 `CL=F`)이 있으면 그림 위에 그 값과 받은 시각(`loaded`)을 서울 시각으로 적는다.
 // 봉 그림이면 그림이 담는 1년을 주봉으로 그린다(`candleUnit`). 봉 비율은 미국 장 날짜를 키로 적고 그림의 날짜는 그 하루 뒤이므로, 그림의 날짜에서 하루를 빼서 찾는다.
 export function indicators() {
   const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "미국 거시 지표");
@@ -104,22 +102,6 @@ export function indicators() {
   });
   resize.observe(box);
   life.signal.addEventListener("abort", () => resize.disconnect());
-  subscribe((all) => {
-    const tick = all.index?.["CL=F"];
-    daily.forEach(([box]) => {
-      let note = box.querySelector(":scope > .loaded");
-      if (!note && !tick) return;
-      if (!note) {
-        note = Object.assign(document.createElement("small"), { className: "loaded" });
-        note.setAttribute("style", "text-align:center;color:#7A828C;font-size:11px;margin-top:4px");
-        box.querySelector(":scope > .figure").before(note);
-      }
-      note.style.display = tick ? "block" : "none";
-      if (!tick) return;
-      const at = new Date(tick.loaded).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false });
-      note.textContent = `WTI $${tick.price.toFixed(2)} · ${at} KST 로드`;
-    });
-  });
   candled.then((found) => {
     if (!found.oil) return;
     oil = found.oil;

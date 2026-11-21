@@ -511,6 +511,8 @@ table.judged tbody tr.more button svg { color: var(--dim); }
 .gauge.ink .state i { background: var(--index-ink); }
 :is(.gauge.summary .val b.ink, .gauge.ink .state span) { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .gauge.summary .val b .sep { margin: 0 .28em; font-weight: 400; color: var(--dim); }
+/* 예측과 일정 카드는 25~75% 범위 오른쪽에 10~90% 범위(`wide`)를 작은 회색 글씨로 덧붙인다. */
+.gauge.summary .val b .wide { margin-left: 10px; font-size: 13px; font-weight: 600; color: var(--hint); -webkit-text-fill-color: var(--hint); }
 .gauge .fig { margin: 10px 0 6px; }
 .gauge .fig svg { display: block; width: 100%; height: auto; overflow: visible; font-variant-numeric: tabular-nums; }
 /* 기간을 바꾸면 최고·최저 글씨는 그림이 멈춘 뒤 0.25초에 걸쳐 나타난다. */

@@ -385,8 +385,8 @@ export function summaryCards(data, view) {
   })();
 
   // 예측과 일정: 등락률 분위수의 10~90% 옅은 면과 25~75% 면, 50% 실선을 주가 카드의 예측과 같은 지수색으로 그린다. 위쪽 번호는 이슈 일정이 있는 날이고,
-  // 마지막 거래일에는 일정이 없어도 번호를 달고, 처음에는 첫 번호를 고른다. 번호를 누르면 위 값을 그날의 25~75% 등락률로 바꾸고
-  // 세로선과 범위 끝이 만나는 곳에 그날의 등락률을 적는다. 그림 아래 줄 가운데에는 고른 일정의 날짜와 이름을 적고, 이름이 줄을 넘으면 말줄임표로 줄인다.
+  // 마지막 거래일에는 일정이 없어도 번호를 달고, 처음에는 첫 번호를 고른다. 번호를 누르면 위 값을 그날의 25~75% 등락률로 바꾸고,
+  // 그 오른쪽에 그날의 10~90% 등락률을 작은 회색 글씨로 적는다. 그림 아래 줄 가운데에는 고른 일정의 날짜와 이름을 적고, 이름이 줄을 넘으면 말줄임표로 줄인다.
   // 그 줄 양옆의 꺽쇠를 누르면 앞뒤 일정을 고르고, 일정 이름을 누르면 같은 페이지 아래의 이벤트 캘린더에서 같은 거래일을 연다(`toCalendar`).
   // 그림의 왼쪽 끝은 판단의 첫 날짜 지점(`days[1]`)이고, 등락률은 판단의 기준 가격 대비 값이다.
   // 기준 가격 날짜 종가에서 실시간 값의 사슬(`sessions`)을 지점 순번의 거래일 자리에 주가 카드처럼 잇는다. 정규장 값은 실선으로, 그 뒤의 프리장·애프터장·선물 시간대 값은
@@ -400,7 +400,7 @@ export function summaryCards(data, view) {
     const prev = chevron("M10 3 5 8l5 5", "이전 일정"), next = chevron("M6 3l5 5-5 5", "다음 일정");
     const line = Object.assign(document.createElement("span"), { className: "t" });
     box.append(prev, line, next);
-    let frame = null, pick = null, events = [], scale = null;
+    let frame = null, pick = null, events = [];
     prev.addEventListener("click", () => { if (pick > 0) { pick -= 1; mark(); } });
     next.addEventListener("click", () => { if (pick < events.length - 1) { pick += 1; mark(); } });
     line.addEventListener("click", () => {
@@ -420,17 +420,9 @@ export function summaryCards(data, view) {
         else if (node.tagName === "circle") node.setAttribute("fill", on ? color : "#2A2D33");
         else node.setAttribute("fill", on ? "#0b1a24" : "#EAEAEA");
       });
-      const [d, names, day] = events[pick], pct = frame.tree.pct, { X, Y, values } = scale;
-      // 고른 세로선이 10~90%와 25~75% 범위의 위아래 끝과 만나는 네 곳에 작은 점을 찍고 그날의 등락률을 회색으로 적는다. 10~90% 범위의 점과 값은 더 연하게 그린다. 글씨는 세로선이 그림 왼쪽 반에 있으면
-      // 오른쪽에, 오른쪽 반에 있으면 왼쪽에 둔다. 위아래 글씨가 12px보다 가까우면 네 글씨의 평균 높이를 지키며 12px 간격으로 벌린다.
-      const right = X(d) < (L + R) / 2, ys = ["90", "75", "25", "10"].map((q) => Y(pct[q][d]) + 4);
-      const at = ys.reduce((out, y) => [...out, out.length ? Math.max(y, out[out.length - 1] + 12) : y], []);
-      const shift = (ys.reduce((a, b) => a + b) - at.reduce((a, b) => a + b)) / at.length;
-      const ink = (q) => q === "25" || q === "75" ? "#A7ABB0" : "#45494F";
-      values.replaceChildren(...["90", "75", "25", "10"].map((q) => shape("circle", { cx: X(d), cy: Y(pct[q][d]), r: 1.6, fill: ink(q) })),
-        ...["90", "75", "25", "10"].map((q, k) => shape("text", { x: X(d) + (right ? 5 : -5), y: at[k] + shift, "font-size": 11, fill: ink(q),
-        "text-anchor": right ? "start" : "end", stroke: "#171719", "stroke-width": 3, "stroke-linejoin": "round", "paint-order": "stroke" }, `${signed(pct[q][d])}%`)));
-      c.head("", [...percent(pct["25"][d]), Object.assign(document.createElement("span"), { className: "sep", textContent: "~" }), ...percent(pct["75"][d])],
+      const [d, names, day] = events[pick], pct = frame.tree.pct;
+      const wide = Object.assign(document.createElement("span"), { className: "wide", textContent: `80% ${signed(pct["10"][d])}~${signed(pct["90"][d])}%` });
+      c.head("", [...percent(pct["25"][d]), Object.assign(document.createElement("span"), { className: "sep", textContent: "~" }), ...percent(pct["75"][d]), wide],
         `${d}거래일 뒤 범위`);
       line.replaceChildren(Object.assign(document.createElement("span"), { className: "d", textContent: day }),
         Object.assign(document.createElement("span"), { className: "n", textContent: names.length ? names.join(", ") : "예측 마지막 날" }));
@@ -488,7 +480,6 @@ export function summaryCards(data, view) {
       // 0% 글씨는 종가 선과 '현재' 표시가 시작하는 왼쪽 끝을 비우도록 그림 오른쪽 끝에 둔다.
       s.append(shape("text", { x: R, y: Y(0) - 4, "font-size": 11, fill: DIMS, "text-anchor": "end", "pointer-events": "none",
         stroke: "#171719", "stroke-width": 3, "stroke-linejoin": "round", "paint-order": "stroke" }, "0%"));
-      scale = { X, Y, values: s.appendChild(shape("g", { "pointer-events": "none" })) };
       s.append(...hits);
       mark();
     };

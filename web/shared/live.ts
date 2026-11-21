@@ -1,9 +1,9 @@
 import { life } from "./route";
-// 실시간 값 `premarket`·`afterhours`·`progress`·`index`는 claude-svr가 invest-live Worker(`LIVE_URL`)에 쓰고, Worker가 `GET /` 한 번에 `{ premarket, afterhours, progress, index }`로 돌려주는 값이다.
+// 실시간 값 `premarket`·`afterhours`·`progress`·`index`는 claude-svr가 invest-live Worker(`LIVE_URL`)에 쓰고, Worker가 `GET /` 한 번에 `{ premarket, afterhours, progress, index }`로 돌려주는 값이다. 앱은 `index`를 쓰지 않는다.
 // 값이 없는 이름은 키가 없다. 처음 받을 때 Worker가 답하지 않으면 빈 값으로 보고, 화면은 리포트에 적힌 값으로 그린다. 그 뒤로 답하지 않은 회차는 받아 둔 값을 그대로 둔다.
 // `premarket`은 뉴욕 프리장부터 정규장 마감까지 지수마다 적는 그날 프리장이나 정규장의 마지막 체결가이고, `afterhours`는 정규장 마감 값을 고정한 뒤
 // 애프터장이 끝날 때까지 지수마다 적는 그날 애프터장의 마지막 체결가다. 선물 시간대에는 나스닥 선물 등락으로 바꾼 나스닥 애프터장 값이다.
-// 머리 상자, 지도, 주가 카드, 종목 상세의 주가 카드가 쓴다. `index`는 유가 카드의 로드 줄이 쓴다.
+// 머리 상자, 지도, 주가 카드, 종목 상세의 주가 카드가 쓴다.
 // `progress`는 판단 배치 동안 지수마다 적는 단계와 그 단계에 닿은 시각이다. 판단 없는 날짜 지점의 단계 표시가 쓴다.
 // 지도와 종목 상세는 세션 날짜별 값(`early`·`after`)을 쓴다. 리포트 화면의 머리 상자와 주가 카드는 날짜 지점별 값(`points`)을 쓴다.
 export const LIVE_URL = "https://invest-live.wonwooshik.workers.dev";
@@ -13,8 +13,8 @@ export const LIVE_EVERY = 1;
 const LATE = 3e3;
 
 // `points`는 지수마다 날짜 지점(`point`)별로 묶은 값 `{ pre, regular, after }`이다. 지점 N의 `after`는 N 앞 세션의 애프터장(선물 시간대 포함) 값이고,
-// `pre`는 N의 프리장 값, `regular`는 N의 정규장 값(`ohlc` 포함)이다. `index`는 지수와 WTI의 1분 값 `{ price, time, loaded }`이다.
-export type Live = { early: Record<string, any>; after: Record<string, any>; progress: Record<string, any>; points: Record<string, any>; index: Record<string, any> };
+// `pre`는 N의 프리장 값, `regular`는 N의 정규장 값(`ohlc` 포함)이다.
+export type Live = { early: Record<string, any>; after: Record<string, any>; progress: Record<string, any>; points: Record<string, any> };
 type Hook = (found: Live) => void;
 
 // 지금부터 다음 `every`분 간격 정시 3초 뒤까지 남은 밀리초다. 간격은 1970년 1월 1일 0시부터 세므로 1·3·5분 간격의 정시는 매시 정각에서 시작한다.
@@ -65,7 +65,7 @@ const shape = (value: any): Live => {
     } else at(index, v.point).pre = v;
   }));
   Object.entries(value.afterhours || {}).forEach(([index, days]: [string, any]) => Object.values(days).forEach((v: any) => { if (v?.point) at(index, v.point).after = v; }));
-  return { early, after: value.afterhours || {}, progress: value.progress || {}, points, index: value.index || {} };
+  return { early, after: value.afterhours || {}, progress: value.progress || {}, points };
 };
 
 // `GET /`을 한 번 부른다. 받은 본문이 앞 회차와 같거나(304를 받은 브라우저는 저장해 둔 같은 본문을 건넨다) Worker가 답하지 않았으면 거짓을 돌려준다.
