@@ -9,6 +9,7 @@ import { figures } from "./outlook";
 import { indexPick, latest } from "../shared/chrome";
 import { marketed, relist } from "../shared/data";
 import { help } from "../shared/help";
+import { keep, kept } from "../shared/keep";
 import { subscribe } from "../shared/live";
 import { atEdge, motion, settle, settleStart } from "../shared/motion";
 import { key, life, query, report, reshow, returned } from "../shared/route";
@@ -19,28 +20,29 @@ import { viewer } from "../shared/viewer";
 // 리포트 화면과 이슈 화면은 `mount`로 그리고 `unmount`로 걷는다. 화면이 거는 손길과 받는 값은 수명(`life`)에 묶여 있고, `unmount`는 페이지를 여는 함수를 비운다.
 export const mount = (root, { body, listing, cards, history, outlook }) => reportPage(body, listing, cards, history, outlook);
 export const unmount = () => unturn();
-// 판단이 올라와 화면을 그 자리에서 다시 그릴 때(`arrive`) 보던 페이지와 화면 위치, 예측 단추 상태를 다음 화면에 넘긴다.
+// 판단이 올라와 화면을 그 자리에서 다시 그릴 때(`arrive`) 보던 페이지와 화면 위치를 다음 화면에 넘긴다.
 let carry = null;
 const OUTLOOK = ["현재 상태", "주요 분기와 예측", "종합 시나리오"];
 const NOTE_OF = { "주가": "현재 상태", "예측과 일정": "주요 분기와 예측", "권장 배율": "종합 시나리오" };
 function reportPage(body, listing, cards, history, given) {
   const { signal } = life;
-  const kept = carry;
+  const carried = carry;
   carry = null;
   settleStart();
   const index = key.split("-")[1], entry = listing[key], isLatest = key === latest(listing, index);
   // `due`는 가장 늦은 리포트의 판단 날짜 지점(`entry.point`)의 정규장이 시작했거나 그보다 늦은 날짜 지점의 실시간 값이 들어왔는지다.
   // 그때부터 다음 판단이 올라올 때까지 화면의 예측은 업데이트를 기다리는 값이다.
   // 설명 세 절(`noted`)은 화면을 그릴 때 받은 가장 늦은 판단의 `outlook.json`(`given`)으로 채우고, 예측 단추(`aimed`)의 상태를 받지 않는다.
+// 예측 단추의 상태는 기기의 `aim`에 남겨 다른 리포트와 다음에 열 때도 쓴다(`keep.ts`).
   // 설명 절은 그 절에 맞는 그림 카드와 한 장에 넣어 카드와 함께 넘긴다(`NOTE_OF`). 주가 카드는 현재 상태, 예측과 일정 카드는 주요 분기와 예측, 권장 배율 카드는 종합 시나리오다.
   // `due`인 동안(판단 배치가 도는 동안 포함)에는 설명 절의 제목과 내용을 회색으로 흐리게 보인다.
-  let due = false, cardSet = null, noted = null, aimed = !!kept?.aim;
+  let due = false, cardSet = null, noted = null, aimed = kept("aim") === true;
   // 예측 단추의 글자는 판단 배치의 단계(`stage`)로 정하고, 단계 판정은 여기서 하며 `outlook.ts`는 받은 글자와 상태만 그린다.
   // 단계는 가장 늦은 리포트를 보는 동안만 정한다. 실시간 값의 `progress`가 보는 리포트의 날짜(`entry.date`)보다 늦은 날짜에 이 지수의 단계를 적었으면 판단 배치가 도는 중이라 "예측 중 N%"(`running`)이고,
   // 그렇지 않은데 `due`이면 배치가 시작하기 전이라 "예측 업데이트 전"(`pre`)이다. 그 밖에는 "예측"(`done`)이다.
   // 진척률은 지금 단계의 누적 분에 그 단계에 머문 분을 다음 단계의 몫까지만 더해 마지막 누적 분으로 나눈 값이고, 줄지 않으며 99%에서 멈춘다.
   let stage = { state: "done", text: "예측" }, shown = 0, shownFor = null;
-  const view = { aim: aimed, stage: () => stage, watch: (on) => { aimed = on; } };
+  const view = { aim: aimed, stage: () => stage, watch: (on) => { aimed = on; keep("aim", on); } };
   if (entry) {
     document.title = `${entry.title} ${entry.day}`;
     const judge = (found) => {
@@ -58,7 +60,7 @@ function reportPage(body, listing, cards, history, given) {
     // 이 지수의 목록 항목 가운데 날짜가 보는 리포트보다 늦은 것이 생기면 `arrive`로 화면을 그 자리에서 다시 그린다. 토요일 배치와 월요일 배치는 날짜 지점이 앞 리포트와 같거나 앞서 있어도 날짜로 알아본다.
     let asking = false;
     const arrive = (name) => {
-      carry = { aim: aimed, y: scrollY, page: window.history.state?.page };
+      carry = { y: scrollY, page: window.history.state?.page };
       const params = new URLSearchParams(location.search);
       params.set("r", name);
       window.history.replaceState(window.history.state, "", `?${params}`);
@@ -148,10 +150,10 @@ function reportPage(body, listing, cards, history, given) {
       turn(Math.max(0, names.indexOf(name)), null, still);
     };
     settle();
-    assets(pages, PAGES.map(([name]) => name), place, land ? landPage : kept?.page ?? window.history.state?.page);
+    assets(pages, PAGES.map(([name]) => name), place, land ? landPage : carried?.page ?? window.history.state?.page);
   }
   settle();
-  if (kept) scrollTo(0, kept.y);
+  if (carried) scrollTo(0, carried.y);
   // 예측과 일정처럼 글자가 작은 그림은 눌러서 미니 앱 안에서 화면 폭으로 띄우고, 두 손가락으로 키우고 줄이며
   // 키운 그림은 한 손가락으로 옮긴다. 원래 크기에서 좌우로 밀면 같은 묶음의 이전·다음 그림으로 넘긴다.
   // 손가락을 움직이지 않고 한 번 누르면 닫는다.

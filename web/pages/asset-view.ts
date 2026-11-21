@@ -7,6 +7,7 @@ import { figure, signed, tone } from "../shared/format";
 import { slider } from "../shared/motion";
 import { roll } from "../shared/roll";
 import { closeAt, sessionAt, sessionTag } from "../shared/session";
+import { keep, kept } from "../shared/keep";
 import { key, visit } from "../shared/route";
 import { DIMS, PRICE, nearest, nowMark, onTap, shape } from "../shared/svg";
 import { feelPress, feelSlide, tg } from "../shared/telegram";
@@ -20,17 +21,15 @@ export const assetShares = (v) => `${v.toLocaleString("en-US", { maximumFraction
 export const assetRow = (name, sub, value, tail) => `<div class="asset-item"><div><strong>${name}</strong><small>${sub}</small></div>`
   + `<div><strong>${value}</strong>${tail ? `<small>${tail}</small>` : ""}</div></div>`;
 export const assetDay = (date) => `${+date.slice(5, 7)}.${+date.slice(8, 10)}`;
-// 금액 단위와 내 자산 페이지에서 보던 그림 카드는 기기에 적어 두고 다음에 열 때도 그대로 쓴다. 내 자산 페이지와 거래 내역 화면은 같은 금액 단위를 쓴다.
-// 내 자산 화면의 고른 상태. 금액 단위(`unit`), 그림 카드(`card`), 총 자산 단추를 켰는지(`whole`), 판단 선을 보이는지(`judge`)를 기기에 남긴다.
+// 내 자산 페이지와 거래 내역 화면의 고른 상태. 금액 단위(`unit`), 그림 카드(`card`), 총 자산 단추를 켰는지(`whole`), 판단 선을 보이는지(`judge`),
+// 거래 내역의 출처 필터(`filter`)와 조회 기간(`period`, 최근 3개월이면 `null`)을 기기의 `asset-view`에 남긴다(`keep.ts`). 두 화면은 같은 금액 단위를 쓴다.
+// 상태를 바꾼 화면은 바꾼 값(`change`)만 넘기고, 남기는 쪽이 기기에 적힌 값을 다시 읽어 그 값만 바꿔 적는다.
 export const assetView = () => {
-  const view = { unit: "KRW", card: 0, whole: false, judge: true };
-  try {
-    const kept = JSON.parse(localStorage.getItem("asset-view"));
-    view.unit = kept.unit === "USD" ? "USD" : "KRW"; view.card = kept.card | 0; view.whole = kept.whole === true; view.judge = kept.judge !== false;
-  } catch {}
-  return view;
+  const saved = kept("asset-view") || {};
+  return { unit: saved.unit === "USD" ? "USD" : "KRW", card: saved.card | 0, whole: saved.whole === true, judge: saved.judge !== false,
+           filter: TRADE_SOURCE[saved.filter] ? saved.filter : "all", period: saved.period?.start && saved.period?.end ? saved.period : null };
 };
-export const assetRemember = (view) => { try { localStorage.setItem("asset-view", JSON.stringify(view)); } catch {} };
+export const assetRemember = (change) => keep("asset-view", { ...assetView(), ...change });
 // 금액 단위 단추. 칸마다 `data-unit`에 통화를 적고, 고른 칸을 밝게 칠한다.
 export const assetUnits = (unit) => '<div class="seg">' + [["USD", "$"], ["KRW", "원"]].map(([currency, label]) =>
   `<button type="button" data-unit="${currency}"${currency === unit ? ' class="on"' : ""}>${label}</button>`).join("") + "</div>";
@@ -169,7 +168,7 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
 
 // 내 자산 페이지(`page`)를 그리는 함수를 돌려준다. 공개 화면 `asset.ts`가 Worker가 건넨 계좌 요약(`data`)마다 이 함수를 부른다.
 export function assetPage(page) {
-  const view = assetView(), remember = () => assetRemember(view);
+  const view = assetView(), remember = () => assetRemember({ unit: view.unit, card: view.card, whole: view.whole, judge: view.judge });
   const chevron = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // 평가 금액의 가림을 벗겼는지(`bare`)는 미니 앱을 닫을 때까지만 기억하고 기기에는 적지 않으므로, 미니 앱을 열 때마다 보이는 채로 시작한다. 평가 금액을 누르면 가리고 다시 누르면 보인다.
   let last = null, bare = true;
@@ -228,7 +227,7 @@ export function assetPage(page) {
 export const TRADE_SOURCE = { llm: "LLM 매수", manual: "일반 매수" };
 // 거래 내역 절 제목 오른쪽에 출처 필터 드롭다운과 금액 단위 단추를 둔다. 드롭다운은 고른 필터 이름과 아래 꺽쇠를 쓰고, 누르면 그 아래에 필터 목록을 펼친다.
 // 목록에서 필터를 고르거나 목록 밖을 누르면 목록을 접는다. 체결 금액은 달러로만 받으므로, 원 단위에서는 계좌 요약을 만든 시각의 환율로 바꿔 쓴다.
-// 거래 내역은 조회 기간 안의 블록만 쓰고, 기간 투자액도 그 블록만 더한다. 조회 기간은 처음에 오늘(서울 날짜)까지 최근 3개월이고, 화면을 닫으면 처음 값으로 돌아간다.
+// 거래 내역은 조회 기간 안의 블록만 쓰고, 기간 투자액도 그 블록만 더한다. 조회 기간은 처음에 오늘(서울 날짜)까지 최근 3개월이다.
 // 기간 투자액 아래 줄 오른쪽 끝의 기간 단추를 누르면 달력 상자를 띄운다. 달력은 가장 오래된 거래가 있는 달, 조회 시작 달, 최근 3개월의 시작 달 가운데 가장 이른 달부터 이번 달까지를 한 달씩 옆으로 놓고, 조회 끝 날짜의 달을 보이며 연다.
 // 달은 좌우로 밀거나 달 이름 양옆의 꺽쇠를 눌러 넘기고, 날짜 판의 높이는 보이는 달의 줄 수에 맞춘다. 날짜를 처음 누르면 시작 날짜로 두고, 다음에 누른 날짜가 시작 날짜와 같거나 뒤면 끝 날짜로 둔다. 시작 날짜보다 앞을 누르면 시작 날짜를 다시 고른다.
 // 최근 3개월 단추는 고른 기간을 최근 3개월로 바꾼다. 고른 기간은 끝 날짜까지 고른 뒤 아래 확인 단추를 눌러야 조회 기간이 되고, 닫기 단추나 상자 밖을 누르면 버린다.
@@ -240,7 +239,12 @@ export function tradesView(page, index) {
     const [y, m, d] = today.split("-").map(Number), end = new Date(Date.UTC(y, m - 3, 0)).getUTCDate();
     return { start: new Date(Date.UTC(y, m - 4, Math.min(d, end))).toISOString().slice(0, 10), end: today };
   };
-  let last = null, timer = null, filter = "all", period = recent(), sheet = null;
+  let last = null, timer = null, filter = view.filter, period = view.period || recent(), sheet = null;
+  // 최근 3개월과 같은 조회 기간은 `null`로 적어 다음에 열 때 그날의 최근 3개월을 쓴다.
+  const rememberTrades = () => {
+    const fresh = recent();
+    assetRemember({ filter, period: period.start === fresh.start && period.end === fresh.end ? null : period });
+  };
   const gap = (v) => `${assetSign(v)}${Math.abs(v).toFixed(3)}배`;
   const span = ({ start, end }) => `${start.slice(0, 4) === end.slice(0, 4) ? "" : `${start.slice(2, 4)}.`}${assetDay(start)} ~ ${assetDay(end)}`;
   const icon = '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>'
@@ -297,6 +301,7 @@ export function tradesView(page, index) {
       if (event.target.closest(".ok")) {
         feelPress();
         period = { start, end };
+        rememberTrades();
         render(last);
         return shut();
       }
@@ -379,15 +384,15 @@ export function tradesView(page, index) {
       if (pick.dataset.filter === filter) return menu(false);
       feelSlide();
       filter = pick.dataset.filter;
+      rememberTrades();
       return render(last);
     }
-    // 금액 단위는 내 자산 페이지가 적어 둔 그림 카드 번호를 지우지 않게, 기기에 적힌 값을 다시 읽어 단위만 바꿔 적는다.
     const unit = event.target.closest("[data-unit]");
     if (unit) {
       if (unit.dataset.unit === view.unit) return;
       feelSlide();
-      Object.assign(view, assetView(), { unit: unit.dataset.unit });
-      assetRemember(view);
+      view.unit = unit.dataset.unit;
+      assetRemember({ unit: view.unit });
       return render(last);
     }
     const button = event.target.closest(".act button:not(:disabled)");

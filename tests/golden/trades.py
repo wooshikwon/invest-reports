@@ -11,6 +11,7 @@ SAMPLE 거래 내역(나스닥, 목표 배율과 거래 직후 배율은 블록�
 기대 기간 투자액: 전체 $460.00(카드 4), LLM 매수 $300.00(카드 2), 일반 매수 $160.00(카드 2).
 필터 시험은 기기에 달러 단위를 적어 두고 연다. 원 단위의 기대값은 SAMPLE 계좌 요약의 환율 1,330.5원으로 바꾼 값이다.
 조회 기간은 처음에 8/19~11/19(최근 3개월)이다. 달력에서 11/16~11/18을 고르고 확인을 누르면 카드 3개, 기간 투자액 $600.00이다.
+그 기간에 LLM 매수 필터를 고른 뒤 다시 열면 기기에 적은 필터와 조회 기간으로 연다.
 """
 import argparse
 import io
@@ -73,7 +74,7 @@ def open_page(p, data: Path, kept: dict, unit="USD"):
     context.add_init_script(capture.mock(1))
     context.add_init_script("try { localStorage.setItem('asset', '1'); } catch {}")
     if unit:
-        context.add_init_script(f"try {{ localStorage.setItem('asset-view', JSON.stringify({{ unit: '{unit}', card: 2 }})); }} catch {{}}")
+        context.add_init_script(f"try {{ localStorage.getItem('asset-view') || localStorage.setItem('asset-view', JSON.stringify({{ unit: '{unit}', card: 2 }})); }} catch {{}}")
     context.route("**/*", server.handler({}, kept))
     page = context.new_page()
     page.on("pageerror", lambda e: server.errors.append(f"pageerror: {str(e)[:300]}"))
@@ -166,7 +167,8 @@ def main():
         order = page.locator(".trade:has(.act) .asset-item").inner_text()
         check("e 원 단위: 보낼 주문은 원화 금액 아래 달러 어림값", all(v in order for v in KRW["order"]) and order.index("원") < order.index("$"), order)
         kept = page.evaluate("JSON.parse(localStorage.getItem('asset-view'))")
-        check("e 단위를 기기에 적고 그림 카드 번호와 총 자산·판단 보기 단추 상태는 지킨다", kept == {"unit": "KRW", "card": 2, "whole": False, "judge": True}, kept)
+        check("e 단위를 기기에 적고 그림 카드 번호와 총 자산·판단 보기 단추, 필터와 조회 기간은 지킨다",
+              kept == {"unit": "KRW", "card": 2, "whole": False, "judge": True, "filter": "all", "period": None}, kept)
         page.screenshot(path=str(shots / "trades-krw.png"))
         page.locator(".trade-head [data-unit='USD']").click()
         capture.settle(page, 300)
@@ -207,6 +209,15 @@ def main():
         check("f 확인을 누르면 기간을 바꾸고 달력을 닫는다", sheet.count() == 0 and len(s["cards"]) == 3 and "$600.00" in s["sum"] and s["sum"].endswith("11.16 ~ 11.18")
               and s["open"] == 1, (len(s["cards"]), s["sum"]))
         page.screenshot(path=str(shots / "trades-period.png"))
+        pick(page, "LLM 매수")
+        kept = page.evaluate("JSON.parse(localStorage.getItem('asset-view'))")
+        check("g 고른 필터와 조회 기간을 기기에 적는다", kept["filter"] == "llm" and kept["period"] == {"start": "2026-11-16", "end": "2026-11-18"}, kept)
+        page.reload(wait_until="networkidle")
+        page.wait_for_selector(".trade-sum", timeout=15000)
+        capture.settle(page)
+        s = state(page)
+        check("g 다시 열면 적어 둔 필터와 조회 기간으로 연다", s["on"] == "LLM 매수" and s["sum"].endswith("11.16 ~ 11.18"), (s["on"], s["sum"]))
+        pick(page, "전체")
         page.locator(".trade-sum .period").click()
         day("2026-11-10").click()
         day("2026-11-12").click()
@@ -220,6 +231,7 @@ def main():
         capture.settle(page, 300)
         s = state(page)
         check("f 확인을 누르면 처음 기간으로 돌아간다", sheet.count() == 0 and len(s["cards"]) == 4 and "$460.00" in s["sum"] and s["sum"].endswith("8.19 ~ 11.19"), s["sum"])
+        check("g 최근 3개월로 돌린 기간은 빈 값으로 적는다", page.evaluate("JSON.parse(localStorage.getItem('asset-view')).period") is None)
         check("c 오류·외부 요청 0건", not server.errors and not server.escaped, (server.errors, server.escaped))
         browser.close()
 

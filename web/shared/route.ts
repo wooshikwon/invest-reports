@@ -5,15 +5,16 @@ import * as stockScreen from "../pages/stock";
 import * as tradesScreen from "../pages/trades";
 import { ASSET } from "./account";
 import { backEdge, backward } from "./back";
-import { latest, masthead, paint, ticker, topGlass, unglos } from "./chrome";
+import { INDEX, latest, masthead, paint, ticker, topGlass, unglos } from "./chrome";
 import { listed, parts, reportPart, reportText, texts } from "./data";
+import { kept } from "./keep";
 import { forget } from "./live";
 import { unpress } from "./press";
 import { cache, landed } from "./pull";
 import { tg } from "./telegram";
 export let query = new URLSearchParams(location.search);
 // 지수 단추로 고른 리포트는 주소의 `r`로 다시 연다. 텔레그램은 다시 연 뒤에도 처음 받은 `start_param`을 그대로 주므로 `r`을 먼저 읽는다.
-// 홈 화면 바로가기는 `start_param` 없이 미니 앱을 열므로, 키가 없으면 리포트를 받기 전에 `r/index.json`에서 키를 정한다.
+// 홈 화면 바로가기는 `start_param` 없이 미니 앱을 열므로, 키가 없으면 리포트를 받기 전에 `r/index.json`에서 키를 정한다. 키는 지수 단추로 마지막에 고른 지수(`index`, 없으면 나스닥)의 가장 늦은 리포트다.
 // 주소에 `issue`가 있으면 리포트 대신 그 번호의 이슈 하나를 보이는 이슈 화면을 그리고, `at`이 있으면 히스토리에서 그 날짜 항목을 고른다.
 // 주소에 `stock`이 있으면 이슈 화면과 같은 틀에 그 티커의 종목 상세를 그린다.
 // 주소에 `news`가 있으면 같은 틀에 그 ID의 종목 뉴스 기사를 그린다. `ticker`가 있으면 종목 상세에서 연 기사이고, 이전·다음 기사를 그 종목의 기사 목록에서 고른다.
@@ -104,7 +105,7 @@ export function present() {
     paint();
     if (depth > 0 && !query.get("issue") && !query.get("news") && !symbol && !trades) backEdge();
   };
-  (/^\d{8}-[a-z]+$/.test(key) ? Promise.resolve(key) : listed.then((listing) => latest(listing, trades || "nasdaq"))).then((found) => {
+  (/^\d{8}-[a-z]+$/.test(key) ? Promise.resolve(key) : listed.then((listing) => latest(listing, trades || (INDEX[kept("index")] ? kept("index") : "nasdaq")))).then((found) => {
     if (!found) throw new Error("no report");
     key = found;
     if (trades) {

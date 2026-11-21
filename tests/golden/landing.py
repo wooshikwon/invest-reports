@@ -100,7 +100,7 @@ class Scene(dp.World):
             self.context.add_init_script("try { localStorage.setItem('asset', '1'); } catch {}")
 
 
-LABEL = "() => { const b = document.querySelector('button.aim'); return b && { text: b.textContent.trim(), pre: b.classList.contains('pre'), running: b.classList.contains('running'), on: b.classList.contains('on'), disabled: b.disabled }; }"
+LABEL = "() => { const b = document.querySelector('.carousel.cards button.aim'); return b && { text: b.textContent.trim(), pre: b.classList.contains('pre'), running: b.classList.contains('running'), on: b.classList.contains('on'), disabled: b.disabled }; }"
 
 
 def label(page):
@@ -180,7 +180,7 @@ def main():
                 # 판단 날짜 지점의 정규장이 시작한 뒤(`ahead`가 있는 경우의 pre·running)만 회색이다. 월요일 배치는 정규장 전에 돌므로 회색이 아니다.
                 check(f"p2 {case['name']} {stage}: 설명 절은 정규장 시작 뒤 업데이트를 기다리는 동안만 회색", bool(faded) and all(f == (stage != "done" and bool(case["ahead"])) for f in faded), faded)
                 # 세 상태 모두 눌러 가장 늦은 판단의 예측을 켠다
-                page.locator("button.aim").first.click()
+                page.locator(".carousel.cards button.aim").first.click()
                 capture.settle(page, 500)
                 on = label(page)
                 notes = page.evaluate("() => { const slides = [...document.querySelectorAll('.carousel.cards .track > .slide')], on = [...document.querySelectorAll('.carousel.cards .tabs button')].findIndex((b) => b.classList.contains('on')); return [...document.querySelectorAll('[data-point]')].map((n) => [n.dataset.point, slides.indexOf(n.closest('.slide')) !== on, n.dataset.note]); }")

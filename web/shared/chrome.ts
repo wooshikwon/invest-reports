@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { reportText } from "./data";
+import { keep } from "./keep";
 import { motion } from "./motion";
 import { depth, key, life, reshow } from "./route";
 import { feelPress } from "./telegram";
@@ -75,7 +76,7 @@ export const paint = () => {
 // `listing`은 `r/index.json`이다. `index` 지수의 리포트 가운데 날짜가 가장 늦은 리포트의 키를 돌려주고, 그 지수의 리포트가 없으면 빈 글자를 돌려준다.
 export const latest = (listing, index) => Object.keys(listing).filter((name) => listing[name].index === index)
   .sort((a, b) => listing[b].date.localeCompare(listing[a].date))[0] || "";
-// 머리 상자 오른쪽 끝에 지수 단추를 단다. `listing`은 `r/index.json`이다. 단추를 누르면 세로선을 반대쪽 끝으로 옮긴 뒤 다른 지수의 가장 늦은 리포트를
+// 머리 상자 오른쪽 끝에 지수 단추를 단다. `listing`은 `r/index.json`이다. 단추를 누르면 고른 지수를 기기의 `index`에 남기고(`keep.ts`), 세로선을 반대쪽 끝으로 옮긴 뒤 다른 지수의 가장 늦은 리포트를
 // 보던 페이지로 연다. 기록을 하나 더해 그 기록에 다음 깊이와 보던 페이지를 적고 그 자리에서 다시 그린다. 다른 지수의 리포트 본문은 단추를 단 1.5초 뒤 미리 받아 둔다.
 // 리포트가 있는 지수가 하나뿐이면 단추를 달지 않는다.
 export function indexPick(listing) {
@@ -92,6 +93,7 @@ export function indexPick(listing) {
     if (pick.disabled) return;
     pick.disabled = true;
     feelPress();
+    keep("index", other);
     pick.classList.toggle("right", other === order[1]);
     Promise.all([reportText(target).catch(() => {}), new Promise((done) => setTimeout(done, motion.matches ? 0 : 280))]).then(() => {
       if (signal.aborted) return;

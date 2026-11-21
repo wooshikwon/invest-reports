@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { keep, kept } from "./keep";
 import { feelPress, feelSlide } from "./telegram";
 // 미국 거시 지표 카드의 그림. `build.py`가 소제목에 단 `data-card`의 `figure`를 받아 폭 320, 높이 `FIGURE` 단위의 SVG를 그린다.
 // 그림마다 필요한 높이로 그리고, 보이는 칸은 높이 `FIGURE`로 같게 잡아 그림을 가운데에 둔다.
@@ -32,7 +33,7 @@ export const markText = (parent, x, y, up, gap, words, left, right) => {
 };
 // 주가 카드, 종목 주가 카드와 유가 카드의 그림 종류. 봉 그림이면 참이고, 처음에는 봉 그림이다. 고른 종류는 기기에 남겨 다른 리포트와 종목에도 쓴다.
 export const CANDLE_KEY = "chart-kind", kindCards = new Set();
-export let candleOn = (() => { try { return localStorage.getItem(CANDLE_KEY) !== "line"; } catch { return true; } })();
+export let candleOn = kept(CANDLE_KEY) !== "line";
 export const CANDLE_ICON = '<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M6.5 2.5V17" stroke="#ff5c5c" stroke-width="1.4"/><rect x="4" y="5.5" width="5" height="8.5" rx=".8" fill="#ff5c5c"/>'
   + '<path d="M13.5 4.5V16" stroke="#5b9bff" stroke-width="1.4"/><rect x="11" y="7.5" width="5" height="5.5" rx=".8" fill="#5b9bff"/></svg>';
 export const LINE_ICON = '<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M2.5 14.5L7 8.5l3.8 3.8L17.5 5" fill="none" stroke="#ff5c5c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -48,7 +49,7 @@ export const kindButton = (redraw) => {
   button.addEventListener("click", () => {
     feelPress();
     candleOn = !candleOn;
-    try { localStorage.setItem(CANDLE_KEY, candleOn ? "candle" : "line"); } catch {}
+    keep(CANDLE_KEY, candleOn ? "candle" : "line");
     kindCards.forEach((card) => {
       if (!card.button.isConnected) return kindCards.delete(card);
       card.paint();

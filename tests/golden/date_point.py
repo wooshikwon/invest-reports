@@ -1,4 +1,4 @@
-"""리포트 화면 그림 카드의 동작 시험. 판단 전과 후, 실시간 값의 사슬, 그림 누르기, 카드 넘기기, 판단 도착, 카드별 설명 절을 연다.
+"""리포트 화면 그림 카드의 동작 시험. 판단 전과 후, 실시간 값의 사슬, 그림 누르기, 카드 넘기기, 판단 도착, 카드별 설명 절, 기기에 남기는 예측·지수 단추 상태를 연다.
 
     python3 tests/golden/date_point.py --data /tmp/dp-u4/out --after /tmp/dp-u4/out-after --shots /tmp/dp-u4/shots
 
@@ -81,7 +81,7 @@ def state(page):
     return page.evaluate("""() => ({
       notes: (() => { const slides = [...document.querySelectorAll('.carousel.cards .track > .slide')], on = [...document.querySelectorAll('.carousel.cards .tabs button')].findIndex((b) => b.classList.contains('on'));
         return [...document.querySelectorAll('[data-point]')].map((n) => [n.dataset.point, slides.indexOf(n.closest('.slide')) !== on, n.dataset.note]); })(),
-      aim: (() => { const b = document.querySelector('button.aim'); return b && { disabled: b.disabled, on: b.classList.contains('on'), text: b.textContent.trim() }; })(),
+      aim: (() => { const b = document.querySelector('.carousel.cards button.aim'); return b && { disabled: b.disabled, on: b.classList.contains('on'), text: b.textContent.trim() }; })(),
       tab: [...document.querySelectorAll('.carousel.cards .tabs button')].findIndex((b) => b.classList.contains('on')),
       toast: document.querySelector('.toast')?.textContent ?? null,
     })""")
@@ -201,7 +201,7 @@ def main():
         w = World(p, after, {})
         page = w.open()
         to_cards(page)
-        page.locator("button.aim").first.click()
+        page.locator(".carousel.cards button.aim").first.click()
         capture.settle(page, 600)
         s = state(page)
         check("a3 판단 후 최신: 설명 절이 최신 판단이고 고른 카드의 절만 보인다", {pt for pt, *_ in s["notes"]} == {PENDING} and shows(s), s["notes"])
@@ -214,6 +214,16 @@ def main():
         page.evaluate("document.querySelector('[data-point]').scrollIntoView({block:'start'})")
         capture.settle(page, 400)
         page.screenshot(path=str(shots / "a3-after-latest-notes.png"))
+        # (e) 예측 단추와 지수 단추의 상태는 기기에 남아 다음에 열 때도 쓴다.
+        check("e 예측 단추를 켠 상태를 기기에 남긴다", page.evaluate("localStorage.getItem('aim')") == "true")
+        page = w.open()
+        check("e 다시 열면 예측 단추를 켠 채로 연다", state(page)["aim"]["on"], state(page)["aim"])
+        page.locator(".index-pick").click()
+        capture.settle(page, 800)
+        check("e 지수 단추로 고른 지수를 기기에 남긴다", page.evaluate("localStorage.getItem('index')") == '"biotech"')
+        page = w.open()
+        tint = page.evaluate("document.documentElement.style.getPropertyValue('--index')")
+        check("e 리포트 키 없이 다시 열면 마지막에 고른 지수의 리포트를 연다", tint == "#AE9CE6" and state(page)["aim"]["on"], (tint, state(page)["aim"]))
         w.close()
         print("서버 오류", w.server.errors, "외부 요청", w.server.escaped)
     print("FAILS", FAILS)

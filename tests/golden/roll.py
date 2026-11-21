@@ -158,7 +158,7 @@ def outlook(browser, server):
     page.wait_for_timeout(900)
     after = text(page, price)
     check("R6 1분 값은 예측 탭 큰 값 숫자를 굴린다", after != before and bool(got), [before, after, len(got)])
-    page.locator("button.aim").first.click()
+    page.locator(".carousel.cards button.aim").first.click()
     page.wait_for_timeout(120)
     shown = text(page, price)
     check("R6 예측 단추를 누르면 굴리지 않는다", not rolls(page) and shown != after, [after, shown])
