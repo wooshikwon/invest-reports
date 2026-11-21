@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { signed } from "./format";
 import { DIM, DIMS, FIGURE, KNOB, PRICE, candleGroups, candleLate, canvas, nextClip, dailyBounds, drawCandles, drawMap, frame, legend, mapOf, markText, nowMark, shape, textWidth, zoneOf } from "./svg";
 // 시간 축 그림을 누를 수 있는 자리. 점이나 막대마다 그림 좌표의 가로 자리와, 그 자리가 가리키는 점 번호를 돌려준다.
 // 가로 자리는 `columns`와 `daily`가 점을 그리는 식과 같다.
@@ -113,6 +114,8 @@ export const GAUGES = {
     const [lo, top] = bounds ?? dailyBounds({ points, extra, candle, height, start });
     const X = (i) => L + (R - L) * (i - start) / span, Y = (v) => B - (v - lo) / (top - lo || 1) * (B - T);
     const room = (v, up) => (extra == null ? Y(v) : up ? Math.min(Y(v), Y(extra)) : Math.max(Y(v), Y(extra)));
+    // 최고·최저 글자 뒤 괄호에는 현재가(정규장 다음 세션 값, 없으면 마지막 점의 값)의 그 값 대비 등락률을 적는다. 현재가가 그 값이면 괄호를 쓰지 않는다.
+    const now = extra ?? values[last], versus = (v) => (now === v ? "" : ` (${signed((now / v - 1) * 100, 1)}%)`);
     // 왼쪽 끝에 걸친 선과 봉은 그림 왼쪽 끝에서 자르고, 덧붙인 잠정 봉이 오른쪽 끝에서 3px까지 나가므로 그 3px도 그린다.
     const clipId = `daily-clip-${nextClip()}`, clip = shape("clipPath", { id: clipId });
     clip.append(shape("rect", { x: L, y: 0, width: R - L + 3, height: B }));
@@ -128,7 +131,7 @@ export const GAUGES = {
     if (groups) {
       const late = extra != null && point != null, bars = late ? candleLate(groups, days, candle.unit, extra, point) : groups, centers = drawCandles(g, bars, X, Y, (R - L) / span, R + 3);
       const high = groups.reduce((a, b) => (b[3] > a[3] ? b : a)), lowest = groups.reduce((a, b) => (b[4] < a[4] ? b : a));
-      if (marks) [[high, high[3], true, "최고"], [lowest, lowest[4], false, "최저"]].forEach(([[a, b], v, up, text]) => markText(s, X((a + b) / 2), room(v, up), up, 4, `${text} ${candle.label(v)}`, L, R));
+      if (marks) [[high, high[3], true, "최고"], [lowest, lowest[4], false, "최저"]].forEach(([[a, b], v, up, text]) => markText(s, X((a + b) / 2), room(v, up), up, 4, `${text} ${candle.label(v)}${versus(v)}`, L, R));
       const at = late ? bars.length - 1 : bars.findLastIndex(([a]) => a <= stop);
       if (late || stop >= i0) nowMark(s, centers[at], Y(bars[at][3]) - 5, late ? kind : "regular");
       return s;
@@ -137,7 +140,7 @@ export const GAUGES = {
                                "stroke-width": 1.4 - .4 * Math.max(0, Math.min(1, (last - start - 63) / 693)), "stroke-linejoin": "round" }));
       if (marks) [[i0 + seen.indexOf(hi), true, "최고"], [i0 + seen.indexOf(low), false, "최저"]].forEach(([i, up, text]) => {
         s.append(shape("circle", { cx: X(i), cy: Y(values[i]), r: 2.5, fill: PRICE }));
-        markText(s, X(i), room(values[i], up), up, 6, `${text} ${points[i][2]}`, L, R);
+        markText(s, X(i), room(values[i], up), up, 6, `${text} ${points[i][2]}${versus(values[i])}`, L, R);
       });
     }
     const [end, ahead] = extra != null ? [extra, 1] : [values[stop], 0];
