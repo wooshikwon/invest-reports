@@ -62,11 +62,12 @@ const stamp = (time, futures) => {
 // 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 지수(`index`)는 이름 줄과 큰 값을 굴리는 자리 이름에 쓴다.
 // `times`는 최신 날짜 점을 셈한 체결가의 시각(`live`)과 계좌 요약을 만든 시각(`summary`), 그 체결가가 선물 시간대 값이면 선물로 대신한 애프터장의 세션 날짜(`futures`)다.
 // 실시간 체결가가 없으면 Worker가 최신 날짜 점을 요약의 가격으로 셈하므로, 그때 `live`는 요약 시각이다. 카드 이름과 상자 목록(`cards`)과 다시 그리는 함수(`show`)를 돌려준다.
-// 카드는 요약 절의 그림 카드처럼 맨 위 줄에 값의 기준 시각을, 그 아래 이름 줄 왼쪽에 "나스닥 100"처럼 지수 이름을 쓴다. 이름 줄 오른쪽에는 수익률 카드면 금액가중 체크 단추를,
-// 배율 카드면 목표 배율을 흐린 글씨로 둔다. 수익률 카드는 그림 아래 줄 오른쪽 끝에 판단 보기 단추를 둔다. 판단 보기 단추는 두 수익률 카드에서 판단 선(지수색)을 함께 보이거나 감추고,
+// 카드는 요약 절의 그림 카드처럼 맨 위 줄에 값의 기준 시각을, 그 아래 이름 줄 왼쪽에 "나스닥 100"처럼 지수 이름을 쓴다. 이름 줄 오른쪽에는 수익률 카드면 판단 보기·금액가중 체크 단추를
+// 그 순서로, 배율 카드면 목표 배율을 흐린 글씨로 둔다. 판단 보기 체크 단추는 두 수익률 카드에서 판단 선(지수색)을 함께 보이거나 감추고,
 // 그 상태(`view.judge`)를 기기에 남긴다(`remember`).
-// 금액가중 체크 단추는 계좌 요약에 금액가중 누적 수익률(`returns.mwr`)이 있을 때만 둔다. 켜면 두 수익률 카드의 고정 배율·판단·집행 선과 큰 값을
-// 시간가중 대신 금액가중 누적 수익률로 그리고, 그 상태(`view.money`)를 기기에 남긴다. 금액가중의 고정 배율·판단 선은 실제 계좌와 같은 날 같은 돈을 넣고 뺀 가상 계좌의 값이다.
+// 금액가중 체크 단추는 계좌 요약에 금액가중 누적 수익률(`returns.mwr`)이 있을 때만 둔다. 켜면 두 수익률 카드의 집행 선과 큰 값을 시간가중 대신 금액가중
+// 누적 수익률로 그리고, 그 상태(`view.money`)를 기기에 남긴다. 고정 배율·판단 선은 돈을 처음 규모 그대로 둔 계좌의 값이라 그대로 두므로, 초과 수익률은
+// 배율 판단의 효과와 돈을 넣고 뺀 시점의 효과를 함께 보인다.
 // 카드 순서는 누적 수익률, 초과 수익률, 배율이다. 누적 수익률 카드는 첫날 대비 고정 배율·판단·집행 누적 수익률을,
 // 초과 수익률 카드는 판단과 집행의 누적 수익률에서 고정 배율 누적 수익률을 뺀 값을 날짜 지점 축에 그린다. 큰 값은 집행 선의 값이다.
 // 축은 정산한 거래일마다 한 점이고, Worker가 1분마다 다시 셈한 최신 날짜 지점의 값(`returns.now`)이 있으면 그 날짜 점을 하나 더 둔다.
@@ -156,28 +157,34 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
   };
   if (ret?.days?.length > 1) {
     const money = !!ret.mwr, check = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.6"/><path d="M5.2 8.2l1.9 1.9 3.7-3.9"/></svg>';
+    const toggle = (label, flip) => {
+      const button = Object.assign(document.createElement("button"), { type: "button", className: "check", innerHTML: `${check}<span>${label}</span>` });
+      button.addEventListener("click", () => { feelPress(); flip(); remember(); paint(); });
+      return button;
+    };
     const cum = card("cum"), over = card("over"), toggles = [cum, over].map((c) => {
-      const judge = c.foot.appendChild(Object.assign(document.createElement("button"), { type: "button", className: "aim", innerHTML: "<span>판단 보기</span>" }));
-      judge.addEventListener("click", () => { feelPress(); view.judge = !view.judge; remember(); paint(); });
-      const weigh = money ? Object.assign(document.createElement("button"), { type: "button", className: "weigh", innerHTML: `${check}<span>금액가중</span>` }) : null;
-      weigh?.addEventListener("click", () => { feelPress(); view.money = !view.money; remember(); paint(); });
-      if (weigh) c.side.replaceWith(weigh);
+      const judge = toggle("판단 보기", () => { view.judge = !view.judge; });
+      const weigh = money ? toggle("금액가중", () => { view.money = !view.money; }) : null;
+      const checks = Object.assign(document.createElement("span"), { className: "checks" });
+      checks.append(...[judge, weigh].filter(Boolean));
+      c.side.replaceWith(checks);
       return [judge, weigh];
     });
     const closed = ret.closed && ret.closed.day > ret.days.at(-1) ? ret.closed : null;
     const now = ret.now && ret.now.day > (closed?.day ?? ret.days.at(-1)) ? ret.now : null;
-    // 선 값. 금액가중이면 `returns.mwr`과 날짜 점마다의 `mwr`을 쓰고, 금액가중 값이 없는 날짜 점부터는 그리지 않는다.
+    // 선 값. 금액가중이면 집행 선만 `returns.mwr.realized`와 날짜 점마다의 `mwr.realized`를 쓰고, 금액가중 값이 없는 날짜 점부터는 그리지 않는다.
+    // 고정 배율·판단 선의 비교 기준은 돈을 처음 규모 그대로 둔 계좌라, 그 금액가중 수익률은 시간가중 수익률과 같다.
     const pick = (weighed) => {
-      const src = weighed ? ret.mwr : ret, extra = [];
+      const extra = [];
       for (const point of [closed, now].filter(Boolean)) {
-        const own = weighed ? point.mwr : point;
-        if (own?.realized == null || own?.anchor == null) break;
-        extra.push([point, own]);
+        const realized = weighed ? point.mwr?.realized : point.realized;
+        if (realized == null) break;
+        extra.push([point, realized]);
       }
-      const target = [...(src.target ?? [])];
-      for (const [, own] of extra) { if (own.target == null) break; target.push(own.target); }
-      return { days: [...ret.days, ...extra.map(([point]) => point.day)], anchor: [...src.anchor, ...extra.map(([, own]) => own.anchor)],
-               realized: [...src.realized, ...extra.map(([, own]) => own.realized)], target, now: extra.at(-1)?.[0] === now ? now : null };
+      const target = [...ret.target];
+      for (const [point] of extra) { if (point.target == null) break; target.push(point.target); }
+      return { days: [...ret.days, ...extra.map(([point]) => point.day)], anchor: [...ret.anchor, ...extra.map(([point]) => point.anchor)],
+               realized: [...(weighed ? ret.mwr.realized : ret.realized), ...extra.map(([, realized]) => realized)], target, now: extra.at(-1)?.[0] === now ? now : null };
     };
     const paint = () => {
       const { days, anchor, realized, target, now } = pick(money && view.money), gap = (values) => values.map((v, i) => v - anchor[i]);
