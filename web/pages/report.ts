@@ -6,7 +6,7 @@ import { indicators } from "./macro";
 import { indexMap } from "./market";
 import { newsTab } from "./news";
 import { figures } from "./outlook";
-import { INDEX_NAME, indexPick, latest, masthead, pageName } from "../shared/chrome";
+import { INDEX_NAME, indexPick, latest, pageName } from "../shared/chrome";
 import { marketed, relist } from "../shared/data";
 import { help } from "../shared/help";
 import { keep, kept } from "../shared/keep";
@@ -291,9 +291,8 @@ export function jump(pages, names) {
       lever.style.transition = "";
       if (page >= 0) wave(i);
       page = i;
-      // 지수 페이지는 페이지 이름 자리에 보고 있는 리포트의 지수 이름(나스닥, 바이오)을 쓰고, 시세의 지수 이름은 머리 상자가 화면 위에 붙을 때만 보인다.
+      // 지수 페이지는 페이지 이름 자리에 보고 있는 리포트의 지수 이름(나스닥, 바이오)을 쓴다.
       pageName.textContent = names[i] === "지수" ? INDEX_NAME[key.split("-")[1]] : names[i];
-      masthead.dataset.page = names[i];
       history.replaceState({ ...history.state, page: names[i] }, "");
     }
     let top = 0;
