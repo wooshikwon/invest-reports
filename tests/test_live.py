@@ -443,6 +443,27 @@ def test_futures_round_posts_account_prices_from_last_trades(market, monkeypatch
     assert not any(symbol in published for symbol in ("SAMPA", "SAMPB", "SAMPC", "SAMPD"))  # invest-live 값에는 계좌 값이 없다
 
 
+def test_premarket_keeps_futures_price_until_its_first_trade(market, monkeypatch):
+    """프리장이 열린 뒤 아직 체결이 없는 종목은 선물 시간대에 쓴 계좌 가격을 이어 쓰고, 체결이 나면 그 체결가를 쓴다."""
+    (live.ETFS).write_text(live.json.dumps(ETF_TABLE))
+    monkeypatch.setattr(live, "holding_symbols", lambda: ["SAMPA", "SAMPC"])
+    traded(market, "2026-11-20", "19:59:50")
+    market.prices.update({"SAMPA": (100.0, kst("2026-11-20", "19:59:50")), "SAMPC": (20.0, kst("2026-11-20", "19:59:50"))})
+    live.tick(at("2026-11-20", "20:00:10"))
+    market.spark = {"NQ=F": [(at("2026-11-20", "16:59"), 1000.0), (at("2026-11-23", "03:58"), 1010.0)]}
+    live.tick(at("2026-11-23", "03:59:05"))
+    futures = market.accounts[-1][1]
+    assert futures["SAMPA"] == pytest.approx(101.0) and futures["SAMPC"] == 20.0
+    traded(market, "2026-11-23", "04:00:30")
+    market.prices.update({"SAMPA": (100.0, kst("2026-11-20", "19:59:50")), "SAMPC": (20.0, kst("2026-11-20", "19:59:50"))})  # 프리장 체결이 아직 없다
+    live.tick(at("2026-11-23", "04:01:05"))
+    assert market.accounts[-1][1] == futures
+    market.prices["SAMPA"] = (102.5, kst("2026-11-23", "04:01:40"))
+    live.tick(at("2026-11-23", "04:02:05"))
+    assert market.accounts[-1][1] == {"SAMPA": 102.5, "SAMPC": 20.0}
+    assert live.load(live.DATA / "account.json", {})["SAMPA"] == 102.5  # 선물 추정가는 마지막 체결가 파일에 남기지 않는다
+
+
 def test_futures_round_without_last_trades_posts_nothing(market):
     (live.ETFS).write_text(live.json.dumps(ETF_TABLE))
     traded(market, "2026-11-20", "19:59:50")

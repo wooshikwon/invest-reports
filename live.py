@@ -30,7 +30,8 @@ cron(`~/scripts/cron/invest-live-tick.sh`)이 1분마다 `tick()`을 부른다. 
 
 앞 세션·다음 세션 날짜와 정규장 마감 시각은 날짜마다 한 번 `exchange_calendars`에서, 지수 ETF의 앞 세션 종가는 그 세션의 첫 장중 회차에 토스 일봉에서 받아
 `~/data/invest-reports/live/session-{YYYY-MM-DD}.json`에 둔다. 애프터장 회차는 나스닥 ETF의 마지막 체결 시각도 같은 파일에 둔다.
-앞 회차 값은 DO에 쓴 값과 같은 `{이름}.json`에 두고 다시 읽는다.
+앞 회차 값은 DO에 쓴 값과 같은 `{이름}.json`에 두고 다시 읽는다. 보유 종목의 마지막 체결가는 `account.json`에, invest-account에 쓴 계좌 가격은 `account-sent.json`에 둔다.
+계좌 가격은 이번 구간(프리장·정규장이면 그날 `PREMARKET_OPEN`, 애프터장이면 정규장 마감) 뒤 체결이 없는 종목에 앞 회차가 쓴 가격을 이어 쓴다.
 회차마다 가격 없는 기록(`tick-{날짜}.log`)과, DO에 쓴 그날 값(`snap-{날짜}.jsonl`)을 남긴다.
 """
 from __future__ import annotations
@@ -413,6 +414,21 @@ def futures_prices(base: dict, quotes: dict[str, dict], end: dt.datetime) -> dic
     return prices
 
 
+def account_prices(held: list[str], trades: dict[str, tuple[float, str | None]], sent: dict[str, float], start: dt.datetime) -> dict[str, float]:
+    """보유 종목마다 invest-account에 쓸 가격. 이번 구간 시작(`start`) 뒤 체결이 있으면 그 체결가, 없으면 앞 회차가 invest-account에 쓴 가격(`sent`),
+    그것도 없으면 마지막 체결가다. 그래서 프리장이 열린 직후 아직 체결이 없는 종목은 선물 시간대에 쓴 가격을 이어 쓴다.
+    """
+    found = {}
+    for symbol in held:
+        if (price := priced(trades.get(symbol), start)) is not None:
+            found[symbol] = price
+        elif symbol in sent:
+            found[symbol] = sent[symbol]
+        elif symbol in trades:
+            found[symbol] = trades[symbol][0]
+    return found
+
+
 def post_account(now: dt.datetime, prices: dict[str, float], futures: str | None = None) -> None:
     """invest-account Worker의 DO에 보유 종목 체결가를 `POST /live`로 덮어쓴다. 비밀 값은 ~/.cloudflare_env의 `ACCOUNT_SECRET`으로만 받는다.
 
@@ -507,6 +523,7 @@ def tick(now: dt.datetime | None = None, toss: Toss | None = None) -> dict[str, 
             moved = max(value[index][window[0]]["futures"]["time"] for index in FUTURES if "futures" in value.get(index, {}).get(window[0], {}))
             if prices := futures_prices(base, quotes, end):
                 post_account(dt.datetime.fromisoformat(moved), prices, window[0])
+                save(DATA / "account-sent.json", prices)
     else:
         board = public_board()
         if "base" not in day:
@@ -531,9 +548,11 @@ def tick(now: dt.datetime | None = None, toss: Toss | None = None) -> dict[str, 
                          if priced(trades.get(SECTOR_DB_TICKERS[index]), dt.datetime.fromisoformat(day["closed"]))}:
                 day["trade"] = {**day.get("trade", {}), **found}
                 save(DATA / f"session-{today}.json", day)
-        if prices := {symbol: trades[symbol][0] for symbol in held if symbol in trades}:
+        start = dt.datetime.fromisoformat(day["closed"]) if "afterhours" in due else dt.datetime.combine(now.date(), PREMARKET_OPEN, NEW_YORK)
+        if prices := account_prices(held, trades, load(DATA / "account-sent.json", {}), start):
             post_account(now, prices)
-            save(DATA / "account.json", {**load(DATA / "account.json", {}), **prices})
+            save(DATA / "account-sent.json", prices)
+            save(DATA / "account.json", {**load(DATA / "account.json", {}), **{symbol: trades[symbol][0] for symbol in held if symbol in trades}})
     if (value := index_value(kept["index"], quotes, now)) is not None:
         written["index"] = value
     snap = DATA / f"snap-{today}.jsonl"
