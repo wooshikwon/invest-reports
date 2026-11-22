@@ -2,7 +2,7 @@
 import { backward } from "../shared/back";
 import { issueChart } from "../shared/gauge";
 import { EASE, GLIDE, atEdge, glide, homing, motion } from "../shared/motion";
-import { key, life, report, visit } from "../shared/route";
+import { key, life, report, returned, visit } from "../shared/route";
 import { feelPress, feelSlide } from "../shared/telegram";
 import { gallery, viewer } from "../shared/viewer";
 import { NEWS_HELP, question } from "../shared/help";
@@ -37,7 +37,8 @@ const empty = (text) => Object.assign(document.createElement("p"), { className: 
 // 절이 가린 페이지에 있을 때는 넘기지 않는다.
 // 처음 탭(`first`)은 상세 이슈 해설이다. 가장 늦은 리포트는 기사 목록을 바로 받아, 가장 최근 회차의 시작 시각이 리포트의 분석 완료 시각(`written`, "2026-11-20 11:43" 같은 서울 시각)보다 늦으면
 // 처음 탭을 종목 뉴스로 바꾸고 그 탭으로 넘긴다. 목록을 받기 전에 탭을 누르면 넘기지 않는다. 지난 리포트는 상세 이슈 해설 탭으로 연다.
-// 고른 탭은 남기지 않고, 처음 항목으로 돌릴 때(`motion.ts` `homing`) 처음 탭으로 돌아간다.
+// 고른 탭은 `history.state`의 `tab`에 적어, 이슈 화면이나 뉴스 상세에서 뒤로 돌아오면 떠나기 전 탭으로 연다. 처음 항목으로 돌릴 때(`motion.ts` `homing`)는 처음 탭으로 돌아간다.
+// 다른 화면을 열면 문서가 숨겨지면서 처음 항목으로 돌리므로, 숨겨진 동안 돌린 탭은 적지 않고 화면이 다시 보일 때 적는다.
 // 종목 뉴스 탭의 마지막 업데이트 시각은 받은 기사 가운데 가장 최근 회차의 시작 시각이다. 목록 블록은 이슈 목록 상자와 같은 모양으로 제목과 머리 줄(첫 소제목), 회차 시각을 쓴다.
 export function newsTab(index, written) {
   const { signal } = life;
@@ -82,9 +83,12 @@ export function newsTab(index, written) {
   }
   head.replaceChildren(line);
   head.classList.add("tabbed");
-  let shown = -1, first = 0, filled = false, touched = false, more = !!history.state?.more;
+  const kept = returned ? history.state?.tab : undefined;
+  let shown = -1, first = 0, filled = false, touched = kept === 0 || kept === 1, more = !!history.state?.more;
+  const keep = () => history.replaceState({ ...history.state, tab: shown }, "");
   const pick = (i, move) => {
     shown = i;
+    if (!document.hidden) keep();
     tabs.forEach((tab, j) => tab.classList.toggle("on", i === j));
     if (!move) bar.style.transition = "none";
     bar.style.width = `${tabs[i].offsetWidth}px`;
@@ -158,7 +162,8 @@ export function newsTab(index, written) {
     feelSlide();
     pick(to, true);
   }, { passive: true, signal });
-  pick(first, false);
+  pick(touched ? kept : first, false);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) keep(); }, { signal });
   homing(head, () => { touched = false; if (shown !== first) pick(first, false); });
   if (document.documentElement.classList.contains("past")) return;
   newsList(`index=${index}&days=7`).then((items) => {
