@@ -567,7 +567,7 @@ table.judged tbody tr.more button svg { color: var(--dim); }
                font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
 .indexmap .board { position: relative; }
 /* 세션 단추(`session`)는 정규장을 해, 애프터장을 초승달, 선물 시간대를 '先' 글자, 프리장을 언덕 위로 해가 오르는 새벽 그림으로 그리고, 그림의 닫힌 면(`f`)을 선과 같은 색으로 채운다.
-   고른 단추는 밝은 바탕에 세션 색으로 칠한다. 정규장은 노랑, 애프터장은 보라, 선물 시간대는 청록, 프리장은 주황이고, 등락률의 빨강·파랑과 겹치지 않는 색이다. 고르지 않은 단추는 회색이다.
+   고른 단추는 밝은 바탕에 세션 색으로 칠한다. 정규장은 노랑, 애프터장은 보라, 선물 시간대는 회색, 프리장은 주황이고, 등락률의 빨강·파랑과 겹치지 않는 색이다. 고르지 않은 단추는 회색이다.
    지도와 카드의 기준 시각 글씨(`kind`)도 그 값의 세션 색으로 쓴다. 종가 글씨 "정규장, 2026.11.18. 06:00 KST"는 정규장 색이다.
    지도에서는 위 줄 오른쪽 끝에, 주가 카드와 주가 카드에서는 이름 줄 오른쪽 끝에 두되 그 줄 높이를 늘리지 않는다. 끈 단추(`disabled`)는 고른 칸 없이 회색으로 흐리게 쓴다.
    애프터마켓·프리마켓 값을 고른 카드(`ext`)는 다음 정규장 전의 임시 값이므로 값과 등락률을 회색으로 쓴다. 리포트 날짜의 정규장 값을 그리는 카드는 정규장 단추 하나만 두고 회색으로 쓰지 않는다. */
@@ -578,7 +578,7 @@ table.judged tbody tr.more button svg { color: var(--dim); }
 .session button svg .f { fill: currentColor; }
 [data-kind="regular"] { --kind: #ffc53d; }
 [data-kind="after"] { --kind: #a78bfa; }
-[data-kind="futures"] { --kind: #2EC4B6; }
+[data-kind="futures"] { --kind: #A7ABB0; }
 [data-kind="pre"] { --kind: #ff9f43; }
 .session button.on { background: rgba(255, 255, 255, .16); color: var(--kind); }
 .session button:disabled { background: none; color: var(--hint); opacity: .4; cursor: default; }
