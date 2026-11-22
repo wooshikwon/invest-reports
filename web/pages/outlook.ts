@@ -540,7 +540,7 @@ export function summaryCards(data, view) {
     const { regulars, latest } = sessions(), reg = regulars.at(-1), kind = latest[2];
     const move = rate(latest[0] / (kind === "regular" ? latest[6] : reg ? reg[0] : hist[close]) - 1);
     return `<span class="name">${INDEX_NAME[key.split("-")[1]]}</span><span class="kind" data-kind="${kind}">${SESSION_NAME[kind]}</span>`
-      + `<b class="${tone(move)}">${fmt(latest[0])}</b><b class="${tone(move)}">${signed(move, 2)}%</b>`;
+      + `<b class="${tone(move)}">${fmt(latest[0])}</b><b class="rate ${tone(move)}">${signed(move, 2)}%</b>`;
   };
   // `live(all, index)`는 실시간 값 전체(`all`)에서 지수(`index`)의 지점별 값을 받아, 값이 바뀌었으면 카드를 다시 그리고 바뀐 큰 글씨 숫자를 굴린다.
   const live = (all, index) => {
