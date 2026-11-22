@@ -105,7 +105,7 @@ def test_holiday_calls_no_toss(market):
     assert live.tick(at("2026-11-26", "10:00:05")) == {}  # 추수감사절
     assert live.tick(at("2026-11-28", "10:00:05")) == {}  # 토요일
     assert market.toss == [] and market.yahoo == [] and market.written == []
-    assert market.indexes == []  # 휴장일 낮과 토요일은 선물 시간대가 아니라 지수 묶음 요청도 부르지 않는다
+    assert market.indexes == ["5d", "5d"]  # 선물 시간대라 지수 묶음 요청만 부른다
 
 
 def test_close_wait_then_fix(market):
@@ -309,53 +309,60 @@ def test_session_after_holiday(market):
     assert after["nasdaq"]["2026-11-25"]["point"] == "2026-11-27"
 
 
-def test_futures_window_moves_only_nasdaq(market):
+def test_futures_value_rides_on_nasdaq_after_value(market):
+    """선물 시간대 값은 나스닥 애프터장 값에 `futures`로 붙고, 애프터장 값과 바이오 값은 그대로다."""
     traded(market, "2026-11-20", "15:59:30")
     live.tick(at("2026-11-20", "16:05:05"))
     traded(market, "2026-11-20", "19:59:50", 1.01)
     last = live.tick(at("2026-11-20", "20:00:10"))["afterhours"]
-    nasdaq, biotech = last["nasdaq"]["2026-11-20"], last["biotech"]["2026-11-20"]
+    nasdaq, biotech = dict(last["nasdaq"]["2026-11-20"]), dict(last["biotech"]["2026-11-20"])
     market.toss.clear()
     market.spark = {"NQ=F": [(at("2026-11-20", "16:58"), 1000.0), (at("2026-11-20", "16:59"), 1002.0)]}
-    assert live.tick(at("2026-11-20", "20:30:05")) == {}  # 애프터장 마지막 체결 뒤 선물 체결이 없으면 바꾸지 않는다
+    assert live.tick(at("2026-11-20", "20:30:05")) == {}  # 애프터장 마지막 체결 뒤 선물 체결이 없으면 쓰지 않는다
     market.spark["NQ=F"] += [(at("2026-11-22", "18:00"), 1010.0), (at("2026-11-22", "18:59"), 1020.0), (at("2026-11-22", "19:00"), 1030.0)]
     written = live.tick(at("2026-11-22", "19:00:05"))  # 일요일 19:00 ET
     moved = written["afterhours"]["nasdaq"]["2026-11-20"]
-    assert moved["basis"] == "futures" and moved["futures_time"] == "2026-11-22T19:00:00-05:00"  # 19:00에 시작한 봉은 아직 끝나지 않았다
-    assert moved["ratio"] == round(nasdaq["ratio"] * 1020.0 / 1002.0, 6)
-    assert moved["time"] == nasdaq["time"] and moved["stocks"] == nasdaq["stocks"] and moved["point"] == "2026-11-23"
+    assert moved["futures"] == {"time": "2026-11-22T19:00:00-05:00", "ratio": round(nasdaq["ratio"] * 1020.0 / 1002.0, 6)}  # 19:00에 시작한 봉은 아직 끝나지 않았다
+    assert {name: moved[name] for name in nasdaq} == nasdaq and moved["point"] == "2026-11-23"  # 애프터장 값은 그대로다
     assert written["afterhours"]["biotech"]["2026-11-20"] == biotech  # 바이오에는 선물이 없다
     assert live.tick(at("2026-11-22", "19:00:35")) == {}  # 같은 봉이면 다시 쓰지 않는다
     assert market.toss == [] and market.accounts == []
-    assert market.indexes[-2:] == ["5d", "1d"]  # 기준을 잡는 첫 회차만 닷새치를 받는다
+    assert market.indexes[-4:] == ["5d", "5d", "1d", "1d"]  # 기준을 잡기 전 회차만 닷새치를 받는다
 
 
-def test_no_futures_between_weekday_sessions(market):
+def test_futures_between_weekday_sessions(market):
+    """평일 밤(앞 세션 20:00 ET부터 다음 세션 04:00 ET 전까지)에도 선물 1분봉마다 선물 시간대 값을 쓴다."""
     traded(market, "2026-11-18", "19:59:50")
-    live.tick(at("2026-11-18", "20:00:10"))
+    after = live.tick(at("2026-11-18", "20:00:10"))["afterhours"]["nasdaq"]["2026-11-18"]["ratio"]
     market.spark = {"NQ=F": minutes("2026-11-18", "19:50", "23:59", 1000.0, 1.0) + minutes("2026-11-19", "00:00", "03:59", 2000.0, 1.0)}
-    market.written.clear()
+    times = []
     for clock in ("00:00:05", "02:00:05", "03:59:05"):
-        assert live.tick(at("2026-11-19", clock)) == {}
-    assert live.futures_window(at("2026-11-19", "02:00:05"), live.calendar_day(dt.date(2026, 11, 19))) is None
-    assert "futures" not in str(market.written)
+        times.append(live.tick(at("2026-11-19", clock))["afterhours"]["nasdaq"]["2026-11-18"]["futures"]["time"])
+    assert times == ["2026-11-19T00:00:00-05:00", "2026-11-19T02:00:00-05:00", "2026-11-19T03:59:00-05:00"]
+    fixed = live.load(live.DATA / "afterhours.json", {})["nasdaq"]["2026-11-18"]
+    assert fixed["ratio"] == after and fixed["futures"]["ratio"] == round(after * 2238.0 / 1008.0, 6)  # 03:58에 시작한 봉의 종가와 19:58에 시작한 기준 봉의 종가
+    assert live.tick(at("2026-11-19", "04:00:05")).get("afterhours") is None  # 프리장이 열리면 선물 시간대가 끝난다
 
 
-def test_futures_window_is_after_hours_of_day_before_next_session(market):
-    """선물 시간대는 다음 세션 전날의 16:00~20:00 ET뿐이다. 앞 세션 애프터장이 끝난 뒤와 다음 세션 프리장 전의 나머지 시간은 멈춘다."""
+def test_futures_window_runs_from_after_close_to_next_premarket():
     window = lambda day, clock: live.futures_window(at(day, clock), live.calendar_day(dt.date.fromisoformat(day)))
-    assert window("2026-11-22", "16:00:05") == window("2026-11-22", "20:00:05") == ("2026-11-20", "2026-11-23")
-    assert window("2026-11-26", "18:00:05") == ("2026-11-25", "2026-11-27")  # 추수감사절 다음 세션 전날
-    for day, clock in (("2026-11-20", "20:30:05"), ("2026-11-21", "18:00:05"), ("2026-11-22", "15:59:05"),
-                       ("2026-11-22", "20:01:05"), ("2026-11-23", "02:00:05"), ("2026-11-19", "18:00:05")):
+    for day, clock in (("2026-11-20", "20:00:05"), ("2026-11-21", "12:00:05"), ("2026-11-22", "21:00:05"), ("2026-11-23", "03:59:05")):
+        assert window(day, clock) == ("2026-11-20", "2026-11-23")
+    assert window("2026-11-19", "20:00:05") == window("2026-11-20", "02:00:05") == ("2026-11-19", "2026-11-20")
+    assert window("2026-11-26", "12:00:05") == ("2026-11-25", "2026-11-27")  # 추수감사절
+    for day, clock in (("2026-11-23", "04:00:05"), ("2026-11-19", "19:59:05"), ("2026-11-19", "10:00:05")):
         assert window(day, clock) is None
+
+
+def test_weekend_without_futures_bars_writes_nothing(market):
     traded(market, "2026-11-20", "19:59:50")
     live.tick(at("2026-11-20", "20:00:10"))
-    market.spark = {"NQ=F": [(at("2026-11-20", "16:59"), 1000.0), (at("2026-11-22", "18:30"), 1010.0), (at("2026-11-22", "20:30"), 1020.0)]}
+    market.spark = {"NQ=F": [(at("2026-11-20", "16:58"), 1000.0), (at("2026-11-20", "16:59"), 1002.0)]}  # 선물 시장은 금요일 17:00 ET에 닫힌다
     market.written.clear()
-    for day, clock in (("2026-11-21", "12:00:05"), ("2026-11-22", "21:00:05"), ("2026-11-23", "02:00:05")):
+    market.toss.clear()
+    for day, clock in (("2026-11-20", "21:00:05"), ("2026-11-21", "12:00:05"), ("2026-11-22", "17:00:05")):
         assert live.tick(at(day, clock)) == {}
-    assert market.written == []
+    assert market.written == [] and market.accounts == [] and market.toss == []
 
 
 def test_index_value_and_tick_log(market):

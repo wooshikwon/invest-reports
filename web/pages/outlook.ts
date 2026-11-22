@@ -78,22 +78,19 @@ export function summaryCards(data, view) {
   // 날짜 지점은 이 리포트 판단의 기준 가격 날짜 다음 거래일부터의 거래일(`days[1]`, `days[2]`, …)이다. 앱은 날짜를 세지 않고 리포트의 `days`와 실시간 값의 `point`로 지점을 찾는다.
   // `found`는 이 지수의 지점별 실시간 값(`live.ts`의 `points`)이다.
   let found = {};
-  // 실시간 값의 사슬(`sessions`). 리포트 판단의 첫 날짜 지점부터 차례로 지점마다 앞 세션의 애프터장 값(`after`), 프리장 값(`pre`), 정규장 값(`regular`)을 늦은 순으로 읽는다.
+  // 실시간 값의 사슬(`sessions`). 리포트 판단의 첫 날짜 지점부터 차례로 지점마다 앞 세션의 애프터장 값(`after`), 선물 시간대 값(`futures`), 프리장 값(`pre`), 정규장 값(`regular`)을 늦은 순으로 읽는다.
   // 지점의 값은 앞 세션 종가에 실시간 값의 비율을 곱한 값이다. 앞 세션 종가는 첫 지점이면 기준 가격 날짜 종가이고, 그 뒤 지점이면 앞 지점의 정규장 마감 값이다.
   // 그래서 지점 N 정규장이 끝난 뒤의 애프터장 값은 다음 지점의 `after`로 들어와 사슬을 잇는다. 정규장 값이 없는 지점에서 사슬이 끝난다.
-  // 값마다 [값, 위 줄 글씨, 세션(`pre`, `after`, `regular`), 체결 뉴욕 시각, 실시간 값, 지점 순번(기준 가격 날짜에서 센 거래일 수), 앞 세션 종가]이다.
+  // 값마다 [값, 위 줄 글씨, 세션(`after`, `futures`, `pre`, `regular`), 체결 뉴욕 시각, 실시간 값, 지점 순번(기준 가격 날짜에서 센 거래일 수), 앞 세션 종가]이다.
   // `regulars`는 지점마다의 정규장 값이고, `latest`는 가장 늦은 값이며, 실시간 값이 없으면 판단의 기준 가격(기준 가격 날짜의 애프터장 마지막 값)이다.
-  // 나스닥의 선물 시간대 애프터장 값(`basis`가 `futures`)은 위 줄 글씨에 "선물 가격"을 덧붙이고 시각은 선물 체결 시각(`futures_time`)으로 쓴다.
   const sessions = () => {
     const regulars = [];
     let latest = null, prior = hist[close];
     for (let k = 1; k < data.days.length; k++) {
       const rec = found[data.days[k]];
       if (!rec) break;
-      if (rec.after?.ratio != null) {
-        const text = sessionAt("애프터마켓", rec.after.basis === "futures" ? rec.after.futures_time ?? rec.after.time : rec.after.time);
-        latest = [prior * rec.after.ratio, rec.after.basis === "futures" ? `${text} · 선물 가격` : text, "after", rec.after.time, rec.after, k, prior];
-      }
+      if (rec.after?.ratio != null) latest = [prior * rec.after.ratio, sessionAt("애프터마켓", rec.after.time), "after", rec.after.time, rec.after, k, prior];
+      if (rec.futures?.ratio != null) latest = [prior * rec.futures.ratio, sessionAt("선물시장", rec.futures.time), "futures", rec.futures.time, rec.futures, k, prior];
       if (rec.pre?.ratio != null) latest = [prior * rec.pre.ratio, sessionAt("프리마켓", rec.pre.time), "pre", rec.pre.time, rec.pre, k, prior];
       if (rec.regular?.ratio == null) break;
       latest = [prior * rec.regular.ratio, sessionAt("정규장", rec.regular.time), "regular", rec.regular.time, rec.regular, k, prior];
@@ -536,14 +533,14 @@ export function summaryCards(data, view) {
   const show = () => parts.forEach(([part]) => part.show(data));
   show();
   // 머리 상자 시세는 위 줄에 사슬의 마지막 정규장 값(없으면 기준 가격 날짜의 정규장 종가)과 그 앞 세션 종가 대비 등락률을 쓴다.
-  // 사슬의 가장 늦은 값이 그 뒤의 프리장 값이면 아래 줄에 프리마켓 가격과 위 줄 가격 대비 등락률을, 애프터장 값(판단의 기준 가격이나 실시간 애프터장·선물 시간대 값)이면
-  // 애프터마켓 가격과 등락률을 쓴다. 가장 늦은 값이 정규장 값이면 아래 줄을 두지 않는다. 위 줄 등락률은 반올림한 값으로 색을 정해 0.00%를 칠하지 않는다.
+  // 사슬의 가장 늦은 값이 그 뒤의 프리장 값이면 아래 줄에 프리마켓 가격과 위 줄 가격 대비 등락률을, 선물 시간대 값이면 선물시장 가격과 등락률을,
+  // 애프터장 값(판단의 기준 가격이나 실시간 애프터장 값)이면 애프터마켓 가격과 등락률을 쓴다. 가장 늦은 값이 정규장 값이면 아래 줄을 두지 않는다. 위 줄 등락률은 반올림한 값으로 색을 정해 0.00%를 칠하지 않는다.
   const rate = (ratio) => Math.round(ratio * 1e4) / 100;
   const quote = () => {
     const { regulars, latest } = sessions(), reg = regulars.at(-1);
     const value = reg ? reg[0] : hist[close], move = rate(reg ? reg[0] / reg[6] - 1 : hist[close] / hist[close - 1] - 1);
     const line = (name, v) => `<small>${name} ${fmt(v)} ${signed(rate(v / value - 1), 2)}%</small>`;
-    const tail = latest[2] === "regular" ? "" : line(latest[2] === "pre" ? "프리마켓" : latest[4]?.basis === "futures" ? "선물 가격" : "애프터마켓", latest[0]);
+    const tail = latest[2] === "regular" ? "" : line(SESSION_NAME[latest[2]], latest[0]);
     return `<span class="row"><span>${INDEX_NAME[key.split("-")[1]]}</span><b class="price ${tone(move)}">${fmt(value)}</b>`
       + `<b class="${tone(move)}">${signed(move, 2)}%</b>${tail}</span>`;
   };

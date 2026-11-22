@@ -21,13 +21,14 @@ export const sessionTag = (kind, text) => {
   return tag;
 };
 
-// 세션 단추의 그림과 이름이다. 정규장은 해, 애프터장은 초승달, 프리장은 언덕 위로 반쯤 오른 해와 빛살이다. 해의 원판, 초승달, 반쯤 오른 해는 채우는 면(`f`)이다.
+// 세션 단추의 그림과 이름이다. 정규장은 해, 애프터장은 초승달, 선물 시간대는 '先' 글자, 프리장은 언덕 위로 반쯤 오른 해와 빛살이다. 해의 원판, 초승달, '先' 글자, 반쯤 오른 해는 채우는 면(`f`)이다.
 export const SESSION_ICON = {
   regular: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle class="f" cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>',
   after: '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="f" d="M20 14.6A8.2 8.2 0 1 1 9.4 4a6.6 6.6 0 0 0 10.6 10.6Z"/></svg>',
+  futures: '<svg viewBox="0 0 24 24" aria-hidden="true"><text class="f" x="12" y="18.6" text-anchor="middle" font-size="18" font-weight="700" stroke="none">先</text></svg>',
   pre: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 20.5C6 17 9 16 12 16s6 1 10 4.5"/><path class="f" d="M7.5 16.6a4.5 4.5 0 0 1 9 0Z"/><path d="M12 6.2v2.6M5.4 9.6l1.7 1.7M18.6 9.6l-1.7 1.7"/></svg>',
 };
-export const SESSION_NAME = { regular: "정규장", after: "애프터마켓", pre: "프리마켓" };
+export const SESSION_NAME = { regular: "정규장", after: "애프터마켓", futures: "선물시장", pre: "프리마켓" };
 // 정규장 값과 정규장 다음 세션(애프터장이나 프리장)의 값을 고르는 단추 한 쌍(`box`)이다. 지도와 종목 상세의 주가 카드, 주가 카드가 같이 쓴다.
 // 단추는 글씨 대신 세션 그림을 그리고, 세션 이름을 단추의 이름(`aria-label`)과 풍선 글씨(`title`)로, 세션 종류를 `data-kind`로 단다.
 // `pick(late)`는 사용자가 다른 단추를 누를 때 부르고, `late`는 정규장 다음 단추를 고르면 참이다. `mark(late)`는 고른 단추를 칠하고,
