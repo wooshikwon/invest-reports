@@ -21,12 +21,12 @@ export const assetShares = (v) => `${v.toLocaleString("en-US", { maximumFraction
 export const assetRow = (name, sub, value, tail) => `<div class="asset-item"><div><strong>${name}</strong><small>${sub}</small></div>`
   + `<div><strong>${value}</strong>${tail ? `<small>${tail}</small>` : ""}</div></div>`;
 export const assetDay = (date) => `${+date.slice(5, 7)}.${+date.slice(8, 10)}`;
-// 내 자산 페이지와 거래 내역 화면의 고른 상태. 금액 단위(`unit`), 총 자산 단추를 켰는지(`whole`), 판단 선을 보이는지(`judge`),
+// 내 자산 페이지와 거래 내역 화면의 고른 상태. 금액 단위(`unit`), 총 자산 단추를 켰는지(`whole`), 판단 선을 보이는지(`judge`), 수익률 카드를 금액가중으로 그리는지(`money`),
 // 거래 내역의 출처 필터(`filter`)와 조회 기간(`period`, 최근 3개월이면 `null`)을 기기의 `asset-view`에 남긴다(`keep.ts`). 두 화면은 같은 금액 단위를 쓴다.
 // 상태를 바꾼 화면은 바꾼 값(`change`)만 넘기고, 남기는 쪽이 기기에 적힌 값을 다시 읽어 그 값만 바꿔 적는다.
 export const assetView = () => {
   const saved = kept("asset-view") || {};
-  return { unit: saved.unit === "USD" ? "USD" : "KRW", whole: saved.whole === true, judge: saved.judge !== false,
+  return { unit: saved.unit === "USD" ? "USD" : "KRW", whole: saved.whole === true, judge: saved.judge !== false, money: saved.money === true,
            filter: TRADE_SOURCE[saved.filter] ? saved.filter : "all", period: saved.period?.start && saved.period?.end ? saved.period : null };
 };
 export const assetRemember = (change) => keep("asset-view", { ...assetView(), ...change });
@@ -62,8 +62,11 @@ const stamp = (time, futures) => {
 // 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 지수(`index`)는 이름 줄과 큰 값을 굴리는 자리 이름에 쓴다.
 // `times`는 최신 날짜 점을 셈한 체결가의 시각(`live`)과 계좌 요약을 만든 시각(`summary`), 그 체결가가 선물 시간대 값이면 선물로 대신한 애프터장의 세션 날짜(`futures`)다.
 // 실시간 체결가가 없으면 Worker가 최신 날짜 점을 요약의 가격으로 셈하므로, 그때 `live`는 요약 시각이다. 카드 이름과 상자 목록(`cards`)과 다시 그리는 함수(`show`)를 돌려준다.
-// 카드는 요약 절의 그림 카드처럼 맨 위 줄에 값의 기준 시각을, 그 아래 이름 줄 왼쪽에 "나스닥 100"처럼 지수 이름을 쓴다. 이름 줄 오른쪽에는 수익률 카드면 판단 보기 단추를,
-// 배율 카드면 목표 배율을 흐린 글씨로 둔다. 판단 보기 단추는 두 수익률 카드에서 판단 선(지수색)을 함께 보이거나 감추고, 그 상태(`view.judge`)를 기기에 남긴다(`remember`).
+// 카드는 요약 절의 그림 카드처럼 맨 위 줄에 값의 기준 시각을, 그 아래 이름 줄 왼쪽에 "나스닥 100"처럼 지수 이름을 쓴다. 이름 줄 오른쪽에는 수익률 카드면 금액가중 체크 단추를,
+// 배율 카드면 목표 배율을 흐린 글씨로 둔다. 수익률 카드는 그림 아래 줄 오른쪽 끝에 판단 보기 단추를 둔다. 판단 보기 단추는 두 수익률 카드에서 판단 선(지수색)을 함께 보이거나 감추고,
+// 그 상태(`view.judge`)를 기기에 남긴다(`remember`).
+// 금액가중 체크 단추는 계좌 요약에 금액가중 누적 수익률(`returns.mwr`)이 있을 때만 둔다. 켜면 두 수익률 카드의 고정 배율·판단·집행 선과 큰 값을
+// 시간가중 대신 금액가중 누적 수익률로 그리고, 그 상태(`view.money`)를 기기에 남긴다. 금액가중의 고정 배율·판단 선은 실제 계좌와 같은 날 같은 돈을 넣고 뺀 가상 계좌의 값이다.
 // 카드 순서는 누적 수익률, 초과 수익률, 배율이다. 누적 수익률 카드는 첫날 대비 고정 배율·판단·집행 누적 수익률을,
 // 초과 수익률 카드는 판단과 집행의 누적 수익률에서 고정 배율 누적 수익률을 뺀 값을 날짜 지점 축에 그린다. 큰 값은 집행 선의 값이다.
 // 축은 정산한 거래일마다 한 점이고, Worker가 1분마다 다시 셈한 최신 날짜 지점의 값(`returns.now`)이 있으면 그 날짜 점을 하나 더 둔다.
@@ -79,7 +82,7 @@ const stamp = (time, futures) => {
 // 기준 시각을 그날 정규장 종가 시각으로 바꾼다. 선은 줄이지 않는다. 고른 점이 첫날이면 큰 값에 "기록 없음"을 쓰고, 가장 늦은 점을 누르면 처음 상태로 돌아간다.
 // 두 카드는 같은 날짜를 함께 고르고, 고른 날짜(`pin.day`)는 호출하는 쪽이 들고 있어 카드를 다시 만들어도 이어진다. 가장 늦은 점을 고르면 `pin.day`를 비워 새 최신 점을 따른다.
 // 배율 카드는 시간 축이 없어 누르기 동작이 없다.
-export function assetCards(perf, index, times = {}, pin = { day: null }, view = { judge: true }, remember = () => {}) {
+export function assetCards(perf, index, times = {}, pin = { day: null }, view = { judge: true, money: false }, remember = () => {}) {
   const W = 320, H = 236, B = 212, L = 6, R = W - 6, T = 22, color = indexInk(W), NOW = PRICE, BASE = "#A7ABB0";
   const big = (text, unit) => [text, Object.assign(document.createElement("small"), { textContent: unit })];
   // 카드 틀에 이름 줄을 더한다. 이름 줄이 같은 높이를 차지해 카드를 넘겨도 값과 그림이 같은 높이에 있다.
@@ -152,26 +155,41 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
     c.head("", v == null ? "기록 없음" : big(signed(v * 100, 2), unit), at);
   };
   if (ret?.days?.length > 1) {
+    const money = !!ret.mwr, check = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.6"/><path d="M5.2 8.2l1.9 1.9 3.7-3.9"/></svg>';
     const cum = card("cum"), over = card("over"), toggles = [cum, over].map((c) => {
-      const button = Object.assign(document.createElement("button"), { type: "button", className: "aim", innerHTML: "<span>판단 보기</span>" });
-      c.side.replaceWith(button);
-      button.addEventListener("click", () => { feelPress(); view.judge = !view.judge; remember(); paint(); });
-      return button;
+      const judge = c.foot.appendChild(Object.assign(document.createElement("button"), { type: "button", className: "aim", innerHTML: "<span>판단 보기</span>" }));
+      judge.addEventListener("click", () => { feelPress(); view.judge = !view.judge; remember(); paint(); });
+      const weigh = money ? Object.assign(document.createElement("button"), { type: "button", className: "weigh", innerHTML: `${check}<span>금액가중</span>` }) : null;
+      weigh?.addEventListener("click", () => { feelPress(); view.money = !view.money; remember(); paint(); });
+      if (weigh) c.side.replaceWith(weigh);
+      return [judge, weigh];
     });
     const closed = ret.closed && ret.closed.day > ret.days.at(-1) ? ret.closed : null;
-    const now = ret.now && ret.now.day > (closed?.day ?? ret.days.at(-1)) ? ret.now : null, extra = [closed, now].filter(Boolean);
-    const days = [...ret.days, ...extra.map((point) => point.day)];
-    const anchor = [...ret.anchor, ...extra.map((point) => point.anchor)], realized = [...ret.realized, ...extra.map((point) => point.realized)];
-    const target = [...ret.target];
-    for (const point of extra) { if (point.target == null) break; target.push(point.target); }
-    const gap = (values) => values.map((v, i) => v - anchor[i]);
+    const now = ret.now && ret.now.day > (closed?.day ?? ret.days.at(-1)) ? ret.now : null;
+    // 선 값. 금액가중이면 `returns.mwr`과 날짜 점마다의 `mwr`을 쓰고, 금액가중 값이 없는 날짜 점부터는 그리지 않는다.
+    const pick = (weighed) => {
+      const src = weighed ? ret.mwr : ret, extra = [];
+      for (const point of [closed, now].filter(Boolean)) {
+        const own = weighed ? point.mwr : point;
+        if (own?.realized == null || own?.anchor == null) break;
+        extra.push([point, own]);
+      }
+      const target = [...(src.target ?? [])];
+      for (const [, own] of extra) { if (own.target == null) break; target.push(own.target); }
+      return { days: [...ret.days, ...extra.map(([point]) => point.day)], anchor: [...src.anchor, ...extra.map(([, own]) => own.anchor)],
+               realized: [...src.realized, ...extra.map(([, own]) => own.realized)], target, now: extra.at(-1)?.[0] === now ? now : null };
+    };
     const paint = () => {
+      const { days, anchor, realized, target, now } = pick(money && view.money), gap = (values) => values.map((v, i) => v - anchor[i]);
       const at = pin.day == null ? days.length - 1 : Math.max(0, days.filter((day) => day <= pin.day).length - 1), first = at < 1;
       const when = at < days.length - 1 || !now ? settled(days[at]) : stamp(times.live, times.futures);
       figureOf(cum, first ? null : realized[at], "%", when);
       figureOf(over, first ? null : realized[at] - anchor[at], "%p", when.cloneNode(true));
       const tap = (i) => { feelPress(); pin.day = i === days.length - 1 ? null : days[i]; paint(); };
-      toggles.forEach((button) => { button.classList.toggle("on", view.judge); button.setAttribute("aria-pressed", view.judge); });
+      toggles.forEach(([judge, weigh]) => [[judge, view.judge], [weigh, view.money]].forEach(([button, on]) => {
+        button?.classList.toggle("on", on);
+        button?.setAttribute("aria-pressed", on);
+      }));
       const judged = (values) => (view.judge ? [[values, color]] : []);
       const late = now ? kindOf(times.live, times.futures) : "regular";
       lines(cum, [[anchor, BASE, true], ...judged(target), [realized, NOW]], "%", false, days, at, tap, late);
@@ -187,7 +205,7 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
 // 내 자산 페이지(`page`)를 그리는 함수를 돌려준다. 공개 화면 `asset.ts`가 Worker가 건넨 계좌 요약(`data`)마다 이 함수를 부른다.
 export function assetPage(page) {
   // 보고 있는 그림 카드(`card`)는 기기에 남기지 않고, 페이지를 1분마다 다시 그리는 동안만 쓴다. 처음 항목으로 돌리는 규칙은 `motion.ts` `homing`이 정한다.
-  const view = { ...assetView(), card: 0 }, remember = () => assetRemember({ unit: view.unit, whole: view.whole, judge: view.judge });
+  const view = { ...assetView(), card: 0 }, remember = () => assetRemember({ unit: view.unit, whole: view.whole, judge: view.judge, money: view.money });
   const chevron = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // 평가 금액의 가림을 벗겼는지(`bare`)는 미니 앱을 닫을 때까지만 기억하고 기기에는 적지 않으므로, 미니 앱을 열 때마다 보이는 채로 시작한다. 평가 금액을 누르면 가리고 다시 누르면 보인다.
   let last = null, bare = true;

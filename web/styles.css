@@ -598,6 +598,19 @@ table.judged tbody tr.more button svg { color: var(--dim); }
 .gauge .top .aim.on { background: rgba(255, 255, 255, .16); }
 .gauge .top .aim.on span { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .gauge .top .aim + .session { margin-left: 0; }
+/* 내 자산 수익률 카드는 이름 줄 오른쪽 끝에 금액가중 체크 단추(`weigh`)를, 그림 아래 줄 오른쪽 끝에 판단 보기 단추를 둔다.
+   체크 단추는 바탕 없이 원 안 체크와 글씨를 회색으로 쓰고, 켜면 원을 흰색으로 채우고 글씨를 밝힌다. */
+.gauge .top .weigh { flex: none; display: flex; align-items: center; gap: 4px; height: 26px; margin: -6px 0 -6px auto; padding: 0; border: 0; align-self: center;
+                     background: none; color: var(--hint); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.gauge .top .weigh svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.gauge .top .weigh.on { color: var(--text); }
+.gauge .top .weigh.on circle { fill: currentColor; }
+.gauge .top .weigh.on path { stroke: var(--bg); }
+.gauge .foot:has(> .aim) { display: flex; justify-content: flex-end; }
+.gauge .foot > .aim { height: 26px; padding: 0 11px; border: 0; border-radius: 9px; background: rgba(255, 255, 255, .06); color: var(--hint);
+                     font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.gauge .foot > .aim.on { background: rgba(255, 255, 255, .16); }
+.gauge .foot > .aim.on span { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .gauge.ext .val b, .gauge.ext .state { color: var(--hint); }
 .indexmap .board > button { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
                           overflow: hidden; padding: 2px; border: 0; border-radius: 5px; color: #fff; font: inherit; line-height: 1.2; text-align: center;

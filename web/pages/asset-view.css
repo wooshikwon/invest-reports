@@ -44,8 +44,8 @@
 .asset-item > :last-child strong { font-weight: 700; color: var(--accent); }
 :is(.asset-sum, .asset-item, .asset-cards .val, .trade) .up { color: #ff5c5c; }
 :is(.asset-sum, .asset-item, .asset-cards .val, .trade) .down { color: #5b9bff; }
-/* 내 자산 그림 카드는 선 이름을 적지 않으므로 그림 아래 줄을 두지 않는다. */
-.asset-cards .gauge .foot { display: none; }
+/* 내 자산 그림 카드는 선 이름을 적지 않으므로, 그림 아래 줄은 판단 보기 단추를 둔 수익률 카드에만 둔다. */
+.asset-cards .gauge .foot:empty { display: none; }
 /* 거래 내역 화면은 날짜와 출처마다 블록 하나를 맨 위가 최신이 되게 쌓는다. 거래 내역 절 제목 오른쪽에 출처 필터 드롭다운과 달러·원화 표시 단추를 나란히 둔다.
    드롭다운 단추는 표시 단추 묶음과 같은 높이와 바탕에 고른 필터 이름과 아래 꺽쇠를 쓰고, 펼친 목록은 단추 아래 오른쪽에 맞춰 띄우며 고른 필터에 체크를 단다.
    제목 아래 왼쪽에는 기간 투자액을 평가금 합계와 같은 큰 글씨로 한 줄에 혼자 쓰고, 그 아래 줄 오른쪽 끝에 달력 그림과 조회 기간을 쓴 기간 단추를 드롭다운 단추와 같은 바탕으로 둔다.
