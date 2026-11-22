@@ -6,7 +6,7 @@ import { indicators } from "./macro";
 import { indexMap } from "./market";
 import { newsTab } from "./news";
 import { figures } from "./outlook";
-import { indexPick, latest } from "../shared/chrome";
+import { indexPick, latest, pageName } from "../shared/chrome";
 import { marketed, relist } from "../shared/data";
 import { help } from "../shared/help";
 import { keep, kept } from "../shared/keep";
@@ -291,6 +291,7 @@ export function jump(pages, names) {
       lever.style.transition = "";
       if (page >= 0) wave(i);
       page = i;
+      pageName.textContent = names[i];
       history.replaceState({ ...history.state, page: names[i] }, "");
     }
     let top = 0;

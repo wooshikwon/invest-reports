@@ -41,17 +41,11 @@ body {
 /* `--offscreen`은 낮은 시트에서 화면 아래로 나가 있는 웹뷰 높이다. 문서 끝에 그만큼 여백을 더해 마지막 줄까지 내려 볼 수 있게 한다.
    문서 끝에는 화면 아래 안전 영역만큼 여백을 더해, 문서 끝까지 내리면 마지막 줄이 바로가기 알약 위로 20px 넘게 떨어진다. */
 main { position: relative; max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-edge)) var(--gutter) calc(64px + env(safe-area-inset-bottom) + var(--offscreen, 0px)); }
-/* 문서 맨 위에는 머리 상자(`#masthead`)를 둔다.
-   머리 상자는 32px 높이의 위 줄과 18px 높이의 아래 줄(`header`)이고, 왼쪽에 시세(`#ticker`)를, 오른쪽 끝의 세로 가운데에 지수 단추를 쓴다. 본문이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
-   시세에 아래 줄이 없으면(정규장이 열린 뒤) 머리 상자를 위 줄 높이로 줄인다.
-   시세 위 줄은 "나스닥 $27,940 −1.22%"처럼 지수색 그라데이션 글씨의 지수 이름, 리포트 판단의 기준 가격 날짜의 정규장 종가, 그 종가의 앞 거래일 종가 대비 등락률을 쓴다.
-   아래 줄은 지수 이름과 같은 왼쪽 끝에서 "애프터마켓 $27,712 −0.83%"처럼 리포트 판단의 기준 가격과 기준 가격의 정규장 종가 대비 등락률을 쓴다. 기준 가격은 정규장 뒤 애프터마켓 거래까지 반영한 마지막 가격이다.
-   애프터장 값이 오면 아래 줄에 정규장 종가를 지수 ETF의 애프터장 체결가로 옮긴 가격과 그 등락률을 쓰고, 값은 애프터장이 끝날 때까지 1분마다 바뀐다.
-   애프터장이 끝난 뒤 나스닥 선물 시간대 값이 오면 아래 줄을 "선물시장 $27,760 −0.64%"처럼 정규장 종가를 선물 등락으로 옮긴 가격과 그 등락률로 바꾸고, 값은 다음 날짜 지점의 프리장이 열릴 때까지 1분마다 바뀐다.
-   다음 날짜 지점에 뉴욕 프리장이 열려 프리장 값이 오면 아래 줄을 "프리마켓 $27,850 +0.50%"처럼 정규장 종가를 지수 ETF의 프리장 체결가로 옮긴 가격과 그 등락률로 바꾼다.
-   그 날짜 지점의 정규장 값이 오면 아래 줄을 지우고, 위 줄을 "나스닥 $27,850 +0.50%"처럼 같은 방법으로 옮긴 정규장 가격과 그 등락률로 바꾸며, 장이 끝나면 마감 값에서 멈춘다.
-   지수 이름과 정규장 가격은 절 제목과 같은 크기로, 정규장 등락률은 그보다 작은 13px로 쓴다. 아래 줄은 모두 13px의 굵은 글씨로 쓴다.
-   정규장 가격과 정규장 등락률은 정규장 등락률이 오르면 빨강, 내리면 파랑으로 칠한다. 아래 줄의 세션 이름과 가격, 등락률은 다음 정규장 전의 임시 값이므로 모두 회색으로 쓴다.
+/* 문서 맨 위에는 머리 상자(`#masthead`)를 둔다. 본문이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
+   머리 상자는 36px 높이의 한 줄(`header`)이고, 왼쪽 끝에 바로가기 알약에서 연 페이지의 이름(`#page-name`)을 크고 굵게, 그 오른쪽에 시세(`#ticker`)를, 오른쪽 끝의 세로 가운데에 지수 단추를 쓴다.
+   시세는 "나스닥 선물시장 $27,760 −0.64%"처럼 지수색 그라데이션 글씨의 지수 이름, 회색 글씨의 세션 이름, 값, 등락률을 쓰고, 값과 등락률은 오르면 빨강, 내리면 파랑으로 칠한다.
+   값은 리포트 판단의 기준 가격 날짜부터 이어진 실시간 값 가운데 가장 늦은 값이다. 정규장 값이면 앞 세션 종가 대비, 애프터장·선물 시간대·프리장 값이면 마지막 정규장 종가 대비 등락률을 쓴다.
+   시세가 머리 상자 폭을 넘으면 끝을 말줄임표로 줄인다.
    상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 페이지 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
    띠는 감춰 둔 동안에도 따로 그린 층으로 두어, 상자가 붙고 떨어지는 순간에 흐림 층을 새로 만드느라 화면이 멈칫하지 않게 한다.
    흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
@@ -84,15 +78,16 @@ main.veil { opacity: 0; }
 main.unveil { animation: unveil .2s ease-out; }
 @keyframes unveil { from { opacity: 0; } }
 #berth { height: 4px; }
-#masthead { position: sticky; top: calc(5px + var(--top-edge)); z-index: 4; height: 50px; }
-#masthead:has(#ticker .row):not(:has(#ticker small)) { height: 32px; }
-#ticker { position: absolute; top: 0; left: 0; right: 38px; overflow: hidden; margin: 0; font-size: 13px; line-height: 32px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#masthead { position: sticky; top: calc(5px + var(--top-edge)); z-index: 4; height: 36px; }
+#masthead header { position: absolute; inset: 0 56px 0 0; display: flex; align-items: baseline; gap: 10px; overflow: hidden; white-space: nowrap; line-height: 36px; }
+#page-name { flex: none; margin: 0; font-size: 22px; font-weight: 800; color: var(--text); }
+#page-name:empty { display: none; }
+#ticker { min-width: 0; overflow: hidden; text-overflow: ellipsis; margin: 0; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
 #ticker:empty { display: none; }
-#ticker .row { display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; column-gap: 6px; }
-#ticker .row > span { font-size: 15.5px; font-weight: 700; background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
-#ticker .row small { grid-column: 1 / -1; font-size: inherit; font-weight: 700; line-height: 18px; color: var(--hint); }
+#ticker > * + * { margin-left: 5px; }
+#ticker .name { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
+#ticker .kind { color: var(--hint); }
 #ticker b { font-weight: 700; color: var(--accent); }
-#ticker b.price { font-size: 15.5px; }
 #ticker b.up { color: #ff5c5c; }
 #ticker b.down { color: #5b9bff; }
 #masthead::before { content: ""; position: absolute; inset: calc(-5px - var(--top-edge)) calc(-1 * var(--gutter)) -9px; z-index: -1;
