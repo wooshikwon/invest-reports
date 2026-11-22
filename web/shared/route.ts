@@ -79,6 +79,7 @@ export const leave = () => {
   document.getElementById("past").textContent = "";
   ticker.textContent = "";
   pageName.textContent = "";
+  delete masthead.dataset.page;
   scrollTo(0, 0);
 };
 export const reshow = (back) => {
