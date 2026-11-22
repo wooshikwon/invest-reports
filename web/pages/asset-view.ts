@@ -6,7 +6,7 @@ import { INDEX_NAME, INDEX_TITLE } from "../shared/chrome";
 import { figure, signed, tone } from "../shared/format";
 import { slider } from "../shared/motion";
 import { roll } from "../shared/roll";
-import { SESSION_NAME, closeAt, sessionAt, sessionTag } from "../shared/session";
+import { SESSION_NAME, closeAt, closedTag, sessionAt, sessionTag, stale } from "../shared/session";
 import { keep, kept } from "../shared/keep";
 import { key, visit } from "../shared/route";
 import { DIMS, PRICE, nearest, nowMark, onTap, shape } from "../shared/svg";
@@ -46,7 +46,7 @@ export const assetSignal = (signal, index) => {
 };
 // 시각 `time`의 기준 시각 글씨. 요약 절의 그림 카드처럼 "정규장, 2026.11.21. 23:43 KST"로 쓰고, 뉴욕 시각으로 세션을 정해 그 세션의 색으로 칠한다.
 // 04:00~09:30 ET는 프리마켓, 09:30~16:00 ET는 정규장이고, 그 밖은 애프터마켓이다.
-// 선물 시간대 체결가이면(`futures`) 주가 카드처럼 "선물시장, 2026.11.24. 13:05 KST"라고 선물 시간대 색(회색)으로 쓴다.
+// 선물 시간대 체결가이면(`futures`) 주가 카드처럼 "선물시장, 2026.11.24. 13:05 KST"라고 선물 시간대 색(회색)으로 쓴다. 체결가가 멈춘 휴장이면(`stale`) "휴장"과 지금 시각을 쓴다.
 const NY_CLOCK = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 // `kindOf(time, futures)`는 그 시각 체결가의 세션(`pre`, `regular`, `after`, `futures`)이다.
 const kindOf = (time, futures) => {
@@ -55,6 +55,7 @@ const kindOf = (time, futures) => {
   return clock >= 240 && clock < 570 ? "pre" : clock >= 570 && clock < 960 ? "regular" : "after";
 };
 const stamp = (time, futures) => {
+  if (stale(time)) return closedTag();
   const kind = kindOf(time, futures);
   return sessionTag(kind, sessionAt(SESSION_NAME[kind], time));
 };

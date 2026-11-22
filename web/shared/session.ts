@@ -29,6 +29,12 @@ export const SESSION_ICON = {
   pre: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 20.5C6 17 9 16 12 16s6 1 10 4.5"/><path class="f" d="M7.5 16.6a4.5 4.5 0 0 1 9 0Z"/><path d="M12 6.2v2.6M5.4 9.6l1.7 1.7M18.6 9.6l-1.7 1.7"/></svg>',
 };
 export const SESSION_NAME = { regular: "정규장", after: "애프터마켓", futures: "선물시장", pre: "프리마켓" };
+// 가장 늦은 리포트를 보는 동안 실시간 값의 시각(`time`)이 `STALE`보다 오래 멈춰 있으면(`stale`) 그 시간을 휴장으로 보고, 기준 시각 글씨를 지금 시각의 "휴장, 2026.11.22. 14:05 KST"로
+// 회색으로 쓴다(`closedTag`). 주말, 휴장일, 바이오의 선물 시간대, 정규장 마감 값을 기다리는 몇 분처럼 서버가 새 값을 쓰지 않는 시간이 모두 휴장이다. 지난 리포트는 실시간 값을 다시 받지 않으므로 휴장으로 보지 않는다.
+export const STALE = 3 * 60e3;
+export const stale = (time) => !document.documentElement.classList.contains("past") && !(Date.now() - Date.parse(time) <= STALE);
+export const closedText = () => sessionAt("휴장", new Date().toISOString());
+export const closedTag = () => sessionTag("closed", closedText());
 // 정규장 값과 정규장 다음 세션(애프터장이나 프리장)의 값을 고르는 단추 한 쌍(`box`)이다. 지도와 종목 상세의 주가 카드, 주가 카드가 같이 쓴다.
 // 단추는 글씨 대신 세션 그림을 그리고, 세션 이름을 단추의 이름(`aria-label`)과 풍선 글씨(`title`)로, 세션 종류를 `data-kind`로 단다.
 // `pick(late)`는 사용자가 다른 단추를 누를 때 부르고, `late`는 정규장 다음 단추를 고르면 참이다. `mark(late)`는 고른 단추를 칠하고,

@@ -8,7 +8,7 @@ import { subscribe } from "../shared/live";
 import { slider } from "../shared/motion";
 import { rolled } from "../shared/roll";
 import { key, report } from "../shared/route";
-import { SESSION_NAME, afterEnd, closeAt, sessionAt, sessionSeg, sessionTag } from "../shared/session";
+import { SESSION_NAME, afterEnd, closeAt, closedTag, sessionAt, sessionSeg, sessionTag, stale } from "../shared/session";
 import { DIMS, PRICE, candleGroups, candleLate, candleOn, candleUnit, drawCandles, ease, extremeAt, kindButton, markDay, markText, nowMark, onTap, shape, zoomDrag } from "../shared/svg";
 import { feelPress } from "../shared/telegram";
 // 요약의 Outlook 그림 자리에 12M + Predictions(주가), Montecarlo(예측과 일정), Outlook(권장 배율) 순서로 넘기는 묶음을 둔다.
@@ -25,7 +25,7 @@ export function figures(given = null, view = { aim: false, stage: () => ({ state
     subscribe((found) => {
       set.live(found, key.split("-")[1]);
       ticker.innerHTML = set.quote();
-    });
+    }, true);
     const bar = document.createElement("div");
     bar.className = "tabs";
     set.names.forEach((name, i) => {
@@ -374,7 +374,7 @@ export function summaryCards(data, view) {
         }
         const move = rate(tip[0], tip[6]);
         c.box.querySelector(".state").className = `state ${tip[2] === "regular" ? tone(move) : ""}`;
-        c.head(`${signed(move, 2)}%`, fmt(tip[0]), sessionTag(tip[2], tip[1]));
+        c.head(`${signed(move, 2)}%`, fmt(tip[0]), stale(tip[3]) ? closedTag() : sessionTag(tip[2], tip[1]));
       };
       head();
     };
@@ -539,16 +539,24 @@ export function summaryCards(data, view) {
   const quote = () => {
     const { regulars, latest } = sessions(), reg = regulars.at(-1), kind = latest[2];
     const move = rate(latest[0] / (kind === "regular" ? latest[6] : reg ? reg[0] : hist[close]) - 1);
-    return `<span class="name">${INDEX_NAME[key.split("-")[1]]}</span><span class="kind" data-kind="${kind}">${SESSION_NAME[kind]}</span>`
+    return `<span class="name">${INDEX_NAME[key.split("-")[1]]}</span><span class="kind">${stale(latest[3]) ? "휴장" : SESSION_NAME[kind]}</span>`
       + `<b${kind === "regular" ? "" : ' class="late"'}>${fmt(latest[0])}</b><b class="rate ${kind === "regular" ? tone(move) : "late"}">${signed(move, 2)}%</b>`;
   };
   // `live(all, index)`는 실시간 값 전체(`all`)에서 지수(`index`)의 지점별 값을 받아, 값이 바뀌었으면 카드를 다시 그리고 바뀐 큰 글씨 숫자를 굴린다.
+  // 화면을 연 뒤 처음 받은 실시간 값은 리포트 값으로 먼저 그린 카드를 받은 값으로 바로 바꾸고, 그 뒤 값이 바뀐 회차만 굴린다.
+  // 값이 그대로인 회차에도 휴장이면(`stale`) 기준 시각의 지금 시각을 바꾸려고 카드를 다시 그린다.
+  let primed = false;
   const live = (all, index) => {
-    const next = all.points?.[index] ?? {};
+    const next = all.points?.[index] ?? {}, first = !primed;
     const changed = JSON.stringify(next) !== JSON.stringify(found);
     found = next;
-    if (!changed) return;
-    rolled(show);
+    primed = true;
+    if (!changed) {
+      if (stale(sessions().latest[3])) show();
+      return;
+    }
+    if (first) show();
+    else rolled(show);
   };
   return { names: parts.map(([, name]) => name), slides: parts.map(([part]) => [part.box]), quote, live, label: () => price.label?.() };
 }

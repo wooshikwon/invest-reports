@@ -2,7 +2,7 @@
 import { masthead } from "../shared/chrome";
 import { price, signed, tone } from "../shared/format";
 import { key, life, visit } from "../shared/route";
-import { SESSION_NAME, afterEnd, closeAt, sessionAt, sessionSeg, sessionTag } from "../shared/session";
+import { SESSION_NAME, afterEnd, closeAt, closedTag, sessionAt, sessionSeg, sessionTag, stale } from "../shared/session";
 import { feelPress } from "../shared/telegram";
 // 시장 페이지 첫 절인 한 눈에 보기 절에 리포트 지수 상위 20종목의 지도를 둔다. `map`은 `r/market.json`의 `map`에서 리포트 지수의 값이다.
 // 지도는 리포트 날짜 전날까지의 마지막 종가로 그린다. 칸 넓이는 종가에 주식 수를 곱한 시가총액에 비례하고, 큰 종목부터 가로세로 비가 1에 가까운 칸으로 나눠 담는다(squarified treemap).
@@ -61,11 +61,15 @@ export function indexMap(head, map, date, watch) {
   const shade = (change) => `color-mix(in oklab, ${change > 0 ? "#ec3b47" : "#1f78ee"} ${Math.round(100 * Math.min(1, Math.abs(change) / 2.5))}%, #3a3d44)`;
   let tip = null, width = 0;
   const untip = () => { tip?.tile.classList.remove("on"); tip?.remove(); tip = null; };
+  // 위 줄 기준 시각 글씨. 정규장 다음 세션 값이 휴장으로 멈춰 있으면(`stale`) "휴장"과 지금 시각을 쓴다.
+  const stamp = () => {
+    const day = late && early ? date : map.dates[n], time = early ? early.time : after?.time ?? afterEnd(day);
+    label.replaceChildren(!late ? sessionTag("regular", sessionAt("정규장", closeAt(day))) : stale(time) ? closedTag()
+      : sessionTag(kind, early ? sessionAt(SESSION_NAME[kind], early.time) : sessionAt("애프터마켓", time)));
+  };
   const draw = () => {
     untip();
-    const day = late && early ? date : map.dates[n];
-    label.replaceChildren(!late ? sessionTag("regular", sessionAt("정규장", closeAt(day)))
-      : sessionTag(kind, early ? sessionAt(SESSION_NAME[kind], early.time) : sessionAt("애프터마켓", after?.time ?? afterEnd(day))));
+    stamp();
     board.replaceChildren();
     const W = board.clientWidth, H = Math.round(W * .95), total = stocks.reduce((sum, stock) => sum + stock.cap, 0);
     board.style.height = `${H}px`;
@@ -170,7 +174,10 @@ export function indexMap(head, map, date, watch) {
   watch((own, afters) => {
     const traded = (found) => found && Object.values(found.stocks).some((value) => value != null) ? found : null;
     const found = own?.session === map.dates[n] ? traded(own) : null, tail = traded(afters?.[map.dates[n]]);
-    if (found?.time === early?.time && tail?.time === after?.time) return;
+    if (found?.time === early?.time && tail?.time === after?.time) {
+      if (width) stamp();
+      return;
+    }
     early = found;
     after = tail;
     segment();

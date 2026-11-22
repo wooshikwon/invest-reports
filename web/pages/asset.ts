@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { ASSET, ASSET_FLAG, account, assetSaved } from "../shared/account";
+import { stale } from "../shared/session";
 import { beat } from "../shared/live";
 import { rolled } from "../shared/roll";
 import { life, report } from "../shared/route";
@@ -37,12 +38,13 @@ export function assets(pages, names, place, name) {
   fill(assetSaved());
   if (flagged) show(true, false);
   else place(pages, names, name, false);
-  // 받은 계좌 요약이 앞에 그린 값과 같으면 다시 그리지 않고, 다르면 바뀐 큰 글씨 숫자를 굴려 다시 그린다.
+  // 받은 계좌 요약이 앞에 그린 값과 같으면 다시 그리지 않고, 다르면 바뀐 큰 글씨 숫자를 굴려 다시 그린다. 값이 같아도 휴장이면 기준 시각의 지금 시각을 바꾸려고 다시 그린다.
   const load = () => account().then((data) => {
     if (signal.aborted) return;
     store(localStorage, data && "1");
     store(sessionStorage, data && JSON.stringify(data));
     if (data && JSON.stringify(data) !== seen) fill(data, true);
+    else if (data && stale(data.live?.time || data.time)) fill(data);
     if (!!data !== shown) show(!!data, true);
   }, () => signal.aborted || fill({ error: true }));
   load();
