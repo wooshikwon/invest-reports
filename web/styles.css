@@ -143,7 +143,7 @@ main.unveil { animation: unveil .2s ease-out; }
 .index-pick.right .fill { clip-path: inset(0); }
 .index-pick.right .bar { transform: translateX(21px); }
 h2 { font-size: 15.5px; font-weight: 700; color: var(--dim); margin: 46px 0 10px; }
-:is(#report, #report > .page) > h2:first-child { margin-top: 28px; }
+:is(#report, #report > .page) > h2:first-child { margin-top: 12px; }
 /* 절과 절 사이에는 화면 폭 전체에 바탕보다 짙은 띠를 두어 절을 나눈다. 띠 위아래는 같은 폭으로 띄운다. */
 html { overflow-x: clip; }
 :is(#report, #report > .page) > h2:not(:first-child) { margin-top: 0; }
