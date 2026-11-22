@@ -44,9 +44,9 @@ export const assetSignal = (signal, index) => {
   const go = optimizer.color === "green" ? ' go" role="button" tabindex="0' : "";
   return `<div class="signal${go}"><div class="gate"><i class="lamp ${value.color}"></i><div><strong>${name}</strong><p>${assetText(value.reason)}</p></div></div></div>`;
 };
-// 시각 `time`의 기준 시각 글씨. 요약 절의 그림 카드처럼 "정규장, 2026.11.21 23:43 KST"로 쓰고, 뉴욕 시각으로 세션을 정해 그 세션의 색으로 칠한다.
+// 시각 `time`의 기준 시각 글씨. 요약 절의 그림 카드처럼 "정규장, 2026.11.21. 23:43 KST"로 쓰고, 뉴욕 시각으로 세션을 정해 그 세션의 색으로 칠한다.
 // 04:00~09:30 ET는 프리마켓, 09:30~16:00 ET는 정규장이고, 그 밖은 애프터마켓이다.
-// 선물 시간대 체결가이면(`futures`) 주가 카드처럼 "애프터마켓, 2026.11.23 08:30 KST · 선물 가격"이라고 쓴다.
+// 선물 시간대 체결가이면(`futures`) 주가 카드처럼 "애프터마켓, 2026.11.23. 08:30 KST · 선물 가격"이라고 쓴다.
 const NY_CLOCK = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const stamp = (time, futures) => {
   if (futures) return sessionTag("after", `${sessionAt("애프터마켓", time)} · 선물 가격`);

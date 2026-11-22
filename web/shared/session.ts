@@ -6,11 +6,11 @@ export const usZone = (day) => NEW_YORK.formatToParts(new Date(`${day}T17:00:00Z
 // 그림의 가로축은 거래일 번호이고, 정규장 종가(16:00 ET)를 그날 번호에 놓는다. 한 거래일은 다음 종가까지의 24시간이다.
 // 판단의 기준 가격은 애프터장이 닫히는 20:00 ET의 체결가이므로 예측과 예측과 일정 카드는 기준 가격을 종가에서 `BASE_AFTER` 거래일 뒤에 놓는다.
 export const BASE_AFTER = 4 / 24;
-// 기준 시각 글씨는 "애프터마켓, 2026.11.18 08:15 KST"처럼 세션 이름을 쓰고 쉼표 뒤에 시각 `time`의 서울 날짜와 시각을 쓴다(`sessionAt(name, time)`).
+// 기준 시각 글씨는 "애프터마켓, 2026.11.18. 08:15 KST"처럼 세션 이름을 쓰고 쉼표 뒤에 시각 `time`의 서울 날짜와 시각을 쓴다(`sessionAt(name, time)`).
 // 종가의 기준 시각은 정규장이 닫히는 16:00 ET(`closeAt(day)`)이고, `afterEnd(day)`는 그날 애프터장이 닫히는 20:00 ET의 뉴욕 시각 글씨다.
 export const sessionAt = (name, time) => {
   const seoul = new Date(Date.parse(time) + 9 * 3600e3).toISOString();
-  return `${name}, ${seoul.slice(0, 10).replaceAll("-", ".")} ${seoul.slice(11, 16)} KST`;
+  return `${name}, ${seoul.slice(0, 10).replaceAll("-", ".")}. ${seoul.slice(11, 16)} KST`;
 };
 export const nyAt = (day, clock) => `${day}T${clock}:00${usZone(day) === "EDT" ? "-04:00" : "-05:00"}`;
 export const closeAt = (day) => nyAt(day, "16:00"), afterEnd = (day) => nyAt(day, "20:00");
