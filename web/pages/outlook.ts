@@ -1,14 +1,14 @@
 // @ts-nocheck
 import { toCalendar } from "./report";
 import { gaugeCard, indexInk } from "../shared/card";
-import { INDEX_NAME, INDEX_TITLE } from "../shared/chrome";
+import { INDEX_NAME, INDEX_TITLE, ticker } from "../shared/chrome";
 import { candled } from "../shared/data";
 import { tone } from "../shared/format";
 import { subscribe } from "../shared/live";
 import { slider } from "../shared/motion";
 import { rolled } from "../shared/roll";
 import { key, report } from "../shared/route";
-import { afterEnd, closeAt, sessionAt, sessionSeg, sessionTag } from "../shared/session";
+import { SESSION_NAME, afterEnd, closeAt, sessionAt, sessionSeg, sessionTag } from "../shared/session";
 import { DIMS, PRICE, candleGroups, candleLate, candleOn, candleUnit, drawCandles, ease, extremeAt, kindButton, markDay, markText, nowMark, onTap, shape, zoomDrag } from "../shared/svg";
 import { feelPress } from "../shared/telegram";
 // 요약의 Outlook 그림 자리에 12M + Predictions(주가), Montecarlo(예측과 일정), Outlook(권장 배율) 순서로 넘기는 묶음을 둔다.
@@ -21,7 +21,11 @@ export function figures(given = null, view = { aim: false, stage: () => ({ state
   const cards = given ?? (data && JSON.parse(data.textContent));
   if (cards) {
     const set = summaryCards(cards, view);
-    subscribe((found) => set.live(found, key.split("-")[1]));
+    ticker.innerHTML = set.quote();
+    subscribe((found) => {
+      set.live(found, key.split("-")[1]);
+      ticker.innerHTML = set.quote();
+    });
     const bar = document.createElement("div");
     bar.className = "tabs";
     set.names.forEach((name, i) => {
@@ -528,6 +532,16 @@ export function summaryCards(data, view) {
   const parts = [[price, "주가"], [tree, "예측과 일정"], [chart, "권장 배율"]];
   const show = () => parts.forEach(([part]) => part.show(data));
   show();
+  // 머리 상자가 화면 위에 붙으면 보이는 시세는 "나스닥 선물시장 $25,518 +1.95%"처럼 지수 이름, 사슬의 가장 늦은 값의 세션 이름, 그 값, 등락률을 한 줄에 쓴다.
+  // 등락률은 정규장 값이면 앞 세션 종가 대비이고, 애프터장·선물 시간대·프리장 값(판단의 기준 가격 포함)이면 마지막 정규장 값(없으면 기준 가격 날짜의 정규장 종가) 대비다.
+  // 값과 등락률은 반올림한 등락률로 오름 빨강, 내림 파랑을 칠해 0.00%를 칠하지 않는다.
+  const rate = (ratio) => Math.round(ratio * 1e4) / 100;
+  const quote = () => {
+    const { regulars, latest } = sessions(), reg = regulars.at(-1), kind = latest[2];
+    const move = rate(latest[0] / (kind === "regular" ? latest[6] : reg ? reg[0] : hist[close]) - 1);
+    return `<span class="name">${INDEX_NAME[key.split("-")[1]]}</span><span class="kind" data-kind="${kind}">${SESSION_NAME[kind]}</span>`
+      + `<b class="${tone(move)}">${fmt(latest[0])}</b><b class="rate ${tone(move)}">${signed(move, 2)}%</b>`;
+  };
   // `live(all, index)`는 실시간 값 전체(`all`)에서 지수(`index`)의 지점별 값을 받아, 값이 바뀌었으면 카드를 다시 그리고 바뀐 큰 글씨 숫자를 굴린다.
   const live = (all, index) => {
     const next = all.points?.[index] ?? {};
@@ -536,5 +550,5 @@ export function summaryCards(data, view) {
     if (!changed) return;
     rolled(show);
   };
-  return { names: parts.map(([, name]) => name), slides: parts.map(([part]) => [part.box]), live, label: () => price.label?.() };
+  return { names: parts.map(([, name]) => name), slides: parts.map(([part]) => [part.box]), quote, live, label: () => price.label?.() };
 }

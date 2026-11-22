@@ -42,8 +42,12 @@ body {
    문서 끝에는 화면 아래 안전 영역만큼 여백을 더해, 문서 끝까지 내리면 마지막 줄이 바로가기 알약 위로 20px 넘게 떨어진다. */
 main { position: relative; max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-edge)) var(--gutter) calc(64px + env(safe-area-inset-bottom) + var(--offscreen, 0px)); }
 /* 문서 맨 위에는 머리 상자(`#masthead`)를 둔다. 본문이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
-   머리 상자는 36px 높이의 한 줄(`header`)이고, 왼쪽 끝에 바로가기 알약에서 연 페이지의 이름(`#page-name`)을 크고 굵게, 오른쪽 끝의 세로 가운데에 지수 단추를 쓴다.
+   머리 상자는 36px 높이의 한 줄(`header`)이고, 오른쪽 끝의 세로 가운데에 지수 단추를 쓴다. 왼쪽에는 문서 맨 위에서 바로가기 알약에서 연 페이지의 이름(`#page-name`)을 크고 굵게 쓴다.
    지수 페이지는 페이지 이름 자리에 리포트의 지수 이름(나스닥, 바이오)을 쓴다.
+   머리 상자가 화면 위에 붙으면(`stuck`) 같은 자리에 페이지 이름 대신 시세(`#ticker`)를 쓰고, 둘은 0.15초 동안 겹쳐 바뀐다. 모든 페이지가 같은 시세를 쓴다.
+   시세는 "나스닥 선물시장 $27,760 −0.64%"처럼 지수색 그라데이션 글씨의 지수 이름, 회색 글씨의 세션 이름, 값, 등락률을 쓰고, 값과 등락률은 오르면 빨강, 내리면 파랑으로 칠한다. 등락률은 다른 글씨보다 조금 작고 굵지 않게 쓴다.
+   값은 리포트 판단의 기준 가격 날짜부터 이어진 실시간 값 가운데 가장 늦은 값이다. 정규장 값이면 앞 세션 종가 대비, 애프터장·선물 시간대·프리장 값이면 마지막 정규장 종가 대비 등락률을 쓴다.
+   시세가 머리 상자 폭을 넘으면 끝을 말줄임표로 줄인다.
    상자가 화면 위에 붙으면(`stuck`) 상자 위아래로 페이지 바로가기 알약과 같은 색·흐림의 유리 띠를 깔아 본문이 상자 밑으로 비쳐 지나가게 하고, 띠 아래 끝에 아주 옅은 1px 선을 그어 본문과 나눈다.
    띠는 감춰 둔 동안에도 따로 그린 층으로 두어, 상자가 붙고 떨어지는 순간에 흐림 층을 새로 만드느라 화면이 멈칫하지 않게 한다.
    흐림을 그리지 못하는 화면에서는 띠를 배경색으로 칠한다. */
@@ -77,8 +81,19 @@ main.unveil { animation: unveil .2s ease-out; }
 @keyframes unveil { from { opacity: 0; } }
 #berth { height: 4px; }
 #masthead { position: sticky; top: calc(5px + var(--top-edge)); z-index: 4; height: 36px; }
-#masthead header { position: absolute; inset: 0 56px 0 0; overflow: hidden; white-space: nowrap; line-height: 36px; }
-#page-name { margin: 0; font-size: 22px; font-weight: 800; color: var(--text); }
+#masthead header { position: absolute; inset: 0 56px 0 0; white-space: nowrap; line-height: 36px; }
+#page-name, #ticker { position: absolute; top: 0; left: 0; right: 0; overflow: hidden; margin: 0; transition: opacity .15s; }
+#page-name { font-size: 22px; font-weight: 800; color: var(--text); }
+#ticker { text-overflow: ellipsis; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; opacity: 0; }
+#masthead.stuck #page-name { opacity: 0; }
+#masthead.stuck #ticker { opacity: 1; }
+#ticker > * + * { margin-left: 5px; }
+#ticker .name { background: var(--index-ink); -webkit-background-clip: text; background-clip: text; color: transparent; }
+#ticker .kind { color: var(--hint); }
+#ticker b { font-weight: 700; color: var(--accent); }
+#ticker b.rate { font-size: 12.5px; font-weight: 400; }
+#ticker b.up { color: #ff5c5c; }
+#ticker b.down { color: #5b9bff; }
 #masthead::before { content: ""; position: absolute; inset: calc(-5px - var(--top-edge)) calc(-1 * var(--gutter)) -9px; z-index: -1;
                 background: color-mix(in srgb, var(--bg) 40%, transparent);
                 border-bottom: 1px solid rgba(255, 255, 255, .06);

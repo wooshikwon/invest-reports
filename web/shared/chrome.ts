@@ -7,6 +7,7 @@ import { feelPress } from "./telegram";
 // 머리 상자가 화면 위에 붙어 있으면 `stuck`을 달고, 위쪽 높이의 유리(`#top-glass`)에 `off`를 달아 감춘다. 문서 맨 위에서는 달지 않는다.
 // 붙었는지는 머리 상자 바로 위의 빈 띠(`#berth`)의 아래 끝이 머리 상자가 붙는 높이보다 위로 올라갔는지로 정한다. iOS는 코드가 화면을 옮긴 직후 붙는 상자의 위치를 옮기기 전 화면 기준으로 알려 주므로 머리 상자의 위치로 정하지 않는다.
 export const masthead = document.getElementById("masthead");
+export const ticker = document.getElementById("ticker");
 // 머리 상자 왼쪽 끝의 페이지 이름. 바로가기 알약에서 연 페이지의 이름(자산, 지수, 이슈, 시장)을 쓴다.
 export const pageName = document.getElementById("page-name");
 export const berth = document.getElementById("berth");
@@ -67,7 +68,7 @@ export const INDEX = { nasdaq: ["#8FBCE6", "#AFA6EC"], biotech: ["#AE9CE6", "#E0
 // build.py card_scale이 카드 가격을 지수 눈금으로 늘려 적으므로 머리 상자 가격은 시장 탭의 같은 이름 지수 값과 같다.
 export const INDEX_NAME = { nasdaq: "나스닥", biotech: "바이오" };
 // 주가 카드의 이름 줄에 쓰는 지수 이름이다.
-export const INDEX_TITLE = { nasdaq: "나스닥 100", biotech: "나스닥 바이오" };
+export const INDEX_TITLE = { nasdaq: "나스닥 100", biotech: "나스닥 바이오테크" };
 export const paint = () => {
   const tint = INDEX[key.split("-")[1]];
   if (!tint) return;

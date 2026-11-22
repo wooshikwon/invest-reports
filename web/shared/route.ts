@@ -5,7 +5,7 @@ import * as stockScreen from "../pages/stock";
 import * as tradesScreen from "../pages/trades";
 import { ASSET } from "./account";
 import { backEdge, backward } from "./back";
-import { INDEX, latest, masthead, pageName, paint, topGlass, unglos } from "./chrome";
+import { INDEX, latest, masthead, pageName, paint, ticker, topGlass, unglos } from "./chrome";
 import { listed, parts, reportPart, reportText, texts } from "./data";
 import { kept } from "./keep";
 import { forget } from "./live";
@@ -77,6 +77,7 @@ export const leave = () => {
   topGlass.classList.remove("off");
   report.classList.remove("flow");
   document.getElementById("past").textContent = "";
+  ticker.textContent = "";
   pageName.textContent = "";
   scrollTo(0, 0);
 };
