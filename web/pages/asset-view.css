@@ -36,7 +36,7 @@
 .signal .lamp.green { background: #30d158; box-shadow: 0 0 8px rgba(48, 209, 88, .55); }
 .signal .lamp.orange { background: #ff9f0a; box-shadow: 0 0 8px rgba(255, 159, 10, .55); }
 .signal .lamp.red { background: #ff453a; box-shadow: 0 0 8px rgba(255, 69, 58, .55); }
-.carousel.asset-cards { margin-top: 24px; }
+.carousel.asset-cards { margin-top: 32px; }
 .asset-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 10px 0; }
 .asset-item strong { display: block; font-size: 15px; font-weight: 500; color: var(--text); }
 .asset-item small { display: block; margin-top: 2px; font-size: 13px; color: var(--dim); }
