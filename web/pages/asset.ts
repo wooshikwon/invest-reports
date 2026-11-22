@@ -44,7 +44,7 @@ export function assets(pages, names, place, name) {
     store(localStorage, data && "1");
     store(sessionStorage, data && JSON.stringify(data));
     if (data && JSON.stringify(data) !== seen) fill(data, true);
-    else if (data && stale(data.live?.time || data.time)) fill(data);
+    else if (data && stale(data.live?.time || data.time, data.live?.futures ? "futures" : "")) fill(data);
     if (!!data !== shown) show(!!data, true);
   }, () => signal.aborted || fill({ error: true }));
   load();

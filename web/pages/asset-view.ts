@@ -55,8 +55,8 @@ const kindOf = (time, futures) => {
   return clock >= 240 && clock < 570 ? "pre" : clock >= 570 && clock < 960 ? "regular" : "after";
 };
 const stamp = (time, futures) => {
-  if (stale(time)) return closedTag();
   const kind = kindOf(time, futures);
+  if (stale(time, kind)) return closedTag();
   return sessionTag(kind, sessionAt(SESSION_NAME[kind], time));
 };
 // 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 지수(`index`)는 이름 줄과 큰 값을 굴리는 자리 이름에 쓴다.

@@ -31,8 +31,11 @@ export const SESSION_ICON = {
 export const SESSION_NAME = { regular: "정규장", after: "애프터마켓", futures: "선물시장", pre: "프리마켓" };
 // 가장 늦은 리포트를 보는 동안 실시간 값의 시각(`time`)이 `STALE`보다 오래 멈춰 있으면(`stale`) 그 시간을 휴장으로 보고, 기준 시각 글씨를 지금 시각의 "휴장, 2026.11.22. 14:05 KST"로
 // 회색으로 쓴다(`closedTag`). 주말, 휴장일, 바이오의 선물 시간대, 정규장 마감 값을 기다리는 몇 분처럼 서버가 새 값을 쓰지 않는 시간이 모두 휴장이다. 지난 리포트는 실시간 값을 다시 받지 않으므로 휴장으로 보지 않는다.
+// 선물 시간대 값(`kind`가 `futures`)의 시각은 야후가 약 10분 늦게 주는 선물 1분봉이 끝난 시각이므로, 그 늦음(`FUTURES_LAG`)만큼 더 기다린다.
 export const STALE = 3 * 60e3;
-export const stale = (time) => !document.documentElement.classList.contains("past") && !(Date.now() - Date.parse(time) <= STALE);
+export const FUTURES_LAG = 12 * 60e3;
+export const stale = (time, kind = "") => !document.documentElement.classList.contains("past")
+  && !(Date.now() - Date.parse(time) <= STALE + (kind === "futures" ? FUTURES_LAG : 0));
 export const closedText = () => sessionAt("휴장", new Date().toISOString());
 export const closedTag = () => sessionTag("closed", closedText());
 // 정규장 값과 정규장 다음 세션(애프터장이나 프리장)의 값을 고르는 단추 한 쌍(`box`)이다. 지도와 종목 상세의 주가 카드, 주가 카드가 같이 쓴다.

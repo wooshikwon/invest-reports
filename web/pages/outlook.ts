@@ -374,7 +374,7 @@ export function summaryCards(data, view) {
         }
         const move = rate(tip[0], tip[6]);
         c.box.querySelector(".state").className = `state ${tip[2] === "regular" ? tone(move) : ""}`;
-        c.head(`${signed(move, 2)}%`, fmt(tip[0]), stale(tip[3]) ? closedTag() : sessionTag(tip[2], tip[1]));
+        c.head(`${signed(move, 2)}%`, fmt(tip[0]), stale(tip[3], tip[2]) ? closedTag() : sessionTag(tip[2], tip[1]));
       };
       head();
     };
@@ -539,7 +539,7 @@ export function summaryCards(data, view) {
   const quote = () => {
     const { regulars, latest } = sessions(), reg = regulars.at(-1), kind = latest[2];
     const move = rate(latest[0] / (kind === "regular" ? latest[6] : reg ? reg[0] : hist[close]) - 1);
-    return `<span class="name">${INDEX_NAME[key.split("-")[1]]}</span><span class="kind">${stale(latest[3]) ? "휴장" : SESSION_NAME[kind]}</span>`
+    return `<span class="name">${INDEX_NAME[key.split("-")[1]]}</span><span class="kind">${stale(latest[3], kind) ? "휴장" : SESSION_NAME[kind]}</span>`
       + `<b${kind === "regular" ? "" : ' class="late"'}>${fmt(latest[0])}</b><b class="rate ${kind === "regular" ? tone(move) : "late"}">${signed(move, 2)}%</b>`;
   };
   // `live(all, index)`는 실시간 값 전체(`all`)에서 지수(`index`)의 지점별 값을 받아, 값이 바뀌었으면 카드를 다시 그리고 바뀐 큰 글씨 숫자를 굴린다.
@@ -552,7 +552,8 @@ export function summaryCards(data, view) {
     found = next;
     primed = true;
     if (!changed) {
-      if (stale(sessions().latest[3])) show();
+      const { latest } = sessions();
+      if (stale(latest[3], latest[2])) show();
       return;
     }
     if (first) show();
