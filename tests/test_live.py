@@ -77,7 +77,11 @@ def market(tmp_path, monkeypatch):
     found.written = []
     monkeypatch.setattr(live.build, "post_live", lambda name, value: found.written.append((name, value)))
     found.accounts = []
-    monkeypatch.setattr(live, "post_account", lambda now, prices, futures=None: found.accounts.append((now.isoformat(), prices) + ((futures,) if futures else ())))
+    found.sent = []
+    def post(now, prices, futures=None, close=None):
+        found.accounts.append((now.isoformat(), prices) + ((futures,) if futures else ()))
+        found.sent.append(close)
+    monkeypatch.setattr(live, "post_account", post)
     return found
 
 
@@ -238,6 +242,9 @@ def test_post_account_needs_secret_and_204(monkeypatch):
     assert kwargs["headers"]["X-Account-Secret"] == "sample-secret"
     live.post_account(at("2026-11-22", "19:00:00"), {"QQQ": 503.0}, "2026-11-20")
     assert sent[1][1]["json"] == {"time": "2026-11-22T19:00:00-05:00", "prices": {"QQQ": 503.0}, "futures": "2026-11-20"}
+    close = {"session": "2026-11-20", "next": "2026-11-23", "prices": {"QQQ": 500.0}}
+    live.post_account(at("2026-11-20", "16:05:05"), {"QQQ": 501.0}, close=close)
+    assert sent[2][1]["json"] == {"time": "2026-11-20T16:05:05-05:00", "prices": {"QQQ": 501.0}, "close": close}
     status = 403
     with pytest.raises(RuntimeError, match="403"):
         live.post_account(at("2026-11-19", "09:41:05"), {"QQQ": 501.0})
@@ -462,6 +469,23 @@ def test_premarket_keeps_futures_price_until_its_first_trade(market, monkeypatch
     live.tick(at("2026-11-23", "04:02:05"))
     assert market.accounts[-1][1] == {"SAMPA": 102.5, "SAMPC": 20.0}
     assert live.load(live.DATA / "account.json", {})["SAMPA"] == 102.5  # 선물 추정가는 마지막 체결가 파일에 남기지 않는다
+
+
+def test_close_round_sends_official_closes_of_account_etfs(market, monkeypatch):
+    """마감 회차는 보유 종목과 기준 묶음 ETF의 공식 종가를 일봉에서 받아 두고, 그 뒤 계좌 가격을 쓸 때마다 함께 보낸다."""
+    (live.ETFS).write_text(live.json.dumps(ETF_TABLE))
+    monkeypatch.setattr(live, "holding_symbols", lambda: ["SAMPB"])
+    traded(market, "2026-11-20", "15:59:30")
+    market.prices.update({symbol: (price, kst("2026-11-20", "15:59:30")) for symbol, price in (("SAMPA", 100.0), ("SAMPB", 50.0), ("SAMPC", 20.0))})
+    market.closes.update({("SAMPA", "2026-11-20"): 99.5, ("SAMPB", "2026-11-20"): 49.5, ("SAMPC", "2026-11-20"): 19.5})
+    live.tick(at("2026-11-20", "15:59:40"))
+    assert market.sent == [None]  # 정규장 중에는 그날 종가가 아직 없다
+    live.tick(at("2026-11-20", "16:05:05"))
+    kept = live.load(live.DATA / "account-close.json", {})
+    assert kept == {"session": "2026-11-20", "next": "2026-11-23", "prices": {"SAMPA": 99.5, "SAMPB": 49.5, "SAMPC": 19.5}}
+    assert market.sent[-1] == kept  # 마감 회차의 계좌 가격에도 실린다
+    live.tick(at("2026-11-20", "16:10:05"))
+    assert market.sent[-1] == kept  # 애프터장 회차에도 실린다
 
 
 def test_futures_round_without_last_trades_posts_nothing(market):

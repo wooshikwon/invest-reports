@@ -66,10 +66,13 @@ const stamp = (time, futures) => {
 // 카드 순서는 누적 수익률, 초과 수익률, 배율이다. 누적 수익률 카드는 첫날 대비 고정 배율·판단·집행 누적 수익률을,
 // 초과 수익률 카드는 판단과 집행의 누적 수익률에서 고정 배율 누적 수익률을 뺀 값을 날짜 지점 축에 그린다. 큰 값은 집행 선의 값이다.
 // 축은 정산한 거래일마다 한 점이고, Worker가 1분마다 다시 셈한 최신 날짜 지점의 값(`returns.now`)이 있으면 그 날짜 점을 하나 더 둔다.
+// 정산 전에 정규장이 끝난 세션은 Worker가 그 세션의 공식 종가로 확정한 점(`returns.closed`)을 그 세션 자리에 두고, 최신 날짜 점은 다음 세션 자리에 둔다.
+// 그래서 주가 카드처럼 정규장이 끝난 뒤의 애프터마켓·선물시장·프리마켓 값은 다음 세션 자리에 그린다.
 // 최신 날짜 점의 고정 배율·판단 값은 기준 배율과 목표 배율을 그대로 들고 있다고 본 값이다. Worker가 판단 값을 셈하지 못하면 판단 선은 마지막 정산일에서 끝난다.
 // 최신 날짜 점의 값이 정규장이 아닌 세션(애프터마켓, 선물시장, 프리마켓)의 체결가로 셈한 값이면, 주가 카드처럼 마지막 정산일에서 그 점까지를 점선으로 잇고 그 점의 '현재' 표시를 그 세션 색으로 찍는다.
 // 수익률 카드의 기준 시각은 최신 날짜 점이 있으면 체결가 시각, 없으면 마지막 거래일의 정규장 종가 시각이다.
-// 배율 카드는 이름 줄 오른쪽에 목표 배율을, 큰 값에 현재 배율을 흰 글씨로 쓰고, 기준 시각은 계좌 요약을 만든 시각이다. 그림에는 오늘 가격 경로들의 배율 분포(지수색 면)와 이슈가 없을 때의 분포(회색 면)를 배율 축에 그리고,
+// 배율 카드는 이름 줄 오른쪽에 목표 배율을, 큰 값에 현재 배율을 흰 글씨로 쓴다. 현재 배율은 아침 집행 산출이 마지막 정산일의 정규장 종가로 셈한 값이므로,
+// 기준 시각은 마지막 정산일의 정규장 종가 시각이다. 정산일이 없으면 계좌 요약을 만든 시각이다. 그림에는 오늘 가격 경로들의 배율 분포(지수색 면)와 이슈가 없을 때의 분포(회색 면)를 배율 축에 그리고,
 // 목표 배율에 지수색 실선, 현재 배율에 흰 점선을 긋는다. 집행 선과 현재 배율 선은 다른 페이지의 가격 선과 같은 흰색(`PRICE`)이다.
 // 누적 수익률·초과 수익률 카드는 그림을 누르면 누른 가로 자리에서 가장 가까운 날짜 점으로 '현재' 표시(`nowMark`)를 옮기고, 큰 값을 그 점의 값으로,
 // 기준 시각을 그날 정규장 종가 시각으로 바꾼다. 선은 줄이지 않는다. 고른 점이 첫날이면 큰 값에 "기록 없음"을 쓰고, 가장 늦은 점을 누르면 처음 상태로 돌아간다.
@@ -94,7 +97,7 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
     const c = card("lever"), s = c.svg;
     const n = lev.today.length;
     c.value.className = "";
-    c.head("", lev.current == null ? "기록 없음" : big(lev.current.toFixed(3), "배"), stamp(times.summary));
+    c.head("", lev.current == null ? "기록 없음" : big(lev.current.toFixed(3), "배"), perf?.returns?.days?.length ? settled(perf.returns.days.at(-1)) : stamp(times.summary));
     c.side.textContent = `목표 ${lev.target.toFixed(3)}배`;
     c.value.style.color = lev.current == null ? DIMS : "";
     const xs = Array.from({ length: n }, (_, i) => lev.anchor * (1 + lev.low + (lev.high - lev.low) * i / (n - 1)));
@@ -154,10 +157,12 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
       button.addEventListener("click", () => { feelPress(); view.judge = !view.judge; remember(); paint(); });
       return button;
     });
-    const now = ret.now && ret.now.day > ret.days.at(-1) ? ret.now : null;
-    const days = now ? [...ret.days, now.day] : ret.days;
-    const anchor = now ? [...ret.anchor, now.anchor] : ret.anchor, realized = now ? [...ret.realized, now.realized] : ret.realized;
-    const target = now?.target != null ? [...ret.target, now.target] : ret.target;
+    const closed = ret.closed && ret.closed.day > ret.days.at(-1) ? ret.closed : null;
+    const now = ret.now && ret.now.day > (closed?.day ?? ret.days.at(-1)) ? ret.now : null, extra = [closed, now].filter(Boolean);
+    const days = [...ret.days, ...extra.map((point) => point.day)];
+    const anchor = [...ret.anchor, ...extra.map((point) => point.anchor)], realized = [...ret.realized, ...extra.map((point) => point.realized)];
+    const target = [...ret.target];
+    for (const point of extra) { if (point.target == null) break; target.push(point.target); }
     const gap = (values) => values.map((v, i) => v - anchor[i]);
     const paint = () => {
       const at = pin.day == null ? days.length - 1 : Math.max(0, days.filter((day) => day <= pin.day).length - 1), first = at < 1;

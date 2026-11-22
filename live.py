@@ -30,7 +30,7 @@ cron(`~/scripts/cron/invest-live-tick.sh`)이 1분마다 `tick()`을 부른다. 
 
 앞 세션·다음 세션 날짜와 정규장 마감 시각은 날짜마다 한 번 `exchange_calendars`에서, 지수 ETF의 앞 세션 종가는 그 세션의 첫 장중 회차에 토스 일봉에서 받아
 `~/data/invest-reports/live/session-{YYYY-MM-DD}.json`에 둔다. 애프터장 회차는 나스닥 ETF의 마지막 체결 시각도 같은 파일에 둔다.
-앞 회차 값은 DO에 쓴 값과 같은 `{이름}.json`에 두고 다시 읽는다. 보유 종목의 마지막 체결가는 `account.json`에, invest-account에 쓴 계좌 가격은 `account-sent.json`에 둔다.
+앞 회차 값은 DO에 쓴 값과 같은 `{이름}.json`에 두고 다시 읽는다. 보유 종목의 마지막 체결가는 `account.json`에, invest-account에 쓴 계좌 가격은 `account-sent.json`에, 마감 회차가 받은 보유 종목과 기준 묶음 ETF의 공식 종가는 `account-close.json`에 둔다.
 계좌 가격은 이번 구간(프리장·정규장이면 그날 `PREMARKET_OPEN`, 애프터장이면 정규장 마감) 뒤 체결이 없는 종목에 앞 회차가 쓴 가격을 이어 쓴다.
 회차마다 가격 없는 기록(`tick-{날짜}.log`)과, DO에 쓴 그날 값(`snap-{날짜}.jsonl`)을 남긴다.
 """
@@ -429,16 +429,17 @@ def account_prices(held: list[str], trades: dict[str, tuple[float, str | None]],
     return found
 
 
-def post_account(now: dt.datetime, prices: dict[str, float], futures: str | None = None) -> None:
+def post_account(now: dt.datetime, prices: dict[str, float], futures: str | None = None, close: dict | None = None) -> None:
     """invest-account Worker의 DO에 보유 종목 체결가를 `POST /live`로 덮어쓴다. 비밀 값은 ~/.cloudflare_env의 `ACCOUNT_SECRET`으로만 받는다.
 
-    선물 시간대 체결가이면 `futures`에 선물로 대신한 애프터장의 세션 날짜를 적는다.
+    선물 시간대 체결가이면 `futures`에 선물로 대신한 애프터장의 세션 날짜를 적는다. `close`는 마지막 정규장 마감 회차가 받은 그 세션의 공식 종가
+    (`{session, next, prices}`)이고, Worker는 그 세션이 아직 정산되지 않았으면 이 종가로 그 세션 점을 확정한다.
 
     Worker가 204를 답하지 않으면 RuntimeError를 낸다.
     """
     if not os.environ.get("ACCOUNT_SECRET"):
         raise EnvironmentError("환경변수 없음: ACCOUNT_SECRET")
-    body = {"time": now.isoformat(timespec="seconds"), "prices": prices, **({"futures": futures} if futures else {})}
+    body = {"time": now.isoformat(timespec="seconds"), "prices": prices, **({"futures": futures} if futures else {}), **({"close": close} if close else {})}
     answer = requests.post(f"{ACCOUNT_URL}/live", json=body, timeout=TIMEOUT,
                            headers={"X-Account-Secret": os.environ["ACCOUNT_SECRET"], "User-Agent": "invest-reports"})
     if answer.status_code != 204:
@@ -522,7 +523,7 @@ def tick(now: dt.datetime | None = None, toss: Toss | None = None) -> dict[str, 
             written["afterhours"] = value
             moved = max(value[index][window[0]]["futures"]["time"] for index in FUTURES if "futures" in value.get(index, {}).get(window[0], {}))
             if prices := futures_prices(base, quotes, end):
-                post_account(dt.datetime.fromisoformat(moved), prices, window[0])
+                post_account(dt.datetime.fromisoformat(moved), prices, window[0], load(DATA / "account-close.json", None))
                 save(DATA / "account-sent.json", prices)
     else:
         board = public_board()
@@ -536,7 +537,12 @@ def tick(now: dt.datetime | None = None, toss: Toss | None = None) -> dict[str, 
             raise RuntimeError("토스와 야후 모두 체결가를 주지 않음")
         if "premarket" in due:
             end, span = due["premarket"]
-            use = {symbol: (close, end.isoformat()) for symbol, close in session_closes(public, today, toss).items()} if span == "close" else trades
+            use = trades
+            if span == "close":
+                found = session_closes(sorted(set(public) | set(held)), today, toss)
+                use = {symbol: (found[symbol], end.isoformat()) for symbol in public if symbol in found}
+                if closing := {symbol: found[symbol] for symbol in held if symbol in found}:
+                    save(DATA / "account-close.json", {"session": today, "next": day["next"], "prices": closing})
             ohlc = session_ohlc(quotes, dt.datetime.combine(now.date(), PREMARKET_CLOSE, NEW_YORK), end) if span != "pre" else None
             written["premarket"] = assemble(kept["premarket"], board, use, end, span, day, ohlc=ohlc)
         if "afterhours" in due:
@@ -550,7 +556,7 @@ def tick(now: dt.datetime | None = None, toss: Toss | None = None) -> dict[str, 
                 save(DATA / f"session-{today}.json", day)
         start = dt.datetime.fromisoformat(day["closed"]) if "afterhours" in due else dt.datetime.combine(now.date(), PREMARKET_OPEN, NEW_YORK)
         if prices := account_prices(held, trades, load(DATA / "account-sent.json", {}), start):
-            post_account(now, prices)
+            post_account(now, prices, close=load(DATA / "account-close.json", None))
             save(DATA / "account-sent.json", prices)
             save(DATA / "account.json", {**load(DATA / "account.json", {}), **{symbol: trades[symbol][0] for symbol in held if symbol in trades}})
     if (value := index_value(kept["index"], quotes, now)) is not None:
