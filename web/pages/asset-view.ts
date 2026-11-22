@@ -6,7 +6,7 @@ import { INDEX_NAME, INDEX_TITLE } from "../shared/chrome";
 import { figure, signed, tone } from "../shared/format";
 import { slider } from "../shared/motion";
 import { roll } from "../shared/roll";
-import { closeAt, sessionAt, sessionTag } from "../shared/session";
+import { SESSION_NAME, closeAt, sessionAt, sessionTag } from "../shared/session";
 import { keep, kept } from "../shared/keep";
 import { key, visit } from "../shared/route";
 import { DIMS, PRICE, nearest, nowMark, onTap, shape } from "../shared/svg";
@@ -48,11 +48,15 @@ export const assetSignal = (signal, index) => {
 // 04:00~09:30 ET는 프리마켓, 09:30~16:00 ET는 정규장이고, 그 밖은 애프터마켓이다.
 // 선물 시간대 체결가이면(`futures`) 주가 카드처럼 "선물시장, 2026.11.24. 13:05 KST"라고 선물 시간대 색(회색)으로 쓴다.
 const NY_CLOCK = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-const stamp = (time, futures) => {
-  if (futures) return sessionTag("futures", sessionAt("선물시장", time));
+// `kindOf(time, futures)`는 그 시각 체결가의 세션(`pre`, `regular`, `after`, `futures`)이다.
+const kindOf = (time, futures) => {
+  if (futures) return "futures";
   const part = Object.fromEntries(NY_CLOCK.formatToParts(Date.parse(time)).map(({ type, value }) => [type, value])), clock = +part.hour * 60 + +part.minute;
-  const [kind, name] = clock >= 240 && clock < 570 ? ["pre", "프리마켓"] : clock >= 570 && clock < 960 ? ["regular", "정규장"] : ["after", "애프터마켓"];
-  return sessionTag(kind, sessionAt(name, time));
+  return clock >= 240 && clock < 570 ? "pre" : clock >= 570 && clock < 960 ? "regular" : "after";
+};
+const stamp = (time, futures) => {
+  const kind = kindOf(time, futures);
+  return sessionTag(kind, sessionAt(SESSION_NAME[kind], time));
 };
 // 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 지수(`index`)는 이름 줄과 큰 값을 굴리는 자리 이름에 쓴다.
 // `times`는 최신 날짜 점을 셈한 체결가의 시각(`live`)과 계좌 요약을 만든 시각(`summary`), 그 체결가가 선물 시간대 값이면 선물로 대신한 애프터장의 세션 날짜(`futures`)다.
@@ -63,6 +67,7 @@ const stamp = (time, futures) => {
 // 초과 수익률 카드는 판단과 집행의 누적 수익률에서 고정 배율 누적 수익률을 뺀 값을 날짜 지점 축에 그린다. 큰 값은 집행 선의 값이다.
 // 축은 정산한 거래일마다 한 점이고, Worker가 1분마다 다시 셈한 최신 날짜 지점의 값(`returns.now`)이 있으면 그 날짜 점을 하나 더 둔다.
 // 최신 날짜 점의 고정 배율·판단 값은 기준 배율과 목표 배율을 그대로 들고 있다고 본 값이다. Worker가 판단 값을 셈하지 못하면 판단 선은 마지막 정산일에서 끝난다.
+// 최신 날짜 점의 값이 정규장이 아닌 세션(애프터마켓, 선물시장, 프리마켓)의 체결가로 셈한 값이면, 주가 카드처럼 마지막 정산일에서 그 점까지를 점선으로 잇고 그 점의 '현재' 표시를 그 세션 색으로 찍는다.
 // 수익률 카드의 기준 시각은 최신 날짜 점이 있으면 체결가 시각, 없으면 마지막 거래일의 정규장 종가 시각이다.
 // 배율 카드는 이름 줄 오른쪽에 목표 배율을, 큰 값에 현재 배율을 흰 글씨로 쓰고, 기준 시각은 계좌 요약을 만든 시각이다. 그림에는 오늘 가격 경로들의 배율 분포(지수색 면)와 이슈가 없을 때의 분포(회색 면)를 배율 축에 그리고,
 // 목표 배율에 지수색 실선, 현재 배율에 흰 점선을 긋는다. 집행 선과 현재 배율 선은 다른 페이지의 가격 선과 같은 흰색(`PRICE`)이다.
@@ -112,7 +117,7 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
   const ret = perf?.returns;
   // 선 그림은 값 범위를 1·2·5 단위 눈금 네댓 칸으로 나눠 오른쪽 끝에 눈금 값을 쓰고, 그림 아래에 첫날·가운데·마지막 거래일을 쓴다.
   // 고정 배율 선이 0인 초과 수익률 그림은 0 눈금을 회색 점선으로 긋는다.
-  const lines = (c, series, unit, flat, days, at, tap) => {
+  const lines = (c, series, unit, flat, days, at, tap, late) => {
     const s = c.svg, n = days.length, all = [0, ...series.flatMap(([values]) => values)], P = R - 40;
     let lo = Math.min(...all), hi = Math.max(...all);
     if (hi - lo < 1e-4) { lo -= 0.005; hi += 0.005; }
@@ -125,11 +130,15 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
       s.append(shape("line", { x1: L, x2: P, y1: Y(v), y2: Y(v), ...(zero && flat ? { stroke: BASE, "stroke-dasharray": "2 3" } : { stroke: zero ? "rgba(255, 255, 255, .22)" : "rgba(255, 255, 255, .07)" }) }));
       s.append(shape("text", { x: R, y: Y(v) + 4, "font-size": 11, fill: DIMS, "text-anchor": "end" }, `${zero ? "0" : signed(v * 100, digits)}${unit}`));
     }
-    series.forEach(([values, stroke, dash]) => s.append(shape("path", { d: `M${values.map((v, i) => `${X(i)} ${Y(v)}`).join("L")}`, fill: "none", stroke,
-      "stroke-width": dash ? 1.2 : 1.8, "stroke-linejoin": "round", ...(dash ? { "stroke-dasharray": "3 3" } : {}) })));
+    const path = (values) => `M${values.map((v, i) => `${X(i)} ${Y(v)}`).join("L")}`;
+    series.forEach(([values, stroke, dash]) => {
+      const cut = late !== "regular" && !dash ? n - 1 : n;
+      s.append(shape("path", { d: path(values.slice(0, cut)), fill: "none", stroke, "stroke-width": dash ? 1.2 : 1.8, "stroke-linejoin": "round", ...(dash ? { "stroke-dasharray": "3 3" } : {}) }));
+      if (cut < n) s.append(shape("path", { d: `M${X(n - 2)} ${Y(values[n - 2])}L${X(n - 1)} ${Y(values[n - 1])}`, fill: "none", stroke, "stroke-width": 1.4, "stroke-dasharray": "2 2" }));
+    });
     [[0, "start"], [Math.floor((n - 1) / 2), "middle"], [n - 1, "end"]].forEach(([i, anchor]) =>
       s.append(shape("text", { x: X(i), y: B + 18, "font-size": 11, fill: DIMS, "text-anchor": anchor }, assetDay(days[i]))));
-    nowMark(s, X(at), Y(series.at(-1)[0][at]), "regular");
+    nowMark(s, X(at), Y(series.at(-1)[0][at]), at === n - 1 ? late : "regular");
     const spots = days.map((_, i) => X(i));
     onTap(s, (x) => tap(nearest(spots, x)));
   };
@@ -158,8 +167,9 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
       const tap = (i) => { feelPress(); pin.day = i === days.length - 1 ? null : days[i]; paint(); };
       toggles.forEach((button) => { button.classList.toggle("on", view.judge); button.setAttribute("aria-pressed", view.judge); });
       const judged = (values) => (view.judge ? [[values, color]] : []);
-      lines(cum, [[anchor, BASE, true], ...judged(target), [realized, NOW]], "%", false, days, at, tap);
-      lines(over, [...judged(gap(target)), [gap(realized), NOW]], "%p", true, days, at, tap);
+      const late = now ? kindOf(times.live, times.futures) : "regular";
+      lines(cum, [[anchor, BASE, true], ...judged(target), [realized, NOW]], "%", false, days, at, tap, late);
+      lines(over, [...judged(gap(target)), [gap(realized), NOW]], "%p", true, days, at, tap, late);
     };
     paint();
     cards.push(["누적 수익률", cum.box], ["초과 수익률", over.box]);
