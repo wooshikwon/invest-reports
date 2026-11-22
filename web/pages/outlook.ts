@@ -91,7 +91,7 @@ export function summaryCards(data, view) {
       const rec = found[data.days[k]];
       if (!rec) break;
       if (rec.after?.ratio != null) {
-        const clock = rec.after.basis === "futures" ? rec.after.futures_time ?? rec.after.time : rec.after.time, text = sessionAt("애프터마켓", rec.after.time, clock);
+        const text = sessionAt("애프터마켓", rec.after.basis === "futures" ? rec.after.futures_time ?? rec.after.time : rec.after.time);
         latest = [prior * rec.after.ratio, rec.after.basis === "futures" ? `${text} · 선물 가격` : text, "after", rec.after.time, rec.after, k, prior];
       }
       if (rec.pre?.ratio != null) latest = [prior * rec.pre.ratio, sessionAt("프리마켓", rec.pre.time), "pre", rec.pre.time, rec.pre, k, prior];

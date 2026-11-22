@@ -44,16 +44,15 @@ export const assetSignal = (signal, index) => {
   const go = optimizer.color === "green" ? ' go" role="button" tabindex="0' : "";
   return `<div class="signal${go}"><div class="gate"><i class="lamp ${value.color}"></i><div><strong>${name}</strong><p>${assetText(value.reason)}</p></div></div></div>`;
 };
-// 시각 `time`의 기준 시각 글씨. 요약 절의 그림 카드처럼 "미국 11/20 정규장, 23:43 KST"로 쓰고, 뉴욕 시각으로 세션을 정해 그 세션의 색으로 칠한다.
-// 04:00~09:30 ET는 프리마켓, 09:30~16:00 ET는 정규장이고, 그 밖은 애프터마켓이다. 04:00 ET 전의 애프터마켓은 앞 날짜를 쓴다.
-// 선물 시간대 체결가이면 주가 카드처럼 선물로 대신한 애프터장의 세션 날짜(`futures`)로 "미국 11/20 애프터마켓, 08:30 KST · 선물 가격"이라고 쓴다.
-const NY_CLOCK = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+// 시각 `time`의 기준 시각 글씨. 요약 절의 그림 카드처럼 "정규장, 2026.11.21 23:43 KST"로 쓰고, 뉴욕 시각으로 세션을 정해 그 세션의 색으로 칠한다.
+// 04:00~09:30 ET는 프리마켓, 09:30~16:00 ET는 정규장이고, 그 밖은 애프터마켓이다.
+// 선물 시간대 체결가이면(`futures`) 주가 카드처럼 "애프터마켓, 2026.11.23 08:30 KST · 선물 가격"이라고 쓴다.
+const NY_CLOCK = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const stamp = (time, futures) => {
-  if (futures) return sessionTag("after", `${sessionAt("애프터마켓", futures, time)} · 선물 가격`);
+  if (futures) return sessionTag("after", `${sessionAt("애프터마켓", time)} · 선물 가격`);
   const part = Object.fromEntries(NY_CLOCK.formatToParts(Date.parse(time)).map(({ type, value }) => [type, value])), clock = +part.hour * 60 + +part.minute;
   const [kind, name] = clock >= 240 && clock < 570 ? ["pre", "프리마켓"] : clock >= 570 && clock < 960 ? ["regular", "정규장"] : ["after", "애프터마켓"];
-  const day = clock < 240 ? new Date(Date.UTC(+part.year, +part.month - 1, +part.day - 1)).toISOString().slice(0, 10) : `${part.year}-${part.month}-${part.day}`;
-  return sessionTag(kind, sessionAt(name, day, time));
+  return sessionTag(kind, sessionAt(name, time));
 };
 // 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 지수(`index`)는 이름 줄과 큰 값을 굴리는 자리 이름에 쓴다.
 // `times`는 최신 날짜 점을 셈한 체결가의 시각(`live`)과 계좌 요약을 만든 시각(`summary`), 그 체결가가 선물 시간대 값이면 선물로 대신한 애프터장의 세션 날짜(`futures`)다.
