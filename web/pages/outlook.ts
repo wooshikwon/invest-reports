@@ -9,7 +9,7 @@ import { slider } from "../shared/motion";
 import { rolled } from "../shared/roll";
 import { key, report } from "../shared/route";
 import { SESSION_NAME, afterEnd, closeAt, sessionAt, sessionSeg, sessionTag } from "../shared/session";
-import { DIMS, PRICE, candleGroups, candleLate, candleOn, candleUnit, drawCandles, ease, kindButton, markText, nowMark, onTap, shape, zoomDrag } from "../shared/svg";
+import { DIMS, PRICE, candleGroups, candleLate, candleOn, candleUnit, drawCandles, ease, extremeAt, kindButton, markDay, markText, nowMark, onTap, shape, zoomDrag } from "../shared/svg";
 import { feelPress } from "../shared/telegram";
 // 요약의 Outlook 그림 자리에 12M + Predictions(주가), Montecarlo(예측과 일정), Outlook(권장 배율) 순서로 넘기는 묶음을 둔다.
 // Montecarlo 그림은 원래 이벤트 캘린더 절에 있으므로 그 자리에서는 뺀다. 12M + Predictions가 없는 리포트는 두 장을 넘긴다.
@@ -225,7 +225,8 @@ export function summaryCards(data, view) {
       const unit = candleUnit(DAYS[span]), groups = candle() ? candleGroups(dates, hist, ratios, unit, last).filter((group) => group[1] >= i0) : null;
       // 최고·최저 글씨는 기간이 정해진 뒤에만 그린다. 최고·최저는 기간 안 종가와 사슬의 정규장 값에서 고르므로,
       // 지금 정규장 값이 기간의 최고나 최저면 그 점에 붙는다. 봉 그림이면 점 없이 정규장 잠정 봉까지 포함한 가장 높은 고가와 가장 낮은 저가를 봉 위아래에 적는다.
-      // 최고·최저 값 뒤 괄호에는 현재가(사슬의 마지막 값, 없으면 기준 가격 날짜 종가)의 그 값 대비 등락률을 적는다. 현재가가 그 값이면 괄호를 쓰지 않는다.
+      // 최고·최저 값 뒤 괄호에는 현재가(사슬의 마지막 값, 없으면 기준 가격 날짜 종가)의 그 값 대비 등락률과 그 값이 나온 거래일(`markDay`)을 적는다.
+      // 현재가가 그 값이면 괄호에 거래일만 적는다. 거래일은 종가면 그 날짜, 사슬의 정규장 값이면 그 날짜 지점이고, 봉 그림이면 그 봉 안에서 고가나 저가가 나온 날이다.
       // 글씨 상자는 가운데를 그 점에 맞추되 그림 안에 들게 옮긴다(`markText`). 세로로는 최저 글씨를 그 점과 사슬 값(봉 그림이면 잠정 봉의 저가) 가운데
       // 가장 낮은 자리에서 6px(봉이면 4px) 아래에, 최고 글씨를 가장 높은 자리에서 같은 거리 위에 두어 선과 봉, '현재' 표시에 겹치지 않게 한다.
       const extremes = () => {
@@ -234,18 +235,26 @@ export function summaryCards(data, view) {
         // 글씨가 예측 범위의 가로 자리 근처(양옆 60px)에 놓이면 범위의 위 끝 위나 아래 끝 아래로 옮겨 범위와 겹치지 않게 한다.
         const fan = p && { from: xs[0] - 60, to: xs.at(-1) + 60, top: Math.min(...p.q75.map(Y)), bottom: Math.max(...p.q25.map(Y)) };
         const floor = Math.max(...ys), ceiling = Math.min(...ys), near = (x) => fan && x > fan.from && x < fan.to;
-        const write = (x, y, up, gap, text, v) =>
-          markText(group, x, up ? Math.min(y, ceiling, near(x) ? fan.top : y) : Math.max(y, floor, near(x) ? fan.bottom : y), up, gap, `${text} ${fmt(v)}${now === v ? "" : ` (${signed((now / v - 1) * 100)}%)`}`, L, R);
+        const write = (x, y, up, gap, v, day) =>
+          markText(group, x, up ? Math.min(y, ceiling, near(x) ? fan.top : y) : Math.max(y, floor, near(x) ? fan.bottom : y), up, gap,
+            `${fmt(v)} (${now === v ? "" : `${signed((now / v - 1) * 100)}%, `}${markDay(day)})`, L, R);
+        // 봉 `[a, b]`의 고가(`up`)나 저가 `v`가 나온 날. 종가 안의 날을 먼저 고르고, 덧붙인 잠정 봉에서 사슬의 정규장 값이 그보다 높거나 낮으면 그 날짜 지점이다.
+        const dayOf = ([a, b], v, up) => {
+          const i = a <= last ? extremeAt(hist, ratios, a, Math.min(b, last), up) : -1, own = i < 0 ? null : hist[i] * (ratios[i] || [1, 1, 1])[up ? 1 : 2];
+          const live = track.filter((entry) => entry[2] === "regular" && last + entry[5] >= a && last + entry[5] <= b)
+            .find((entry) => (up ? liveBar(entry).high : liveBar(entry).low) === v);
+          return live && (own == null || (up ? v > own : v < own)) ? data.days[live[5]] : dates[Math.max(i, 0)];
+        };
         if (groups) {
           const bars = drawn.filter((bar) => !bar[7]), high = bars.reduce((a, b) => (b[3] > a[3] ? b : a)), low = bars.reduce((a, b) => (b[4] < a[4] ? b : a));
-          [[high, high[3], true, "최고"], [low, low[4], false, "최저"]].forEach(([[a, b], v, up, text]) => write(X((a + b) / 2), Y(v), up, 4, text, v));
+          [[high, high[3], true], [low, low[4], false]].forEach(([bar, v, up]) => write(X((bar[0] + bar[1]) / 2), Y(v), up, 4, v, dayOf(bar, v, up)));
           return;
         }
         const shown = [...hist.slice(i0, last + 1).map((v, k) => [i0 + k, v]), ...track.filter((entry) => entry[2] === "regular").map((entry) => [last + entry[5], entry[0]])];
         const high = shown.reduce((a, b) => (b[1] > a[1] ? b : a)), low = shown.reduce((a, b) => (b[1] < a[1] ? b : a));
-        [[high, true, "최고"], [low, false, "최저"]].forEach(([[i, v], up, text]) => {
+        [[high, true], [low, false]].forEach(([[i, v], up]) => {
           group.append(shape("circle", { cx: X(i), cy: Y(v), r: 2.5, fill: PRICE }));
-          write(X(i), Y(v), up, 6, text, v);
+          write(X(i), Y(v), up, 6, v, i <= last ? dates[i] : data.days[i - last]);
         });
       };
       const step = (R - L) / (end - x0);

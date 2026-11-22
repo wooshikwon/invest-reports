@@ -31,6 +31,15 @@ export const markText = (parent, x, y, up, gap, words, left, right) => {
   parent.append(shape("text", { x: start + m.actualBoundingBoxLeft, y: up ? y - gap - m.actualBoundingBoxDescent : y + gap + m.actualBoundingBoxAscent,
                                 "font-size": 11, fill: DIMS }, words));
 };
+// 최고·최저 글자 괄호 안의 날짜. 거래일 "2026-06-03"을 "26.06.03"으로 쓴다.
+export const markDay = (day) => `${day.slice(2, 4)}.${day.slice(5, 7)}.${day.slice(8, 10)}`;
+// 거래일 `a`부터 `b`까지 가운데 그날 고가(`up`)나 저가가 가장 높거나 낮은 거래일 번호. 그날 고가·저가는 종가(`closes`)에 그날 봉 비율(`ratios`의 [시가, 고가, 저가])을 곱한 값이다.
+export const extremeAt = (closes, ratios, a, b, up) => {
+  const price = (i) => closes[i] * (ratios[i] || [1, 1, 1])[up ? 1 : 2];
+  let at = a;
+  for (let i = a + 1; i <= b; i++) if (up ? price(i) > price(at) : price(i) < price(at)) at = i;
+  return at;
+};
 // 주가 카드, 종목 주가 카드와 유가 카드의 그림 종류. 봉 그림이면 참이고, 처음에는 봉 그림이다. 고른 종류는 기기에 남겨 다른 리포트와 종목에도 쓴다.
 export const CANDLE_KEY = "chart-kind", kindCards = new Set();
 export let candleOn = kept(CANDLE_KEY) !== "line";
