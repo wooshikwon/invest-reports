@@ -25,7 +25,7 @@ export const sessionTag = (kind, text) => {
 export const SESSION_ICON = {
   regular: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle class="f" cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>',
   after: '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="f" d="M20 14.6A8.2 8.2 0 1 1 9.4 4a6.6 6.6 0 0 0 10.6 10.6Z"/></svg>',
-  futures: '<svg viewBox="0 0 24 24" aria-hidden="true"><text class="f" x="12" y="18.6" text-anchor="middle" font-size="18" font-weight="700" stroke="none">先</text></svg>',
+  futures: '<svg viewBox="0 0 24 24" aria-hidden="true"><text class="f" x="12" y="18.9" text-anchor="middle" font-size="18.9" font-weight="700" stroke="none">先</text></svg>',
   pre: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 20.5C6 17 9 16 12 16s6 1 10 4.5"/><path class="f" d="M7.5 16.6a4.5 4.5 0 0 1 9 0Z"/><path d="M12 6.2v2.6M5.4 9.6l1.7 1.7M18.6 9.6l-1.7 1.7"/></svg>',
 };
 export const SESSION_NAME = { regular: "정규장", after: "애프터마켓", futures: "선물시장", pre: "프리마켓" };
