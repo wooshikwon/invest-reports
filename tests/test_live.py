@@ -94,22 +94,23 @@ def kst(day: str, clock: str) -> str:
 
 
 def test_outside_hours_calls_nothing(market):
-    assert live.tick(at("2026-11-19", "03:59:10")) == {}  # 프리장 전
-    assert market.toss == [] and market.written == []
+    assert live.tick(at("2026-11-19", "03:59:10")) == {}  # 프리장 전 선물 시간대. 주간거래 체결이 없으면 쓰지 않는다
+    assert [name for name, _ in market.toss] == ["prices"] and market.written == []
+    market.toss.clear()
     market.prices = {symbol: (10.0, kst("2026-11-19", "19:59:50")) for symbol in ("QQQ", "IBB", "AAPL", "MSFT", "AMGN")}
     market.closes = {(symbol, "2026-11-19"): 9.0 for symbol in market.prices}
     assert set(live.tick(at("2026-11-19", "20:00:10"))) == {"premarket", "afterhours"}  # 마감 값과 애프터장 끝 값을 받는다
     market.toss.clear()
-    assert live.tick(at("2026-11-19", "20:01:10")) == {}  # 그날 값을 다 받았다
+    assert live.tick(at("2026-11-19", "20:01:10")) == {}  # 그날 값을 다 받았고, 20:00 ET 뒤 주간거래 체결이 아직 없다
     assert live.tick(at("2026-11-19", "23:30:00")) == {}
-    assert market.toss == [] and market.yahoo == []
+    assert [name for name, _ in market.toss] == ["prices", "prices"]  # 선물 시간대 회차는 토스 시세만 한 번씩 부른다
 
 
 def test_holiday_calls_no_toss(market):
     assert live.tick(at("2026-11-26", "10:00:05")) == {}  # 추수감사절
     assert live.tick(at("2026-11-28", "10:00:05")) == {}  # 토요일
-    assert market.toss == [] and market.yahoo == [] and market.written == []
-    assert market.indexes == ["5d", "5d"]  # 선물 시간대라 지수 묶음 요청만 부른다
+    assert [name for name, _ in market.toss] == ["prices", "prices"] and market.written == []
+    assert market.indexes == ["5d", "5d"]  # 선물 시간대라 지수 묶음 요청과 주간거래 시세만 부른다
 
 
 def test_close_wait_then_fix(market):
@@ -333,7 +334,7 @@ def test_futures_value_rides_on_nasdaq_after_value(market):
     assert {name: moved[name] for name in nasdaq} == nasdaq and moved["point"] == "2026-11-23"  # 애프터장 값은 그대로다
     assert written["afterhours"]["biotech"]["2026-11-20"] == biotech  # 바이오에는 선물이 없다
     assert live.tick(at("2026-11-22", "19:00:35")) == {}  # 같은 봉이면 다시 쓰지 않는다
-    assert market.toss == [] and market.accounts == []
+    assert market.accounts == []  # 보유 종목이 없다
     assert market.indexes[-4:] == ["5d", "5d", "1d", "1d"]  # 기준을 잡기 전 회차만 닷새치를 받는다
 
 
@@ -369,7 +370,7 @@ def test_weekend_without_futures_bars_writes_nothing(market):
     market.toss.clear()
     for day, clock in (("2026-11-20", "21:00:05"), ("2026-11-21", "12:00:05"), ("2026-11-22", "17:00:05")):
         assert live.tick(at(day, clock)) == {}
-    assert market.written == [] and market.accounts == [] and market.toss == []
+    assert market.written == [] and market.accounts == []  # 금요일 20:00 ET 뒤 선물 봉도 주간거래 체결도 없다
 
 
 def test_index_value_and_tick_log(market):
@@ -420,55 +421,48 @@ def test_etf_table_reads_private_file(tmp_path, monkeypatch):
     assert live.etf_table() == ETF_TABLE
 
 
-def test_futures_round_posts_account_prices_from_last_trades(market, monkeypatch):
-    """선물 시간대: 나스닥 ETF 가격은 마지막 체결가 × (1 + 배율 × 선물 등락), 바이오와 그 밖의 보유 종목은 마지막 체결가 그대로다."""
+def test_futures_round_posts_overnight_prices(market, monkeypatch):
+    """선물 시간대: 종목 값에는 주간거래 값을 붙이고, 계좌 가격은 주간거래 체결가로 쓴다. 체결이 없는 보유 종목은 앞 회차 가격을 잇는다."""
     (live.ETFS).write_text(live.json.dumps(ETF_TABLE))
     monkeypatch.setattr(live, "holding_symbols", lambda: ["SAMPB", "SAMPC", "SAMPD"])
-    traded(market, "2026-11-20", "15:59:30")
-    market.prices.update({symbol: (price, kst("2026-11-20", "15:59:30")) for symbol, price in (("SAMPA", 100.0), ("SAMPB", 50.0), ("SAMPC", 20.0), ("SAMPD", 100.0))})
-    live.tick(at("2026-11-20", "16:05:05"))
-    traded(market, "2026-11-20", "19:59:50", 1.01)
+    traded(market, "2026-11-20", "19:59:50")
     market.prices.update({symbol: (price, kst("2026-11-20", "19:59:50")) for symbol, price in (("SAMPA", 100.0), ("SAMPB", 50.0), ("SAMPC", 20.0), ("SAMPD", 100.0))})
     live.tick(at("2026-11-20", "20:00:10"))
     assert set(market.accounts[-1][1]) == {"SAMPA", "SAMPB", "SAMPC", "SAMPD"}  # 보유하지 않은 기준 묶음 ETF도 받는다
     market.accounts.clear()
-    market.toss.clear()
-    market.spark = {"NQ=F": [(at("2026-11-20", "16:58"), 1000.0), (at("2026-11-20", "16:59"), 1002.0),
-                             (at("2026-11-22", "18:00"), 1010.0), (at("2026-11-22", "18:59"), 1020.0), (at("2026-11-22", "19:00"), 1030.0)]}
-    market.written.clear()
-    live.tick(at("2026-11-22", "19:00:05"))
+    market.prices.update({"AAPL": (11.0, kst("2026-11-22", "20:01:00")), "AMGN": (31.0, kst("2026-11-22", "20:02:30")),
+                          "SAMPA": (101.0, kst("2026-11-22", "20:01:10")), "SAMPB": (52.0, kst("2026-11-22", "20:02:40"))})
+    written = live.tick(at("2026-11-22", "20:03:05"))  # 일요일 20:03 ET, 주간거래가 열렸다
+    nasdaq, biotech = written["afterhours"]["nasdaq"]["2026-11-20"], written["afterhours"]["biotech"]["2026-11-20"]
+    assert nasdaq["overnight"] == {"time": "2026-11-22T20:01:00-05:00", "stocks": {"AAPL": 11.0, "MSFT": None}}  # 체결이 없는 종목은 null
+    assert biotech["overnight"] == {"time": "2026-11-22T20:02:30-05:00", "stocks": {"AMGN": 31.0}}
     (when, prices, session), = market.accounts
-    assert session == "2026-11-20"  # 선물로 대신한 애프터장의 세션 날짜
-    move = 1020.0 / 1002.0 - 1
-    assert when == "2026-11-22T19:00:00-05:00"  # 계좌 가격의 시각은 나스닥 값의 `futures_time`과 같은 선물 1분봉이 끝난 시각이다
-    assert prices["SAMPA"] == pytest.approx(100.0 * (1 + move)) and prices["SAMPB"] == pytest.approx(50.0 * (1 + 2.0 * move))
-    assert prices["SAMPC"] == 20.0 and prices["SAMPD"] == 100.0  # 바이오와 나스닥이 아닌 보유 종목은 마지막 체결가 그대로다
-    assert market.toss == []  # 선물 시간대에는 토스를 부르지 않는다
-    live.tick(at("2026-11-22", "19:00:35"))  # 새 선물 봉이 없으면 계좌 가격도 쓰지 않는다
+    assert session == "2026-11-20" and when == "2026-11-22T20:02:40-05:00"  # 보유 종목 체결 가운데 가장 늦은 시각
+    assert prices == {"SAMPA": 101.0, "SAMPB": 52.0, "SAMPC": 20.0, "SAMPD": 100.0}  # 체결이 없는 종목은 앞 회차 가격
+    assert live.tick(at("2026-11-22", "20:04:05")) == {}  # 새 체결이 없으면 쓰지 않는다
     assert len(market.accounts) == 1
     published = str(market.written) + (live.DATA / "afterhours.json").read_text()
     assert not any(symbol in published for symbol in ("SAMPA", "SAMPB", "SAMPC", "SAMPD"))  # invest-live 값에는 계좌 값이 없다
 
 
-def test_premarket_keeps_futures_price_until_its_first_trade(market, monkeypatch):
-    """프리장이 열린 뒤 아직 체결이 없는 종목은 선물 시간대에 쓴 계좌 가격을 이어 쓰고, 체결이 나면 그 체결가를 쓴다."""
+def test_premarket_keeps_overnight_price_until_its_first_trade(market, monkeypatch):
+    """프리장이 열린 뒤 아직 체결이 없는 종목은 선물 시간대에 쓴 주간거래 가격을 이어 쓰고, 체결이 나면 그 체결가를 쓴다."""
     (live.ETFS).write_text(live.json.dumps(ETF_TABLE))
     monkeypatch.setattr(live, "holding_symbols", lambda: ["SAMPA", "SAMPC"])
     traded(market, "2026-11-20", "19:59:50")
     market.prices.update({"SAMPA": (100.0, kst("2026-11-20", "19:59:50")), "SAMPC": (20.0, kst("2026-11-20", "19:59:50"))})
     live.tick(at("2026-11-20", "20:00:10"))
-    market.spark = {"NQ=F": [(at("2026-11-20", "16:59"), 1000.0), (at("2026-11-23", "03:58"), 1010.0)]}
+    market.prices["SAMPA"] = (101.0, kst("2026-11-23", "03:58:30"))
     live.tick(at("2026-11-23", "03:59:05"))
-    futures = market.accounts[-1][1]
-    assert futures["SAMPA"] == pytest.approx(101.0) and futures["SAMPC"] == 20.0
+    night = market.accounts[-1][1]
+    assert night == {"SAMPA": 101.0, "SAMPC": 20.0}
     traded(market, "2026-11-23", "04:00:30")
-    market.prices.update({"SAMPA": (100.0, kst("2026-11-20", "19:59:50")), "SAMPC": (20.0, kst("2026-11-20", "19:59:50"))})  # 프리장 체결이 아직 없다
+    market.prices.update({"SAMPA": (101.0, kst("2026-11-23", "03:58:30")), "SAMPC": (20.0, kst("2026-11-20", "19:59:50"))})  # 프리장 체결이 아직 없다
     live.tick(at("2026-11-23", "04:01:05"))
-    assert market.accounts[-1][1] == futures
+    assert market.accounts[-1][1] == night
     market.prices["SAMPA"] = (102.5, kst("2026-11-23", "04:01:40"))
     live.tick(at("2026-11-23", "04:02:05"))
     assert market.accounts[-1][1] == {"SAMPA": 102.5, "SAMPC": 20.0}
-    assert live.load(live.DATA / "account.json", {})["SAMPA"] == 102.5  # 선물 추정가는 마지막 체결가 파일에 남기지 않는다
 
 
 def test_close_round_sends_official_closes_of_account_etfs(market, monkeypatch):
@@ -488,7 +482,7 @@ def test_close_round_sends_official_closes_of_account_etfs(market, monkeypatch):
     assert market.sent[-1] == kept  # 애프터장 회차에도 실린다
 
 
-def test_futures_round_without_last_trades_posts_nothing(market):
+def test_futures_round_without_overnight_trades_posts_nothing(market):
     (live.ETFS).write_text(live.json.dumps(ETF_TABLE))
     traded(market, "2026-11-20", "19:59:50")
     live.tick(at("2026-11-20", "20:00:10"))

@@ -578,7 +578,7 @@ table.judged tbody tr.more button svg { color: var(--dim); }
 .session button svg .f { fill: currentColor; }
 [data-kind="regular"] { --kind: #ffc53d; }
 [data-kind="after"] { --kind: #a78bfa; }
-[data-kind="futures"] { --kind: #A7ABB0; }
+:is([data-kind="futures"], [data-kind="overnight"]) { --kind: #A7ABB0; }
 [data-kind="closed"] { --kind: #A7ABB0; }
 [data-kind="pre"] { --kind: #ff9f43; }
 .session button.on { background: rgba(255, 255, 255, .16); color: var(--kind); }

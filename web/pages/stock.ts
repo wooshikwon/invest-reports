@@ -25,7 +25,8 @@ import { gallery, viewer } from "../shared/viewer";
 // 지난 날짜에는 세션 단추를 두지 않고, 마지막 종가 점이나 그 뒤 세션 값 자리를 누르면 처음과 같은 세션의 마지막 종가로 돌아간다.
 // 카드 맨 위 줄에는 기준일 글씨를 쓰고, 그 아래 이름 줄에 종목 이름과 티커를 쓴다.
 // 마지막 종가 날짜의 애프터장 체결가(`r/market.json` 지도 값, 없으면 실시간 값 `afterhours`의 체결가)나 그 다음 프리장 체결가(실시간 값 `premarket`)가 있으면 이름 줄 오른쪽에
-// 정규장·애프터장이나 정규장·프리장 단추를 둔다. 두 값이 다 있으면 프리장 값을 쓴다.
+// 정규장·애프터장이나 정규장·프리장 단추를 둔다. 애프터장이 닫힌 뒤 애프터장 값에 주간거래 체결가(`overnight`)가 있으면 애프터장 단추 자리에 정규장·주간거래 단추를 둔다.
+// 여러 값이 있으면 프리장, 주간거래, 애프터장 순서로 가장 늦은 값을 쓴다.
 // 정규장 다음 단추를 고르면 값과 등락률을 그 체결가와 마지막 종가 대비 등락률로 바꿔 회색으로 쓰고, 그림에 그 체결가를 점선으로 잇는다.
 // 처음 고르는 세션은 주소의 `session`이고, 주소에 없으면 가장 늦은 세션이다.
 // 프리장 값이 리포트 날짜의 정규장 값이면 단추를 정규장 단추 하나로 줄이고, 그 체결가와 등락률을 등락률 색으로 쓰며 그림에 점선으로 잇는다.
@@ -78,16 +79,17 @@ function stockDetail(data) {
     asof.classList.add("kind");
     asof.dataset.kind = "regular";
     // `after`는 마지막 종가 날짜의 애프터장 마지막 체결가(`r/market.json` 지도 값)이고, `tail`은 그 체결가가 아직 없을 때 쓰는 애프터장 값이며,
-    // `early`는 그 다음 프리장이나 정규장 값이다. 없으면 null이다.
+    // `night`는 애프터장 값에 붙은 이 종목의 주간거래 체결가이고, `early`는 그 다음 프리장이나 정규장 값이다. 없으면 null이다.
     const asked = query.get("session"), date = `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
     // `stop`은 그림을 눌러 고른 종가 번호이고, `most()`는 그 종가가 그림 안에 드는 가장 짧은 기간의 번호다.
-    let late = asked !== "regular", after = null, tail = null, early = null, stop = last;
+    let late = asked !== "regular", after = null, tail = null, night = null, early = null, stop = last;
     const most = () => { let k = SPAN.length - 1; while (k > 0 && stop < closes.length - SPAN[k]) k--; return k; };
     // 정규장 다음 세션의 종류와 [체결가, 기준 시각 글씨, 세션 종류]. 없으면 null이다.
-    const kindOf = () => (early ? (early.regular ? "regular" : "pre") : "after");
+    const kindOf = () => (early ? (early.regular ? "regular" : "pre") : night ? "overnight" : "after");
     // 네 번째 값은 그 값의 날짜 지점이다. 실시간 값이 없어 지도 값(`after`)만 있으면 지점을 모르므로 null이다.
     // 다섯 번째 값은 그 값의 시각으로, 휴장인지(`stale`) 가린다.
     const extra = () => stop < last ? null : early ? [early.price, sessionAt(early.regular ? "정규장" : "프리마켓", early.time), kindOf(), early.point, early.time]
+      : night ? [night.price, sessionAt("주간거래", night.time), "overnight", night.point, night.time]
       : after != null ? [after, sessionAt("애프터마켓", afterEnd(day)), "after", tail?.point ?? null, afterEnd(day)]
       : tail ? [tail.price, sessionAt("애프터마켓", tail.time), "after", tail.point, tail.time] : null;
     // 가로축은 단추와 관계없이 다음 세션 값이 있으면 다음 거래일까지 담아, 단추를 바꿔도 종가 선이 움직이지 않는다.
@@ -176,14 +178,16 @@ function stockDetail(data) {
     });
     subscribe((found) => {
       const own = found.early[data.index]?.[date], value = own?.session === day ? own.stocks[data.symbol] ?? null : null;
-      const behind = found.after[data.index]?.[day], price = behind?.stocks[data.symbol] ?? null;
-      if (value === early?.price && own?.time === early?.time && price === tail?.price && behind?.time === tail?.time) {
+      const behind = found.after[data.index]?.[day], price = behind?.stocks[data.symbol] ?? null, dark = behind?.overnight?.stocks[data.symbol] ?? null;
+      if (value === early?.price && own?.time === early?.time && price === tail?.price && behind?.time === tail?.time
+          && dark === night?.price && behind?.overnight?.time === night?.time) {
         const shown = extra();
         if (late && shown && stale(shown[4])) repaint();
         return;
       }
       early = value == null ? null : { price: value, time: own.time, regular: own.phase === "regular", point: own.point };
       tail = price == null ? null : { price, time: behind.time, point: behind.point };
+      night = dark == null ? null : { price: dark, time: behind.overnight.time, point: behind.point };
       repaint();
     }, true);
   }
