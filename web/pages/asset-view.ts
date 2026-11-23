@@ -53,11 +53,6 @@ const instructedText = (data, unit) => {
     .filter(([, krw]) => krw > 0).map(([key, krw]) => `${INDEX_TITLE[key]}에 ${money(krw)}`);
   return `대기자금(SGOV) ${money(sold)}을 팔아 ${shares.join(", ")}을 넣는다.`;
 };
-// 거래 내역 화면 주문 요청 절의 집행 신호등 카드. 신호등 색과 관계없이 그 지수의 값이 있으면 둔다.
-export const assetSignal = (signal, index) => {
-  const gate = assetGate(signal, index);
-  return gate ? `<div class="signal">${gateBody(gate.color, gate.name, gate.reason)}</div>` : "";
-};
 // 알림 카드 묶음. 내 투자 큰 값 아래에 카드 한 장씩을 옆으로 이어 놓고, 다음 카드가 오른쪽 끝에 조금 보이게 한다. 순서는 주문 요청, 집행 신호등이다.
 // 주문 요청 카드는 그날 승인 요청이 집행 시각(`run_at`) 전일 때만 두고, 초록 신호등과 "23:30 리밸런싱 주문 요청"처럼 집행 시각을 앞에 붙인 요청 이름 아래에
 // 거래 내역 화면의 그 요청 블록과 같은 설명 문단을 쓴다. 리밸런싱 요청은 블록의 이유(`reason`)를, 수기 요청은 `instructedText`를 쓴다.
@@ -309,7 +304,8 @@ export function assetPage(page) {
   return fill;
 }
 
-// 거래 내역 화면의 주문 요청 절과 거래 내역 절. 주문 요청 절은 맨 위에 그 지수의 집행 신호등 카드를 신호등 색과 관계없이 두고, 그 아래에 요청 블록을 둔다. 블록의 출처(`source`)마다 카드 오른쪽 위 스티커 글씨를 두고, 출처가 없는 옛 블록은 스티커를 두지 않는다.
+// 거래 내역 화면의 주문 요청 절과 거래 내역 절. 주문 요청 절은 맨 위에 그 지수의 집행 신호등 카드를 신호등 색과 관계없이 두고, 그 아래에 요청 블록을 둔다.
+// 주문 요청 절의 카드는 모두 알림 카드와 같은 머리(신호등, 제목, 오른쪽 날짜)와 같은 설명 상자를 쓴다. 블록의 출처(`source`)마다 카드 오른쪽 위 스티커 글씨를 두고, 출처가 없는 옛 블록은 스티커를 두지 않는다.
 // 새 출처는 이 표와 서버의 출처 판정(`trades.py`)에만 더한다. 필터는 "전체"와 이 표의 출처 순서다.
 export const TRADE_SOURCE = { llm: "LLM 매수", manual: "일반 매수" };
 // 거래 내역 절 제목 오른쪽에 출처 필터 드롭다운과 금액 단위 단추를 둔다. 드롭다운은 고른 필터 이름과 아래 꺽쇠를 쓰고, 누르면 그 아래에 필터 목록을 펼친다.
@@ -430,6 +426,13 @@ export function tradesView(page, index) {
     // 사용자가 SGOV 투입을 지시한 날의 수기 요청 블록. 두 지수의 화면에 같은 블록을 두고, 결정은 지수의 리밸런싱과 따로 받는다.
     const instructed = asking("instructed") && trades.instructed ? { date: asked.date, source: "instructed", orders: trades.instructed.orders,
       reason: instructedText(data, unit) } : null;
+    const day = (date) => `${assetDay(date)} (${WEEK[new Date(`${date}T12:00:00Z`).getUTCDay()]})`;
+    const head = (date, color, name) => `<div class="top ask"><span><i class="lamp ${color}"></i><b>${name}</b></span><span class="day">${day(date)}</span></div>`;
+    // 주문 요청 절 맨 위의 집행 신호등 카드. 신호등 색과 관계없이 그 지수의 값이 있으면 두고, 요청 블록과 같은 머리와 설명 상자를 쓴다.
+    const gateCard = () => {
+      const gate = assetGate(trades?.signal, index);
+      return gate ? `<div class="trade gate">${head(trades.signal.date, gate.color, gate.name)}<p class="why">${assetText(gate.reason)}</p></div>` : "";
+    };
     const block = (b, live) => {
       const key = b.source === "instructed" ? "instructed" : index;
       const state = live ? ({ approve: "approved", cancel: "rejected" }[decided(key)] || asked.sectors[key].status) : b.state;
@@ -445,16 +448,17 @@ export function tradesView(page, index) {
           || `${clock(asked.run_at)}까지 취소하지 않으면 그대로 집행한다.`}</p>`
         + `<div class="act"><button type="button" data-decision="cancel"${state === "rejected" ? ' class="on" disabled' : ""}>${state === "rejected" ? "취소함" : "취소"}</button>`
         + `<button type="button" data-decision="approve" class="go${state === "approved" ? ' on" disabled' : '"'}>${state === "approved" ? "승인함" : "승인"}</button></div>` : "";
-      const badge = TRADE_SOURCE[b.source] || (key === "instructed" ? "수기 요청" : "");
-      return `<div class="trade" data-date="${b.date}" data-sector="${key}"><div class="top"><b>${assetDay(b.date)} (${WEEK[new Date(`${b.date}T12:00:00Z`).getUTCDay()]})</b>`
-        + (badge ? `<span class="badge ${b.source}">${badge}</span>` : "") + "</div>"
+      // 주문 요청 절의 블록은 알림 카드와 같은 머리(신호등과 "23:30 리밸런싱 주문 요청" 같은 제목, 오른쪽 날짜)를 쓰고, 지난 블록은 날짜와 출처 스티커를 쓴다.
+      const top = live ? head(b.date, "green", `${clock(asked.run_at)} ${key === "instructed" ? "수기" : "리밸런싱"} 주문 요청`)
+        : `<div class="top"><b>${day(b.date)}</b>` + (TRADE_SOURCE[b.source] ? `<span class="badge ${b.source}">${TRADE_SOURCE[b.source]}</span>` : "") + "</div>";
+      return `<div class="trade" data-date="${b.date}" data-sector="${key}">${top}`
         + (b.target != null && b.after != null ? `<div class="lev">목표 배율 갭 ${gap(b.target - b.after)}</div>` : "")
         + (b.reason ? `<p class="why">${assetText(b.reason)}</p>` : "") + (rows.length ? `<div class="rows">${rows.join("")}</div>` : "") + act + "</div>";
     };
     const past = blocks.filter((b) => b !== open && (filter === "all" || b.source === filter) && b.date >= period.start && b.date <= period.end);
     // 기간 투자액은 체결한 행만 센다. 체결하지 못한 주문은 금액이 있어도 돈이 나가지 않았다.
     const invested = past.reduce((sum, b) => sum + (b.executions || []).reduce((inner, e) => inner + (e.filled && e.amount != null ? (e.side === "BUY" ? e.amount : -e.amount) : 0), 0), 0);
-    const gate = assetSignal(trades?.signal, index);
+    const gate = gateCard();
     page.innerHTML = (gate || open || instructed ? `<h2>주문 요청</h2>${gate}${open ? block(open, true) : ""}${instructed ? block(instructed, true) : ""}` : "")
       + `<h2 class="trade-head">거래 내역<div class="tools"><div class="pick"><button type="button" aria-haspopup="listbox" aria-expanded="false">${filters[filter]}${caret}</button>`
       + `<div class="menu" role="listbox">` + Object.entries(filters).map(([name, label]) =>

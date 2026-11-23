@@ -39,15 +39,14 @@
 .asks .slide:only-child { flex-basis: 100%; }
 .asks .signal { position: relative; height: 100%; margin: 0; box-sizing: border-box; box-shadow: inset 0 0 0 1px var(--index); cursor: pointer;
                 -webkit-tap-highlight-color: transparent; }
-.trades-page h2 + .signal { margin: 0 0 10px; }
 .asks .gate { padding-right: 18px; }
 .asks .gate p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; height: 2.8em; }
 .asks .hide { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0;
               background: none; color: var(--hint); cursor: pointer; }
-.signal .lamp { flex: none; width: 8px; height: 8px; border-radius: 50%; }
-.signal .lamp.green { background: #30d158; box-shadow: 0 0 8px rgba(48, 209, 88, .55); }
-.signal .lamp.orange { background: #ff9f0a; box-shadow: 0 0 8px rgba(255, 159, 10, .55); }
-.signal .lamp.red { background: #ff453a; box-shadow: 0 0 8px rgba(255, 69, 58, .55); }
+:is(.signal, .trade) .lamp { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+:is(.signal, .trade) .lamp.green { background: #30d158; box-shadow: 0 0 8px rgba(48, 209, 88, .55); }
+:is(.signal, .trade) .lamp.orange { background: #ff9f0a; box-shadow: 0 0 8px rgba(255, 159, 10, .55); }
+:is(.signal, .trade) .lamp.red { background: #ff453a; box-shadow: 0 0 8px rgba(255, 69, 58, .55); }
 .carousel.asset-cards { margin-top: 32px; }
 .asset-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 10px 0; }
 .asset-item strong { display: block; font-size: 15px; font-weight: 500; color: var(--text); }
@@ -70,6 +69,10 @@
 .trade { margin: 0 0 10px; padding: 14px 16px 6px; border-radius: 14px; background: rgba(255, 255, 255, .05); }
 .trade .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .trade .top b { font-size: 15.5px; font-weight: 700; color: var(--accent); }
+/* 주문 요청 절의 카드 머리는 알림 카드처럼 왼쪽에 신호등과 제목을, 오른쪽 끝에 날짜를 흐린 글씨로 쓴다. 집행 신호등 카드는 설명 상자에서 끝난다. */
+.trade .top.ask > span:first-child { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.trade .top.ask .day { flex: none; font-size: 13px; font-weight: 600; color: var(--hint); }
+.trade.gate { padding-bottom: 14px; }
 .trade .badge { flex: none; padding: 2px 8px; border-radius: 6px; background: rgba(255, 255, 255, .08); font-size: 12px; font-weight: 700; color: var(--hint); }
 .trade .badge.llm { background: color-mix(in srgb, var(--index) 18%, transparent); color: var(--index); }
 .trade-head { display: flex; justify-content: space-between; align-items: center; }
