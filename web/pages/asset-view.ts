@@ -44,6 +44,21 @@ export const assetSignal = (signal, index) => {
   const go = optimizer.color === "green" ? ' go" role="button" tabindex="0' : "";
   return `<div class="signal${go}"><div class="gate"><i class="lamp ${value.color}"></i><div><strong>${name}</strong><p>${assetText(value.reason)}</p></div></div></div>`;
 };
+// 수기 주문 요청 카드. 사용자가 SGOV 투입을 지시한 날 집행 시각(`run_at`) 전까지만 집행 신호등 카드 위에 같은 모양으로 두고, 초록 신호등과
+// "수기 주문 요청" 이름 아래에 SGOV 매도액과 지수마다 투입 몫의 매수액, 집행 시각과 지금의 결정을 한 문단으로 쓴다. 금액은 고른 단위(`unit`)로 쓰고,
+// 원 금액을 요약을 만든 시각의 환율(`rate`)로 달러로 바꾼다. 누르면 수기 요청 블록을 따로 둔 거래 내역 화면을 연다.
+export const assetInstructed = (data, unit) => {
+  const trades = data.trades, request = trades?.request, asked = request?.sectors?.instructed;
+  if (!trades?.instructed || !(asked?.order_count > 0) || Date.now() >= Date.parse(`${request.run_at}:00+09:00`)) return "";
+  const money = (krw) => assetMoney(unit === "KRW" ? krw : krw / data.rate, unit), orders = trades.instructed.orders;
+  const sold = orders.filter((o) => o.symbol === "SGOV" && o.side === "SELL").reduce((sum, o) => sum + o.krw, 0);
+  const shares = Object.keys(INDEX_TITLE).map((key) => [key, orders.filter((o) => o.sector === key && o.side === "BUY").reduce((sum, o) => sum + o.krw, 0)])
+    .filter(([, krw]) => krw > 0).map(([key, krw]) => `${INDEX_TITLE[key]}에 ${money(krw)}`);
+  const decision = data.decisions?.date === request.date ? data.decisions.sectors?.instructed?.decision : null;
+  const state = { approve: "승인했다", cancel: "취소해 집행하지 않는다" }[decision] || "취소하지 않으면 그대로 집행한다";
+  return `<div class="signal go" role="button" tabindex="0"><div class="gate"><i class="lamp green"></i><div><strong>수기 주문 요청</strong>`
+    + `<p>대기자금(SGOV) ${money(sold)}을 팔아 ${shares.join(", ")}을 넣는다. ${request.run_at.slice(11, 16)} 집행이고, ${state}.</p></div></div></div>`;
+};
 // 시각 `time`의 기준 시각 글씨. 요약 절의 그림 카드처럼 "정규장, 2026.11.21. 23:43 KST"로 쓰고, 뉴욕 시각으로 세션을 정해 그 세션의 색으로 칠한다.
 // 04:00~09:30 ET는 프리마켓, 09:30~16:00 ET는 정규장이고, 그 밖은 애프터마켓이다.
 // 선물 시간대 체결가이면(`futures`) 주가 카드처럼 "선물시장, 2026.11.24. 13:05 KST"라고 선물 시간대 색(회색)으로 쓴다. 체결가가 멈춘 휴장이면(`stale`) "휴장"과 지금 시각을 쓴다.
@@ -216,7 +231,7 @@ export function assetPage(page) {
   const chevron = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // 평가 금액의 가림을 벗겼는지(`bare`)는 미니 앱을 닫을 때까지만 기억하고 기기에는 적지 않으므로, 미니 앱을 열 때마다 보이는 채로 시작한다. 평가 금액을 누르면 가리고 다시 누르면 보인다.
   let last = null, bare = true;
-  // 첫 절 내 투자는 보고 있는 리포트 지수의 종목(`sector`)만 모아 평가금 합계와 수익·수익률을 쓰고, 그 아래 그림 카드와 집행 신호등 카드를 둔다.
+  // 첫 절 내 투자는 보고 있는 리포트 지수의 종목(`sector`)만 모아 평가금 합계와 수익·수익률을 쓰고, 그 아래 그림 카드, 수기 주문 요청 카드(그날만), 집행 신호등 카드를 둔다.
   // 제목 오른쪽 금액 단위 단추 옆의 총 자산 단추를 켜면(`whole`), 합계 자리에 두 지수 종목과 그 밖의 종목, 대기자금, 원화·달러 현금을 모두 더한 총 자산을 쓰고,
   // 수익·수익률은 모든 보유 종목의 수익과 매입액으로 쓴다. 값은 계좌 요약을 새로 받을 때(1분마다)마다 다시 쓴다.
   // 둘째 절 상세 보유 종목은 그 종목들의 종목 줄을 쓰고, 그 아래 거래 내역 단추를 둔다.
@@ -237,7 +252,7 @@ export function assetPage(page) {
     const toggle = `<button type="button" class="whole${view.whole ? " on" : ""}" aria-pressed="${view.whole}">총 자산</button>`;
     page.innerHTML = `<h2 class="asset-head">내 투자<span class="tools">${toggle}${assetUnits(unit)}</span></h2><div class="asset-sum${bare ? "" : " veil"}" role="button" tabindex="0"><b class="veiled">평가 금액 보기</b>`
       + `<b>${assetMoney(value, unit)}</b>${change(profit, purchase ? profit / purchase : 0)}</div>`
-      + `${assetSignal(data.trades?.signal, index)}<h2>상세 보유 종목</h2>`
+      + `${assetInstructed(data, unit)}${assetSignal(data.trades?.signal, index)}<h2>상세 보유 종목</h2>`
       + (mine.length ? mine.map((it) => item(it, assetShares(it.quantity))).join("") : `<p class="status">${INDEX_NAME[index]} 종목을 들고 있지 않다.</p>`)
       + `<button type="button" class="asset-trades">거래 내역${chevron}</button><h2>내 계좌</h2>` + assetRow("원화", "주문 가능", assetMoney(accounts.KRW.cash, "KRW")) + assetRow("달러", "주문 가능", assetMoney(accounts.USD.cash, "USD"))
       + (waiting ? item({ ...waiting, name: "대기자금" }, `${waiting.symbol} ${assetShares(waiting.quantity)}`) : "");
