@@ -56,7 +56,8 @@ const instructedText = (data, unit) => {
 // 알림 카드 묶음. 내 투자 큰 값 아래에 카드 한 장씩을 옆으로 이어 놓고, 다음 카드가 오른쪽 끝에 조금 보이게 한다. 순서는 주문 요청, 집행 신호등이다.
 // 주문 요청 카드는 그날 승인 요청이 집행 시각(`run_at`) 전일 때만 두고, 초록 신호등과 "23:30 리밸런싱 주문 요청"처럼 집행 시각을 앞에 붙인 요청 이름 아래에
 // 거래 내역 화면의 그 요청 블록과 같은 설명 문단을 쓴다. 리밸런싱 요청은 블록의 이유(`reason`)를, 수기 요청은 `instructedText`를 쓴다.
-// 집행 신호등 카드는 가장 늦은 날의 게이트 판정(`assetGate`)을 그 색 그대로 쓴다. 카드는 신호등 색과 관계없이 모두 지수색 테두리를 두른다.
+// 집행 신호등 카드는 가장 늦은 날의 게이트 판정(`assetGate`)이 주황이나 빨강일 때만 둔다. 초록이면 주문 요청 카드가 그날 집행을 알린다.
+// 카드는 신호등 색과 관계없이 모두 지수색 테두리를 두른다.
 // 카드를 누르면 주문 요청 절을 맨 위에 둔 거래 내역 화면을 연다. 오른쪽 위 ✕는 결정을 바꾸지 않고 그 카드만 걷으며, 걷은 카드는 날짜와 함께 기기에 남긴다(`asset-asks`).
 const ASKS = "asset-asks";
 export const assetAsks = (data, index, unit) => {
@@ -68,7 +69,7 @@ export const assetAsks = (data, index, unit) => {
     if (trades.instructed && request.sectors?.instructed?.order_count > 0) cards.push([request.date, "instructed", "green", `${at} 수기 주문 요청`, instructedText(data, unit)]);
   }
   const gate = assetGate(trades?.signal, index);
-  if (gate) cards.push([trades.signal.date, `gate-${index}`, gate.color, gate.name, gate.reason]);
+  if (gate && gate.color !== "green") cards.push([trades.signal.date, `gate-${index}`, gate.color, gate.name, gate.reason]);
   const hidden = kept(ASKS) || [], shown = cards.filter(([date, key]) => !hidden.includes(`${date}:${key}`));
   if (!shown.length) return "";
   return '<div class="carousel asks"><div class="track">' + shown.map(([date, key, color, name, text]) =>
@@ -304,7 +305,7 @@ export function assetPage(page) {
   return fill;
 }
 
-// 거래 내역 화면의 주문 요청 절과 거래 내역 절. 주문 요청 절은 맨 위에 그 지수의 집행 신호등 카드를 신호등 색과 관계없이 두고, 그 아래에 요청 블록을 둔다.
+// 거래 내역 화면의 주문 요청 절과 거래 내역 절. 주문 요청 절은 맨 위에 그 지수의 집행 신호등 카드를 주황이나 빨강일 때만 두고, 그 아래에 요청 블록을 둔다.
 // 주문 요청 절의 카드는 모두 알림 카드와 같은 머리(신호등, 제목, 오른쪽 날짜)와 같은 설명 상자를 쓴다. 블록의 출처(`source`)마다 카드 오른쪽 위 스티커 글씨를 두고, 출처가 없는 옛 블록은 스티커를 두지 않는다.
 // 새 출처는 이 표와 서버의 출처 판정(`trades.py`)에만 더한다. 필터는 "전체"와 이 표의 출처 순서다.
 export const TRADE_SOURCE = { llm: "LLM 매수", manual: "일반 매수" };
@@ -428,10 +429,10 @@ export function tradesView(page, index) {
       reason: instructedText(data, unit) } : null;
     const day = (date) => `${assetDay(date)} (${WEEK[new Date(`${date}T12:00:00Z`).getUTCDay()]})`;
     const head = (date, color, name) => `<div class="top ask"><span><i class="lamp ${color}"></i><b>${name}</b></span><span class="day">${day(date)}</span></div>`;
-    // 주문 요청 절 맨 위의 집행 신호등 카드. 신호등 색과 관계없이 그 지수의 값이 있으면 두고, 요청 블록과 같은 머리와 설명 상자를 쓴다.
+    // 주문 요청 절 맨 위의 집행 신호등 카드. 신호등이 주황이나 빨강일 때만 두고, 요청 블록과 같은 머리와 설명 상자를 쓴다. 초록이면 요청 블록이 그날 집행을 알린다.
     const gateCard = () => {
       const gate = assetGate(trades?.signal, index);
-      return gate ? `<div class="trade gate">${head(trades.signal.date, gate.color, gate.name)}<p class="why">${assetText(gate.reason)}</p></div>` : "";
+      return gate && gate.color !== "green" ? `<div class="trade gate">${head(trades.signal.date, gate.color, gate.name)}<p class="why">${assetText(gate.reason)}</p></div>` : "";
     };
     const block = (b, live) => {
       const key = b.source === "instructed" ? "instructed" : index;
