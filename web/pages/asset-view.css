@@ -76,6 +76,12 @@
 .trade .badge { flex: none; padding: 2px 8px; border-radius: 6px; background: rgba(255, 255, 255, .08); font-size: 12px; font-weight: 700; color: var(--hint); }
 .trade .badge.llm { background: color-mix(in srgb, var(--index) 18%, transparent); color: var(--index); }
 .trade-head { display: flex; justify-content: space-between; align-items: center; }
+/* 거래 내역 화면도 주문 요청 절과 거래 내역 절 사이에 다른 페이지(`styles.css`)와 같은 화면 폭 띠를 둔다. 거래 내역 절 제목은 가로로 늘어놓는
+   묶음이라, 띠를 화면 폭 한 줄로 먼저 놓고 제목과 단추를 그 아래 줄로 넘긴다. */
+.trades-page > h2:not(:first-child) { margin-top: 0; }
+.trades-page > h2:not(:first-child)::before { content: ""; display: block; height: 12px; margin: 40px calc(50% - 50vw) 36px; background: var(--band); }
+.trades-page > h2.trade-head:not(:first-child) { flex-wrap: wrap; }
+.trades-page > h2.trade-head:not(:first-child)::before { flex: 0 0 100vw; }
 .trade-head .tools { display: flex; align-items: center; gap: 6px; }
 .trade-head .pick { position: relative; }
 .trade-head .pick > button { display: flex; align-items: center; gap: 3px; height: 26px; padding: 0 8px 0 10px; border: 0; border-radius: 9px; background: rgba(255, 255, 255, .06);
