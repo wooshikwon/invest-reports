@@ -2,10 +2,12 @@ import { life } from "./route";
 // 실시간 값 `premarket`·`afterhours`·`progress`·`index`는 claude-svr가 invest-live Worker(`LIVE_URL`)에 쓰고, Worker가 `GET /` 한 번에 `{ premarket, afterhours, progress, index }`로 돌려주는 값이다. 앱은 `index`를 쓰지 않는다.
 // 값이 없는 이름은 키가 없다. 처음 받을 때 Worker가 답하지 않으면 빈 값으로 보고, 화면은 리포트에 적힌 값으로 그린다. 그 뒤로 답하지 않은 회차는 받아 둔 값을 그대로 둔다.
 // `premarket`은 뉴욕 프리장부터 정규장 마감까지 지수마다 적는 그날 프리장이나 정규장의 마지막 체결가이고, `afterhours`는 정규장 마감 값을 고정한 뒤
-// 애프터장이 끝날 때까지 지수마다 적는 그날 애프터장의 마지막 체결가다. 나스닥 애프터장 값에는 다음 세션 프리장 전까지 나스닥 선물 등락으로 셈한 선물 시간대 값(`futures`)이 붙는다.
+// 애프터장이 끝날 때까지 지수마다 적는 그날 애프터장의 마지막 체결가다. 나스닥 애프터장 값에는 다음 세션 프리장 전까지 나스닥 선물 등락으로 셈한 선물 시간대 값(`futures`)이,
+// 두 지수의 애프터장 값에는 종목의 주간거래 체결가(`overnight`)가 붙는다.
 // 머리 상자, 지도, 주가 카드, 종목 상세의 주가 카드가 쓴다.
 // `progress`는 판단 배치 동안 지수마다 적는 단계와 그 단계에 닿은 시각이다. 판단 없는 날짜 지점의 단계 표시가 쓴다.
-// 지도와 종목 상세는 세션 날짜별 값(`early`·`after`)을 쓴다. 리포트 화면의 머리 상자와 주가 카드는 날짜 지점별 값(`points`)을 쓴다.
+// 지도와 종목 상세는 세션 날짜별 값(`early`·`after`)을 쓴다. `early`는 `premarket` 그대로라, 정규장이 열린 뒤에는 그 세션의 정규장 값(`phase`가 `regular`)이다.
+// 리포트 화면의 머리 상자와 주가 카드는 날짜 지점별 값(`points`)을 쓴다.
 export const LIVE_URL = "https://invest-live.wonwooshik.workers.dev";
 // 실시간 값을 받는 간격(분)이다. Worker 요청 수가 하루 한도에 다가가면 이 값 하나를 3이나 5로 올린다.
 export const LIVE_EVERY = 1;
@@ -47,14 +49,7 @@ const hooks: { hook: Hook; each: boolean; signal: AbortSignal }[] = [];
 let text: string | null = null, found: Live | null = null, asking: Promise<boolean> | null = null, arm = () => {};
 
 const shape = (value: any): Live => {
-  const early = {};
-  Object.entries(value.premarket || {}).forEach(([index, days]: [string, any]) => {
-    early[index] = {};
-    Object.entries(days).forEach(([day, value]: [string, any]) => {
-      if (value.phase !== "regular") return (early[index][day] = value);
-      early[index][day] = value.pre ? { ...value.pre, session: value.session, phase: "pre" } : null;
-    });
-  });
+  const early = value.premarket || {};
   const points = {};
   const at = (index, point) => ((points[index] ??= {})[point] ??= {});
   Object.entries(value.premarket || {}).forEach(([index, days]: [string, any]) => Object.values(days).forEach((v: any) => {
