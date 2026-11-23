@@ -99,7 +99,8 @@ export const GAUGES = {
   // 가로축은 마지막 점 오른쪽 `reach` 거래일까지 담는다. 정규장 다음 세션의 값(`extra`)과 그 값의 날짜 지점(`point`)을 받으면 다음 거래일 자리에 값을 '현재' 표시로 찍고
   // 마지막 점에서 점선으로 잇는다. 세로축은 그 값까지 담는다. '현재' 표시의 색은 `extra`의 세션(`kind`)으로 고른다.
   // 봉 비율과 봉 하나가 묶는 기간과 값 글자(`candle`, `{ ratios, unit, label }`)를 받으면 선 대신 봉을 그리고, 세로축을 봉의 고가와 저가까지 담는다.
-  // 최고·최저 글자는 가장 높은 고가와 가장 낮은 저가를 봉 위아래에 적고, 정규장 다음 세션 값은 다음 거래일이 든 기간의 흐린 잠정 봉(`candleLate`)으로 그린다.
+  // 최고·최저 글자는 가장 높은 고가와 가장 낮은 저가를 봉 위아래에 적고, 정규장 다음 세션 값은 다음 거래일이 든 기간의 잠정 봉(`candleLate`)으로 그린다.
+  // 잠정 봉은 아직 끝나지 않은 정규장 값이면 등락 색, 애프터마켓·주간거래·프리마켓 값이면 흐린 회색이다.
   // 정규장 다음 세션 값이 최저보다 낮거나 최고보다 높으면 최저 글자는 그 값 아래에, 최고 글자는 그 값 위에 두어 점선과 '현재' 표시에 겹치지 않게 한다.
   // 봉 그림의 '현재' 표시는 마지막 봉의 고가 위에 찍는다.
   // `stop`을 받으면 점은 끝까지 그리고 '현재' 표시만 `stop`번 점에 찍는다. 봉 그림이면 그 점이 든 봉의 고가 위에 찍는다. `extra`는 `stop`이 마지막 점일 때만 준다.
@@ -130,7 +131,9 @@ export const GAUGES = {
     });
     s.append(shape("line", { x1: L, x2: R, y1: B, y2: B, stroke: DIMS, "stroke-width": 1 }));
     if (groups) {
-      const late = extra != null && point != null, bars = late ? candleLate(groups, days, candle.unit, extra, point) : groups, centers = drawCandles(g, bars, X, Y, (R - L) / span, R + 3);
+      // 정규장 값의 잠정 봉은 앞 종가를 시가로 보고 등락 색으로, 그 밖의 세션 값은 흐린 회색으로 그린다.
+      const late = extra != null && point != null, live = kind === "regular" ? { close: extra, gray: false } : extra;
+      const bars = late ? candleLate(groups, days, candle.unit, live, point) : groups, centers = drawCandles(g, bars, X, Y, (R - L) / span, R + 3);
       const high = groups.reduce((a, b) => (b[3] > a[3] ? b : a)), lowest = groups.reduce((a, b) => (b[4] < a[4] ? b : a));
       if (marks) [[high, high[3], true], [lowest, lowest[4], false]].forEach(([[a, b], v, up]) => markText(s, X((a + b) / 2), room(v, up), up, 4,
         `${candle.label(v)}${versus(v, points[extremeAt(values, candle.ratios, a, b, up)][0])}`, L, R));
