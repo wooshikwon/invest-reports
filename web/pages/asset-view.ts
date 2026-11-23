@@ -33,32 +33,57 @@ export const assetRemember = (change) => keep("asset-view", { ...assetView(), ..
 // 금액 단위 단추. 칸마다 `data-unit`에 통화를 적고, 고른 칸을 밝게 칠한다.
 export const assetUnits = (unit) => '<div class="seg">' + [["USD", "$"], ["KRW", "원"]].map(([currency, label]) =>
   `<button type="button" data-unit="${currency}"${currency === unit ? ' class="on"' : ""}>${label}</button>`).join("") + "</div>";
-// 집행 신호등 카드. 값(`signal`)은 거래 내역 값의 `signal`이고, 그 지수(`index`)의 값이 없으면 카드를 두지 않는다. 옵티마이저 게이트와
-// 조건부 게이트 가운데 더 묶는 관문(빨강 > 주황 > 초록) 한 줄만 그 관문의 이름, 색, 배치가 쓴 이유로 쓰고, 두 관문의 색이 같으면 옵티마이저 게이트를 쓴다.
-// 옵티마이저 게이트가 초록이면 카드를 단추(`go`)로 만들어, 누르면 그날 집행 요청을 맨 위에 두는 거래 내역 화면을 연다.
-export const assetSignal = (signal, index) => {
+// 집행 신호등. 값(`signal`)은 거래 내역 값의 `signal`이고, 그 지수(`index`)의 값이 없으면 `null`이다. 옵티마이저 게이트와 조건부 게이트 가운데
+// 더 묶는 관문(빨강 > 주황 > 초록) 하나의 이름(`name`), 색(`color`), 배치가 쓴 이유(`reason`)를 돌려주고, 두 관문의 색이 같으면 옵티마이저 게이트를 쓴다.
+const assetGate = (signal, index) => {
   const sector = signal?.sectors?.[index];
-  if (!sector) return "";
+  if (!sector) return null;
   const rank = ["green", "orange", "red"], { optimizer, conditional } = sector;
   const [name, value] = rank.indexOf(conditional.color) > rank.indexOf(optimizer.color) ? ["조건부 게이트", conditional] : ["옵티마이저 게이트", optimizer];
-  const go = optimizer.color === "green" ? ' go" role="button" tabindex="0' : "";
-  return `<div class="signal${go}"><div class="gate"><i class="lamp ${value.color}"></i><div><strong>${name}</strong><p>${assetText(value.reason)}</p></div></div></div>`;
+  return { name, color: value.color, reason: value.reason };
 };
-// 수기 주문 요청 카드. 사용자가 SGOV 투입을 지시한 날 집행 시각(`run_at`) 전까지만 집행 신호등 카드 위에 같은 모양으로 두고, 초록 신호등과
-// "수기 주문 요청" 이름 아래에 SGOV 매도액과 지수마다 투입 몫의 매수액, 집행 시각과 지금의 결정을 한 문단으로 쓴다. 금액은 고른 단위(`unit`)로 쓰고,
-// 원 금액을 요약을 만든 시각의 환율(`rate`)로 달러로 바꾼다. 누르면 수기 요청 블록을 따로 둔 거래 내역 화면을 연다.
-export const assetInstructed = (data, unit) => {
-  const trades = data.trades, request = trades?.request, asked = request?.sectors?.instructed;
-  if (!trades?.instructed || !(asked?.order_count > 0) || Date.now() >= Date.parse(`${request.run_at}:00+09:00`)) return "";
-  const money = (krw) => assetMoney(unit === "KRW" ? krw : krw / data.rate, unit), orders = trades.instructed.orders;
+// 신호등 카드 한 장의 속. 신호등 색(`color`)과 이름(`name`), 한 문단(`text`)을 쓴다.
+const gateBody = (color, name, text) => `<div class="gate"><i class="lamp ${color}"></i><div><strong>${name}</strong><p>${assetText(text)}</p></div></div>`;
+// 수기 요청의 설명 한 문단. SGOV 매도액과 지수마다 투입 몫의 매수액을 고른 단위(`unit`)로 쓰고, 원 금액을 요약을 만든 시각의 환율(`rate`)로 달러로 바꾼다.
+// 알림 카드와 거래 내역 화면의 수기 요청 블록이 같은 문단을 쓴다.
+const instructedText = (data, unit) => {
+  const money = (krw) => assetMoney(unit === "KRW" ? krw : krw / data.rate, unit), orders = data.trades.instructed.orders;
   const sold = orders.filter((o) => o.symbol === "SGOV" && o.side === "SELL").reduce((sum, o) => sum + o.krw, 0);
   const shares = Object.keys(INDEX_TITLE).map((key) => [key, orders.filter((o) => o.sector === key && o.side === "BUY").reduce((sum, o) => sum + o.krw, 0)])
     .filter(([, krw]) => krw > 0).map(([key, krw]) => `${INDEX_TITLE[key]}에 ${money(krw)}`);
-  const decision = data.decisions?.date === request.date ? data.decisions.sectors?.instructed?.decision : null;
-  const state = { approve: "승인했다", cancel: "취소해 집행하지 않는다" }[decision] || "취소하지 않으면 그대로 집행한다";
-  return `<div class="signal go" role="button" tabindex="0"><div class="gate"><i class="lamp green"></i><div><strong>수기 주문 요청</strong>`
-    + `<p>대기자금(SGOV) ${money(sold)}을 팔아 ${shares.join(", ")}을 넣는다. ${request.run_at.slice(11, 16)} 집행이고, ${state}.</p></div></div></div>`;
+  return `대기자금(SGOV) ${money(sold)}을 팔아 ${shares.join(", ")}을 넣는다.`;
 };
+// 거래 내역 화면 주문 요청 절의 집행 신호등 카드. 신호등 색과 관계없이 그 지수의 값이 있으면 둔다.
+export const assetSignal = (signal, index) => {
+  const gate = assetGate(signal, index);
+  return gate ? `<div class="signal">${gateBody(gate.color, gate.name, gate.reason)}</div>` : "";
+};
+// 알림 카드 묶음. 내 투자 큰 값 아래에 카드 한 장씩을 옆으로 이어 놓고, 다음 카드가 오른쪽 끝에 조금 보이게 한다. 순서는 주문 요청, 집행 신호등이다.
+// 주문 요청 카드는 그날 승인 요청이 집행 시각(`run_at`) 전일 때만 두고, 초록 신호등과 "23:30 리밸런싱 주문 요청"처럼 집행 시각을 앞에 붙인 요청 이름 아래에
+// 거래 내역 화면의 그 요청 블록과 같은 설명 문단을 쓴다. 리밸런싱 요청은 블록의 이유(`reason`)를, 수기 요청은 `instructedText`를 쓴다.
+// 집행 신호등 카드는 가장 늦은 날의 게이트 판정(`assetGate`)을 그 색 그대로 쓴다. 카드는 신호등 색과 관계없이 모두 지수색 테두리를 두른다.
+// 카드를 누르면 주문 요청 절을 맨 위에 둔 거래 내역 화면을 연다. 오른쪽 위 ✕는 결정을 바꾸지 않고 그 카드만 걷으며, 걷은 카드는 날짜와 함께 기기에 남긴다(`asset-asks`).
+const ASKS = "asset-asks";
+export const assetAsks = (data, index, unit) => {
+  const trades = data.trades, request = trades?.request, cards = [];
+  if (request && Date.now() < Date.parse(`${request.run_at}:00+09:00`)) {
+    const at = request.run_at.slice(11, 16);
+    const block = request.sectors?.[index]?.order_count > 0 && (trades.sectors?.[index] || []).find((b) => b.date === request.date && b.source === "llm");
+    if (block) cards.push([request.date, index, "green", `${at} 리밸런싱 주문 요청`, block.reason || ""]);
+    if (trades.instructed && request.sectors?.instructed?.order_count > 0) cards.push([request.date, "instructed", "green", `${at} 수기 주문 요청`, instructedText(data, unit)]);
+  }
+  const gate = assetGate(trades?.signal, index);
+  if (gate) cards.push([trades.signal.date, `gate-${index}`, gate.color, gate.name, gate.reason]);
+  const hidden = kept(ASKS) || [], shown = cards.filter(([date, key]) => !hidden.includes(`${date}:${key}`));
+  if (!shown.length) return "";
+  return '<div class="carousel asks"><div class="track">' + shown.map(([date, key, color, name, text]) =>
+    `<div class="slide"><div class="signal" role="button" tabindex="0" data-ask="${date}:${key}">`
+    + '<button type="button" class="hide" aria-label="이 알림 끄기"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">'
+    + '<path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>'
+    + `${gateBody(color, name, text)}</div></div>`).join("") + "</div></div>";
+};
+// 걷은 알림 카드(`날짜:카드`)를 기기의 목록에 더한다. 목록은 최근 30장만 남긴다.
+const hideAsk = (ask) => keep(ASKS, [...(kept(ASKS) || []), ask].slice(-30));
 // 시각 `time`의 기준 시각 글씨. 요약 절의 그림 카드처럼 "정규장, 2026.11.21. 23:43 KST"로 쓰고, 뉴욕 시각으로 세션을 정해 그 세션의 색으로 칠한다.
 // 04:00~09:30 ET는 프리마켓, 09:30~16:00 ET는 정규장이고, 그 밖은 애프터마켓이다.
 // 선물 시간대 체결가이면(`futures`) 주가 카드처럼 "선물시장, 2026.11.24. 13:05 KST"라고 선물 시간대 색(회색)으로 쓴다. 체결가가 멈춘 휴장이면(`stale`) "휴장"과 지금 시각을 쓴다.
@@ -231,7 +256,7 @@ export function assetPage(page) {
   const chevron = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // 평가 금액의 가림을 벗겼는지(`bare`)는 미니 앱을 닫을 때까지만 기억하고 기기에는 적지 않으므로, 미니 앱을 열 때마다 보이는 채로 시작한다. 평가 금액을 누르면 가리고 다시 누르면 보인다.
   let last = null, bare = true;
-  // 첫 절 내 투자는 보고 있는 리포트 지수의 종목(`sector`)만 모아 평가금 합계와 수익·수익률을 쓰고, 그 아래 그림 카드, 수기 주문 요청 카드(그날만), 집행 신호등 카드를 둔다.
+  // 첫 절 내 투자는 보고 있는 리포트 지수의 종목(`sector`)만 모아 평가금 합계와 수익·수익률을 쓰고, 그 아래 알림 카드 묶음(주문 요청과 집행 신호등)과 그림 카드를 둔다.
   // 제목 오른쪽 금액 단위 단추 옆의 총 자산 단추를 켜면(`whole`), 합계 자리에 두 지수 종목과 그 밖의 종목, 대기자금, 원화·달러 현금을 모두 더한 총 자산을 쓰고,
   // 수익·수익률은 모든 보유 종목의 수익과 매입액으로 쓴다. 값은 계좌 요약을 새로 받을 때(1분마다)마다 다시 쓴다.
   // 둘째 절 상세 보유 종목은 그 종목들의 종목 줄을 쓰고, 그 아래 거래 내역 단추를 둔다.
@@ -251,14 +276,15 @@ export function assetPage(page) {
     const item = (it, sub) => assetRow(assetText(it.name), sub, assetMoney(it.value, unit), change(it.profit, it.rate, true));
     const toggle = `<button type="button" class="whole${view.whole ? " on" : ""}" aria-pressed="${view.whole}">총 자산</button>`;
     page.innerHTML = `<h2 class="asset-head">내 투자<span class="tools">${toggle}${assetUnits(unit)}</span></h2><div class="asset-sum${bare ? "" : " veil"}" role="button" tabindex="0"><b class="veiled">평가 금액 보기</b>`
-      + `<b>${assetMoney(value, unit)}</b>${change(profit, purchase ? profit / purchase : 0)}</div>`
-      + `${assetInstructed(data, unit)}${assetSignal(data.trades?.signal, index)}<h2>상세 보유 종목</h2>`
+      + `<b>${assetMoney(value, unit)}</b>${change(profit, purchase ? profit / purchase : 0)}</div>${assetAsks(data, index, unit)}`
+      + `<h2>상세 보유 종목</h2>`
       + (mine.length ? mine.map((it) => item(it, assetShares(it.quantity))).join("") : `<p class="status">${INDEX_NAME[index]} 종목을 들고 있지 않다.</p>`)
       + `<button type="button" class="asset-trades">거래 내역${chevron}</button><h2>내 계좌</h2>` + assetRow("원화", "주문 가능", assetMoney(accounts.KRW.cash, "KRW")) + assetRow("달러", "주문 가능", assetMoney(accounts.USD.cash, "USD"))
       + (waiting ? item({ ...waiting, name: "대기자금" }, `${waiting.symbol} ${assetShares(waiting.quantity)}`) : "");
     roll(page.querySelector(".asset-sum b:not(.veiled)"), `${view.whole ? "whole" : index}-sum-${unit}`);
     const perf = data.performance?.sectors?.[index], cards = assetCards(perf, index, { live: data.live?.time || data.time, summary: data.time, futures: data.live?.futures }, pin, view, remember);
-    if (!cards.length) return page.querySelector(".asset-sum").insertAdjacentHTML("afterend", '<p class="status">그림 값이 아직 없다.</p>');
+    const above = page.querySelector(".asks") || page.querySelector(".asset-sum");
+    if (!cards.length) return above.insertAdjacentHTML("afterend", '<p class="status">그림 값이 아직 없다.</p>');
     const bar = document.createElement("div");
     bar.className = "tabs";
     cards.forEach(([label], i) => {
@@ -267,21 +293,23 @@ export function assetPage(page) {
       bar.appendChild(button);
     });
     const pick = (i) => { [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j)); view.card = i; };
-    const box = slider(cards.map(([, card]) => [card]), page.querySelector(".asset-sum"), { start: Math.min(view.card, cards.length - 1), change: pick, name: "asset-cards", feel: true, home: 0 });
+    const box = slider(cards.map(([, card]) => [card]), above, { start: Math.min(view.card, cards.length - 1), change: pick, name: "asset-cards", feel: true, home: 0 });
     box.prepend(bar);
   };
   page.addEventListener("click", (event) => {
     const unit = event.target.closest("[data-unit]");
     if (unit && unit.dataset.unit !== view.unit) { feelSlide(); view.unit = unit.dataset.unit; remember(); fill(last); }
     if (event.target.closest(".asset-head .whole")) { feelSlide(); view.whole = !view.whole; remember(); fill(last); }
-    if (event.target.closest(".asset-trades, .signal.go")) { feelPress(); visit(key, { trades: key.split("-")[1] }); }
+    const hide = event.target.closest(".asks .hide");
+    if (hide) { feelPress(); hideAsk(hide.closest("[data-ask]").dataset.ask); return fill(last); }
+    if (event.target.closest(".asset-trades, .asks [data-ask]")) { feelPress(); visit(key, { trades: key.split("-")[1] }); }
     const sum = event.target.closest(".asset-sum");
     if (sum) { feelPress(); bare = !bare; sum.classList.toggle("veil", !bare); }
   });
   return fill;
 }
 
-// 거래 내역 화면의 집행 요청 절과 거래 내역 절. 블록의 출처(`source`)마다 카드 오른쪽 위 스티커 글씨를 두고, 출처가 없는 옛 블록은 스티커를 두지 않는다.
+// 거래 내역 화면의 주문 요청 절과 거래 내역 절. 주문 요청 절은 맨 위에 그 지수의 집행 신호등 카드를 신호등 색과 관계없이 두고, 그 아래에 요청 블록을 둔다. 블록의 출처(`source`)마다 카드 오른쪽 위 스티커 글씨를 두고, 출처가 없는 옛 블록은 스티커를 두지 않는다.
 // 새 출처는 이 표와 서버의 출처 판정(`trades.py`)에만 더한다. 필터는 "전체"와 이 표의 출처 순서다.
 export const TRADE_SOURCE = { llm: "LLM 매수", manual: "일반 매수" };
 // 거래 내역 절 제목 오른쪽에 출처 필터 드롭다운과 금액 단위 단추를 둔다. 드롭다운은 고른 필터 이름과 아래 꺽쇠를 쓰고, 누르면 그 아래에 필터 목록을 펼친다.
@@ -401,7 +429,7 @@ export function tradesView(page, index) {
     const open = asking(index) && blocks.find((block) => block.date === asked.date && block.source !== "manual");
     // 사용자가 SGOV 투입을 지시한 날의 수기 요청 블록. 두 지수의 화면에 같은 블록을 두고, 결정은 지수의 리밸런싱과 따로 받는다.
     const instructed = asking("instructed") && trades.instructed ? { date: asked.date, source: "instructed", orders: trades.instructed.orders,
-      reason: `대기자금(SGOV) ${money(trades.instructed.deploy_usd || 0)} 투입. 사용자 지시이고 지수 리밸런싱과 따로 승인한다.` } : null;
+      reason: instructedText(data, unit) } : null;
     const block = (b, live) => {
       const key = b.source === "instructed" ? "instructed" : index;
       const state = live ? ({ approve: "approved", cancel: "rejected" }[decided(key)] || asked.sectors[key].status) : b.state;
@@ -426,7 +454,8 @@ export function tradesView(page, index) {
     const past = blocks.filter((b) => b !== open && (filter === "all" || b.source === filter) && b.date >= period.start && b.date <= period.end);
     // 기간 투자액은 체결한 행만 센다. 체결하지 못한 주문은 금액이 있어도 돈이 나가지 않았다.
     const invested = past.reduce((sum, b) => sum + (b.executions || []).reduce((inner, e) => inner + (e.filled && e.amount != null ? (e.side === "BUY" ? e.amount : -e.amount) : 0), 0), 0);
-    page.innerHTML = (open || instructed ? `<h2>집행 요청</h2>${open ? block(open, true) : ""}${instructed ? block(instructed, true) : ""}` : "")
+    const gate = assetSignal(trades?.signal, index);
+    page.innerHTML = (gate || open || instructed ? `<h2>주문 요청</h2>${gate}${open ? block(open, true) : ""}${instructed ? block(instructed, true) : ""}` : "")
       + `<h2 class="trade-head">거래 내역<div class="tools"><div class="pick"><button type="button" aria-haspopup="listbox" aria-expanded="false">${filters[filter]}${caret}</button>`
       + `<div class="menu" role="listbox">` + Object.entries(filters).map(([name, label]) =>
         `<button type="button" role="option" data-filter="${name}"${name === filter ? ' class="on" aria-selected="true"' : ""}>${label}</button>`).join("") + "</div></div>"
