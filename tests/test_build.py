@@ -150,6 +150,111 @@ def test_progress_runs_for_indexes_without_a_report(worker, monkeypatch, tmp_pat
     assert all(item["step"] == 0 for item in (value or {"indexes": {}})["indexes"].values())
 
 
+def test_progress_counts_the_coordination_stage(worker, monkeypatch, tmp_path):
+    frozen(monkeypatch, "2026-11-23T20:40:00")  # 서울 11/24 10:40
+    folder = tmp_path / "vault" / "routine/invest/2026-11/2026-11-24/nasdaq"
+    (folder / "system").mkdir(parents=True)
+    for offset, name in enumerate(("input-manifest.json", "system/form-draft.md", "scratchpad.md", "system/cards-first.json")):
+        path = folder / name
+        path.write_text("{}", encoding="utf-8")
+        moment = dt.datetime(2026, 11, 24, 10, offset * 10, tzinfo=build.SEOUL).timestamp()
+        build.os.utime(path, (moment, moment))
+    monkeypatch.setattr(build, "published_entries", lambda out: {})
+    monkeypatch.setattr(build, "progress_plan", lambda vault, entries, today: [0])
+    found = build.progress(tmp_path / "vault", tmp_path)["indexes"]["nasdaq"]
+    assert build.PROGRESS_MARKS[found["step"]][0] == "system/cards-first.json"
+    assert found["since"] == "2026-11-24T10:30:00+09:00"
+
+
+def past_session(vault: Path, date: str, coordination: dict[str, str]) -> dict:
+    """지난 세션 하나의 도구 호출 요약과 조정 파일. 10:00에 시작해 11:30에 끝나고 11:40에 리포트를 올렸다."""
+    folder = vault / f"routine/invest/{date[:7]}/{date}/nasdaq"
+    (folder / "system").mkdir(parents=True)
+    calls = [("10:20:00", "Write  ok  /x/system/form-draft.md"), ("10:30:00", "Write  ok  /x/scratchpad.md"),
+             ("11:10:00", "Write  ok  /x/report.md"), ("11:15:00", "Agent[invest-style]  ok  교정"),
+             ("11:20:00", "Agent[invest-image]  ok  그림")]
+    lines = ["# 도구 호출 요약", "# 세션 s", "# 10:00:00 ~ 11:30:00 KST · 호출 5회", ""] + [f"{at}  main  {call}" for at, call in calls]
+    (folder / "system/invest-report-nasdaq-tools.log").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    for name, clock in coordination.items():
+        path = folder / name
+        path.write_text("{}", encoding="utf-8")
+        moment = dt.datetime.fromisoformat(f"{date}T{clock}").replace(tzinfo=build.SEOUL).timestamp()
+        build.os.utime(path, (moment, moment))
+    return {"date": date, "index": "nasdaq", "written": f"{date} 11:40"}
+
+
+def test_progress_plan_measures_the_coordination_stage_from_its_files(tmp_path):
+    vault = tmp_path / "vault"
+    entries = {"a": past_session(vault, "2026-11-20", {"system/cards-first.json": "10:40:00", "system/confirmed-events.json": "10:50:00"})}
+    assert build.progress_plan(vault, entries, dt.date(2026, 11, 24)) == [0, 20, 30, 40, 50, 70, 75, 80, 90, 100]
+
+
+def test_progress_plan_gives_a_session_without_cards_no_coordination_minutes(tmp_path):
+    vault = tmp_path / "vault"
+    entries = {"a": past_session(vault, "2026-11-20", {}),
+               "b": past_session(vault, "2026-11-21", {"system/cards-first.json": "09:50:00"})}
+    assert build.progress_plan(vault, entries, dt.date(2026, 11, 24)) == [0, 20, 30, 30, 30, 70, 75, 80, 90, 100]
+
+
+def test_realized_reads_only_resolved_entries_with_a_branch(tmp_path):
+    vault = tmp_path / "vault"
+    source = build.report_path(vault, dt.date(2026, 11, 20), "biotech")
+    source.parent.mkdir(parents=True)
+    source.with_name("tree.json").write_text(json.dumps({"issues": [
+        {"id": "FF-044-3", "name": "이란 본토 타격", "branches": [{"id": "FF-044-3.b1", "name": "타격 재개"}]},
+        {"id": "FF-046-1", "name": "버텍스 실적", "branches": [{"id": "FF-046-1.b1", "name": "매출 상회"}]}]}, ensure_ascii=False), encoding="utf-8")
+    later = build.report_path(vault, dt.date(2026, 11, 23), "biotech").with_name("tree.json")
+    later.parent.mkdir(parents=True)
+    later.write_text(json.dumps({"resolved": [{"id": "FF-044-3", "dropped": "두 사건으로 나눴다"},
+                                              {"id": "FF-046-1", "branch": "FF-046-1.b1", "outcome": "매출이 컨센서스를 넘었다"}]},
+                                ensure_ascii=False), encoding="utf-8")
+    found = [build.realized(vault, "biotech", source, name, dt.date(2026, 11, 21), dt.date(2026, 11, 24)) for name in ("이란 본토 타격", "버텍스 실적")]
+    assert found == [None, {"id": "FF-046-1", "branch": "매출 상회", "outcome": "매출이 컨센서스를 넘었다"}]
+
+
+def split_vault(vault: Path) -> None:
+    """11/20에 이란 합의(FF-044-3)를 적은 바이오 리포트, 11/21에 그 사안을 새 항목 FF-047의 사안 FF-047-1로 나눈 나무, 11/24에 FF-047-1을 해소한 나무."""
+    def write(day: str, name: str, value) -> None:
+        path = vault / f"routine/invest/2026-11/{day}/biotech/{name}"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(value if isinstance(value, str) else json.dumps(value, ensure_ascii=False), encoding="utf-8")
+
+    origin = {"id": "FF-044-3", "name": "이란 합의 발표", "item": "FF-044", "announced": "2026-11-22 10:00",
+              "branches": [{"id": "FF-044-3.b1", "name": "합의", "outcome": "EV-007-o1"}, {"id": "FF-044-3.b2", "name": "결렬", "outcome": "EV-007-o2"}]}
+    split = {"id": "FF-047-1", "name": "이란 합의 발표", "item": "FF-047", "from": ["FF-044-3"], "announced": "2026-11-22 10:00",
+             "branches": [{"id": "FF-047-1.b1", "name": "합의 서명", "outcome": "EV-007-o1"}, {"id": "FF-047-1.b2", "name": "협상 결렬", "outcome": "EV-007-o2"}]}
+    write("2026-11-20", "tree.json", {"issues": [origin]})
+    write("2026-11-20", "system/issues.json", {"issues": [{"issue": 1, "id": "FF-044", "nodes": ["FF-044"]}]})
+    write("2026-11-21", "tree.json", {"issues": [split]})
+    write("2026-11-21", "system/issues.json", {"issues": [{"issue": 1, "id": "FF-047", "nodes": ["FF-047"]}]})
+    write("2026-11-24", "tree.json", {"issues": [], "resolved": [{"id": "FF-047-1", "branch": "FF-047-1.b1", "outcome": "합의문에 서명했다"}]})
+    write("2026-11-24", "system/issues.json", {"issues": [{"issue": 1, "id": "FF-047", "nodes": ["FF-047"]}]})
+
+
+def test_lineage_joins_a_split_issue_to_its_origin(tmp_path):
+    vault = tmp_path / "vault"
+    split_vault(vault)
+    lineage = build.issue_lineage(vault, "biotech", dt.date(2026, 11, 24))
+    assert build.lineage_items(lineage, "FF-047") == {"FF-047", "FF-044"}
+    assert build.lineage_items(lineage, "FF-044") == {"FF-044"}
+    assert build.origins(lineage, {"FF-047-1"}) == {"FF-047-1", "FF-044-3"}
+    source = build.report_path(vault, dt.date(2026, 11, 20), "biotech")
+    found = build.realized(vault, "biotech", source, "이란 합의 발표", dt.date(2026, 11, 22), dt.date(2026, 11, 24))
+    assert found == {"id": "FF-047-1", "branch": "합의", "outcome": "합의문에 서명했다"}
+
+
+def test_issue_history_follows_the_origin_of_a_split_issue(tmp_path):
+    vault, out = tmp_path / "vault", tmp_path / "out"
+    split_vault(vault)
+    for day in ("20261120", "20261121"):
+        page = out / "r" / f"{day}-biotech" / "report.html"
+        page.parent.mkdir(parents=True)
+        page.write_text(f'<h2 id="상세-이슈-해설">상세 이슈 해설</h2>\n<h3 data-issue="{"FF-044" if day == "20261120" else "FF-047"}">1. 이란</h3>\n<p>{day}</p>\n',
+                        encoding="utf-8")
+    history = build.issue_history(vault, "biotech", dt.date(2026, 11, 24), out)
+    assert [(str(when), number) for when, number, _ in history["FF-047"]] == [("2026-11-20", 1), ("2026-11-21", 1)]
+
+
 def test_rewind_keeps_one_frame_per_point(monkeypatch, tmp_path):
     vault, out = tmp_path / "vault", tmp_path / "out"
     for day, base in (("2026-11-13", "2026-11-12"), ("2026-11-14", "2026-11-13"), ("2026-11-16", "2026-11-13")):
