@@ -69,13 +69,13 @@ export const kindButton = (redraw) => {
 };
 // 기간을 옮기는 그림이 처음과 끝에서 천천히 움직이게 하는 곡선. `t`(0~1)를 받아 0~1을 돌려준다.
 export const ease = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-// 일별 선(`GAUGES.daily`)의 세로 범위 [아래, 위]. `start`번 점부터 보이는 값(봉 그림이면 보이는 봉의 고가와 저가)과 정규장 다음 세션 값(`extra`)을 담고,
+// 일별 선(`GAUGES.daily`)의 세로 범위 [아래, 위]. `start`번 점부터 보이는 값(봉 그림이면 보이는 봉의 고가와 저가)과 정규장 다음 세션 값(`extra`), 봉 그림이면 그 값의 고가·저가(`bar`)를 담고,
 // 최저 글자가 들어가게 최저 값 아래에 20px을 비운다.
-export const dailyBounds = ({ points, extra = null, candle = null, height = FIGURE, start = 0 }) => {
+export const dailyBounds = ({ points, extra = null, bar = null, candle = null, height = FIGURE, start = 0 }) => {
   const T = 22, B = height - 24, i0 = Math.max(0, Math.floor(start)), values = points.map(([, v]) => v);
   const shown = candle ? candleGroups(points.map(([day]) => day), values, candle.ratios, candle.unit, values.length - 1)
     .filter((group) => group[1] >= i0).flatMap((group) => [group[3], group[4]]) : values.slice(i0);
-  const ends = extra == null ? shown : [...shown, extra], top = Math.max(...ends), bottom = Math.min(...ends);
+  const ends = extra == null ? shown : [...shown, extra, ...(candle && bar ? bar.slice(1) : [])], top = Math.max(...ends), bottom = Math.min(...ends);
   return [bottom - (top - bottom) * 20 / (B - T - 20), top];
 };
 export let clips = 0;

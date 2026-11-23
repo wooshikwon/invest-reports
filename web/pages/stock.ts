@@ -59,11 +59,11 @@ function stockDetail(data) {
   }
   backward(["stock", "session"], "시장");
   // 주가 카드는 종가 목록(`closes`)으로 만들고, 카드의 `live(shown)`에 정규장 다음 값을 건넨다. 실시간 사슬이 정규장을 마친 날을 더 담으면 그 종가를 붙인 목록으로 카드를 다시 만든다.
-  const priceCard = (closes) => {
+  const priceCard = (closes, ratios) => {
     const last = closes.length - 1;
     const [day, now] = closes[last], change = (now / closes[last - 1][1] - 1) * 100;
     const label = (v) => `$${Math.round(v).toLocaleString("en-US")}`, points = closes.map(([d, v]) => [d, v, label(v)]);
-    const candles = data.candles?.some(Boolean) ? data.candles : null;
+    const candles = ratios?.some(Boolean) ? ratios : null;
     const SPAN = [...new Set([252, 126, 63].map((days) => Math.min(days, closes.length)))];
     let span = SPAN.length - 1;
     // 그림 높이는 주가 카드의 그림 높이와 같다.
@@ -79,7 +79,8 @@ function stockDetail(data) {
     card.firstChild.append(asof);
     asof.classList.add("kind");
     asof.dataset.kind = "regular";
-    // `later`는 마지막 종가 뒤의 값 {세션(`kind`), 체결가, 시각, 날짜 지점}이고 없으면 null이다. 세션이 `regular`면 아직 끝나지 않은 정규장 값이다.
+    // `later`는 마지막 종가 뒤의 값 {세션(`kind`), 체결가, 시각, 날짜 지점}이고 없으면 null이다. 세션이 `regular`면 아직 끝나지 않은 정규장 값이고,
+    // 그 값의 [시가, 고가, 저가](`bar`)로 잠정 봉을 그린다.
     // `stop`은 그림을 눌러 고른 종가 번호이고, `most()`는 그 종가가 그림 안에 드는 가장 짧은 기간의 번호다.
     let late = asked !== "regular", later = null, stop = last;
     const most = () => { let k = SPAN.length - 1; while (k > 0 && stop < closes.length - SPAN[k]) k--; return k; };
@@ -91,7 +92,8 @@ function stockDetail(data) {
     const begin = (k) => closes.length - SPAN[k];
     const figure = (start) => {
       const shown = extra();
-      return { points, extra: late && shown ? shown[0] : null, point: shown?.[3] ?? null, kind: shown?.[2], reach: shown ? 1 : 0, candle: candle(), height: PLOT, stop, start };
+      return { points, extra: late && shown ? shown[0] : null, point: shown?.[3] ?? null, kind: shown?.[2], bar: late && shown ? later.bar ?? null : null,
+               reach: shown ? 1 : 0, candle: candle(), height: PLOT, stop, start };
     };
     // 그림을 누르면 누른 자리에서 가장 가까운 종가 점(첫 종가 제외)을 고른다. 기간을 옮기는 도중에는 받지 않는다.
     const tappable = (svg) => {
@@ -182,13 +184,16 @@ function stockDetail(data) {
     let made = null, points = null, after = null;
     const show = () => {
       const { regular, late } = chain(points, data.closes, (value) => value.stocks?.[data.symbol] ?? null);
-      const [day] = data.closes[data.closes.length - 1];
-      let closes = data.closes, next = late;
-      if (regular.live && late) closes = [...closes, [regular.date, regular.price]];
-      else if (regular.live) next = { kind: "regular", price: regular.price, time: regular.time, point: regular.date };
+      const [day] = data.closes[data.closes.length - 1], bar = regular.live ? points?.[regular.date]?.regular?.bars?.[data.symbol] ?? null : null;
+      let closes = data.closes, ratios = data.candles, next = late;
+      // 정규장을 마친 날은 그날 시가·고가·저가를 종가 대비 비율로 바꿔 봉 비율 목록에도 붙인다.
+      if (regular.live && late) {
+        closes = [...closes, [regular.date, regular.price]];
+        ratios = ratios && [...ratios, bar ? bar.map((v) => v / regular.price) : null];
+      } else if (regular.live) next = { kind: "regular", price: regular.price, time: regular.time, point: regular.date, bar };
       else if (!late && after != null) next = { kind: "after", price: after, time: afterEnd(day), point: null };
       if (made?.closes.length !== closes.length) {
-        const fresh = priceCard(closes);
+        const fresh = priceCard(closes, ratios);
         made ? made.card.replaceWith(fresh.card) : page.append(fresh.card);
         made = fresh;
       }

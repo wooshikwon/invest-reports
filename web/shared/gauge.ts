@@ -107,12 +107,12 @@ export const GAUGES = {
   // `stop`번 점이 그림 왼쪽 끝 앞이면 '현재' 표시를 찍지 않는다.
   // 그림 왼쪽 끝은 `start`번 점(소수 값이면 두 점 사이)이고, 그 앞 점은 그리지 않는다. 세로 범위(`bounds`, [아래, 위])를 받으면 그 범위로 그리고,
   // 받지 않으면 `dailyBounds`로 정한다. `marks`가 거짓이면 최고·최저 글자를 적지 않는다. 기간을 옮기는 동안 그 사이 그림을 이 세 값으로 그린다.
-  daily({ points, extra = null, point = null, kind = "regular", reach = 0, candle = null, height = FIGURE, stop = points.length - 1, start = 0, bounds = null, marks = true }) {
+  daily({ points, extra = null, point = null, kind = "regular", bar = null, reach = 0, candle = null, height = FIGURE, stop = points.length - 1, start = 0, bounds = null, marks = true }) {
     const L = 4, R = 312, T = 22, B = height - 24, s = frame(height), values = points.map(([, v]) => v), days = points.map(([day]) => day), last = points.length - 1;
     const i0 = Math.max(0, Math.floor(start)), seen = values.slice(i0);
     const groups = candle && candleGroups(days, values, candle.ratios, candle.unit, last).filter((group) => group[1] >= i0);
     const span = Math.max(1, last + reach - start), hi = Math.max(...seen), low = Math.min(...seen);
-    const [lo, top] = bounds ?? dailyBounds({ points, extra, candle, height, start });
+    const [lo, top] = bounds ?? dailyBounds({ points, extra, bar, candle, height, start });
     const X = (i) => L + (R - L) * (i - start) / span, Y = (v) => B - (v - lo) / (top - lo || 1) * (B - T);
     const room = (v, up) => (extra == null ? Y(v) : up ? Math.min(Y(v), Y(extra)) : Math.max(Y(v), Y(extra)));
     // 최고·최저 글자는 그 값 뒤 괄호에 현재가(정규장 다음 세션 값, 없으면 마지막 점의 값)의 그 값 대비 등락률과 그 값이 나온 거래일(`markDay`)을 적는다.
@@ -131,8 +131,9 @@ export const GAUGES = {
     });
     s.append(shape("line", { x1: L, x2: R, y1: B, y2: B, stroke: DIMS, "stroke-width": 1 }));
     if (groups) {
-      // 정규장 값의 잠정 봉은 앞 종가를 시가로 보고 등락 색으로, 그 밖의 세션 값은 흐린 회색으로 그린다.
-      const late = extra != null && point != null, live = kind === "regular" ? { close: extra, gray: false } : extra;
+      // 정규장 값의 잠정 봉은 그날 [시가, 고가, 저가](`bar`, 없으면 앞 종가를 시가로)와 등락 색으로, 그 밖의 세션 값은 흐린 회색으로 그린다.
+      const late = extra != null && point != null;
+      const live = kind === "regular" ? { close: extra, open: bar?.[0] ?? null, high: bar?.[1], low: bar?.[2], gray: false } : extra;
       const bars = late ? candleLate(groups, days, candle.unit, live, point) : groups, centers = drawCandles(g, bars, X, Y, (R - L) / span, R + 3);
       const high = groups.reduce((a, b) => (b[3] > a[3] ? b : a)), lowest = groups.reduce((a, b) => (b[4] < a[4] ? b : a));
       if (marks) [[high, high[3], true], [lowest, lowest[4], false]].forEach(([[a, b], v, up]) => markText(s, X((a + b) / 2), room(v, up), up, 4,

@@ -29,7 +29,8 @@ cron(`~/scripts/cron/invest-live-tick.sh`)이 1분마다 `tick()`을 부른다. 
 
 회차마다 지수(`INDEX_SYMBOLS`)를 야후 spark 묶음 요청 한 번으로 받는다. 선물 시간대에는 선물 심볼도 같은 묶음에 넣는다.
 `index` 값에는 지수마다 마지막 1분봉의 가격과 시각, 그 1분봉을 처음 받은 시각(`loaded`)을 적고, 1분봉 시각이 바뀐 회차에만 쓴다.
-`premarket`의 정규장 값에는 ^NDX·^NBI의 그날 정규장 1분봉 종가로 만든 시가·고가·저가·종가를 앞 세션 지수 종가 대비 비율(`ohlc`)로 적는다.
+`premarket`의 정규장 값에는 ^NDX·^NBI의 그날 정규장 1분봉 종가로 만든 시가·고가·저가·종가를 앞 세션 지수 종가 대비 비율(`ohlc`)로 적고,
+지도 종목마다 그날 정규장의 시가·고가·저가(`bars`, 정규장 첫 회차 체결가와 회차마다 받은 체결가의 최고·최저)를 적는다.
 
 앞 세션·다음 세션 날짜와 정규장 마감 시각은 날짜마다 한 번 `exchange_calendars`에서, 지수 ETF의 앞 세션 종가는 그 세션의 첫 장중 회차에 토스 일봉에서 받아
 `~/data/invest-reports/live/session-{YYYY-MM-DD}.json`에 둔다. 애프터장 회차는 나스닥 ETF의 마지막 체결 시각도 같은 파일에 둔다.
@@ -487,6 +488,11 @@ def assemble(kept: dict, board: dict, trades: dict, end: dt.datetime, span: str,
             value = {name: value[name] for name in ("session", "point", "time", "phase", "ratio", "stocks")}
             if phase == "regular" and (candle := (ohlc or {}).get(index) or (same or {}).get("ohlc")):
                 value["ohlc"] = candle
+            if phase == "regular":
+                # 종목마다 그날 정규장의 [시가, 고가, 저가]. 시가는 정규장 첫 회차의 체결가이고, 고가·저가는 회차마다 받은 체결가로 넓힌다.
+                held = (same or {}).get("bars", {})
+                value["bars"] = {symbol: ([held[symbol][0], max(held[symbol][1], price), min(held[symbol][2], price)] if symbol in held else [price, price, price])
+                                 if price is not None else held[symbol] for symbol, price in value["stocks"].items() if price is not None or symbol in held}
             dawn = before and (before.get("pre") if before.get("phase") == "regular" else {name: before[name] for name in ("time", "ratio", "stocks")})
             if phase == "regular" and dawn:
                 value["pre"] = dawn

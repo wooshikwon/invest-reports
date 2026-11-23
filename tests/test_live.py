@@ -185,6 +185,16 @@ def test_regular_keeps_last_premarket_as_pre(market):
     assert value["pre"] == {"time": "2026-11-19T09:30:00-05:00", "ratio": 1.002, "stocks": {"AAPL": 10.0, "MSFT": 20.0}}
 
 
+def test_regular_value_keeps_stock_bars(market):
+    """정규장 값은 종목마다 [시가, 고가, 저가]를 정규장 첫 회차 체결가에서 시작해 회차마다 넓힌다."""
+    for clock, (aapl, msft) in (("09:31:05", (10.0, 20.0)), ("09:32:05", (12.0, 19.0)), ("09:33:05", (11.0, 21.0))):
+        market.prices = {"QQQ": (501.0, kst("2026-11-19", clock)), "IBB": (100.0, kst("2026-11-19", clock)),
+                         "AAPL": (aapl, kst("2026-11-19", clock)), "MSFT": (msft, kst("2026-11-19", clock)), "AMGN": (30.0, kst("2026-11-19", clock))}
+        written = live.tick(at("2026-11-19", clock))["premarket"]
+    assert written["nasdaq"]["2026-11-19"]["bars"] == {"AAPL": [10.0, 12.0, 10.0], "MSFT": [20.0, 21.0, 19.0]}
+    assert written["biotech"]["2026-11-19"]["bars"] == {"AMGN": [30.0, 30.0, 30.0]}
+
+
 def test_old_dates_are_dropped(market):
     (live.DATA / "premarket.json").write_text('{"nasdaq": {"2026-09-30": {"time": "x"}, "2026-10-01": {"time": "y", "phase": "regular"}}}')
     market.prices = {"QQQ": (501.0, kst("2026-11-19", "05:00:30"))}
