@@ -447,7 +447,7 @@ export function tradesView(page, index) {
         rejected: `${key === "instructed" ? "이 수기 요청은" : "이 지수는"} 집행하지 않는다. ${clock(asked.run_at)} 전까지 다시 승인할 수 있다.` }[state]
           || `${clock(asked.run_at)}까지 취소하지 않으면 그대로 집행한다.`}</p>`
         + `<div class="act"><button type="button" data-decision="cancel"${state === "rejected" ? ' class="on" disabled' : ""}>${state === "rejected" ? "취소함" : "취소"}</button>`
-        + `<button type="button" data-decision="approve" class="go${state === "approved" ? ' on" disabled' : '"'}>${state === "approved" ? "승인함" : "승인"}</button></div>` : "";
+        + `<button type="button" data-decision="approve"${state === "approved" ? ' class="on" disabled' : ""}>${state === "approved" ? "승인함" : "승인"}</button></div>` : "";
       // 주문 요청 절의 블록은 알림 카드와 같은 머리(신호등과 "23:30 리밸런싱 주문 요청" 같은 제목, 오른쪽 날짜)를 쓰고, 지난 블록은 날짜와 출처 스티커를 쓴다.
       const top = live ? head(b.date, "green", `${clock(asked.run_at)} ${key === "instructed" ? "수기" : "리밸런싱"} 주문 요청`)
         : `<div class="top"><b>${day(b.date)}</b>` + (TRADE_SOURCE[b.source] ? `<span class="badge ${b.source}">${TRADE_SOURCE[b.source]}</span>` : "") + "</div>";

@@ -64,7 +64,7 @@
    (목표 배율 − 그 블록 거래 직후 배율)을 쓰고, 주문 이유는 옅은 바탕의 둥근 상자에 담아 블록의 다른 글씨와 가른다. 토스에 낸 주문이 있으면 낸 주문마다, 없으면 보낼 주문을
    종목 줄로 쓴다. 종목 줄은 왼쪽 위에 종목과 그 오른쪽 매수·매도를, 그 아래 수량을 쓰고, 오른쪽 위에 고른 단위의 거래 금액을, 그 아래 낸 주문은 체결하거나 주문한 서울 시각을,
    보낼 주문은 다른 통화의 금액을 쓴다. 체결하지 못한 주문의 금액은 회색으로 쓴다. 집행 시각 전의 주문 요청
-   블록은 거래 내역 절 위 주문 요청 절에 집행 신호등 카드 아래로 따로 두고, 맨 아래에 집행 안내와 취소·승인 단추를 둔다. 고른 결정의 단추는 눌린 모양으로 두고, 집행 시각이 지나면 두 단추를
+   블록은 거래 내역 절 위 주문 요청 절에 집행 신호등 카드 아래로 따로 두고, 맨 아래에 집행 안내와 취소·승인 단추를 둔다. 두 단추는 같은 바탕으로 두고 고른 결정의 단추만 지수색으로 칠하며, 집행 시각이 지나면 두 단추를
    모두 끈다. */
 .trade { margin: 0 0 10px; padding: 14px 16px 6px; border-radius: 14px; background: rgba(255, 255, 255, .05); }
 .trade .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
@@ -146,7 +146,6 @@
 .trade .act { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 10px; }
 .trade .act button { height: 44px; border: 0; border-radius: 10px; background: rgba(255, 255, 255, .08); font: inherit; font-size: 15px; font-weight: 700;
                      color: var(--text); cursor: pointer; }
-.trade .act button.go { background: var(--index-ink); color: var(--bg); }
-.trade .act button.on:not(.go) { background: rgba(255, 255, 255, .16); color: #fff; }
+.trade .act button.on { background: var(--index-ink); color: var(--bg); }
 .trade .act button:disabled { opacity: .4; cursor: default; }
 .trade .act button.on:disabled { opacity: 1; }
