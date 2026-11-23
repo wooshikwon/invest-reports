@@ -379,12 +379,17 @@ export function tradesView(page, index) {
     clearTimeout(timer);
     const unit = view.unit, money = (usd) => assetMoney(unit === "USD" ? usd : usd * data.rate, unit);
     const trades = data.trades, request = trades?.request, now = Date.now();
-    const asked = request && (request.sectors?.[index]?.order_count || 0) > 0 && now < due(request.run_at) ? request : null;
-    const decided = data.decisions?.date === request?.date ? data.decisions.sectors?.[index]?.decision : null;
+    const asking = (key) => request && (request.sectors?.[key]?.order_count || 0) > 0 && now < due(request.run_at);
+    const asked = asking(index) || asking("instructed") ? request : null;
+    const decided = (key) => (data.decisions?.date === request?.date ? data.decisions.sectors?.[key]?.decision : null);
     const blocks = trades?.sectors?.[index] || [];
-    const open = asked && blocks.find((block) => block.date === asked.date && block.source !== "manual");
+    const open = asking(index) && blocks.find((block) => block.date === asked.date && block.source !== "manual");
+    // 사용자가 SGOV 투입을 지시한 날의 수기 요청 블록. 두 지수의 화면에 같은 블록을 두고, 결정은 지수의 리밸런싱과 따로 받는다.
+    const instructed = asking("instructed") && trades.instructed ? { date: asked.date, source: "instructed", orders: trades.instructed.orders,
+      reason: `대기자금(SGOV) ${money(trades.instructed.deploy_usd || 0)} 투입. 사용자 지시이고 지수 리밸런싱과 따로 승인한다.` } : null;
     const block = (b, live) => {
-      const state = live ? ({ approve: "approved", cancel: "rejected" }[decided] || asked.sectors[index].status) : b.state;
+      const key = b.source === "instructed" ? "instructed" : index;
+      const state = live ? ({ approve: "approved", cancel: "rejected" }[decided(key)] || asked.sectors[key].status) : b.state;
       const rows = b.executions?.length
         ? b.executions.map((e) => assetRow(`${e.symbol}${side(e.side)}`, e.quantity != null ? assetShares(e.quantity) : "", e.amount != null ? money(e.amount) : "",
           e.at.slice(11, 16)).replace('"asset-item"', e.filled ? '"asset-item"' : '"asset-item miss"'))
@@ -393,18 +398,20 @@ export function tradesView(page, index) {
           unit === "USD" && o.usd != null ? `약 $${figure(o.usd)}` : assetMoney(o.krw, "KRW"),
           o.usd == null ? "" : unit === "USD" ? assetMoney(o.krw, "KRW") : `약 $${figure(o.usd)}`));
       const act = live ? `<p class="note">${{ approved: `${clock(asked.run_at)}에 집행한다. 그 전까지 취소할 수 있다.`,
-        rejected: `이 지수는 집행하지 않는다. ${clock(asked.run_at)} 전까지 다시 승인할 수 있다.` }[state] || `${clock(asked.run_at)}까지 취소하지 않으면 그대로 집행한다.`}</p>`
+        rejected: `${key === "instructed" ? "이 수기 요청은" : "이 지수는"} 집행하지 않는다. ${clock(asked.run_at)} 전까지 다시 승인할 수 있다.` }[state]
+          || `${clock(asked.run_at)}까지 취소하지 않으면 그대로 집행한다.`}</p>`
         + `<div class="act"><button type="button" data-decision="cancel"${state === "rejected" ? ' class="on" disabled' : ""}>${state === "rejected" ? "취소함" : "취소"}</button>`
         + `<button type="button" data-decision="approve" class="go${state === "approved" ? ' on" disabled' : '"'}>${state === "approved" ? "승인함" : "승인"}</button></div>` : "";
-      return `<div class="trade" data-date="${b.date}"><div class="top"><b>${assetDay(b.date)} (${WEEK[new Date(`${b.date}T12:00:00Z`).getUTCDay()]})</b>`
-        + (TRADE_SOURCE[b.source] ? `<span class="badge ${b.source}">${TRADE_SOURCE[b.source]}</span>` : "") + "</div>"
+      const badge = TRADE_SOURCE[b.source] || (key === "instructed" ? "수기 요청" : "");
+      return `<div class="trade" data-date="${b.date}" data-sector="${key}"><div class="top"><b>${assetDay(b.date)} (${WEEK[new Date(`${b.date}T12:00:00Z`).getUTCDay()]})</b>`
+        + (badge ? `<span class="badge ${b.source}">${badge}</span>` : "") + "</div>"
         + (b.target != null && b.after != null ? `<div class="lev">목표 배율 갭 ${gap(b.target - b.after)}</div>` : "")
         + (b.reason ? `<p class="why">${assetText(b.reason)}</p>` : "") + (rows.length ? `<div class="rows">${rows.join("")}</div>` : "") + act + "</div>";
     };
     const past = blocks.filter((b) => b !== open && (filter === "all" || b.source === filter) && b.date >= period.start && b.date <= period.end);
     // 기간 투자액은 체결한 행만 센다. 체결하지 못한 주문은 금액이 있어도 돈이 나가지 않았다.
     const invested = past.reduce((sum, b) => sum + (b.executions || []).reduce((inner, e) => inner + (e.filled && e.amount != null ? (e.side === "BUY" ? e.amount : -e.amount) : 0), 0), 0);
-    page.innerHTML = (open ? `<h2>집행 요청</h2>${block(open, true)}` : "")
+    page.innerHTML = (open || instructed ? `<h2>집행 요청</h2>${open ? block(open, true) : ""}${instructed ? block(instructed, true) : ""}` : "")
       + `<h2 class="trade-head">거래 내역<div class="tools"><div class="pick"><button type="button" aria-haspopup="listbox" aria-expanded="false">${filters[filter]}${caret}</button>`
       + `<div class="menu" role="listbox">` + Object.entries(filters).map(([name, label]) =>
         `<button type="button" role="option" data-filter="${name}"${name === filter ? ' class="on" aria-selected="true"' : ""}>${label}</button>`).join("") + "</div></div>"
@@ -412,7 +419,7 @@ export function tradesView(page, index) {
       + `<button type="button" class="period" aria-label="조회 기간 바꾸기">${icon}${span(period)}</button></div>`
       + (past.length ? past.map((b) => block(b)).join("") : '<p class="status">거래 내역이 없다.</p>');
     roll(page.querySelector(".trade-sum b"), `${index}-trade-${filter}-${unit}-${period.start}-${period.end}`);
-    if (open) timer = setTimeout(() => render(last), due(asked.run_at) - now + 1000);
+    if (open || instructed) timer = setTimeout(() => render(last), due(asked.run_at) - now + 1000);
   };
   page.addEventListener("click", async (event) => {
     if (event.target.closest(".pick > button")) {
@@ -447,14 +454,14 @@ export function tradesView(page, index) {
     let error = "결정을 적지 못했다. 다시 눌러 달라.";
     try {
       const response = await fetch(`${ASSET_URL}/decide`, { method: "POST", cache: "no-store",
-        body: JSON.stringify({ initData: tg.initData, date: card.dataset.date, sector: index, decision: button.dataset.decision }) });
+        body: JSON.stringify({ initData: tg.initData, date: card.dataset.date, sector: card.dataset.sector, decision: button.dataset.decision }) });
       const answer = await response.json().catch(() => null);
       if (response.ok && answer) return render({ ...last, decisions: answer });
       if (response.status === 403) error = "본인 확인에 실패했다. 미니 앱을 다시 열어 달라.";
       else if (answer?.error) error = `결정을 적지 못했다. ${answer.error}.`;
     } catch {}
     render(last);
-    page.querySelector(`.trade[data-date="${card.dataset.date}"] .note`)?.replaceChildren(error);
+    page.querySelector(`.trade[data-date="${card.dataset.date}"][data-sector="${card.dataset.sector}"] .note`)?.replaceChildren(error);
   });
   return { render, stop: () => { clearTimeout(timer); closer.abort(); shut(); } };
 }
