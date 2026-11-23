@@ -15,9 +15,9 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `이벤트 캘린더` 절에는 앞 리포트들이 적은 이벤트 가운데 리포트 날짜 전에 발표된 이벤트를 모두 넣는다. 리포트가 같은 사안 id의 이벤트를 이미
 적었으면 리포트의 표만 둔다. 발표일마다 그날 이벤트를 적은 가장 최근 리포트의 소제목과 표를 쓰고, 더 최근 리포트가 다른 날로 옮겨 적은
 사안 id의 이벤트는 뺀다. 그 리포트의 사안 나무(`tree.json`)에서 이벤트의 사안 id를 찾아 뒤 사안 나무의 `resolved`가
-그 id로 적은 실제 갈래 줄에 `hit` 이름표를 단다. `resolved`의 갈래는 갈래 id이므로, 표를 쓴 리포트의 사안 나무에서
-그 id의 갈래 이름을 찾아 표의 줄과 잇는다. 갈래 id가 없는 앞 날짜 나무는 사안마다 나무 순서대로 `b1`부터 번호를 붙여
-읽고, 갈래 id가 아닌 `resolved` 갈래는 이름으로 읽는다.
+그 id로 적은 실제 갈래 줄에 `hit` 이름표를 단다. `resolved`에서는 실제 갈래(`branch`)를 적은 항목만 결과 발표로 읽는다.
+`resolved`의 갈래는 갈래 id이므로, 표를 쓴 리포트의 사안 나무에서 그 id의 갈래 이름을 찾아 표의 줄과 잇는다.
+갈래 id가 없는 앞 날짜 나무는 사안마다 나무 순서대로 `b1`부터 번호를 붙여 읽고, 갈래 id가 아닌 `resolved` 갈래는 이름으로 읽는다.
 실제 갈래 줄의 전개 예상 뒤에는 `resolved`의 실제 전개(`outcome`)를 화살표와 함께 붙인다.
 발표일 뒤 첫 리포트에 그 이벤트의 결과를 다룬 이슈가 있으면 실제 갈래 줄에 `리포트 키/이슈 번호`를 `data-result`로 단다.
 결과를 다룬 이슈는 그 리포트 바로 앞 리포트가 이벤트의 사안과 같은 사안으로 보는 노드를 `id`나 노드로 가진 이슈다(`data-event`와 같은 기준).
@@ -56,6 +56,9 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 `nodes`에 오늘 `id`가 든 이슈이고, 내용(`html`)은 그날 공개본 `report.html`의 이슈 조각을 그대로 쓴다. 값에는 오늘을 포함한 모든 날짜의
 날짜(`day`)와 이슈 해설 소제목(`title`)을 날짜 순으로 적고, 오늘 항목의 내용은 비운다. 앞 날짜 이슈가 없는 이슈는 적지 않고, 적을 이슈가 없으면 파일을 쓰지 않는다.
 `invest-reports` 미니 앱은 이 값으로 이슈 그림과 이슈 해설 사이에 오늘부터 앞 날짜 순으로 히스토리 상자를 그리고, 소제목을 누르면 이슈 문단을 그날의 내용으로 바꾼다.
+사안을 나누거나 합쳐 만든 사안은 `from`에 원래 사안 id를 적는다. 이벤트 캘린더와 이슈 히스토리는 이 계보로 날짜를 잇는다(`issue_lineage`).
+앞 리포트의 사안은 그 사안에서 `from`으로 이어진 뒤 사안과 같은 사안이고, 노드(`item`)는 그 항목 사안이 `from`으로 거슬러 오르는 앞 사안의 항목과 같은 사안이다.
+뒤 사안이 `resolved`에 적은 실제 갈래는 앞 사안 갈래 가운데 같은 공통 결과(`outcome`)를 가리키는 갈래로 읽는다.
 번호 붙은 이슈 소제목 뒤에는 리포트 폴더 `assets/issue-{번호}-{순번}.webp`가 있는 그림을 순번대로 한 그림 묶음에 넣는다. 그림은 이슈마다 한 장에서 세 장이다.
 그림마다 위에 `AI 생성 이미지` 표시를 얹고, `system/issue-images.json`에 그 그림의 사진 설명(`caption`)이 있으면 그림 아래 캡션에 쓴다. 그림은 `run-with-notify.sh`가 ⑨의 이슈 이미지 선정 결과로 만든다. 첫 그림의 정사각을 잘라
 `THUMB`px 썸네일 `issue-{번호}-thumb.webp`를 만들어 묶음의 `data-thumb`에 적는다. `invest-reports` 미니 앱은 이슈 목록 상자에 썸네일을 붙이고, 그림이 두 장 이상인 묶음은 넘겨 보는 묶음과 쪽 점으로 그린다.
@@ -107,9 +110,9 @@ live.py는 프리장이 열릴 때부터 정규장이 닫힐 때까지 1분마�
 주가 카드는 위 줄 오른쪽에 `정규장 | 애프터마켓`, `정규장 | 선물시장`, `정규장 | 프리마켓` 가운데 한 쌍의 단추를 두고, 정규장 다음 단추를 고르면 값과 등락률을 회색으로 쓰고
 그림에 그 값을 점선이나 잠정 봉으로 그린다. 잠정 봉은 프리장·선물 시간대·애프터장 값이면 회색이고, 정규장 값이면 `ohlc`로 등락 색을 쓴다.
 날짜 줄의 시각은 값을 받은 시각을 보이는 날짜 0시부터 센 서울 시각으로 쓰므로 `-00:30`처럼 시작할 수 있다.
-지도와 종목 상세 페이지의 주가 카드는 세션 날짜의 값을 쓴다. 지도는 프리장 값이면 단추를 `정규장 | 다음날 프리마켓`으로 바꿔 애프터장 값 자리에
-프리장 체결가와 정규장 종가 대비 등락률을 쓰고, 종목 상세 주가 카드는 `정규장 | 애프터마켓`이나 `정규장 | 프리마켓` 단추를 둔다.
-그 세션 날짜의 정규장 값이 들어오면 두 화면은 단추를 정규장 단추 하나로 바꿔 그 체결가와 앞 세션 종가 대비 등락률을 쓴다. 지도와 두 카드는 처음에 가장 늦은 세션을 고른다.
+지도와 종목 상세 페이지의 주가 카드도 머리 상자·주가 카드와 같은 날짜 지점 사슬을 종목 체결가로 읽는다. 확정 종가 뒤 날짜 지점마다 앞 세션의 애프터장, 주간거래, 프리장,
+정규장 값을 차례로 잇고, 정규장 값이 있으면 그 값이 마지막 정규장이 된다. 정규장 다음 값이 있으면 `정규장 | 애프터마켓·주간거래·프리마켓` 단추 한 쌍을 두고 그 값과
+마지막 정규장 대비 등락률을 쓰며, 없으면 단추 없이 마지막 정규장 값과 앞 종가 대비 등락률을 쓴다. 지도와 두 카드는 처음에 정규장 다음 값을 고른다.
 `afterhours` 값에는 지수마다 뉴욕 세션 날짜를 키로 그날 애프터장의 마지막 체결가를 같은 모양(`ratio`, `stocks`, `time`)으로 적고,
 날짜 지점(`point`)에는 XNYS 달력의 다음 세션 날짜를 적는다.
 live.py가 정규장 마감 값을 고정한 회차부터 애프터장이 닫히는 20:00 ET까지 1분마다 쓰고, 지도 날짜보다 앞 날짜의 값은 지운다.
@@ -117,7 +120,7 @@ live.py가 정규장 마감 값을 고정한 회차부터 애프터장이 닫히
 live.py가 나스닥 애프터장 값에 선물 시간대 값 `futures`를 붙인다. `futures`의 `ratio`는 애프터장 마지막 비율 × NQ=F 등락 비율이고,
 `time`은 NQ=F 마지막 1분봉이 끝난 시각이다. 바이오 값에는 `futures`가 없다.
 같은 시간대에 live.py가 두 지수의 애프터장 값에 지도 종목의 토스 주간거래(블루오션) 체결가 `overnight`(`time`, `stocks`)를 붙인다.
-지도와 종목 상세 페이지는 이 값을 애프터장 값 다음, 프리장 값 앞 세션으로 쓰고 "주간거래"라고 쓴다. 지수 값은 그대로 선물 값을 쓴다.
+지도와 종목 상세 페이지는 이 값을 사슬의 애프터장 값 다음, 프리장 값 앞 세션으로 쓰고 "주간거래"라고 쓴다. 지수 값은 그대로 선물 값을 쓴다.
 `index` 값에는 ^NDX·^NBI·CL=F마다 마지막 1분봉의 가격(`price`)과 시각(`time`), 그 값을 받은 시각(`loaded`)을 적는다. 미니 앱은 이 값을 쓰지 않는다.
 미니 앱의 머리 상자와 주가 카드는 날짜 지점마다 애프터장, 선물 시간대, 프리장, 정규장 순서로 가장 늦은 값을 쓰고, 선물 시간대 값은 "선물시장"이라고 쓴다.
 지도와 종목 상세 페이지는 `r/market.json`의 애프터장 체결가가 아직 없는 종목에 이 체결가를 쓴다.
@@ -152,7 +155,8 @@ cron은 뉴욕 정규장이 닫힌 뒤 한 번 불러 지도와 종목 상세 �
 미니 앱은 `상세 이슈 해설` 절의 이슈 목록 위에 분석 완료 시각을 "11/17 11:43 KST"처럼 적고, 그 시각에는 리포트 항목의 `written`을 쓴다.
 `progress` 값에는 그날 지수 폴더에 판단 배치의 입력(`input-manifest.json`)이 있고 `r/index.json`에 그날 리포트 항목이 아직 없는 지수마다 판단 배치가 닿은 단계(`step`), 그 단계에 닿은 시각(`since`), 배치를 시작한 시각(`start`)을 적는다(`progress`).
 단계는 `PROGRESS_MARKS`의 파일이 그날 지수 폴더에 생긴 차례로 정하고, `plan`에는 지난 `PROGRESS_SESSIONS`개 세션의 도구 호출 요약에서 잰 단계마다 걸린 분의
-중앙값을 시작부터 누적해 적는다(`progress_plan`). cron이 판단 배치 동안 10분마다 부르고, 값이 바뀐 회차만 쓴다.
+중앙값을 시작부터 누적해 적는다(`progress_plan`). ⑥의 공통 사건 조정 단계(`COORDINATION_MARKS`)는 지난 세션의 그 파일이 바뀐 시각으로 잰다.
+cron이 판단 배치 동안 10분마다 부르고, 값이 바뀐 회차만 쓴다.
 미니 앱은 분석 중 스티커에 지금 단계의 누적 분과 그 단계에 머문 분으로 `분석 중 NN%`를 적고, 단계의 몫을 넘기지 않으며 99%에서 멈춘다.
 """
 import argparse
@@ -207,11 +211,15 @@ OIL_TICKER = "CL=F"  # 미국 거시 지표 유가 카드의 WTI 선물 야후 �
 AFTER_OPEN, AFTER_CLOSE = dt.time(16), dt.time(20)  # 뉴욕 애프터장이 열리고 닫히는 시각. 지도와 머리 상자의 애프터장 값은 닫히는 시각까지의 마지막 체결가다
 PREMARKET_OPEN, PREMARKET_CLOSE = dt.time(4), dt.time(9, 30)  # 뉴욕 프리장이 열리고 닫히는 시각. 끝 시각이 닫히는 시각 뒤인 `premarket` 값은 정규장 값이다
 # 판단 배치의 진척률 단계. [단계에 닿으면 그날 지수 폴더에 생기는 파일, 지난 세션 도구 호출 요약에서 그 단계의 첫 Main 호출]이다.
-# 차례로 입력 렌더링, ④ Main 읽기의 결과 초안, ⑥ 판정, ⑧ 리포트, ⑧ 교정, ⑨ 이슈 이미지와 그래프, 세션 끝, 리포트 게시다.
+# 차례로 입력 렌더링, ④ Main 읽기의 결과 초안, ⑥ 판정, ⑥ 공통 사건 조정, ⑥ 조정을 마친 변경안, ⑧ 리포트, ⑧ 교정, ⑨ 이슈 이미지와 그래프, 세션 끝, 리포트 게시다.
 PROGRESS_MARKS = [("input-manifest.json", None), ("system/form-draft.md", r"^Write\s.*/form-draft\.md"), ("scratchpad.md", r"^Write\s.*/scratchpad\.md"),
+                  ("system/cards-first.json", None), ("system/confirmed-events.json", None),
                   ("report.md", r"^Write\s.*/report\.md"), ("system/report-draft.md", r"^Agent\[invest-style\]"),
                   ("system/issue-images.json", r"^Agent\[invest-(image|chart)\]"), ("system/invest-report-{index}-tools.log", None), (None, None)]
 PROGRESS_SESSIONS = 10  # 진척률 단계마다 걸리는 분을 잴 때 쓰는 지난 세션 수
+# ⑥의 공통 사건 조정 단계. 첫 추정 카드를 낸 때와 확정값을 받은 때에 생기는 파일이다. 카드를 낸 배치에만 생기므로,
+# 지난 세션에 그 파일이 없으면 그 단계에 걸린 분을 0으로 잰다.
+COORDINATION_MARKS = ("system/cards-first.json", "system/confirmed-events.json")
 STOCK_IMAGES = Path.home() / "data" / "invest-reports" / "stock-images"  # invest-stock-profile 스킬이 고르고 `profile_store.py --draw`가 그린 대표 이미지
 TICK_STEP = 5  # 예측과 예측과 일정 카드 가로축 날짜의 거래일 간격
 INDICATORS_TITLE = "미국 거시 지표"
@@ -647,7 +655,8 @@ def progress_plan(vault: Path, entries: dict, today: dt.date) -> list[int]:
     """판단 배치가 시작한 뒤 `PROGRESS_MARKS`의 단계마다 그 단계에 닿기까지 걸리는 분을 지난 세션 기록으로 잰다.
 
     세션마다 도구 호출 요약(`system/invest-report-{지수}-tools.log`)의 첫 줄 시각부터 `pattern`에 맞는 첫 Main 호출까지, 세션 끝 시각까지,
-    `r/index.json`의 리포트를 처음 만든 시각(`written`)까지를 잰다. 모든 단계를 지난 세션 가운데 오늘 전 `PROGRESS_SESSIONS`개에서
+    `r/index.json`의 리포트를 처음 만든 시각(`written`)까지를 잰다. `COORDINATION_MARKS`의 단계는 그 세션 동안 파일이 바뀐 시각까지 재고,
+    그 세션 동안 바뀐 파일이 없으면 앞 단계와 같은 시각으로 둔다. 모든 단계를 지난 세션 가운데 오늘 전 `PROGRESS_SESSIONS`개에서
     앞 단계부터 다음 단계까지 걸린 분의 중앙값을 차례로 더한다. 첫 값은 0이고 마지막 값은 리포트 게시까지 걸린 분이다.
     """
     gaps = []
@@ -660,7 +669,14 @@ def progress_plan(vault: Path, entries: dict, today: dt.date) -> list[int]:
             continue
         clock = lambda moment: dt.datetime.fromisoformat(f"{entry['date']}T{moment}")
         calls = [(clock(found[1]), found[2]) for line in lines if (found := re.match(r"(\d\d:\d\d:\d\d)\s+main\s+(.*)", line))]
-        marks = [clock(span[1])] + [next((moment for moment, call in calls if re.search(pattern, call)), None) for _, pattern in PROGRESS_MARKS[1:-2]]
+        marks = [clock(span[1])]
+        for name, pattern in PROGRESS_MARKS[1:-2]:
+            if name in COORDINATION_MARKS:
+                path = log.parents[1] / name
+                moment = dt.datetime.fromtimestamp(path.stat().st_mtime, SEOUL).replace(tzinfo=None) if path.exists() else None
+                marks.append(moment if moment and marks[0] <= moment <= clock(span[2]) else marks[-1])
+            else:
+                marks.append(next((moment for moment, call in calls if re.search(pattern, call)), None))
         marks += [clock(span[2]), dt.datetime.fromisoformat(entry["written"].replace(" ", "T"))]
         if None in marks or marks != sorted(marks):
             continue
@@ -809,23 +825,63 @@ def tree_issues(report: Path) -> dict[str, dict]:
     return {issue["name"]: issue for issue in issues if issue.get("id")}
 
 
+def issue_lineage(vault: Path, index: str, date: dt.date) -> dict[str, dict]:
+    """`date`까지 그 지수 사안 나무에 나온 사안을 사안 id마다. 사안 id는 날짜가 바뀌어도 같은 사안을 가리키므로 가장 늦은 나무의 사안을 둔다."""
+    found: dict[str, dict] = {}
+    for tree in sorted(vault.glob(f"routine/invest/*/*/{index}/tree.json")):
+        name = tree.parent.parent.name
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", name) and name <= f"{date}":
+            found.update({issue["id"]: issue for issue in json.loads(tree.read_text(encoding="utf-8")).get("issues", []) if issue.get("id")})
+    return found
+
+
+def origins(lineage: dict[str, dict], ids: set[str]) -> set[str]:
+    """사안 id들과, 그 사안이 `from`으로 거슬러 오르는 앞 사안 id."""
+    found, stack = set(), list(ids)
+    while stack:
+        current = stack.pop()
+        if current not in found:
+            found.add(current)
+            stack += lineage.get(current, {}).get("from", [])
+    return found
+
+
+def lineage_items(lineage: dict[str, dict], item: str) -> set[str]:
+    """노드(`item`)와, 그 항목 사안이 `from`으로 거슬러 오르는 앞 사안의 항목."""
+    ids = origins(lineage, {key for key, issue in lineage.items() if issue.get("item") == item})
+    return {item} | {lineage[key]["item"] for key in ids if lineage.get(key, {}).get("item")}
+
+
 def realized(vault: Path, index: str, source: Path, name: str, day: dt.date, date: dt.date) -> dict | None:
     """`source` 리포트의 사안 나무에서 이벤트의 사안을 찾고, 발표일 다음 날부터 리포트 날짜까지의
-    사안 나무 `resolved`에서 그 id의 항목을 찾는다. 항목의 `branch`는 `source` 나무의 갈래 이름으로 바꿔 돌려준다.
-    아직 적히지 않았으면 None이다."""
+    사안 나무 `resolved`에서 그 사안이나 그 사안에서 `from`으로 이어진 뒤 사안으로 실제 갈래(`branch`)를 적은 항목을 찾는다.
+    항목의 `branch`는 `source` 나무의 갈래 이름으로 바꿔 돌려준다. 뒤 사안의 갈래는 같은 공통 결과(`outcome`)를 가리키는 `source` 갈래의 이름이다.
+    아직 적히지 않았거나 뒤 사안의 갈래와 같은 공통 결과를 가리키는 `source` 갈래가 없으면 None이다."""
     issue = tree_issues(source).get(name)
     if issue is None:
         return None
+
+    def outcomes(branch: dict) -> frozenset:
+        target = branch.get("outcome")
+        return frozenset([target] if isinstance(target, str) else target or [])
+
     names = {branch["id"]: branch["name"] for branch in issue.get("branches", [])}
+    shared = {outcomes(branch): branch["name"] for branch in issue.get("branches", []) if branch.get("outcome")}
+    lineage = issue_lineage(vault, index, date)
     for offset in range(1, (date - day).days + 1):
         tree = report_path(vault, day + dt.timedelta(days=offset), index).with_name("tree.json")
         if not tree.is_file():
             continue
         for entry in json.loads(tree.read_text(encoding="utf-8")).get("resolved", []):
+            if not entry.get("branch"):
+                continue
             if entry.get("id") == issue["id"]:
-                if "branch" in entry:
-                    entry["branch"] = names.get(entry["branch"], entry["branch"])
-                return entry
+                return {**entry, "branch": names.get(entry["branch"], entry["branch"])}
+            if issue["id"] in origins(lineage, {entry.get("id")}):
+                later = {branch["id"]: branch for branch in lineage.get(entry["id"], {}).get("branches", [])}
+                found = shared.get(outcomes(later.get(entry["branch"], {})))
+                if found:
+                    return {**entry, "branch": found}
     return None
 
 
@@ -844,8 +900,9 @@ def past_events(vault: Path, index: str, date: dt.date) -> tuple[str, dict[str, 
     """
     current = report_path(vault, date, index)
     issues = tree_issues(current)
-    seen = {issues[name]["id"] for _, name, _ in event_items(current.read_text(encoding="utf-8"), date)
-            if name in issues}
+    lineage = issue_lineage(vault, index, date)
+    seen = origins(lineage, {issues[name]["id"] for _, name, _ in event_items(current.read_text(encoding="utf-8"), date)
+                             if name in issues})
     found: dict[dt.date, list[tuple[Path, str, str]]] = {}
     for source in reports(vault, index, date - dt.timedelta(days=1)):
         ids = {name: issue["id"] for name, issue in tree_issues(source).items()}
@@ -854,7 +911,7 @@ def past_events(vault: Path, index: str, date: dt.date) -> tuple[str, dict[str, 
             if day < date and day not in found and ids.get(name) not in seen:
                 latest.setdefault(day, []).append((source, name, chunk))
         found.update(latest)
-        seen |= set(ids.values())
+        seen |= origins(lineage, set(ids.values()))
     blocks, branches = [], {}
     for day, source, name, chunk in ((day, *item) for day in sorted(found) for item in found[day]):
         entry = realized(vault, index, source, name, day, date)
@@ -1360,8 +1417,9 @@ def result_issue(vault: Path, index: str, source: Path, name: str, day: dt.date,
     if not bundles.is_file() or not previous:
         return None
     same = linked_nodes(previous[0], item)
+    lineage = issue_lineage(vault, index, dt.date.fromisoformat(target.parent.parent.name))
     for bundle in json.loads(bundles.read_text(encoding="utf-8"))["issues"]:
-        if same & {bundle["id"], *bundle["nodes"]}:
+        if same & set().union(*(lineage_items(lineage, node) for node in {bundle["id"], *bundle["nodes"]})):
             return f"{target.parent.parent.name.replace('-', '')}-{index}/{bundle['issue']}"
     return None
 
@@ -1375,6 +1433,7 @@ def issue_events(vault: Path, index: str, day: dt.date) -> dict[int, list[tuple[
     source = previous[0]
     since = dt.date.fromisoformat(source.parent.parent.name)
     items = tree_issues(source)
+    lineage = issue_lineage(vault, index, day)
     found: dict[int, list[tuple[str, str | None]]] = {}
     for when, name, chunk in event_items(source.read_text(encoding="utf-8"), since):
         item = items.get(name, {}).get("item")
@@ -1384,19 +1443,21 @@ def issue_events(vault: Path, index: str, day: dt.date) -> dict[int, list[tuple[
         level = LEVELS.get(tag.group(1)) if tag else None
         same = linked_nodes(source, item)
         for bundle in json.loads(bundles.read_text(encoding="utf-8"))["issues"]:
-            if same & {bundle["id"], *bundle["nodes"]}:
+            if same & set().union(*(lineage_items(lineage, node) for node in {bundle["id"], *bundle["nodes"]})):
                 found.setdefault(bundle["issue"], []).append((name, level))
     return found
 
 
 def issue_history(vault: Path, index: str, day: dt.date, out: Path) -> dict[str, list[tuple[dt.date, int, str]]]:
-    """오늘 이슈 `id`마다, 그 `id`를 노드로 묶은 앞 날짜 이슈의 날짜와 이슈 번호와 공개본 이슈 조각을 날짜 순으로.
+    """오늘 이슈 `id`마다, 그 `id`나 그 항목의 계보(`lineage_items`)에 든 항목을 노드로 묶은 앞 날짜 이슈의 날짜와 이슈 번호와 공개본 이슈 조각을 날짜 순으로.
     앞 리포트에서 옮겨 온 앞 날짜 이슈는 처음 쓴 날짜의 이슈와 같은 조각이므로 넣지 않고, 오늘 옮겨 온 이슈는 처음 쓴 날짜의 이슈를 넣지 않는다."""
     bundles = report_path(vault, day, index).parent / "system" / "issues.json"
     if not bundles.is_file():
         return {}
     today = json.loads(bundles.read_text(encoding="utf-8"))["issues"]
     history = {bundle["id"]: [] for bundle in today}
+    lineage = issue_lineage(vault, index, day)
+    family = {issue: lineage_items(lineage, issue) for issue in history}
     carried = {bundle["id"]: bundle["carry"]["date"] for bundle in today if "carry" in bundle}
     for source in sorted(vault.glob(f"routine/invest/*/*/{index}/system/issues.json")):
         name = source.parent.parent.parent.name
@@ -1415,7 +1476,7 @@ def issue_history(vault: Path, index: str, day: dt.date, out: Path) -> dict[str,
             if "carry" in bundle:
                 continue
             for issue in history:
-                if issue in bundle["nodes"] and bundle["id"] in segments and carried.get(issue) != name:
+                if family[issue] & set(bundle["nodes"]) and bundle["id"] in segments and carried.get(issue) != name:
                     history[issue].append((past, bundle["issue"], segments[bundle["id"]]))
     return history
 

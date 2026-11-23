@@ -6,17 +6,17 @@ import { life } from "./route";
 // 두 지수의 애프터장 값에는 종목의 주간거래 체결가(`overnight`)가 붙는다.
 // 머리 상자, 지도, 주가 카드, 종목 상세의 주가 카드가 쓴다.
 // `progress`는 판단 배치 동안 지수마다 적는 단계와 그 단계에 닿은 시각이다. 판단 없는 날짜 지점의 단계 표시가 쓴다.
-// 지도와 종목 상세는 세션 날짜별 값(`early`·`after`)을 쓴다. `early`는 `premarket` 그대로라, 정규장이 열린 뒤에는 그 세션의 정규장 값(`phase`가 `regular`)이다.
-// 리포트 화면의 머리 상자와 주가 카드는 날짜 지점별 값(`points`)을 쓴다.
+// 리포트 화면의 머리 상자와 주가 카드, 지도, 종목 상세는 모두 날짜 지점별 값(`points`)을 쓴다. 지수는 비율(`ratio`)로, 지도와 종목 상세는 종목 체결가(`stocks`)로
+// 같은 사슬(애프터마켓 → 선물시장·주간거래 → 프리마켓 → 정규장)을 읽는다. 종목의 사슬은 `chain`이 만든다.
 export const LIVE_URL = "https://invest-live.wonwooshik.workers.dev";
 // 실시간 값을 받는 간격(분)이다. Worker 요청 수가 하루 한도에 다가가면 이 값 하나를 3이나 5로 올린다.
 export const LIVE_EVERY = 1;
 // 서버는 매 분 0초에 값을 새로 쓰므로, 앱은 간격의 정시에서 3초 뒤에 받는다.
 const LATE = 3e3;
 
-// `points`는 지수마다 날짜 지점(`point`)별로 묶은 값 `{ after, futures, pre, regular }`이다. 지점 N의 `after`는 N 앞 세션의 애프터장 값, `futures`는 그 뒤 선물 시간대 값이고,
-// `pre`는 N의 프리장 값, `regular`는 N의 정규장 값(`ohlc` 포함)이다.
-export type Live = { early: Record<string, any>; after: Record<string, any>; progress: Record<string, any>; points: Record<string, any> };
+// `points`는 지수마다 날짜 지점(`point`)별로 묶은 값 `{ after, futures, pre, regular }`이다. 지점 N의 `after`는 N 앞 세션의 애프터장 값(종목 주간거래 값 `overnight` 포함),
+// `futures`는 그 뒤 나스닥 선물 값이고, `pre`는 N의 프리장 값, `regular`는 N의 정규장 값(`ohlc` 포함)이다. 값마다 앞 세션 날짜(`session`)가 있다.
+export type Live = { progress: Record<string, any>; points: Record<string, any> };
 type Hook = (found: Live) => void;
 
 // 지금부터 다음 `every`분 간격 정시 3초 뒤까지 남은 밀리초다. 간격은 1970년 1월 1일 0시부터 세므로 1·3·5분 간격의 정시는 매시 정각에서 시작한다.
@@ -49,7 +49,6 @@ const hooks: { hook: Hook; each: boolean; signal: AbortSignal }[] = [];
 let text: string | null = null, found: Live | null = null, asking: Promise<boolean> | null = null, arm = () => {};
 
 const shape = (value: any): Live => {
-  const early = value.premarket || {};
   const points = {};
   const at = (index, point) => ((points[index] ??= {})[point] ??= {});
   Object.entries(value.premarket || {}).forEach(([index, days]: [string, any]) => Object.values(days).forEach((v: any) => {
@@ -59,12 +58,12 @@ const shape = (value: any): Live => {
       if (v.pre) at(index, v.point).pre = { ...v.pre, session: v.session, phase: "pre", point: v.point };
     } else at(index, v.point).pre = v;
   }));
-  Object.entries(value.afterhours || {}).forEach(([index, days]: [string, any]) => Object.values(days).forEach((v: any) => {
+  Object.entries(value.afterhours || {}).forEach(([index, days]: [string, any]) => Object.entries(days).forEach(([day, v]: [string, any]) => {
     if (!v?.point) return;
-    at(index, v.point).after = v;
-    if (v.futures) at(index, v.point).futures = { ...v.futures, point: v.point };
+    at(index, v.point).after = { ...v, session: day };
+    if (v.futures) at(index, v.point).futures = { ...v.futures, point: v.point, session: day };
   }));
-  return { early, after: value.afterhours || {}, progress: value.progress || {}, points };
+  return { progress: value.progress || {}, points };
 };
 
 // `GET /`을 한 번 부른다. 받은 본문이 앞 회차와 같거나(304를 받은 브라우저는 저장해 둔 같은 본문을 건넨다) Worker가 답하지 않았으면 거짓을 돌려준다.
@@ -83,6 +82,28 @@ const ask = () => (asking ||= fetch(`${LIVE_URL}/`, { cache: "no-cache" })
     found = shape(value);
     return true;
   }));
+
+// 종목 하나의 실시간 사슬. 지수 화면의 사슬(`outlook.ts` `sessions`)과 같은 규칙으로, 확정 종가(`closes`, 오름차순 [날짜, 가격]) 뒤의 날짜 지점마다
+// 앞 세션의 애프터장 값, 그 값에 붙은 주간거래 값, 프리장 값, 정규장 값을 차례로 읽는다. 값은 그 값의 앞 세션(`session`)이 사슬의 마지막 정규장 날짜일 때만 잇는다.
+// 정규장 값이 있으면 그 값이 사슬의 새 마지막 정규장(`live`)이 되고, 없으면 사슬이 끝난다. `read(value)`는 그 값에서 이 종목의 체결가(없으면 null)를 꺼낸다.
+// `regular`는 마지막 정규장 {날짜, 가격, 앞 종가, 시각(실시간 값이면), 실시간 값인지}이고, `late`는 그 뒤 가장 늦은 값 {세션, 가격, 시각, 날짜 지점}이며 없으면 null이다.
+export const chain = (points: Record<string, any> | null | undefined, closes: [string, number][], read: (value: any) => number | null) => {
+  const [date, price] = closes[closes.length - 1], prev = closes.length > 1 ? closes[closes.length - 2][1] : null;
+  let regular = { date, price, prev, time: null as string | null, live: false }, late = null as null | { kind: string; price: number; time: string; point: string };
+  for (const point of Object.keys(points || {}).sort()) {
+    if (point <= regular.date) continue;
+    const rec = points[point], next = (value: any) => value?.session === regular.date;
+    for (const [kind, value, owner] of [["after", rec.after, rec.after], ["overnight", rec.after?.overnight, rec.after], ["pre", rec.pre, rec.pre]] as [string, any, any][]) {
+      const found = value && next(owner) ? read(value) : null;
+      if (found != null) late = { kind, price: found, time: value.time, point };
+    }
+    const found = next(rec.regular) ? read(rec.regular) : null;
+    if (found == null) break;
+    regular = { date: point, price: found, prev: regular.price, time: rec.regular.time, live: true };
+    late = null;
+  }
+  return { regular, late };
+};
 
 // 실시간 값을 쓰는 리포트(가장 늦은 리포트)를 보는 동안에만 정시마다 받는다. 지난 리포트(`past`)는 연 때 한 번만 받는다.
 const live = () => hooks.length > 0 && !document.documentElement.classList.contains("past");

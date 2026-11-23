@@ -120,7 +120,7 @@ function reportPage(body, listing, cards, history, given) {
     marketed.then(({ map }) => {
       if (signal.aborted) return;
       if (!map?.[index]?.stocks.length) return glance.remove();
-      indexMap(glance, map[index], date, (hook) => subscribe((found) => hook(found.early[index]?.[date], found.after[index]), true));
+      indexMap(glance, map[index], date, (hook) => subscribe((found) => hook(found.points[index]), true));
     });
   }
   issueCharts();
