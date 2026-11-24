@@ -97,7 +97,7 @@ export const GAUGES = {
   // 기간 안 최고·최저 점에 점을 찍어 글자를 적고, 오늘 점에는 '현재' 표시(`nowMark`)를 찍는다. 세로축은 값의 최저에서 최고까지이고,
   // 최저 글자가 들어가게 최저 점 아래에 20px을 비운다. 그림 높이(`height`)를 받으면 가로축을 그 높이의 24px 위에 긋는다.
   // 가로축은 마지막 점 오른쪽 `reach` 거래일까지 담는다. 정규장 다음 세션의 값(`extra`)과 그 값의 날짜 지점(`point`)을 받으면 다음 거래일 자리에 값을 '현재' 표시로 찍고
-  // 마지막 점에서 점선으로 잇는다. 세로축은 그 값까지 담는다. '현재' 표시의 색은 `extra`의 세션(`kind`)으로 고른다.
+  // 마지막 점에서 잇는다. 정규장 값은 종가 선과 같은 실선으로, 그 밖의 세션 값은 점선으로 잇는다. 세로축은 그 값까지 담는다. '현재' 표시의 색은 `extra`의 세션(`kind`)으로 고른다.
   // 봉 비율과 봉 하나가 묶는 기간과 값 글자(`candle`, `{ ratios, unit, label }`)를 받으면 선 대신 봉을 그리고, 세로축을 봉의 고가와 저가까지 담는다.
   // 최고·최저 글자는 가장 높은 고가와 가장 낮은 저가를 봉 위아래에 적고, 정규장 다음 세션 값은 다음 거래일이 든 기간의 잠정 봉(`candleLate`)으로 그린다.
   // 잠정 봉은 아직 끝나지 않은 정규장 값이면 등락 색, 애프터마켓·주간거래·프리마켓 값이면 흐린 회색이다.
@@ -119,6 +119,8 @@ export const GAUGES = {
     // 현재가가 그 값이면 괄호에 거래일만 적는다. 봉 그림이면 거래일은 그 봉 안에서 고가나 저가가 나온 날이다(`extremeAt`).
     const now = extra ?? values[last], versus = (v, day) => ` (${now === v ? "" : `${signed((now / v - 1) * 100, 1)}%, `}${markDay(day)})`;
     // 왼쪽 끝에 걸친 선과 봉은 그림 왼쪽 끝에서 자르고, 덧붙인 잠정 봉이 오른쪽 끝에서 3px까지 나가므로 그 3px도 그린다.
+    // 종가 선은 담은 기간이 길수록 가늘게 긋는다. 정규장 값을 잇는 선도 같은 굵기다.
+    const width = 1.4 - .4 * Math.max(0, Math.min(1, (last - start - 63) / 693));
     const clipId = `daily-clip-${nextClip()}`, clip = shape("clipPath", { id: clipId });
     clip.append(shape("rect", { x: L, y: 0, width: R - L + 3, height: B }));
     s.append(clip);
@@ -143,14 +145,16 @@ export const GAUGES = {
       return s;
     } else {
       g.append(shape("path", { d: `M${seen.map((v, k) => `${X(i0 + k)} ${Y(v)}`).join("L")}`, fill: "none", stroke: PRICE,
-                               "stroke-width": 1.4 - .4 * Math.max(0, Math.min(1, (last - start - 63) / 693)), "stroke-linejoin": "round" }));
+                               "stroke-width": width, "stroke-linejoin": "round" }));
       if (marks) [[i0 + seen.indexOf(hi), true], [i0 + seen.indexOf(low), false]].forEach(([i, up]) => {
         s.append(shape("circle", { cx: X(i), cy: Y(values[i]), r: 2.5, fill: PRICE }));
         markText(s, X(i), room(values[i], up), up, 6, `${points[i][2]}${versus(values[i], points[i][0])}`, L, R);
       });
     }
     const [end, ahead] = extra != null ? [extra, 1] : [values[stop], 0];
-    if (extra != null) {
+    if (extra != null && kind === "regular") {
+      s.append(shape("path", { d: `M${X(last)} ${Y(values[last])}L${X(last + ahead)} ${Y(end)}`, fill: "none", stroke: PRICE, "stroke-width": width, "stroke-linecap": "round" }));
+    } else if (extra != null) {
       s.append(shape("path", { d: `M${X(last)} ${Y(values[last])}L${X(last + ahead)} ${Y(end)}`, fill: "none", stroke: PRICE, "stroke-width": 1.4, "stroke-dasharray": "2 2" }));
       s.append(shape("circle", { cx: X(last), cy: Y(values[last]), r: 2, fill: PRICE }));
     }
