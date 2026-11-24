@@ -136,9 +136,9 @@ const stamp = (time, futures) => {
 // 최신 날짜 점의 고정 배율·판단 값은 기준 배율과 목표 배율을 그대로 들고 있다고 본 값이다. Worker가 판단 값을 셈하지 못하면 판단 선은 마지막 정산일에서 끝난다.
 // 최신 날짜 점의 값이 정규장이 아닌 세션(애프터마켓, 주간거래, 프리마켓)의 체결가로 셈한 값이면, 주가 카드처럼 마지막 정산일에서 그 점까지를 점선으로 잇고 그 점의 '현재' 표시를 그 세션 색으로 찍는다.
 // 수익률 카드의 기준 시각은 최신 날짜 점이 있으면 체결가 시각, 없으면 마지막 거래일의 정규장 종가 시각이다.
-// 배율 카드는 이름 줄 오른쪽에 목표 배율을, 큰 값에 현재 배율을 주황 글씨로 쓴다. 현재 배율(`leverage.current`)은 내 자산 페이지가 Worker가 실시간 체결가로 다시 평가한
+// 배율 카드는 이름 줄 오른쪽에 목표 배율을, 큰 값에 현재 배율을 흰 글씨로 쓴다. 현재 배율(`leverage.current`)은 내 자산 페이지가 Worker가 실시간 체결가로 다시 평가한
 // 그 지수 종목의 평가액으로 셈한 값이므로, 기준 시각은 수익률 카드의 최신 날짜 점과 같은 체결가 시각이다. 그림에는 오늘 가격 경로들의 배율 분포(지수색 면)와 이슈가 없을 때의 분포(회색 면)를
-// 배율 축에 그리고, 기준 배율에 회색 점선, 목표 배율에 지수색 실선, 현재 배율에 주황 실선을 긋는다. 수익률 카드의 집행 선은 다른 페이지의 가격 선과 같은 흰색(`PRICE`)이다.
+// 배율 축에 그리고, 기준 배율에 회색 점선, 목표 배율에 지수색 실선, 현재 배율에 흰 실선을 긋는다. 현재 배율 선과 수익률 카드의 집행 선은 다른 페이지의 가격 선과 같은 흰색(`PRICE`)이다.
 // 누적 수익률·초과 수익률 카드는 그림을 누르면 누른 가로 자리에서 가장 가까운 날짜 점으로 '현재' 표시(`nowMark`)를 옮기고, 큰 값을 그 점의 값으로,
 // 기준 시각을 그날 정규장 종가 시각으로 바꾼다. 선은 줄이지 않는다. 고른 점이 첫날이면 큰 값에 "기록 없음"을 쓰고, 가장 늦은 점을 누르면 처음 상태로 돌아간다.
 // 두 카드는 같은 날짜를 함께 고르고, 고른 날짜(`pin.day`)는 호출하는 쪽이 들고 있어 카드를 다시 만들어도 이어진다. 가장 늦은 점을 고르면 `pin.day`를 비워 새 최신 점을 따른다.
@@ -155,7 +155,7 @@ const dietz = (book, flows) => {
   });
 };
 export function assetCards(perf, index, times = {}, pin = { day: null }, view = { judge: true, money: false, since: null }, remember = () => {}) {
-  const W = 320, H = 236, B = 212, L = 6, R = W - 6, T = 22, color = indexInk(W), NOW = PRICE, BASE = "#A7ABB0", LEVER = "#FF9F1C";
+  const W = 320, H = 236, B = 212, L = 6, R = W - 6, T = 22, color = indexInk(W), NOW = PRICE, BASE = "#A7ABB0";
   const big = (text, unit) => [text, Object.assign(document.createElement("small"), { textContent: unit })];
   // 카드 틀에 이름 줄을 더한다. 이름 줄이 같은 높이를 차지해 카드를 넘겨도 값과 그림이 같은 높이에 있다.
   const card = (slot) => {
@@ -175,7 +175,7 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
     c.value.className = "";
     c.head("", lev.current == null ? "기록 없음" : big(lev.current.toFixed(3), "배"), stamp(times.live, times.futures));
     c.side.textContent = `목표 ${lev.target.toFixed(3)}배`;
-    c.value.style.color = lev.current == null ? DIMS : LEVER;
+    c.value.style.color = lev.current == null ? DIMS : "";
     const xs = Array.from({ length: n }, (_, i) => lev.anchor * (1 + lev.low + (lev.high - lev.low) * i / (n - 1)));
     const X = (v) => Math.min(R, Math.max(L, L + (v - xs[0]) / (xs[n - 1] - xs[0]) * (R - L))), peak = Math.max(...lev.today, ...lev.quiet);
     const Y = (v) => B - v / peak * (B - T);
@@ -185,7 +185,7 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
     s.append(shape("path", { d: area(lev.today), fill: color, opacity: .2 }));
     s.append(shape("line", { x1: X(lev.anchor), x2: X(lev.anchor), y1: T, y2: B, stroke: BASE, "stroke-width": 1.2, "stroke-dasharray": "4 3" }));
     s.append(shape("line", { x1: X(lev.target), x2: X(lev.target), y1: T, y2: B, stroke: color, "stroke-width": 1.6 }));
-    if (lev.current != null) s.append(shape("line", { x1: X(lev.current), x2: X(lev.current), y1: T, y2: B, stroke: LEVER, "stroke-width": 1.6 }));
+    if (lev.current != null) s.append(shape("line", { x1: X(lev.current), x2: X(lev.current), y1: T, y2: B, stroke: NOW, "stroke-width": 1.6 }));
     s.append(shape("line", { x1: L, x2: R, y1: B, y2: B, stroke: DIMS }));
     const gap = xs[n - 1] - xs[0] > 3 ? 1 : 0.5;
     for (let v = Math.ceil(xs[0] / gap) * gap; v <= xs[n - 1] + 1e-9; v += gap) {
