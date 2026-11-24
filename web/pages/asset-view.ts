@@ -43,6 +43,14 @@ const assetGate = (signal, index) => {
   const [name, value] = rank.indexOf(conditional.color) > rank.indexOf(optimizer.color) ? ["조건부 게이트", conditional] : ["옵티마이저 게이트", optimizer];
   return { name, color: value.color, reason: value.reason };
 };
+// 그 지수(`index`)의 가장 늦은 게이트 판정 날에 사용자가 수기 리밸런싱 요청을 승인했는지. 승인한 요청이 그날 게이트 판정을 대신하므로,
+// 집행 시각이 지난 뒤에도 다음 판정 전까지 집행 신호등 카드를 두지 않는다.
+const overruled = (data, index) => {
+  const request = data.trades?.request, forced = `forced-${index}`;
+  if (!request || !data.trades.forced?.[index] || request.date !== data.trades.signal?.date) return false;
+  const pressed = data.decisions?.date === request.date ? data.decisions.sectors?.[forced]?.decision : null;
+  return (pressed ?? (request.sectors?.[forced]?.status === "approved" ? "approve" : null)) === "approve";
+};
 // 신호등 카드 한 장의 속. 신호등 색(`color`)과 이름(`name`), 한 문단(`text`)을 쓴다.
 const gateBody = (color, name, text) => `<div class="gate"><i class="lamp ${color}"></i><div><strong>${name}</strong><p>${assetText(text)}</p></div></div>`;
 // 수기 요청의 설명 한 문단. SGOV 매도액과 지수마다 투입 몫의 매수액을 고른 단위(`unit`)로 쓰고, 원 금액을 요약을 만든 시각의 환율(`rate`)로 달러로 바꾼다.
@@ -66,7 +74,7 @@ const forcedText = (data, index) => {
 // 거래 내역 화면의 그 요청 블록과 같은 설명 문단을 쓴다. 리밸런싱 요청은 블록의 이유(`reason`)를, 수기 요청은 `instructedText`를,
 // 사용자가 거래 내역 화면에서 [수기 요청]을 눌러 승인한 수기 리밸런싱 요청은 `forcedText`를 쓴다.
 // 집행 신호등 카드는 가장 늦은 날의 게이트 판정(`assetGate`)이 주황이나 빨강일 때만 둔다. 초록이면 주문 요청 카드가 그날 집행을 알리고,
-// 그 지수의 수기 리밸런싱 요청을 승인했으면 그 요청 카드가 게이트 판정을 대신한다.
+// 그날 그 지수의 수기 리밸런싱 요청을 승인했으면(`overruled`) 집행 시각 전에는 그 요청 카드가 게이트 판정을 대신하고, 집행 시각 뒤에는 다음 판정 전까지 카드를 두지 않는다.
 // 카드는 신호등 색과 관계없이 모두 지수색 테두리를 두른다.
 // 카드를 누르면 주문 요청 절을 맨 위에 둔 거래 내역 화면을 연다. 오른쪽 위 ✕는 결정을 바꾸지 않고 그 카드만 걷으며, 걷은 카드는 날짜와 함께 기기에 남긴다(`asset-asks`).
 const ASKS = "asset-asks";
@@ -78,14 +86,11 @@ export const assetAsks = (data, index, unit) => {
     if (block) cards.push([request.date, index, "green", `${at} 리밸런싱 주문 요청`, block.reason || ""]);
     if (trades.instructed && request.sectors?.instructed?.order_count > 0) cards.push([request.date, "instructed", "green", `${at} 수기 주문 요청`, instructedText(data, unit)]);
     // 수기 리밸런싱 요청서는 사용자가 [수기 요청]을 눌러 승인한 뒤에만 카드로 둔다.
-    const forced = `forced-${index}`, pressed = data.decisions?.date === request.date ? data.decisions.sectors?.[forced]?.decision : null;
-    if (trades.forced?.[index] && (pressed ?? (request.sectors?.[forced]?.status === "approved" ? "approve" : null)) === "approve") {
-      cards.push([request.date, forced, "green", `${at} 수기 리밸런싱 주문 요청`, forcedText(data, index)]);
-    }
+    if (overruled(data, index)) cards.push([request.date, `forced-${index}`, "green", `${at} 수기 리밸런싱 주문 요청`, forcedText(data, index)]);
   }
-  // 수기 리밸런싱 요청을 승인한 지수는 그 요청 카드가 게이트 판정을 대신한다.
-  const gate = assetGate(trades?.signal, index), overruled = cards.some(([, key]) => key === `forced-${index}`);
-  if (gate && gate.color !== "green" && !overruled) cards.push([trades.signal.date, `gate-${index}`, gate.color, gate.name, gate.reason]);
+  // 수기 리밸런싱 요청을 승인한 지수는 집행 시각 전에는 그 요청 카드가, 집행 시각이 지난 뒤에는 다음 판정 전까지 아무 카드도 게이트 판정을 대신한다.
+  const gate = assetGate(trades?.signal, index);
+  if (gate && gate.color !== "green" && !overruled(data, index)) cards.push([trades.signal.date, `gate-${index}`, gate.color, gate.name, gate.reason]);
   const hidden = kept(ASKS) || [], shown = cards.filter(([date, key]) => !hidden.includes(`${date}:${key}`));
   if (!shown.length) return "";
   return '<div class="carousel asks"><div class="track">' + shown.map(([date, key, color, name, text]) =>
@@ -112,7 +117,7 @@ const stamp = (time, futures) => {
   return sessionTag(kind, sessionAt(SESSION_NAME[kind], time));
 };
 // 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 지수(`index`)는 이름 줄과 큰 값을 굴리는 자리 이름에 쓴다.
-// `times`는 최신 날짜 점을 셈한 체결가의 시각(`live`)과 계좌 요약을 만든 시각(`summary`), 그 체결가가 선물 시간대의 주간거래 값이면 그 체결가로 대신한 애프터장의 세션 날짜(`futures`)다.
+// `times`는 최신 날짜 점과 현재 배율을 셈한 체결가의 시각(`live`)과, 그 체결가가 선물 시간대의 주간거래 값이면 그 체결가로 대신한 애프터장의 세션 날짜(`futures`)다.
 // 실시간 체결가가 없으면 Worker가 최신 날짜 점을 요약의 가격으로 셈하므로, 그때 `live`는 요약 시각이다. 카드 이름과 상자 목록(`cards`)과 다시 그리는 함수(`show`)를 돌려준다.
 // 카드는 요약 절의 그림 카드처럼 맨 위 줄에 값의 기준 시각을, 그 아래 이름 줄 왼쪽에 "나스닥 100"처럼 지수 이름을 쓴다. 이름 줄 오른쪽에는 수익률 카드면 판단 보기·금액가중 체크 단추를
 // 그 순서로, 배율 카드면 목표 배율을 흐린 글씨로 둔다. 판단 보기 체크 단추는 두 수익률 카드에서 판단 선(지수색)을 함께 보이거나 감추고,
@@ -131,9 +136,9 @@ const stamp = (time, futures) => {
 // 최신 날짜 점의 고정 배율·판단 값은 기준 배율과 목표 배율을 그대로 들고 있다고 본 값이다. Worker가 판단 값을 셈하지 못하면 판단 선은 마지막 정산일에서 끝난다.
 // 최신 날짜 점의 값이 정규장이 아닌 세션(애프터마켓, 주간거래, 프리마켓)의 체결가로 셈한 값이면, 주가 카드처럼 마지막 정산일에서 그 점까지를 점선으로 잇고 그 점의 '현재' 표시를 그 세션 색으로 찍는다.
 // 수익률 카드의 기준 시각은 최신 날짜 점이 있으면 체결가 시각, 없으면 마지막 거래일의 정규장 종가 시각이다.
-// 배율 카드는 이름 줄 오른쪽에 목표 배율을, 큰 값에 현재 배율을 흰 글씨로 쓴다. 현재 배율은 아침 집행 산출이 마지막 정산일의 정규장 종가로 셈한 값이므로,
-// 기준 시각은 마지막 정산일의 정규장 종가 시각이다. 정산일이 없으면 계좌 요약을 만든 시각이다. 그림에는 오늘 가격 경로들의 배율 분포(지수색 면)와 이슈가 없을 때의 분포(회색 면)를 배율 축에 그리고,
-// 목표 배율에 지수색 실선, 현재 배율에 흰 점선을 긋는다. 집행 선과 현재 배율 선은 다른 페이지의 가격 선과 같은 흰색(`PRICE`)이다.
+// 배율 카드는 이름 줄 오른쪽에 목표 배율을, 큰 값에 현재 배율을 주황 글씨로 쓴다. 현재 배율(`leverage.current`)은 내 자산 페이지가 Worker가 실시간 체결가로 다시 평가한
+// 그 지수 종목의 평가액으로 셈한 값이므로, 기준 시각은 수익률 카드의 최신 날짜 점과 같은 체결가 시각이다. 그림에는 오늘 가격 경로들의 배율 분포(지수색 면)와 이슈가 없을 때의 분포(회색 면)를
+// 배율 축에 그리고, 기준 배율에 회색 점선, 목표 배율에 지수색 실선, 현재 배율에 주황 실선을 긋는다. 수익률 카드의 집행 선은 다른 페이지의 가격 선과 같은 흰색(`PRICE`)이다.
 // 누적 수익률·초과 수익률 카드는 그림을 누르면 누른 가로 자리에서 가장 가까운 날짜 점으로 '현재' 표시(`nowMark`)를 옮기고, 큰 값을 그 점의 값으로,
 // 기준 시각을 그날 정규장 종가 시각으로 바꾼다. 선은 줄이지 않는다. 고른 점이 첫날이면 큰 값에 "기록 없음"을 쓰고, 가장 늦은 점을 누르면 처음 상태로 돌아간다.
 // 두 카드는 같은 날짜를 함께 고르고, 고른 날짜(`pin.day`)는 호출하는 쪽이 들고 있어 카드를 다시 만들어도 이어진다. 가장 늦은 점을 고르면 `pin.day`를 비워 새 최신 점을 따른다.
@@ -150,7 +155,7 @@ const dietz = (book, flows) => {
   });
 };
 export function assetCards(perf, index, times = {}, pin = { day: null }, view = { judge: true, money: false, since: null }, remember = () => {}) {
-  const W = 320, H = 236, B = 212, L = 6, R = W - 6, T = 22, color = indexInk(W), NOW = PRICE, BASE = "#A7ABB0";
+  const W = 320, H = 236, B = 212, L = 6, R = W - 6, T = 22, color = indexInk(W), NOW = PRICE, BASE = "#A7ABB0", LEVER = "#FF9F1C";
   const big = (text, unit) => [text, Object.assign(document.createElement("small"), { textContent: unit })];
   // 카드 틀에 이름 줄을 더한다. 이름 줄이 같은 높이를 차지해 카드를 넘겨도 값과 그림이 같은 높이에 있다.
   const card = (slot) => {
@@ -168,9 +173,9 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
     const c = card("lever"), s = c.svg;
     const n = lev.today.length;
     c.value.className = "";
-    c.head("", lev.current == null ? "기록 없음" : big(lev.current.toFixed(3), "배"), perf?.returns?.days?.length ? settled(perf.returns.days.at(-1)) : stamp(times.summary));
+    c.head("", lev.current == null ? "기록 없음" : big(lev.current.toFixed(3), "배"), stamp(times.live, times.futures));
     c.side.textContent = `목표 ${lev.target.toFixed(3)}배`;
-    c.value.style.color = lev.current == null ? DIMS : "";
+    c.value.style.color = lev.current == null ? DIMS : LEVER;
     const xs = Array.from({ length: n }, (_, i) => lev.anchor * (1 + lev.low + (lev.high - lev.low) * i / (n - 1)));
     const X = (v) => Math.min(R, Math.max(L, L + (v - xs[0]) / (xs[n - 1] - xs[0]) * (R - L))), peak = Math.max(...lev.today, ...lev.quiet);
     const Y = (v) => B - v / peak * (B - T);
@@ -178,8 +183,9 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
     s.replaceChildren();
     s.append(shape("path", { d: area(lev.quiet), fill: "rgba(167, 171, 176, .14)" }));
     s.append(shape("path", { d: area(lev.today), fill: color, opacity: .2 }));
-    if (lev.current != null) s.append(shape("line", { x1: X(lev.current), x2: X(lev.current), y1: T, y2: B, stroke: NOW, "stroke-width": 1.6, "stroke-dasharray": "4 3" }));
+    s.append(shape("line", { x1: X(lev.anchor), x2: X(lev.anchor), y1: T, y2: B, stroke: BASE, "stroke-width": 1.2, "stroke-dasharray": "4 3" }));
     s.append(shape("line", { x1: X(lev.target), x2: X(lev.target), y1: T, y2: B, stroke: color, "stroke-width": 1.6 }));
+    if (lev.current != null) s.append(shape("line", { x1: X(lev.current), x2: X(lev.current), y1: T, y2: B, stroke: LEVER, "stroke-width": 1.6 }));
     s.append(shape("line", { x1: L, x2: R, y1: B, y2: B, stroke: DIMS }));
     const gap = xs[n - 1] - xs[0] > 3 ? 1 : 0.5;
     for (let v = Math.ceil(xs[0] / gap) * gap; v <= xs[n - 1] + 1e-9; v += gap) {
@@ -316,7 +322,11 @@ export function assetPage(page) {
       + `<button type="button" class="asset-trades">거래 내역${chevron}</button><h2>내 계좌</h2>` + assetRow("원화", "주문 가능", assetMoney(accounts.KRW.cash, "KRW")) + assetRow("달러", "주문 가능", assetMoney(accounts.USD.cash, "USD"))
       + (waiting ? item({ ...waiting, name: "대기자금" }, `${waiting.symbol} ${assetShares(waiting.quantity)}`) : "");
     roll(page.querySelector(".asset-sum b:not(.veiled)"), `${view.whole ? "whole" : index}-sum-${unit}`);
-    const perf = data.performance?.sectors?.[index], cards = assetCards(perf, index, { live: data.live?.time || data.time, summary: data.time, futures: data.live?.futures }, pin, view, remember);
+    // 배율 카드의 현재 배율은 그 지수 종목의 평가액(Worker가 실시간 체결가로 다시 평가한 값)으로 셈한 섹터 배율(지수 노출 ÷ 평가액 합)이다. 종목마다 지수 대비 배수(`multiple`)는 계좌 요약에 있다.
+    const sector = data.items.filter((item) => item.sector === index), capital = sector.reduce((sum, item) => sum + item.value, 0);
+    const current = capital > 0 && sector.every((item) => Number.isFinite(item.multiple)) ? sector.reduce((sum, item) => sum + item.value * item.multiple, 0) / capital : null;
+    const base = data.performance?.sectors?.[index], perf = base?.leverage ? { ...base, leverage: { ...base.leverage, current } } : base;
+    const cards = assetCards(perf, index, { live: data.live?.time || data.time, futures: data.live?.futures }, pin, view, remember);
     const above = page.querySelector(".asks") || page.querySelector(".asset-sum");
     if (!cards.length) return above.insertAdjacentHTML("afterend", '<p class="status">그림 값이 아직 없다.</p>');
     const bar = document.createElement("div");
@@ -507,10 +517,10 @@ export function tradesView(page, index) {
     const head = (date, color, name) => `<div class="top ask"><span><i class="lamp ${color}"></i><b>${name}</b></span><span class="day">${day(date)}</span></div>`;
     // 주문 요청 절 맨 위의 집행 신호등 카드. 신호등이 주황이나 빨강일 때만 두고, 요청 블록과 같은 머리와 설명 상자를 쓴다. 초록이면 요청 블록이 그날 집행을 알린다.
     // 그 지수의 수기 리밸런싱 요청서가 있고 아직 누르지 않았으면 카드 아래에 [수기 요청] 단추를 둔다. 누르면 그 요청을 승인으로 적고 이 카드 대신 요청 블록을 연다.
-    // 요청 블록에서 취소하면 이 카드와 단추가 다시 선다.
+    // 요청 블록에서 취소하면 이 카드와 단추가 다시 선다. 승인한 요청을 집행 시각에 보낸 뒤에는 다음 판정 전까지 이 카드를 두지 않는다.
     const gateCard = () => {
       const gate = assetGate(trades?.signal, index);
-      if (!gate || gate.color === "green" || pressed) return "";
+      if (!gate || gate.color === "green" || pressed || overruled(data, index)) return "";
       const ask = offer && !pressed ? '<p class="note">게이트와 관계없이 목표 배율로 옮기는 요청서를 연다. 누르기 전에는 집행하지 않는다.</p>'
         + '<div class="act one"><button type="button" data-decision="approve">수기 요청</button></div>' : "";
       return `<div class="trade gate"${ask ? ` data-date="${asked.date}" data-sector="${forcedKey}"` : ""}>${head(trades.signal.date, gate.color, gate.name)}`
