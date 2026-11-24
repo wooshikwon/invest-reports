@@ -30,7 +30,7 @@ export const report = document.getElementById("report");
 // 미니 앱 안에서 다른 리포트로 옮기면 주소의 `r`을 바꿔 페이지를 다시 열므로 브라우저 기록이 하나씩 쌓인다. 기록마다 처음 연 리포트에서
 // 몇 번 옮겨 왔는지(`depth`)를 `history.state`에 적는다. 옮기기 직전에 다음 깊이를 `sessionStorage`에 두고, 새 페이지가 그 값을 읽어 자기 기록에 적는다.
 // 뒤로 가기로 돌아온 페이지는 자기 기록에 적힌 깊이를 그대로 쓴다. 지수 단추는 페이지를 다시 열지 않고 기록을 하나 더해 그 기록에 다음 깊이를 적는다.
-// 리포트 화면과 종목 상세에서 옮겨 온 페이지는 앞 화면의 리포트 키(`from`)도 같은 방법으로 자기 기록에 적는다. 이슈 화면과 거래 내역 화면, 뉴스 상세에서 옮겨 왔으면 빈 글자를 적는다.
+// 리포트 화면과 종목 상세에서 옮겨 온 페이지와 종목 상세는 앞 화면의 리포트 키(`from`)도 같은 방법으로 자기 기록에 적는다. 이슈 화면과 거래 내역 화면, 뉴스 상세에서 옮겨 온 종목 상세 밖의 페이지는 빈 글자를 적는다.
 export let depth = 0;
 export let from = "";
 export function initHistory() {
@@ -46,7 +46,7 @@ export function initHistory() {
 export const visit = (target, more = {}) => {
   history.replaceState({ ...history.state, y: scrollY }, "");
   sessionStorage.setItem("depth", depth + 1);
-  sessionStorage.setItem("from", query.get("issue") || query.get("news") || trades ? "" : key);
+  sessionStorage.setItem("from", (query.get("issue") || query.get("news") || trades) && !more.stock ? "" : key);
   const params = new URLSearchParams(location.search);
   params.delete("issue");
   params.delete("at");
