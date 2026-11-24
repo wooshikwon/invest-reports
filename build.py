@@ -92,6 +92,8 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 두 등락률과 두 가격은 `path-bands.json`의 ^NDX·^NBI 환산 가격과 `reference.db` 환산 종가로 재므로 판단 기록과 같은 눈금이다.
 
 `r/market.json`의 `map`에는 지수마다 비중 상위 20종목(나스닥 100, 나스닥 바이오테크놀로지)의 한글 이름, 주식 수, 날짜별 종가를 적는다(`market`, `index_map`).
+종목마다 `reference.db` `stock_name`의 기사에서 부르는 이름(`call`), 별칭(`aliases`, 토스 한글 이름이 다르면 그 이름도 든다), 일반 낱말과 겹치는지(`ambiguous`)도 적는다.
+표에 없는 종목은 토스 한글 이름을 부르는 이름으로 쓴다. 뉴스 상세는 이 값으로 본문의 종목 이름을 종목 상세로 잇는다.
 날짜별 애프터장 마지막 체결가도 적는다. 마지막 날짜의 값은 그날 애프터장이 끝난 뒤(20:00 ET) 받고, 앞 날짜의 값은 앞서 쓴 `r/market.json`에서 옮긴다(`after_prices`).
 `invest-reports` 미니 앱의 시장 페이지는 리포트 지수의 값으로 맨 위 `한 눈에 보기` 절에 시가총액을 칸 넓이로, 전 거래일 대비 등락률을 칸 색으로 쓴 지도를 그리고,
 슬라이더로 지난 석 달의 리포트 날짜를 고르면 그 날짜 전날의 종가로 지도를 다시 그린다. 그 날짜 전날의 애프터장 값이 있으면 절 제목 오른쪽의
@@ -481,6 +483,10 @@ def index_map(con: sqlite3.Connection, cm, index: str, start: str) -> dict:
     if con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'stock_profile'").fetchone():
         profiles = {symbol: (sector, about) for symbol, sector, about in con.execute("SELECT symbol, sector, about FROM stock_profile")}
     names = {symbol: re.sub(r"\s*\(ADR\)$| [A-Z]$", "", name) for symbol, name in observed(con, cm.TOSS_NAMES, "value_text").items()}
+    calls = {}
+    if con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'stock_name'").fetchone():
+        calls = {symbol: (call, json.loads(aliases), bool(ambiguous)) for symbol, call, aliases, ambiguous
+                 in con.execute("SELECT symbol, call, aliases, ambiguous FROM stock_name")}
     stocks = []
     for symbol in symbols:
         snapshot = {key: value for key, value in observed(con, cm.eps_id(symbol), "value").items() if key in ("marketCap", "price")}
@@ -488,8 +494,10 @@ def index_map(con: sqlite3.Connection, cm, index: str, start: str) -> dict:
             continue
         closes = {**observed(con, cm.toss_id(symbol), "value", start), **observed(con, cm.breadth_id(symbol), "value", start)}
         sector, about = profiles.get(symbol, ("", ""))
-        stocks.append({"symbol": symbol, "name": names[symbol], "sector": sector, "about": about,
-                       "shares": round(snapshot["marketCap"] / snapshot["price"]), "closes": closes})
+        call, aliases, ambiguous = calls.get(symbol, (names[symbol], [], False))
+        stocks.append({"symbol": symbol, "name": names[symbol], "call": call,
+                       "aliases": list(dict.fromkeys(alias for alias in (*aliases, names[symbol]) if alias != call)), "ambiguous": ambiguous,
+                       "sector": sector, "about": about, "shares": round(snapshot["marketCap"] / snapshot["price"]), "closes": closes})
     dates = sorted({day for stock in stocks for day in stock["closes"]})
     for stock in stocks:
         stock["closes"] = [round(stock["closes"][day], 2) if day in stock["closes"] else None for day in dates]

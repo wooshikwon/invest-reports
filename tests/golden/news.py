@@ -187,6 +187,16 @@ def main() -> int:
               found["subheads"] == fixtures.NEWS_SUBHEADS and found["order"] == ["h3", "subheads", "image", "h4"]
               and all(int(weight) < 600 for weight in found["weights"]), f"{found['order']} {found['weights']}")
         page.screenshot(path=str(shots / "news-detail.png"))
+        capture.settle(page, 300)
+        links = page.evaluate("() => [...document.querySelectorAll('.issue-page.on button.stock')].map((b) => [b.textContent, b.dataset.stock, b.parentElement.tagName, !!b.querySelector('svg.lens')])")
+        check("본문에서 종목마다 처음 나오는 이름만 돋보기 단추로 감싸고, 제목·소제목과 다른 낱말 속 이름은 감싸지 않는다",
+              links == [["엔비디아", "NVDA", "P", True], ["AMD", "AMD", "P", True], ["인텔", "INTC", "P", True]], str(links))
+        capture.top(page, page.locator(".issue-page.on button.stock[data-stock='AMD']"), 200)
+        page.screenshot(path=str(shots / "news-stock-links.png"))
+        page.locator(".issue-page.on button.stock[data-stock='AMD']").click()
+        capture.settle(page, 800)
+        opened = page.evaluate("() => [location.search, document.querySelector('#report .stock-name, #report h2')?.textContent ?? '']")
+        check("종목 이름 단추를 누르면 그 종목의 종목 상세를 연다", "stock=AMD" in opened[0], str(opened))
         run.close()
 
         # 종목 상세의 주요 뉴스와 그 종목 목록의 다음 기사

@@ -438,6 +438,10 @@ button.term { display: inline; margin: 0; padding: 0; border: 0; background: non
               text-decoration: underline dotted color-mix(in srgb, currentColor 55%, transparent); text-decoration-thickness: 1.5px;
               text-underline-offset: 3px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 button.term.on { text-decoration-color: currentColor; }
+/* 뉴스 상세 본문에서 종목마다 처음 나오는 이름은 지수색 글자와 그 앞의 작은 돋보기로 쓰고, 누르면 종목 상세를 연다(`shared/stocklink.ts`). */
+button.stock { display: inline; margin: 0; padding: 0; border: 0; background: none; color: var(--index); font: inherit; font-weight: 600; line-height: inherit;
+               text-align: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button.stock .lens { margin: 0 2px 0 1px; vertical-align: -0.5px; }
 .bubble.gloss { width: min(320px, calc(100vw - 24px)); padding: 12px 14px; box-sizing: border-box; }
 .bubble.gloss b { position: relative; z-index: 1; display: block; margin-bottom: 4px; color: #fff; font-size: 14px; font-weight: 600; }
 .bubble.gloss p { padding: 0; font-size: 14px; line-height: 1.55; white-space: normal; }

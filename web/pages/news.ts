@@ -6,12 +6,15 @@ import { key, life, report, returned, visit } from "../shared/route";
 import { feelPress, feelSlide } from "../shared/telegram";
 import { gallery, viewer } from "../shared/viewer";
 import { NEWS_HELP, question } from "../shared/help";
+import { marketed } from "../shared/data";
+import { linkStocks, stockNames } from "../shared/stocklink";
 // 종목 뉴스를 그린다. 기사는 종목 뉴스 배치가 뉴스 Worker(`NEWS_URL`, `worker/news.js`)에 올린 것이고, 앱은 공개 읽기 세 경로만 쓴다.
 // `GET /list?index={지수}&days={일수}`와 `GET /list?ticker={티커}&limit={편수}`는 기사마다 ID, 회차 시작 시각(`time`), 종목, 제목, 머리 줄, 첫 그림 주소(`image`)를 최신순으로 주고,
 // `GET /articles/{ID}`는 기사 한 편의 소제목 세 줄(`subheads`), 본문 HTML(`html`), 그림 주소와 사진 설명(`images`)을 더 준다. 목록의 머리 줄은 첫 소제목이다. 본문 HTML은 build.py `issue_articles`가 만든 이슈 본문과 같은 조각이라
 // 본문 소제목(`h5`), 이슈 그래프 카드(`figure.issue-chart`), 단어표 용어 단추(`button.term`)가 들어 있다.
 // 리포트 화면의 상세 이슈 해설 절은 "상세 이슈 해설"과 "종목 뉴스" 두 탭을 두고(`newsTab`), 종목 상세는 공시 상세 위에 주요 뉴스 절을 둔다(`headlines`).
 // 기사를 누르면 주소의 `news`에 기사 ID를 적어 뉴스 상세를 연다. 종목 상세에서 열면 `ticker`에 그 티커도 적는다.
+// 뉴스 상세 본문은 종목마다 처음 나오는 이름을 종목 상세로 가는 단추로 감싼다(`shared/stocklink.ts`). 이름은 `r/market.json` 지도 종목의 부르는 이름과 별칭이다.
 // Worker가 답하지 않으면 종목 뉴스 탭과 주요 뉴스 절에 빈 상태 문구를 쓰고, 상세 이슈 해설 탭은 그대로 둔다.
 export const NEWS_URL = "https://invest-news.wonwooshik.workers.dev";
 const DAY = 864e5;
@@ -258,7 +261,16 @@ function newsDetail(data, ticker) {
     const lead = node.appendChild(document.createElement("h4"));
     lead.append(Object.assign(document.createElement("mark"), { textContent: "이슈 해설" }));
     node.append(Object.assign(document.createElement("p"), { className: "written", textContent: `${article.time.slice(0, 10).replaceAll("-", ".")} ${article.time.slice(11, 16)}` }));
+    const mark = node.children.length;
     node.insertAdjacentHTML("beforeend", article.html);
+    const body = [...node.children].slice(mark);
+    marketed?.then((market) => { if (!signal.aborted) linkStocks(body, stockNames(market, article.tickers || [])); });
+    node.addEventListener("click", (event) => {
+      const stock = event.target.closest("button.stock");
+      if (!stock) return;
+      feelPress();
+      visit(key, { stock: stock.dataset.stock });
+    });
     node.querySelectorAll("figure.issue-chart[data-card]").forEach(issueChart);
     node.querySelectorAll("figure.issue-image").forEach(gallery);
     node.querySelectorAll("img").forEach((img) => img.addEventListener("click", () => viewer(img)));
