@@ -172,7 +172,7 @@ export function newsTab(index, written) {
 }
 
 // 종목 상세에서 `after` 바로 뒤에 주요 뉴스 절을 두고, 절의 마지막 노드를 돌려준다. 절은 `symbol` 종목을 단 최신 기사 열 편까지 받아 처음에는 세 편의 날짜와 제목을 쓰고,
-// 상자 아래 끝의 펼침 단추를 누르면 열 편까지 펼친다. 모양은 이슈 화면의 히스토리 상자와 같다. 제목을 누르면 그 기사의 뉴스 상세를 연다.
+// 상자 아래 끝의 펼침 단추를 누르면 다섯 편 높이까지 펼치고, 그보다 많은 기사는 상자 안에서 위아래로 밀어 본다. 모양은 이슈 화면의 히스토리 상자와 같다. 제목을 누르면 그 기사의 뉴스 상세를 연다.
 export function headlines(after, symbol) {
   const { signal } = life;
   const head = Object.assign(document.createElement("h2"), { className: "issues inside", textContent: "주요 뉴스" });
@@ -197,13 +197,30 @@ export function headlines(after, symbol) {
     if (items.length <= 3) return;
     const unfold = box.appendChild(Object.assign(document.createElement("button"), { type: "button", className: "unfold" }));
     const label = () => {
-      const opened = !rows.classList.contains("shut");
+      const opened = rows.classList.contains("open");
       unfold.innerHTML = `${opened ? "이전 기사 숨기기" : `이전 기사 ${items.length - 3}개 펼치기`}<svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="${opened ? "M1 5l4-4 4 4" : "M1 1l4 4 4-4"}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     };
+    // 펼친 목록의 높이. 이슈 화면의 히스토리 상자처럼 다섯 줄이 넘으면 다섯째 줄의 아래 끝까지만 보이고, 나머지 기사는 상자 안에서 위아래로 밀어 본다.
+    const reach = () => (rows.children.length > 5 ? rows.children[5].offsetTop : rows.scrollHeight);
+    const options = { duration: motion.matches ? 0 : GLIDE, easing: EASE };
     unfold.addEventListener("click", () => {
       feelPress();
-      rows.classList.toggle("shut");
+      const from = rows.offsetHeight;
+      if (rows.classList.contains("open")) {
+        rows.scrollTop = 0;
+        rows.classList.remove("open");
+        rows.style.height = "";
+        label();
+        rows.animate([{ height: `${from}px` }, { height: `${rows.children[3].offsetTop}px` }], options)
+          .finished.then(() => rows.classList.contains("open") || rows.classList.add("shut"));
+        return;
+      }
+      rows.classList.remove("shut");
+      rows.classList.add("open");
+      rows.classList.toggle("long", rows.children.length > 5);
+      rows.style.height = `${reach()}px`;
       label();
+      rows.animate([{ height: `${from}px` }, { height: `${reach()}px` }], options);
     });
     label();
   }, () => {

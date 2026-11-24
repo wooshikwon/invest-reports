@@ -219,6 +219,13 @@ def main() -> int:
         capture.settle(page, 400)
         rows = page.evaluate(ROWS)
         check("주요 뉴스 절을 펼치면 기사 제목이 열 개 보인다", rows == NVDA, f"{len(rows)}개")
+        size = page.evaluate("""() => { const rows = document.querySelector('.headlines .rows'), box = rows.getBoundingClientRect();
+          const inside = [...rows.children].filter((row) => { const r = row.getBoundingClientRect(); return r.top >= box.top - 1 && r.bottom <= box.bottom + 1; }).length;
+          rows.scrollTop = rows.scrollHeight;
+          return { inside, scrolls: rows.scrollHeight > rows.clientHeight, overflow: getComputedStyle(rows).overflowY, last: rows.lastElementChild.getBoundingClientRect().bottom <= rows.getBoundingClientRect().bottom + 1 }; }""")
+        check("펼친 주요 뉴스 상자는 다섯 편 높이까지만 보이고 나머지 기사는 상자 안에서 밀어 본다",
+              size == {"inside": 5, "scrolls": True, "overflow": "auto", "last": True}, str(size))
+        page.evaluate("document.querySelector('.headlines .rows').scrollTop = 0")
         page.locator(".headlines .entry", has_text=NVDA[1]).click()
         capture.settle(page)
         found = page.evaluate(PAGE)
