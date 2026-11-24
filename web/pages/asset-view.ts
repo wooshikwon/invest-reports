@@ -64,7 +64,8 @@ const forcedText = (data, index) => {
 // 주문 요청 카드는 그날 승인 요청이 집행 시각(`run_at`) 전일 때만 두고, 초록 신호등과 "23:30 리밸런싱 주문 요청"처럼 집행 시각을 앞에 붙인 요청 이름 아래에
 // 거래 내역 화면의 그 요청 블록과 같은 설명 문단을 쓴다. 리밸런싱 요청은 블록의 이유(`reason`)를, 수기 요청은 `instructedText`를,
 // 사용자가 거래 내역 화면에서 [수기 요청]을 눌러 승인한 수기 리밸런싱 요청은 `forcedText`를 쓴다.
-// 집행 신호등 카드는 가장 늦은 날의 게이트 판정(`assetGate`)이 주황이나 빨강일 때만 둔다. 초록이면 주문 요청 카드가 그날 집행을 알린다.
+// 집행 신호등 카드는 가장 늦은 날의 게이트 판정(`assetGate`)이 주황이나 빨강일 때만 둔다. 초록이면 주문 요청 카드가 그날 집행을 알리고,
+// 그 지수의 수기 리밸런싱 요청을 승인했으면 그 요청 카드가 게이트 판정을 대신한다.
 // 카드는 신호등 색과 관계없이 모두 지수색 테두리를 두른다.
 // 카드를 누르면 주문 요청 절을 맨 위에 둔 거래 내역 화면을 연다. 오른쪽 위 ✕는 결정을 바꾸지 않고 그 카드만 걷으며, 걷은 카드는 날짜와 함께 기기에 남긴다(`asset-asks`).
 const ASKS = "asset-asks";
@@ -81,8 +82,9 @@ export const assetAsks = (data, index, unit) => {
       cards.push([request.date, forced, "green", `${at} 수기 리밸런싱 주문 요청`, forcedText(data, index)]);
     }
   }
-  const gate = assetGate(trades?.signal, index);
-  if (gate && gate.color !== "green") cards.push([trades.signal.date, `gate-${index}`, gate.color, gate.name, gate.reason]);
+  // 수기 리밸런싱 요청을 승인한 지수는 그 요청 카드가 게이트 판정을 대신한다.
+  const gate = assetGate(trades?.signal, index), overruled = cards.some(([, key]) => key === `forced-${index}`);
+  if (gate && gate.color !== "green" && !overruled) cards.push([trades.signal.date, `gate-${index}`, gate.color, gate.name, gate.reason]);
   const hidden = kept(ASKS) || [], shown = cards.filter(([date, key]) => !hidden.includes(`${date}:${key}`));
   if (!shown.length) return "";
   return '<div class="carousel asks"><div class="track">' + shown.map(([date, key, color, name, text]) =>
@@ -448,10 +450,11 @@ export function tradesView(page, index) {
     const day = (date) => `${assetDay(date)} (${WEEK[new Date(`${date}T12:00:00Z`).getUTCDay()]})`;
     const head = (date, color, name) => `<div class="top ask"><span><i class="lamp ${color}"></i><b>${name}</b></span><span class="day">${day(date)}</span></div>`;
     // 주문 요청 절 맨 위의 집행 신호등 카드. 신호등이 주황이나 빨강일 때만 두고, 요청 블록과 같은 머리와 설명 상자를 쓴다. 초록이면 요청 블록이 그날 집행을 알린다.
-    // 그 지수의 수기 리밸런싱 요청서가 있고 아직 누르지 않았으면 카드 아래에 [수기 요청] 단추를 둔다. 누르면 그 요청을 승인으로 적고 요청 블록을 연다.
+    // 그 지수의 수기 리밸런싱 요청서가 있고 아직 누르지 않았으면 카드 아래에 [수기 요청] 단추를 둔다. 누르면 그 요청을 승인으로 적고 이 카드 대신 요청 블록을 연다.
+    // 요청 블록에서 취소하면 이 카드와 단추가 다시 선다.
     const gateCard = () => {
       const gate = assetGate(trades?.signal, index);
-      if (!gate || gate.color === "green") return "";
+      if (!gate || gate.color === "green" || pressed) return "";
       const ask = offer && !pressed ? '<p class="note">게이트와 관계없이 목표 배율로 옮기는 요청서를 연다. 누르기 전에는 집행하지 않는다.</p>'
         + '<div class="act one"><button type="button" data-decision="approve">수기 요청</button></div>' : "";
       return `<div class="trade gate"${ask ? ` data-date="${asked.date}" data-sector="${forcedKey}"` : ""}>${head(trades.signal.date, gate.color, gate.name)}`
