@@ -224,6 +224,7 @@ def main() -> int:
               page.evaluate(PAGER) == {"numbers": ["1", "2", "3", "4", "5"], "on": "1", "prev": False, "next": True}, str(page.evaluate(PAGER)))
         capture.top(page, page.locator("#report > h2", has_text="주요 뉴스"), 60)
         page.screenshot(path=str(shots / "stock-headlines.png"))
+        tall = page.evaluate("() => document.querySelector('.headlines .carousel').offsetHeight")
         page.locator(".headlines .pager .next").click()
         capture.settle(page, 900)
         check("다음 꺾쇠를 누르면 둘째 장의 다섯 편으로 넘긴다", page.evaluate(ROWS) == NVDA[5:10] and page.evaluate(PAGER)["on"] == "2", str(page.evaluate(PAGER)))
@@ -237,6 +238,8 @@ def main() -> int:
         pager = page.evaluate(PAGER)
         check("마지막 장까지 밀어 넘기면 남은 한 편이 보이고 다음 꺾쇠는 누를 수 없다",
               page.evaluate(ROWS) == NVDA[30:] and pager == {"numbers": ["3", "4", "5", "6", "7"], "on": "7", "prev": True, "next": False}, str(pager))
+        last = page.evaluate("() => document.querySelector('.headlines .carousel').offsetHeight")
+        check("기사가 한 편뿐인 마지막 장으로 넘겨도 주요 뉴스 묶음의 높이가 줄지 않는다", last == tall and tall > 0, f"첫 장 {tall}px, 마지막 장 {last}px")
         page.locator(".headlines .pager .numbers button", has_text="3").click()
         capture.settle(page, 900)
         page.locator(".headlines .pager .prev").click()

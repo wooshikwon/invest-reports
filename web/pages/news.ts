@@ -178,7 +178,8 @@ export function newsTab(index, written) {
 }
 
 // 종목 상세에서 `after` 바로 뒤에 주요 뉴스 절을 두고, 절의 마지막 노드를 돌려준다. 절은 `symbol` 종목을 단 최신 기사 `STOCK_NEWS`편까지 받아
-// 종목별 뉴스 목록과 같은 모양의 블록에 제목과 회차 시각만 쓰고, `PAGE`편씩 한 장에 담아 좌우로 밀어 넘긴다. 장이 둘 이상이면 아래에 번호 줄을 두고,
+// 종목별 뉴스 목록과 같은 모양의 블록에 제목과 회차 시각만 쓰고, `PAGE`편씩 한 장에 담아 좌우로 밀어 넘긴다. 묶음 높이는 가장 높은 장에 맞춰 두어,
+// 기사가 적은 마지막 장으로 넘겨도 줄지 않는다. 장이 둘 이상이면 아래에 번호 줄을 두고,
 // 번호는 보고 있는 장을 가운데에 두어 `NUMBERS`개까지 보이며, 양옆 꺾쇠는 앞 장과 다음 장으로 넘긴다. 블록을 누르면 그 기사의 뉴스 상세를 연다.
 export function headlines(after, symbol) {
   const { signal } = life;
@@ -221,7 +222,7 @@ export function headlines(after, symbol) {
       prev.disabled = at === 0;
       next.disabled = at === pages.length - 1;
     };
-    const carousel = slider(pages, mark, { fit: true, name: "headline-pages", change: (page) => { at = page; draw(); } });
+    const carousel = slider(pages, mark, { name: "headline-pages", change: (page) => { at = page; draw(); } });
     mark.remove();
     prev.addEventListener("click", () => { feelPress(); carousel.go(at - 1); });
     next.addEventListener("click", () => { feelPress(); carousel.go(at + 1); });
