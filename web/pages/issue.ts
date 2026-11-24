@@ -7,7 +7,9 @@ import { toneTags, trail } from "../shared/sections";
 import { feelPress } from "../shared/telegram";
 import { gallery, viewer } from "../shared/viewer";
 // 상세 이슈 해설을 이슈 목록으로 바꾼다. 이슈는 `###` 제목부터 다음 `###`·`##` 앞까지다.
-// 템플릿이 검토했지만 비중을 낮춘 이슈를 번호 이슈 뒤에 두므로, 그 항목은 목록 끝의 "비중이 낮은 이슈 N건" 상자가 된다.
+// 템플릿이 검토했지만 비중을 낮춘 이슈를 번호 이슈 뒤에 두므로, 그 항목은 목록 끝의 "비중이 낮은 이슈 N건" 항목이 된다.
+// 목록은 종목 뉴스 목록과 같은 모양이다. 이슈마다 제목, 첫 그림, 이슈 해설(이전 리포트는 현재 상태)의 소제목, NEW·N일 전과 이벤트 결과 스티커를 위에서 아래로 쓰고,
+// 순위 번호와 방향 표식은 쓰지 않는다. 그림이 없는 이슈와 "비중이 낮은 이슈" 항목은 그림 자리를 두지 않는다.
 // 상자를 누르면 주소의 `issue`에 그 이슈 번호를 적어 이슈 화면을 새 페이지로 연다. 이슈 번호는 소제목 앞 번호이고, 번호가 없는 상자는 목록 순서다.
 // `focus`가 있으면 이슈 화면이다. 그 번호의 이슈 내용과 절 제목만 남기고 리포트의 다른 절은 지운다. 그 번호의 이슈가 없으면 리포트 화면을 다시 연다.
 // 왼쪽 아래의 뒤로가기 단추를 누르면 앞 페이지로 돌아가고, 앞 페이지가 없으면 같은 리포트의 리포트 화면을 연다.
@@ -41,17 +43,6 @@ export function section(title, focus = 0, at = null, analyzed = "", pasts = null
   items.forEach(([h3]) => unnumber(h3));
   const other = "검토했지만 비중을 낮춘 이슈", reviewed = items[items.length - 1][0].textContent.trim() === other;
   if (reviewed) items[items.length - 1].shift().remove();
-  // 방향 표식의 등락 화살표. 선의 끝 방향으로 화살촉을 단다.
-  const tip = ([x0, y0], [x, y]) => {
-    const a = Math.atan2(y - y0, x - x0), wing = (t) => `${(x - 4.2 * Math.cos(a + t)).toFixed(2)} ${(y - 4.2 * Math.sin(a + t)).toFixed(2)}`;
-    return `M${wing(0.6)} L${x} ${y} L${wing(-0.6)}`;
-  };
-  const arrows = {
-    "tone-up": `M2 15 L6.5 8 L10 11 L16 3 ${tip([10, 11], [16, 3])}`,
-    "tone-down": `M2 3 L6.5 10 L10 7 L16 15 ${tip([10, 7], [16, 15])}`,
-    "tone-both": `M2 9 H6 C9.5 9 11 3.5 16 3.5 M6 9 C9.5 9 11 14.5 16 14.5 ${tip([12.5, 3.9], [16, 3.5])} ${tip([12.5, 14.1], [16, 14.5])}`,
-  };
-  const arrow = (tone) => `<svg class="${tone}" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="${arrows[tone]}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   // `step`은 이슈 화면에서 이웃 이슈로 넘기는 함수이고, `busy`는 넘기는 동안 켠다.
   let busy = false, step = null;
   const box = document.createElement("div");
@@ -70,27 +61,30 @@ export function section(title, focus = 0, at = null, analyzed = "", pasts = null
       text.append(Object.assign(document.createElement("h3"), { textContent: `비중이 낮은 이슈 ${names.length}건` }));
       text.append(Object.assign(document.createElement("p"), { textContent: names.slice(0, 3).join(", ") + (names.length > 3 ? "\u00a0등" : "") }));
       pick.append(Object.assign(document.createElement("div"), { className: "lead" }));
-      pick.lastChild.append(Object.assign(document.createElement("span"), { className: "num" }), text);
+      pick.lastChild.append(text);
     } else {
       pick.className = "pick";
-      for (const key of ["event", "eventLevel"]) if (nodes[0].dataset[key]) pick.dataset[key] = nodes[0].dataset[key];
       const title = nodes[0].cloneNode(true);
       title.removeAttribute("id");
+      title.querySelectorAll("code").forEach((code) => code.remove());
       text.append(title);
+      const src = image?.querySelector("img")?.getAttribute("src");
+      if (src) text.append(Object.assign(document.createElement("img"), { className: "cover", src, alt: "", loading: "lazy" }));
       const now = nodes.map((node) => (node.tagName === "H4" ? node : node.querySelector?.("h4"))).find((h4) => ["이슈 해설", "현재 상태"].includes(h4?.querySelector("mark")?.textContent.trim()));
       if (now) text.append(Object.assign(document.createElement("p"), { textContent: [...now.childNodes].filter((n) => n.nodeName !== "MARK").map((n) => n.textContent).join("").trim() }));
       // 이슈 해설의 소제목은 목록 상자에만 쓰고, 이슈 문단에서는 말머리만 남긴다. 현재 상태 소제목은 접는 문단의 제목이므로 그대로 둔다.
       if (now?.querySelector("mark").textContent.trim() === "이슈 해설") [...now.childNodes].filter((n) => n.nodeName !== "MARK").forEach((n) => n.remove());
       if (now?.querySelector("mark").textContent.trim() === "이슈 해설") lead = now;
+      // NEW·N일 전 줄 오른쪽에, 바로 앞 리포트의 이벤트 캘린더가 적은 이벤트의 결과를 다룬 이슈는 "10월 CPI 결과" 같은 스티커를 붙인다.
       const age = "new" in nodes[0].dataset ? "NEW" : nodes[0].dataset.age ? `${nodes[0].dataset.age}일 전` : "";
-      if (age) text.append(Object.assign(document.createElement("div"), { className: age === "NEW" ? "age new" : "age", textContent: age }));
-      const num = Object.assign(document.createElement("span"), { className: "num", textContent: i + 1 });
-      const tone = [...title.querySelectorAll("code")].map((code) => Object.keys(arrows).find((t) => code.classList.contains(t))).find(Boolean);
-      title.querySelectorAll("code").forEach((code) => code.remove());
-      if (tone) num.insertAdjacentHTML("beforeend", arrow(tone));
+      const { event, eventLevel } = nodes[0].dataset;
+      if (age || event) {
+        const row = text.appendChild(Object.assign(document.createElement("div"), { className: "age" }));
+        if (age) row.append(Object.assign(document.createElement("span"), { className: age === "NEW" ? "new" : "", textContent: age }));
+        if (event) row.append(Object.assign(document.createElement("span"), { className: eventLevel === "low" ? "event low" : "event", textContent: `${event} 결과` }));
+      }
       pick.append(Object.assign(document.createElement("div"), { className: "lead" }));
-      pick.lastChild.append(num, text);
-      if (image?.dataset.thumb) pick.append(Object.assign(document.createElement("img"), { className: "thumb", src: image.dataset.thumb, alt: "" }));
+      pick.lastChild.append(text);
     }
     // 이슈 상자를 누르면 진동을 내고 그 이슈를 연다.
     pick.addEventListener("click", () => {
