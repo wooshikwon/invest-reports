@@ -34,16 +34,22 @@ export const newsArticle = (id) => ask(`/articles/${encodeURIComponent(id)}`);
 const clock = (time) => `${+time.slice(5, 7)}/${+time.slice(8, 10)} ${time.slice(11, 16)}`;
 const empty = (text) => Object.assign(document.createElement("p"), { className: "empty", textContent: text });
 
-// 종목 뉴스 목록 블록. 제목, 머리 줄(요약), 회차 시각을 위에서 아래로 쓰고, 회차 시각 오른쪽에 기사가 다룬 종목마다 티커 스티커를 붙인다.
-// `move`면 같은 줄 오른쪽 끝에 첫 종목의 회차 구간 변동률을 "변동률 지수 : N%"로 회색 글씨로 쓰고, 변동률이 없는 기사는 쓰지 않는다. 블록을 누르면 진동을 내고 `open`을 부른다.
-function newsBlock(item, open, move) {
+// 종목 뉴스 목록 블록. 종목별 뉴스 목록(`full`)은 제목, 머리 줄(요약), 회차 시각을 위에서 아래로 쓰고, 회차 시각 오른쪽에 기사가 다룬 종목마다 티커 스티커를 붙이며,
+// 같은 줄 오른쪽 끝에 첫 종목의 회차 구간 변동률을 "변동률 지수 : N%"로 회색 글씨로 쓴다. 변동률이 없는 기사는 변동률을 쓰지 않는다.
+// 종목 상세 주요 뉴스 절은 제목과 회차 시각만 쓴다. 블록을 누르면 진동을 내고 `open`을 부른다.
+function newsBlock(item, open, full) {
   const node = Object.assign(document.createElement("div"), { className: "pick" });
   const lead = node.appendChild(Object.assign(document.createElement("div"), { className: "lead" }));
   const text = lead.appendChild(Object.assign(document.createElement("div"), { className: "text" }));
   const age = Object.assign(document.createElement("div"), { className: "age" });
-  age.append(clock(item.time), ...(item.tickers || []).map((ticker) => Object.assign(document.createElement("span"), { className: "ticker", textContent: ticker })));
-  if (move && item.move !== null && item.move !== undefined) age.append(Object.assign(document.createElement("span"), { className: "move", textContent: `변동률 지수 : ${item.move.toFixed(2)}%` }));
-  text.append(Object.assign(document.createElement("h3"), { textContent: item.title }), Object.assign(document.createElement("p"), { textContent: item.headline }), age);
+  age.append(clock(item.time));
+  text.append(Object.assign(document.createElement("h3"), { textContent: item.title }));
+  if (full) {
+    age.append(...(item.tickers || []).map((ticker) => Object.assign(document.createElement("span"), { className: "ticker", textContent: ticker })));
+    if (item.move !== null && item.move !== undefined) age.append(Object.assign(document.createElement("span"), { className: "move", textContent: `변동률 지수 : ${item.move.toFixed(2)}%` }));
+    text.append(Object.assign(document.createElement("p"), { textContent: item.headline }));
+  }
+  text.append(age);
   node.addEventListener("click", () => {
     feelPress();
     open();
@@ -172,7 +178,7 @@ export function newsTab(index, written) {
 }
 
 // 종목 상세에서 `after` 바로 뒤에 주요 뉴스 절을 두고, 절의 마지막 노드를 돌려준다. 절은 `symbol` 종목을 단 최신 기사 `STOCK_NEWS`편까지 받아
-// 종목별 뉴스 목록과 같은 블록(변동률 지수 없이)으로 쓰고, `PAGE`편씩 한 장에 담아 좌우로 밀어 넘긴다. 장이 둘 이상이면 아래에 번호 줄을 두고,
+// 종목별 뉴스 목록과 같은 모양의 블록에 제목과 회차 시각만 쓰고, `PAGE`편씩 한 장에 담아 좌우로 밀어 넘긴다. 장이 둘 이상이면 아래에 번호 줄을 두고,
 // 번호는 보고 있는 장을 가운데에 두어 `NUMBERS`개까지 보이며, 양옆 꺾쇠는 앞 장과 다음 장으로 넘긴다. 블록을 누르면 그 기사의 뉴스 상세를 연다.
 export function headlines(after, symbol) {
   const { signal } = life;

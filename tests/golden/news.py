@@ -217,9 +217,9 @@ def main() -> int:
         check("주요 뉴스 절은 공시 상세 절 위에 있다", order[-2:] == ["주요 뉴스", "공시 상세"], str(order))
         rows = page.evaluate(ROWS)
         blocks = page.evaluate("""() => [document.querySelectorAll('.headlines .history, .headlines .unfold').length,
-          [...document.querySelector('.headlines .pick .text').children].map((n) => n.tagName), document.querySelectorAll('.headlines .move').length]""")
-        check("주요 뉴스 절은 상자와 펼치기 없이 종목별 뉴스와 같은 블록(제목, 요약, 시각)을 첫 장에 다섯 편 쓴다",
-              rows == NVDA[:5] and blocks == [0, ["H3", "P", "DIV"], 0], f"{' | '.join(rows)} {blocks}")
+          [...document.querySelector('.headlines .pick .text').children].map((n) => n.tagName), document.querySelectorAll('.headlines .move, .headlines .ticker').length]""")
+        check("주요 뉴스 절은 상자와 펼치기 없이 제목과 회차 시각만 쓴 블록을 첫 장에 다섯 편 쓴다",
+              rows == NVDA[:5] and blocks == [0, ["H3", "DIV"], 0], f"{' | '.join(rows)} {blocks}")
         check("번호 줄은 1~5를 보이고 1을 고르며 앞 꺾쇠는 누를 수 없다",
               page.evaluate(PAGER) == {"numbers": ["1", "2", "3", "4", "5"], "on": "1", "prev": False, "next": True}, str(page.evaluate(PAGER)))
         capture.top(page, page.locator("#report > h2", has_text="주요 뉴스"), 60)
