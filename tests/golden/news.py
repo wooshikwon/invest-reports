@@ -23,15 +23,18 @@ TITLES = [title for _, _, _, title, _ in fixtures.NEWS]
 # 나스닥 리포트의 종목 뉴스 탭이 보이는 최신 회차(11/19 18:00) 기사 제목을 첫 종목의 변동률 순서로 적는다.
 NASDAQ_LATEST = [TITLES[k] for k in (18, 0, 19, 20, 1, 21, 22)]
 BIOTECH_TITLES = [title for name, index, _, title, _ in fixtures.NEWS if index == "biotech"]
-# NVDA를 단 기사 제목을 최신순으로 열 편까지 적는다.
-NVDA = [TITLES[k] for k in (0, 2, 4, 6, 8, 9, 10, 11, 12, 13)]
+# NVDA를 단 기사 제목을 최신순으로 적는다. 11월 기사 열한 편 뒤에 10월 기사 스무 편이 온다.
+NVDA = [TITLES[k] for k in (0, 2, 4, 6, 8, 9, 10, 11, 12, 13, 14)] + [f"엔비디아 10월 {day}일 SAMPLE 기사" for day in range(20, 0, -1)]
 FAILS = []
 
 LIST = "() => [...document.querySelectorAll('.news-box .pick h3')].filter((h) => h.offsetParent).map((h) => h.firstChild.textContent.trim())"
 # 목록 블록마다 그림이 있는지와 글 칸의 자식 차례.
 BLOCKS = """() => [...document.querySelectorAll('.news-box .pick')].filter((pick) => pick.offsetParent).map((pick) => [!!pick.querySelector('img'),
   [...pick.querySelector('.text').children].map((n) => n.matches('img.cover') ? 'image' : n.matches('h3') ? 'title' : n.matches('p') ? 'headline' : n.matches('.age') ? 'age' : n.tagName)])"""
-ROWS = "() => [...document.querySelectorAll('.headlines .entry')].filter((row) => row.offsetParent).map((row) => row.querySelector('.title').textContent.trim())"
+# 주요 뉴스 절에서 화면 안에 보이는 장의 기사 제목과 번호 줄(보이는 번호, 고른 번호, 앞·다음 꺾쇠를 누를 수 있는지).
+ROWS = "() => [...document.querySelectorAll('.headlines .pick h3')].filter((h) => { const r = h.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; }).map((h) => h.textContent.trim())"
+PAGER = """() => { const pager = document.querySelector('.headlines .pager'); return pager && { numbers: [...pager.querySelectorAll('.numbers button')].map((b) => b.textContent),
+  on: pager.querySelector('.numbers button.on')?.textContent, prev: !pager.querySelector('.prev').disabled, next: !pager.querySelector('.next').disabled }; }"""
 BAR = """() => { const bar = document.querySelector('h2.tabbed .bar').getBoundingClientRect(), on = document.querySelector('h2.tabbed .tabline > button.on');
   const box = on.getBoundingClientRect(); return { tab: on.textContent, bar: [bar.left, bar.width, bar.bottom], on: [box.left, box.width, box.bottom] }; }"""
 # 보이는 뉴스 상세 문단. 제목, 제목 안의 종목 스티커(없어야 한다), 소제목 줄과 그 글자 굵기, 제목·소제목 줄·그림·말머리의 차례, 그림 수, 이슈 해설 말머리 뒤 글(비어야 한다), 본문 소제목,
@@ -213,21 +216,34 @@ def main() -> int:
         order = page.evaluate("() => [...document.querySelectorAll('#report > h2')].map((h) => h.textContent.trim())")
         check("주요 뉴스 절은 공시 상세 절 위에 있다", order[-2:] == ["주요 뉴스", "공시 상세"], str(order))
         rows = page.evaluate(ROWS)
-        check("주요 뉴스 절에는 기사 제목이 세 개 보인다", rows == NVDA[:3], " | ".join(rows))
+        blocks = page.evaluate("""() => [document.querySelectorAll('.headlines .history, .headlines .unfold').length,
+          [...document.querySelector('.headlines .pick .text').children].map((n) => n.tagName), document.querySelectorAll('.headlines .move').length]""")
+        check("주요 뉴스 절은 상자와 펼치기 없이 종목별 뉴스와 같은 블록(제목, 요약, 시각)을 첫 장에 다섯 편 쓴다",
+              rows == NVDA[:5] and blocks == [0, ["H3", "P", "DIV"], 0], f"{' | '.join(rows)} {blocks}")
+        check("번호 줄은 1~5를 보이고 1을 고르며 앞 꺾쇠는 누를 수 없다",
+              page.evaluate(PAGER) == {"numbers": ["1", "2", "3", "4", "5"], "on": "1", "prev": False, "next": True}, str(page.evaluate(PAGER)))
         capture.top(page, page.locator("#report > h2", has_text="주요 뉴스"), 60)
         page.screenshot(path=str(shots / "stock-headlines.png"))
-        page.locator(".headlines button.unfold").click()
-        capture.settle(page, 400)
-        rows = page.evaluate(ROWS)
-        check("주요 뉴스 절을 펼치면 기사 제목이 열 개 보인다", rows == NVDA, f"{len(rows)}개")
-        size = page.evaluate("""() => { const rows = document.querySelector('.headlines .rows'), box = rows.getBoundingClientRect();
-          const inside = [...rows.children].filter((row) => { const r = row.getBoundingClientRect(); return r.top >= box.top - 1 && r.bottom <= box.bottom + 1; }).length;
-          rows.scrollTop = rows.scrollHeight;
-          return { inside, scrolls: rows.scrollHeight > rows.clientHeight, overflow: getComputedStyle(rows).overflowY, last: rows.lastElementChild.getBoundingClientRect().bottom <= rows.getBoundingClientRect().bottom + 1 }; }""")
-        check("펼친 주요 뉴스 상자는 다섯 편 높이까지만 보이고 나머지 기사는 상자 안에서 밀어 본다",
-              size == {"inside": 5, "scrolls": True, "overflow": "auto", "last": True}, str(size))
-        page.evaluate("document.querySelector('.headlines .rows').scrollTop = 0")
-        page.locator(".headlines .entry", has_text=NVDA[1]).click()
+        page.locator(".headlines .pager .next").click()
+        capture.settle(page, 900)
+        check("다음 꺾쇠를 누르면 둘째 장의 다섯 편으로 넘긴다", page.evaluate(ROWS) == NVDA[5:10] and page.evaluate(PAGER)["on"] == "2", str(page.evaluate(PAGER)))
+        page.locator(".headlines .pager .numbers button", has_text="5").click()
+        capture.settle(page, 900)
+        pager = page.evaluate(PAGER)
+        check("번호를 누르면 그 장으로 넘기고, 번호 줄은 고른 장을 가운데에 둔 다섯 개를 보인다",
+              page.evaluate(ROWS) == NVDA[20:25] and pager == {"numbers": ["3", "4", "5", "6", "7"], "on": "5", "prev": True, "next": True}, str(pager))
+        page.evaluate("(() => { const track = document.querySelector('.headlines .carousel .track'); track.scrollLeft = track.scrollWidth; })()")
+        capture.settle(page, 900)
+        pager = page.evaluate(PAGER)
+        check("마지막 장까지 밀어 넘기면 남은 한 편이 보이고 다음 꺾쇠는 누를 수 없다",
+              page.evaluate(ROWS) == NVDA[30:] and pager == {"numbers": ["3", "4", "5", "6", "7"], "on": "7", "prev": True, "next": False}, str(pager))
+        page.locator(".headlines .pager .numbers button", has_text="3").click()
+        capture.settle(page, 900)
+        page.locator(".headlines .pager .prev").click()
+        capture.settle(page, 900)
+        page.locator(".headlines .pager .prev").click()
+        capture.settle(page, 900)
+        page.locator(".headlines .pick", has_text=NVDA[1]).click()
         capture.settle(page)
         found = page.evaluate(PAGE)
         check("종목 상세에서 연 뉴스 상세의 다음 기사는 그 종목의 다음 기사다", found["title"] == NVDA[1] and found["prev"] == NVDA[0] and found["next"] == NVDA[2], str(found))
@@ -238,8 +254,8 @@ def main() -> int:
               and f"news={fixtures.news()[4]['id']}" in moved["search"] and "ticker=NVDA" in moved["search"], str(moved))
         page.locator("button.back").click()
         capture.settle(page)
-        state = page.evaluate("() => [location.search, document.querySelectorAll('.headlines .entry').length]")
-        check("종목 상세에서 연 뉴스 상세에서 뒤로 가면 종목 상세로 돌아온다", state[0] == f"?r={NASDAQ}&stock=NVDA" and state[1] == 10, str(state))
+        state = page.evaluate("() => [location.search, document.querySelectorAll('.headlines .pick').length]")
+        check("종목 상세에서 연 뉴스 상세에서 뒤로 가면 종목 상세로 돌아온다", state[0] == f"?r={NASDAQ}&stock=NVDA" and state[1] == len(NVDA), str(state))
         run.close()
 
         check("페이지 오류와 바깥 요청이 없다", not server.errors and not server.escaped, f"{server.errors[:3]} {server.escaped[:3]}")

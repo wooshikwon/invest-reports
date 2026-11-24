@@ -8,7 +8,7 @@
 // 공개 읽기는 네 경로다. 회차 시작 시각은 회차 이름으로 정한다(`{날짜}-06`은 그날 06:00 KST).
 // - `GET /list?index={nasdaq|biotech}`: 최신 회차의 이름·시작 시각과 그 회차의 지수 기사. 기사는 첫 종목(기사를 맡은 종목)의 회차 구간 변동률(`move`)이
 //   큰 기사부터 놓고, 변동률이 같으면 ID 순이며, 변동률이 없는 기사는 맨 뒤에 놓는다
-// - `GET /list?ticker={티커}&limit={1~10}`: 그 종목을 단 최신 기사. 회차 시작 시각이 늦은 기사부터 놓는다
+// - `GET /list?ticker={티커}&limit={1~50}`: 그 종목을 단 최신 기사. 회차 시작 시각이 늦은 기사부터 놓는다
 // - `GET /articles/{ID}`: 기사 한 편. 소제목 줄(`subheads`)이 없이 올린 기사는 빈 목록을 돌려준다
 // - `GET /images/{이름}`: 그림
 // 쓰기와 관리 요청은 비밀 헤더 `X-News-Secret`이 비밀 값 `NEWS_SECRET`과 같을 때만 받고, 다르면 401이다.
@@ -318,7 +318,7 @@ async function open(request, env, url, path) {
     }
     if (ticker !== null && index === null) {
       const limit = Number(query.get("limit"));
-      if (!TICKER.test(ticker) || !Number.isInteger(limit) || limit < 1 || limit > 10) return status(400, HEADERS);
+      if (!TICKER.test(ticker) || !Number.isInteger(limit) || limit < 1 || limit > 50) return status(400, HEADERS);
       const rows = await newsStore(env).byTicker(ticker, limit);
       return reply({ articles: rows.map((row) => entry(url.origin, row)) }, 200, fresh);
     }

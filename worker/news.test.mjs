@@ -318,7 +318,7 @@ test("형식에 맞지 않는 기사, 그림, 목록 요청은 400이고 너무 
   for (const body of ["{", JSON.stringify({ round: "2026-11-20-12" }), JSON.stringify({})]) {
     assert.equal((await call("POST", "/rounds", { body, headers: secret })).status, 400, body);
   }
-  for (const path of ["/list", "/list?index=kospi", "/list?ticker=SAMPA&limit=11", "/list?ticker=SAMPA", "/list?index=nasdaq&ticker=SAMPA&limit=3"]) {
+  for (const path of ["/list", "/list?index=kospi", "/list?ticker=SAMPA&limit=51", "/list?ticker=SAMPA", "/list?index=nasdaq&ticker=SAMPA&limit=3"]) {
     assert.equal((await call("GET", path)).status, 400, path);
   }
   assert.deepEqual(await get("/list?index=nasdaq"), { round: null, time: null, articles: [] });
