@@ -55,6 +55,8 @@ export const CARD_HELP = (ink) => [
   ["권장 배율", `${ink} 세로선이 권장 배율이에요. 권장 배율이 1.0(지수 추종)보다 작으면 리포트가 하락을 예상한다는 뜻이고, 크면 상승을 예상한다는 뜻이에요.`],
 ];
 export const INK = { nasdaq: "하늘색", biotech: "보라색" };
+// 화면에 쓰는 이름이 리포트의 절 제목과 다른 절. 설명 상자의 제목에는 화면의 이름을 쓴다.
+const SHOWN = { "상세 이슈 해설": "주요 이슈 해설" };
 // 설명이 있는 절 제목 뒤에 물음표 단추를 넣는다. 단추는 글자를 담지 않으므로 절 제목 글자로 절을 찾는 `paginate`와 이벤트 캘린더 찾기가 그대로 동작한다. `section`이 절 제목 안을 바꿔 쓴 뒤에 부른다.
 export function help() {
   report.querySelectorAll("h2").forEach((head) => {
@@ -62,7 +64,7 @@ export function help() {
     if (title !== "지수와 예측" && !HELP[title] && !(title === "한 눈에 보기" && GLANCE_HELP[index])) return;
     const items = title === "한 눈에 보기" ? GLANCE_HELP[index] : title !== "지수와 예측" ? HELP[title]
       : report.querySelector(".carousel.cards") ? CARD_HELP(INK[index] || "하늘색") : OUTLOOK_HELP(INDEX_NAME[index]);
-    head.append(question(title, () => {
+    head.append(question(SHOWN[title] || title, () => {
       const list = document.createElement("ul");
       items.forEach(([name, text]) => {
         const li = list.appendChild(document.createElement("li"));

@@ -1,4 +1,4 @@
-"""종목 뉴스 화면의 동작 시험. 리포트 화면의 "상세 이슈 해설 | 종목 뉴스" 탭, 뉴스 상세, 종목 상세의 주요 뉴스 절을 `fixtures.NEWS`의 SAMPLE 기사로 연다.
+"""종목 뉴스 화면의 동작 시험. 리포트 화면의 "주요 이슈 해설 | 종목별 뉴스" 탭, 뉴스 상세, 종목 상세의 주요 뉴스 절을 `fixtures.NEWS`의 SAMPLE 기사로 연다.
 
     python3 tests/golden/news.py --data ~/repos/invest-reports-news --shots /tmp/sn-u8/shots
 
@@ -61,7 +61,7 @@ def near(a: list, b: list) -> bool:
 def open_news(run, key: str):
     page = run.open(f"?r={key}")
     capture.turn(page, "이슈")
-    page.locator("h2.tabbed .tabline > button", has_text="종목 뉴스").click()
+    page.locator("h2.tabbed .tabline > button", has_text="종목별 뉴스").click()
     capture.settle(page, 800)
     return page
 
@@ -95,11 +95,11 @@ def main() -> int:
         page = run.open(f"?r={NASDAQ}")
         capture.turn(page, "이슈")
         before = page.evaluate(BAR)
-        page.locator("h2.tabbed .tabline > button", has_text="종목 뉴스").click()
+        page.locator("h2.tabbed .tabline > button", has_text="종목별 뉴스").click()
         capture.settle(page, 800)
         after = page.evaluate(BAR)
-        check("처음에는 상세 이슈 해설 탭을 고르고 막대가 그 탭 아래에 있다", before["tab"] == "상세 이슈 해설" and near(before["bar"][:2], before["on"][:2]), str(before))
-        check("탭을 바꾸면 막대가 고른 탭 아래로 옮겨 간다", after["tab"] == "종목 뉴스" and near(after["bar"][:2], after["on"][:2])
+        check("처음에는 상세 이슈 해설 탭을 고르고 막대가 그 탭 아래에 있다", before["tab"] == "주요 이슈 해설" and near(before["bar"][:2], before["on"][:2]), str(before))
+        check("탭을 바꾸면 막대가 고른 탭 아래로 옮겨 간다", after["tab"] == "종목별 뉴스" and near(after["bar"][:2], after["on"][:2])
               and after["bar"][0] > before["bar"][0] + 20, str(after))
         hidden = page.evaluate("() => [document.querySelector('.issue-box').hidden, document.querySelector('.news-box').hidden]")
         check("종목 뉴스 탭은 이슈 목록을 감추고 기사 목록을 보인다", hidden == [True, False], str(hidden))
@@ -127,22 +127,22 @@ def main() -> int:
         page.evaluate("scrollTo(0, 0)")
         capture.settle(page, 300)
         page.screenshot(path=str(shots / "news-tab.png"))
-        page.locator("h2.tabbed .tabline > button", has_text="상세 이슈 해설").click()
+        page.locator("h2.tabbed .tabline > button", has_text="주요 이슈 해설").click()
         capture.settle(page, 600)
         back = page.evaluate(BAR)
-        check("상세 이슈 해설 탭으로 돌아오면 막대도 돌아온다", back["tab"] == "상세 이슈 해설" and near(back["bar"][:2], before["bar"][:2]), str(back))
+        check("상세 이슈 해설 탭으로 돌아오면 막대도 돌아온다", back["tab"] == "주요 이슈 해설" and near(back["bar"][:2], before["bar"][:2]), str(back))
         # 절 안에서 가로로 밀면 탭을 넘긴다
         swipe(page, -160)
-        check("절 안에서 왼쪽으로 밀면 종목 뉴스 탭으로 넘어간다", page.evaluate(BAR)["tab"] == "종목 뉴스", page.evaluate(BAR))
+        check("절 안에서 왼쪽으로 밀면 종목 뉴스 탭으로 넘어간다", page.evaluate(BAR)["tab"] == "종목별 뉴스", page.evaluate(BAR))
         swipe(page, 160)
-        check("절 안에서 오른쪽으로 밀면 상세 이슈 해설 탭으로 돌아온다", page.evaluate(BAR)["tab"] == "상세 이슈 해설", page.evaluate(BAR))
+        check("절 안에서 오른쪽으로 밀면 상세 이슈 해설 탭으로 돌아온다", page.evaluate(BAR)["tab"] == "주요 이슈 해설", page.evaluate(BAR))
         # 화면 좌우 끝에서 밀면 바로가기 탭을 넘기고, 절 안의 탭은 넘기지 않는다
         swipe(page, -160, 382)
         on = page.evaluate("() => document.querySelector('nav.jump button.on')?.textContent")
-        check("오른쪽 끝에서 왼쪽으로 밀면 다음 바로가기 탭(시장)을 연다", on == "시장" and page.evaluate(BAR)["tab"] == "상세 이슈 해설", on)
+        check("오른쪽 끝에서 왼쪽으로 밀면 다음 바로가기 탭(시장)을 연다", on == "시장" and page.evaluate(BAR)["tab"] == "주요 이슈 해설", on)
         swipe(page, 160, 8)
         on = page.evaluate("() => document.querySelector('nav.jump button.on')?.textContent")
-        check("왼쪽 끝에서 오른쪽으로 밀면 앞 바로가기 탭(이슈)으로 돌아온다", on == "이슈" and page.evaluate(BAR)["tab"] == "상세 이슈 해설", on)
+        check("왼쪽 끝에서 오른쪽으로 밀면 앞 바로가기 탭(이슈)으로 돌아온다", on == "이슈" and page.evaluate(BAR)["tab"] == "주요 이슈 해설", on)
         run.close()
 
         # 적힌 탭이 없는 가장 늦은 리포트는 분석 완료 시각과 가장 최근 회차 시각 가운데 늦은 쪽의 탭으로 연다.
@@ -151,7 +151,7 @@ def main() -> int:
         page = run.open(f"?r={latest}")
         capture.turn(page, "이슈")
         capture.settle(page, 600)
-        check("분석 완료 시각이 최근 회차보다 늦으면 상세 이슈 해설 탭으로 연다", page.evaluate(BAR)["tab"] == "상세 이슈 해설", listing[latest]["written"])
+        check("분석 완료 시각이 최근 회차보다 늦으면 상세 이슈 해설 탭으로 연다", page.evaluate(BAR)["tab"] == "주요 이슈 해설", listing[latest]["written"])
         # 분석 완료 시각을 SAMPLE 기사의 가장 최근 회차(11/19 18:00 KST)보다 이르게 바꾼 목록으로 다시 연다.
         earlier = {**listing, latest: {**listing[latest], "written": "2026-11-19 10:00"}}
         page.route("**/r/index.json*", lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps(earlier)))
@@ -161,7 +161,7 @@ def main() -> int:
         capture.turn(page, "이슈")
         capture.settle(page, 600)
         auto = page.evaluate(BAR)
-        check("최근 회차가 분석 완료 시각보다 늦으면 종목 뉴스 탭으로 연다", auto["tab"] == "종목 뉴스" and near(auto["bar"][:2], auto["on"][:2]), str(auto))
+        check("최근 회차가 분석 완료 시각보다 늦으면 종목 뉴스 탭으로 연다", auto["tab"] == "종목별 뉴스" and near(auto["bar"][:2], auto["on"][:2]), str(auto))
         run.close()
 
         page = open_news(run, BIOTECH)
@@ -182,7 +182,7 @@ def main() -> int:
         page.locator("button.back").click()
         capture.settle(page)
         state = page.evaluate("() => [document.querySelector('h2.tabbed .tabline > button.on')?.textContent, location.search]")
-        check("뉴스 상세에서 뒤로 가면 리포트 화면의 처음 탭(상세 이슈 해설)으로 돌아온다", state == ["상세 이슈 해설", f"?r={NASDAQ}"], str(state))
+        check("뉴스 상세에서 뒤로 가면 리포트 화면의 처음 탭(상세 이슈 해설)으로 돌아온다", state == ["주요 이슈 해설", f"?r={NASDAQ}"], str(state))
         run.close()
 
         # 뉴스 상세의 모양
@@ -249,7 +249,7 @@ def main() -> int:
         page = open_news(run, NASDAQ)
         empty = page.evaluate("() => document.querySelector('.news-box .empty')?.textContent")
         check("Worker가 응답하지 않으면 종목 뉴스 탭에 빈 상태 문구가 보인다", empty == "종목 뉴스를 불러오지 못했다.", str(empty))
-        page.locator("h2.tabbed .tabline > button", has_text="상세 이슈 해설").click()
+        page.locator("h2.tabbed .tabline > button", has_text="주요 이슈 해설").click()
         capture.settle(page, 400)
         picks = page.locator(".issue-list .pick").filter(visible=True).count()
         check("Worker가 응답하지 않아도 상세 이슈 해설 탭은 그대로 보인다", picks > 0, f"이슈 상자 {picks}개")
