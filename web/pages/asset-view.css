@@ -153,7 +153,9 @@
 .trade .act button.on:disabled { opacity: 1; }
 /* 내 투자 큰 값 아래의 비중 줄은 회색으로 쓴다. */
 .asset-sum .share { color: var(--hint); }
-/* 그림 카드 탭 줄 오른쪽 끝의 기준일 단추. 바탕 없이 달력 아이콘과 기준일만 쓰고, 기준일을 고른 동안 글씨를 밝힌다. */
-.tabs .since { display: flex; align-items: center; gap: 5px; margin-left: auto; padding: 6px 0 6px 6px; font-size: 12.5px; font-weight: 700; background: none; color: var(--dim); }
-.tabs .since svg { color: var(--hint); }
-.tabs .since.on { color: var(--text); }
+/* 그림 카드 아래 가운데의 기준일 단추. 바탕 없이 달력 아이콘과 기준일만 쓰고, 기준일을 고른 동안 글씨를 밝힌다. 배율 카드에서는 자리만 남긴다(`off`). */
+.since-row { display: flex; justify-content: center; margin-top: 6px; }
+.since-row.off { visibility: hidden; }
+.since-row .since { display: flex; align-items: center; gap: 5px; padding: 6px 8px; border: 0; font: inherit; font-size: 12.5px; font-weight: 700; background: none; color: var(--dim); cursor: pointer; }
+.since-row .since svg { color: var(--hint); }
+.since-row .since.on { color: var(--text); }

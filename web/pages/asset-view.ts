@@ -326,9 +326,10 @@ export function assetPage(page) {
       button.addEventListener("click", () => box.go(i));
       bar.appendChild(button);
     });
-    // 탭 줄 오른쪽 끝의 기준일 단추는 수익률 카드의 기준일을 고르는 달력 상자(`dateSheet`)를 띄운다. 첫날부터 마지막 정산일까지의 거래일만 고를 수 있고,
+    // 그림 카드 아래 가운데의 기준일 단추는 수익률 카드의 기준일을 고르는 달력 상자(`dateSheet`)를 띄운다. 첫날부터 마지막 정산일까지의 거래일만 고를 수 있고,
     // 고른 기준일은 기기에 남아 두 지수 화면이 함께 쓰고, 다음에 열어도 이어진다. 처음부터 단추는 기준일을 첫날로 되돌린다.
-    const days = perf?.returns?.days || [];
+    // 배율 카드를 보는 동안에는 단추를 감추고 그 자리 높이만 남긴다.
+    const days = perf?.returns?.days || [], row = Object.assign(document.createElement("div"), { className: "since-row" });
     if (days.length > 1) {
       const base = view.since ? days.filter((day) => day <= view.since).at(-1) || days[0] : days[0];
       const since = Object.assign(document.createElement("button"), { type: "button", className: `since${view.since ? " on" : ""}`, innerHTML: `${CALENDAR}<span>${assetDay(base)}</span>` });
@@ -339,11 +340,16 @@ export function assetPage(page) {
                     hint: ({ start }) => `${assetDay(start)} 종가부터 누적 수익률을 그린다`, reset: ["처음부터", () => ({ start: days[0], end: days[0] })],
                     done: ({ start }) => { view.since = start === days[0] ? null : start; pin.day = null; remember(); fill(last); } }, life.signal);
       });
-      bar.append(since);
+      row.append(since);
     }
-    const pick = (i) => { [...bar.querySelectorAll("button:not(.since)")].forEach((button, j) => button.classList.toggle("on", i === j)); view.card = i; };
+    const pick = (i) => {
+      [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j));
+      row.classList.toggle("off", cards[i][0] === "배율");
+      view.card = i;
+    };
     const box = slider(cards.map(([, card]) => [card]), above, { start: Math.min(view.card, cards.length - 1), change: pick, name: "asset-cards", feel: true, home: 0 });
     box.prepend(bar);
+    if (row.children.length) box.append(row);
   };
   page.addEventListener("click", (event) => {
     const unit = event.target.closest("[data-unit]");
