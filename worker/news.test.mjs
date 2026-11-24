@@ -235,6 +235,19 @@ test("올린 그림은 공개로 읽히고 기사에는 그림 주소와 사진 
   assert.equal((await get("/list?index=nasdaq")).articles[0].image, `${ORIGIN}/images/a1-1.webp`);
 });
 
+test("목록 그림은 목록의 그림이 되고 기사 읽기의 그림에는 빠지며, 달의 그림을 지우면 함께 지워진다", async () => {
+  await post(sample("a1", "2026-11-20-06", { images: [{ name: "a1-1.webp", caption: "SAMPLE 본문 그림" }], cover: { name: "a1-cover.webp" } }));
+  await post(sample("a2", "2026-11-20-06", { images: [{ name: "a2-1.webp" }] }));
+  await enroll("2026-11-20-06");
+  const listed = await get("/list?index=nasdaq");
+  assert.deepEqual(listed.articles.map((article) => article.image), [`${ORIGIN}/images/a1-cover.webp`, `${ORIGIN}/images/a2-1.webp`]);
+  assert.deepEqual((await get("/articles/a1")).images, [{ url: `${ORIGIN}/images/a1-1.webp`, caption: "SAMPLE 본문 그림" }]);
+  const admin = await (await call("GET", "/admin/articles?round=2026-11-20-06", { headers: secret })).json();
+  assert.deepEqual(admin.articles[0].images, ["a1-cover.webp", "a1-1.webp"]);
+  assert.equal((await post(sample("a3", "2026-11-20-06", { cover: { name: "../x" } }))).status, 400);
+  assert.equal((await post(sample("a3", "2026-11-20-06", { cover: "a3.webp" }))).status, 400);
+});
+
 test("달의 그림을 지우면 그달 그림의 공개 읽기가 404이고 그달 기사의 그림 주소가 비며 다른 달의 그림은 남는다", async () => {
   at("2026-10-31T23:30:00+09:00");
   await put("oct-1.webp");

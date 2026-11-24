@@ -282,6 +282,8 @@ created: 2026-11-20
 
 ### 1. 엔비디아 칩 수출 허가
 
+요약: 미국 상무부가 엔비디아의 칩 수출을 "절반"만 허가했다. 엔비디아는 남은 물량을 다른 고객에게 돌렸다.
+
 - 상무부 심사에 의문이 커졌다
 - 허가 물량은 지난해의 절반이다
 - 엔비디아는 **다른 고객**으로 물량을 돌린다
@@ -325,10 +327,12 @@ def test_issue_articles_read_each_article(tmp_path):
     folder = article_folder(tmp_path, [{"issue": 1, "after": 3}])
     found = build.issue_articles(folder / "news.md", folder, Path.home() / "obsidian-vault")
     assert [(item["issue"], item["title"], item["headline"]) for item in found] == [(1, "엔비디아 칩 수출 허가", ""), (2, "연준 회의", "금리 동결 전망")]
+    assert [item["summary"] for item in found] == ['미국 상무부가 엔비디아의 칩 수출을 "절반"만 허가했다. 엔비디아는 남은 물량을 다른 고객에게 돌렸다.', ""]
     assert found[0]["subheads"] == ["상무부 심사에 의문이 커졌다", "허가 물량은 지난해의 절반이다", "엔비디아는 다른 고객으로 물량을 돌린다"]
     assert found[1]["subheads"] == []  # 제목과 말머리 사이에 목록이 없는 기사
     first = found[0]["html"]
     assert first.startswith("<p>리드 문단이다.</p>")  # 말머리 뒤 본문만 담는다
+    assert "요약:" not in first
     assert "<ul>" not in first
     assert [line for line in first.splitlines() if line.startswith("<h5")] == ["<h5>허가 물량</h5>", "<h5>엔비디아의 답</h5>"]
     assert ' id="' not in first
@@ -363,3 +367,35 @@ def test_issue_charts_without_subheads_count_every_paragraph(tmp_path, after, at
     plan.write_text(json.dumps({"charts": [{"card": card}]}), encoding="utf-8")
     figure = f'\n<figure class="issue-chart" data-card="{html.escape(json.dumps(card))}"></figure>'
     assert build.mark_issue_charts(body, plan) == body.replace(at, at + figure)
+
+
+def test_issue_images_put_the_body_image_after_the_heading_and_the_cover_on_the_heading(tmp_path):
+    from PIL import Image
+    assets, target, out = tmp_path / "assets", tmp_path / "out" / "r" / "k", tmp_path / "out"
+    assets.mkdir()
+    target.mkdir(parents=True)
+    for name in ("issue-1-1.webp", "issue-1-2.webp", "issue-2-1.webp"):
+        Image.new("RGB", (16, 9)).save(assets / name, format="WEBP")
+    plan = tmp_path / "issue-images.json"
+    plan.write_text(json.dumps({"issues": [{"issue": 1, "images": [{"caption": "본문 그림 설명"}, {"caption": "목록 그림 설명"}]}]}, ensure_ascii=False), encoding="utf-8")
+    body = '<h2 id="상세-이슈-해설">상세 이슈 해설</h2>\n<h3 data-issue="a">1. 첫 이슈</h3>\n<p>본문</p>\n<h3>2. 둘째 이슈</h3>\n<p>본문</p>\n'
+    marked = build.mark_issue_images(body, assets, plan, target, out)
+    first, second = marked.split("<h3")[1:]
+    assert re.match(r' data-cover="r/k/issue-1-2\.webp\?v=\w+" data-issue="a">', first)
+    assert first.count('class="photo"') == 1 and "issue-1-1.webp" in first and "본문 그림 설명" in first and "목록 그림 설명" not in first
+    assert "data-cover" not in second and second.count('class="photo"') == 1
+    assert "data-thumb" not in marked
+
+
+def test_carried_issue_keeps_the_cover_of_the_report_that_wrote_it(tmp_path):
+    out = tmp_path / "out"
+    earlier = out / "r" / "20261123-nasdaq"
+    earlier.mkdir(parents=True)
+    (earlier / "report.html").write_text('<h2 id="상세-이슈-해설">상세 이슈 해설</h2>\n<h3 data-cover="r/20261123-nasdaq/issue-2-2.webp" data-issue="x">2. 옛 이슈</h3>\n<p>옛 본문</p>\n',
+                                         encoding="utf-8")
+    bundles = tmp_path / "issues.json"
+    bundles.write_text(json.dumps({"issues": [{"issue": 1, "id": "x", "carry": {"date": "2026-11-23", "issue": 2}}]}), encoding="utf-8")
+    body = '<h2 id="상세-이슈-해설">상세 이슈 해설</h2>\n<h3 data-issue="x" data-summary="요약이다.">1. 옮긴 이슈</h3>\n<p>오늘 본문</p>\n'
+    marked = build.mark_issue_carry(body, bundles, "nasdaq", out)
+    assert '<h3 data-cover="r/20261123-nasdaq/issue-2-2.webp" data-issue="x" data-summary="요약이다.">1. 옮긴 이슈</h3>' in marked
+    assert "옛 본문" in marked and "오늘 본문" not in marked

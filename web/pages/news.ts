@@ -9,8 +9,8 @@ import { NEWS_HELP, question } from "../shared/help";
 import { marketed } from "../shared/data";
 import { linkStocks, stockNames } from "../shared/stocklink";
 // 종목 뉴스를 그린다. 기사는 종목 뉴스 배치가 뉴스 Worker(`NEWS_URL`, `worker/news.js`)에 올린 것이고, 앱은 공개 읽기 세 경로만 쓴다.
-// `GET /list?index={지수}`와 `GET /list?ticker={티커}&limit={편수}`는 기사마다 ID, 회차 시작 시각(`time`), 종목, 제목, 머리 줄, 첫 그림 주소(`image`), 첫 종목의 회차 구간 변동률(`move`)을 주고,
-// `GET /articles/{ID}`는 기사 한 편의 소제목 세 줄(`subheads`), 본문 HTML(`html`), 그림 주소와 사진 설명(`images`)을 더 준다. 목록의 머리 줄은 첫 소제목이다. 본문 HTML은 build.py `issue_articles`가 만든 이슈 본문과 같은 조각이라
+// `GET /list?index={지수}`와 `GET /list?ticker={티커}&limit={편수}`는 기사마다 ID, 회차 시작 시각(`time`), 종목, 제목, 머리 줄(요약), 목록 그림 주소(`image`), 첫 종목의 회차 구간 변동률(`move`)을 주고,
+// `GET /articles/{ID}`는 기사 한 편의 소제목 세 줄(`subheads`), 본문 HTML(`html`), 그림 주소와 사진 설명(`images`)을 더 준다. 목록의 머리 줄은 기사의 요약이고, 요약 없이 올린 기사는 첫 소제목이다. 본문 HTML은 build.py `issue_articles`가 만든 이슈 본문과 같은 조각이라
 // 본문 소제목(`h5`), 이슈 그래프 카드(`figure.issue-chart`), 단어표 용어 단추(`button.term`)가 들어 있다.
 // 리포트 화면의 상세 이슈 해설 절은 "상세 이슈 해설"과 "종목 뉴스" 두 탭을 두고(`newsTab`), 종목 상세는 공시 상세 위에 주요 뉴스 절을 둔다(`headlines`).
 // 기사를 누르면 주소의 `news`에 기사 ID를 적어 뉴스 상세를 연다. 종목 상세에서 열면 `ticker`에 그 티커도 적는다.
@@ -46,8 +46,8 @@ const empty = (text) => Object.assign(document.createElement("p"), { className: 
 // 처음 탭을 종목 뉴스로 바꾸고 그 탭으로 넘긴다. 목록을 받기 전에 탭을 누르면 넘기지 않는다. 지난 리포트는 상세 이슈 해설 탭으로 연다.
 // 고른 탭은 `history.state`의 `tab`에 적어, 이슈 화면이나 뉴스 상세에서 뒤로 돌아오면 떠나기 전 탭으로 연다. 처음 항목으로 돌릴 때(`motion.ts` `homing`)는 처음 탭으로 돌아간다.
 // 다른 화면을 열면 문서가 숨겨지면서 처음 항목으로 돌리므로, 숨겨진 동안 돌린 탭은 적지 않고 화면이 다시 보일 때 적는다.
-// 종목 뉴스 탭의 마지막 업데이트 시각은 최신 회차의 시작 시각이다. 목록은 상세 이슈 해설 목록과 같은 모양이다. 작은 블록은 제목과 머리 줄(첫 소제목), 회차 시각을 쓰고,
-// 큰 블록은 제목, 첫 그림, 머리 줄, 회차 시각을 위에서 아래로 쓴다. 그림이 없는 기사의 큰 블록은 그림 자리를 두지 않는다. 회차 시각 오른쪽에는 기사가 다룬 종목마다 티커 스티커를 붙인다.
+// 종목 뉴스 탭의 마지막 업데이트 시각은 최신 회차의 시작 시각이다. 목록은 상세 이슈 해설 목록과 같은 모양이다. 작은 블록은 제목과 머리 줄(요약), 회차 시각을 쓰고,
+// 큰 블록은 제목, 목록 그림, 머리 줄, 회차 시각을 위에서 아래로 쓴다. 그림이 없는 기사의 큰 블록은 그림 자리를 두지 않는다. 회차 시각 오른쪽에는 기사가 다룬 종목마다 티커 스티커를 붙인다.
 export function newsTab(index, written) {
   const { signal } = life;
   const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "상세 이슈 해설");
@@ -241,8 +241,8 @@ function newsDetail(data, ticker) {
       const list = node.appendChild(Object.assign(document.createElement("ul"), { className: "subheads" }));
       list.append(...article.subheads.map((line) => Object.assign(document.createElement("li"), { textContent: line })));
     }
-    // 기사 그림이 두 장 이상이면 첫 그림은 목록의 큰 블록에 쓰므로, 뉴스 상세에는 둘째 그림 한 장만 싣는다. 한 장이면 그 그림을 싣는다.
-    const shown = article.images.length > 1 ? [article.images[1]] : article.images;
+    // 뉴스 상세에는 본문 그림(첫 그림) 한 장만 싣는다. 목록의 큰 블록에 쓰는 목록 그림은 Worker가 목록의 `image`로만 준다.
+    const shown = article.images.slice(0, 1);
     if (shown.length) {
       const figure = node.appendChild(Object.assign(document.createElement("figure"), { className: "issue-image" }));
       for (const { url, caption } of shown) {

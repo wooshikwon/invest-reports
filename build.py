@@ -59,9 +59,11 @@ PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 �
 사안을 나누거나 합쳐 만든 사안은 `from`에 원래 사안 id를 적는다. 이벤트 캘린더와 이슈 히스토리는 이 계보로 날짜를 잇는다(`issue_lineage`).
 앞 리포트의 사안은 그 사안에서 `from`으로 이어진 뒤 사안과 같은 사안이고, 노드(`item`)는 그 항목 사안이 `from`으로 거슬러 오르는 앞 사안의 항목과 같은 사안이다.
 뒤 사안이 `resolved`에 적은 실제 갈래는 앞 사안 갈래 가운데 같은 공통 결과(`outcome`)를 가리키는 갈래로 읽는다.
-번호 붙은 이슈 소제목 뒤에는 리포트 폴더 `assets/issue-{번호}-{순번}.webp`가 있는 그림을 순번대로 한 그림 묶음에 넣는다. 그림은 이슈마다 한 장에서 세 장이다.
-그림마다 위에 `AI 생성 이미지` 표시를 얹고, `system/issue-images.json`에 그 그림의 사진 설명(`caption`)이 있으면 그림 아래 캡션에 쓴다. 그림은 `run-with-notify.sh`가 ⑨의 이슈 이미지 선정 결과로 만든다. 첫 그림의 정사각을 잘라
-`THUMB`px 썸네일 `issue-{번호}-thumb.webp`를 만들어 묶음의 `data-thumb`에 적는다. `invest-reports` 미니 앱은 이슈 목록 상자에 썸네일을 붙이고, 그림이 두 장 이상인 묶음은 넘겨 보는 묶음과 쪽 점으로 그린다.
+번호 붙은 이슈 소제목 뒤에는 리포트 폴더의 본문 그림 `assets/issue-{번호}-1.webp`를 그림 묶음에 넣는다. 그림 위에 `AI 생성 이미지` 표시를 얹고,
+`system/issue-images.json`에 그 그림의 사진 설명(`caption`)이 있으면 그림 아래 캡션에 쓴다. 목록 그림 `assets/issue-{번호}-2.webp`가 있으면 공개본에 옮기고
+그 주소를 이슈 소제목의 `data-cover`에 적는다. 그림은 `run-with-notify.sh`가 ⑨의 이슈 이미지 선정 결과로 만든다. `invest-reports` 미니 앱은
+목록 그림을 상세 이슈 해설 목록에, 본문 그림을 이슈 문단에 싣고, 목록 그림이 없는 이슈는 목록에도 본문 그림을 싣는다.
+이슈 소제목 바로 뒤의 `요약: {문장}` 문단은 이슈의 요약이다. 그 문장을 이슈 소제목의 `data-summary`에 적고 문단은 지운다. 미니 앱은 요약을 목록의 그림 아래에 쓴다.
 이슈 해설 말머리 뒤 문단 사이에는 리포트 폴더 `system/issue-charts.json`의 카드 값을 `issue-chart` 그림의 `data-card`로 넣는다.
 카드 값은 ⑨의 이슈 그래프 agent가 설계하고 `issue_charts.py fill`이 채우며, 카드 값이 없는 그래프는 넣지 않는다.
 그래프는 설계의 `after`번째 문단 다음에 들어가고, 문단이 그보다 적으면 마지막 문단 다음에 들어간다. 본문 소제목은 문단으로 세지 않고,
@@ -233,7 +235,6 @@ OUTLOOK_TITLE = "1개월 지수 방향 예측"
 OUTLOOK_SECTIONS = ("현재 상태", "주요 분기와 예측", "종합 시나리오")  # `outlook.json`에 옮기는 설명 세 절의 말머리
 PANDOC = ["pandoc", "-f", "gfm", "-t", "html5", "--wrap=none"]  # 마크다운을 HTML 조각으로 바꾸는 명령
 HISTORY_RE = re.compile(r'<template class="issue-history">.*?</template>\s*', re.DOTALL)
-THUMB = 264
 UP, DOWN, NEUTRAL = "#ff5c5c", "#5b9bff", "#ffffff"  # 오름·내림·중립 색. 오름·내림 색은 `app.html`의 등락 색과 같다
 # 지표 카드의 구간. [구간 끝값, 색, 구간 이름]이고, 지금 값이 든 구간의 이름과 색이 카드의 상태다.
 FEAR_GREED_ZONES = [[25, DOWN, "극단 공포"], [45, DOWN, "공포"], [55, NEUTRAL, "중립"], [75, UP, "탐욕"], [100, UP, "극단 탐욕"]]
@@ -1262,7 +1263,8 @@ def mark_issue_ids(body: str, bundles: Path, events: dict[int, list[tuple[str, s
 
 
 def mark_issue_images(body: str, assets: Path, plan: Path, target: Path, out: Path) -> str:
-    """`상세 이슈 해설` 절의 번호 붙은 이슈 소제목 뒤에 `assets/issue-{번호}-{순번}.webp` 그림 묶음과 첫 그림의 썸네일 주소, `system/issue-images.json`의 그림별 사진 설명을 넣는다. 그림이 없는 이슈는 그대로 둔다."""
+    """`상세 이슈 해설` 절의 번호 붙은 이슈 소제목 뒤에 본문 그림 `assets/issue-{번호}-1.webp`와 `system/issue-images.json`의 그 그림 사진 설명을 넣고,
+    목록 그림 `assets/issue-{번호}-2.webp`가 있으면 그 주소를 소제목의 `data-cover`에 적는다. 그림이 없는 이슈는 그대로 둔다."""
     head = re.search(rf'<h2 id="[^"]*">{ISSUES_TITLE}</h2>', body)
     if not head:
         return body
@@ -1274,27 +1276,22 @@ def mark_issue_images(body: str, assets: Path, plan: Path, target: Path, out: Pa
         number = re.match(r"(\d+)\.\s", html.unescape(re.sub(r"<[^>]+>", "", match.group(1))).strip())
         if not number:
             return match.group(0)
-        photos, thumb = [], None
-        for k, image in enumerate(plans.get(number.group(1), [{}]), 1):
-            source = assets / f"issue-{number.group(1)}-{k}.webp"
-            if not source.is_file():
-                continue
-            shutil.copy2(source, target / source.name)
-            with Image.open(source) as picture:
-                width, height = picture.size
-                if thumb is None:
-                    thumb = target / f"issue-{number.group(1)}-thumb.webp"
-                    side = min(picture.size)
-                    # 가로 그림은 가운데를, 세로 그림은 얼굴이 드는 위쪽을 남기도록 남는 높이의 4분의 1 지점부터 자른다.
-                    box = ((width - side) // 2, (height - side) // 4)
-                    picture.convert("RGB").crop((*box, box[0] + side, box[1] + side)).resize((THUMB, THUMB), Image.Resampling.LANCZOS).save(thumb, format="WEBP", quality=80)
-            caption = image.get("caption", "").strip()
-            note = f"<figcaption>{html.escape(caption)}</figcaption>" if caption else ""
-            photos.append(f'<figure class="photo"><div class="frame"><img src="{versioned(target / source.name, out)}" width="{width}" height="{height}" alt="">'
-                         f'<span class="ai">AI 생성 이미지</span></div>{note}</figure>')
-        if not photos:
-            return match.group(0)
-        return f'{match.group(0)}\n<figure class="issue-image" data-thumb="{versioned(thumb, out)}">{"".join(photos)}</figure>'
+        heading_html = match.group(0)
+        cover = assets / f"issue-{number.group(1)}-2.webp"
+        if cover.is_file():
+            shutil.copy2(cover, target / cover.name)
+            heading_html = heading_html.replace("<h3", f'<h3 data-cover="{versioned(target / cover.name, out)}"', 1)
+        source = assets / f"issue-{number.group(1)}-1.webp"
+        if not source.is_file():
+            return heading_html
+        shutil.copy2(source, target / source.name)
+        with Image.open(source) as picture:
+            width, height = picture.size
+        caption = (plans.get(number.group(1)) or [{}])[0].get("caption", "").strip()
+        note = f"<figcaption>{html.escape(caption)}</figcaption>" if caption else ""
+        photo = (f'<figure class="photo"><div class="frame"><img src="{versioned(target / source.name, out)}" width="{width}" height="{height}" alt="">'
+                 f'<span class="ai">AI 생성 이미지</span></div>{note}</figure>')
+        return f'{heading_html}\n<figure class="issue-image">{photo}</figure>'
 
     section = re.sub(r"<h3[^>]*>(.*?)</h3>", heading, body[head.end():end], flags=re.DOTALL)
     return body[:head.end()] + section + body[end:]
@@ -1331,7 +1328,8 @@ def mark_issue_charts(body: str, plan: Path) -> str:
 
 def mark_issue_carry(body: str, bundles: Path, index: str, out: Path) -> str:
     """앞 리포트에서 옮겨 온 이슈(`system/issues.json`의 `carry`)는 소제목 뒤 내용을 처음 쓴 리포트 공개본의 그 번호 이슈 조각으로 바꿔,
-    그날의 그림과 그래프를 그대로 보인다. 처음 쓴 리포트의 공개본이 없으면 그대로 둔다."""
+    그날의 그림과 그래프를 그대로 보인다. 오늘 소제목에 목록 그림(`data-cover`)이 없으면 처음 쓴 리포트의 소제목에 적힌 목록 그림을 옮겨 단다.
+    처음 쓴 리포트의 공개본이 없으면 그대로 둔다."""
     if not bundles.is_file():
         return body
     origins = {bundle["id"]: bundle["carry"] for bundle in json.loads(bundles.read_text(encoding="utf-8"))["issues"] if "carry" in bundle}
@@ -1349,7 +1347,11 @@ def mark_issue_carry(body: str, bundles: Path, index: str, out: Path) -> str:
         if found is None:
             continue
         cut = segment.find("</h3>") + len("</h3>")
-        parts += [body[last:start], segment[:cut], re.sub(r'\sid="[^"]*"', "", found[found.find("</h3>") + len("</h3>"):])]
+        heading_html = segment[:cut]
+        cover = re.match(r'<h3[^>]*\sdata-cover="([^"]*)"', found)
+        if cover and "data-cover=" not in heading_html[:heading_html.find(">")]:
+            heading_html = heading_html.replace("<h3", f'<h3 data-cover="{cover.group(1)}"', 1)
+        parts += [body[last:start], heading_html, re.sub(r'\sid="[^"]*"', "", found[found.find("</h3>") + len("</h3>"):])]
         last = stop
     return "".join(parts) + body[last:]
 
@@ -1379,11 +1381,22 @@ def issue_section(document: Path, folder: Path, vault: Path) -> str:
     if not section:
         return ""
     body = subprocess.run(PANDOC, input=section.group(0), capture_output=True, text=True, check=True).stdout
-    return mark_issue_charts(body, folder / "system" / "issue-charts.json")
+    return mark_issue_charts(mark_issue_summaries(body), folder / "system" / "issue-charts.json")
+
+
+SUMMARY_RE = re.compile(r"(<h3[^>]*)(>.*?</h3>)\s*<p>요약:\s*(.*?)</p>\s*", re.DOTALL)
+
+
+def mark_issue_summaries(body: str) -> str:
+    """이슈 소제목 바로 뒤의 `요약: {문장}` 문단을 지우고 그 문장을 소제목의 `data-summary`에 적는다."""
+    def summary(match: re.Match) -> str:
+        text = html.unescape(re.sub(r"<[^>]+>", "", match.group(3))).strip()
+        return f'{match.group(1)} data-summary="{html.escape(text)}"{match.group(2)}\n'
+    return SUMMARY_RE.sub(summary, body)
 
 
 def issue_articles(document: Path, folder: Path, vault: Path) -> list[dict]:
-    """기사 문서의 `상세 이슈 해설` 절에서 번호 붙은 기사마다 번호(`issue`), 제목(`title`), 소제목 줄(`subheads`), 머리 줄(`headline`), 머리 줄 뒤 본문 HTML(`html`).
+    """기사 문서의 `상세 이슈 해설` 절에서 번호 붙은 기사마다 번호(`issue`), 제목(`title`), 요약(`summary`, 없으면 빈 글), 소제목 줄(`subheads`), 머리 줄(`headline`), 머리 줄 뒤 본문 HTML(`html`).
     제목은 `###` 줄에서 번호와 끝의 표식을 뺀 글이다. 소제목 줄은 제목과 이슈 해설 말머리 사이 목록의 항목 글이고, 목록이 없으면 빈 목록이다.
     본문의 `id` 속성은 지운다. 미니 앱이 여러 기사를 한 화면에 그릴 때 겹치기 때문이다."""
     body = issue_section(document, folder, vault)
@@ -1400,7 +1413,9 @@ def issue_articles(document: Path, folder: Path, vault: Path) -> list[dict]:
         subheads = [html.unescape(re.sub(r"<[^>]+>", "", item)).strip()
                     for item in re.findall(r"<li>(.*?)</li>", items.group(1), re.DOTALL)] if items else []
         cut = segment.find("</h4>", lead) + len("</h4>") if lead >= 0 else heading.end()
-        found.append({"issue": int(number.group(1)), "title": title[number.end():], "subheads": subheads, "headline": explainer_title(segment),
+        summary = re.match(r'<h3[^>]*\sdata-summary="([^"]*)"', segment)
+        found.append({"issue": int(number.group(1)), "title": title[number.end():], "summary": html.unescape(summary.group(1)) if summary else "",
+                      "subheads": subheads, "headline": explainer_title(segment),
                       "html": re.sub(r'\sid="[^"]*"', "", segment[cut:]).strip()})
     return found
 

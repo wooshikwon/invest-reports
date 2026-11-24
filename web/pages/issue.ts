@@ -8,9 +8,10 @@ import { feelPress } from "../shared/telegram";
 import { gallery, viewer } from "../shared/viewer";
 // 상세 이슈 해설을 이슈 목록으로 바꾼다. 이슈는 `###` 제목부터 다음 `###`·`##` 앞까지다.
 // 템플릿이 검토했지만 비중을 낮춘 이슈를 번호 이슈 뒤에 두므로, 그 항목은 목록 끝의 "비중이 낮은 이슈 N건" 항목이 된다.
-// 목록은 종목 뉴스 목록과 같은 모양이다. 이슈마다 제목, 첫 그림, 이슈 해설(이전 리포트는 현재 상태)의 소제목, NEW·N일 전과 이벤트 결과 스티커를 위에서 아래로 쓰고,
+// 목록은 종목 뉴스 목록과 같은 모양이다. 이슈마다 제목, 목록 그림, 요약, NEW·N일 전과 이벤트 결과 스티커를 위에서 아래로 쓰고,
 // 순위 번호와 방향 표식은 쓰지 않는다. 그림이 없는 이슈와 "비중이 낮은 이슈" 항목은 그림 자리를 두지 않는다.
-// 이슈의 그림 묶음이 두 장 이상이면 첫 그림은 목록에, 둘째 그림은 이슈 문단에 싣고 나머지 그림은 쓰지 않는다. 한 장이면 목록과 이슈 문단에 같은 그림을 싣는다.
+// 목록 그림은 이슈 소제목의 `data-cover`이고, 없으면 본문 그림 묶음의 첫 그림이다. 이슈 문단에는 그림 묶음의 첫 그림 한 장만 싣는다.
+// 요약은 이슈 소제목의 `data-summary`이고, 요약이 없는 지난 리포트는 이슈 해설(이전 리포트는 현재 상태)의 소제목을 쓴다.
 // 상자를 누르면 주소의 `issue`에 그 이슈 번호를 적어 이슈 화면을 새 페이지로 연다. 이슈 번호는 소제목 앞 번호이고, 번호가 없는 상자는 목록 순서다.
 // `focus`가 있으면 이슈 화면이다. 그 번호의 이슈 내용과 절 제목만 남기고 리포트의 다른 절은 지운다. 그 번호의 이슈가 없으면 리포트 화면을 다시 연다.
 // 왼쪽 아래의 뒤로가기 단추를 누르면 앞 페이지로 돌아가고, 앞 페이지가 없으면 같은 리포트의 리포트 화면을 연다.
@@ -70,11 +71,12 @@ export function section(title, focus = 0, at = null, analyzed = "", pasts = null
       title.querySelectorAll("code").forEach((code) => code.remove());
       text.append(title);
       const photos = image ? [...image.querySelectorAll(":scope > figure.photo")] : [];
-      const src = photos[0]?.querySelector("img")?.getAttribute("src");
+      const src = nodes[0].dataset.cover || photos[0]?.querySelector("img")?.getAttribute("src");
       if (src) text.append(Object.assign(document.createElement("img"), { className: "cover", src, alt: "", loading: "lazy" }));
-      photos.filter((_, k) => photos.length > 1 && k !== 1).forEach((photo) => photo.remove());
+      photos.slice(1).forEach((photo) => photo.remove());
       const now = nodes.map((node) => (node.tagName === "H4" ? node : node.querySelector?.("h4"))).find((h4) => ["이슈 해설", "현재 상태"].includes(h4?.querySelector("mark")?.textContent.trim()));
-      if (now) text.append(Object.assign(document.createElement("p"), { textContent: [...now.childNodes].filter((n) => n.nodeName !== "MARK").map((n) => n.textContent).join("").trim() }));
+      const summary = nodes[0].dataset.summary || (now ? [...now.childNodes].filter((n) => n.nodeName !== "MARK").map((n) => n.textContent).join("").trim() : "");
+      if (summary) text.append(Object.assign(document.createElement("p"), { textContent: summary }));
       // 이슈 해설의 소제목은 목록 상자에만 쓰고, 이슈 문단에서는 말머리만 남긴다. 현재 상태 소제목은 접는 문단의 제목이므로 그대로 둔다.
       if (now?.querySelector("mark").textContent.trim() === "이슈 해설") [...now.childNodes].filter((n) => n.nodeName !== "MARK").forEach((n) => n.remove());
       if (now?.querySelector("mark").textContent.trim() === "이슈 해설") lead = now;

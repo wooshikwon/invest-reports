@@ -52,9 +52,10 @@ const text = (value) => typeof value === "string";
 
 // `POST /articles` 본문을 저장할 기사로 고른다. 항목이 하나라도 형식에 맞지 않으면 null이다.
 // `moves`는 기사의 종목마다 회차 구간의 변동률(시작가 대비 최고가와 최저가의 차이, %)이고, 값을 받지 못한 종목은 빠진다.
+// `images`는 뉴스 상세에 싣는 본문 그림이고, `cover`는 목록에만 싣는 목록 그림(`{name}`)이다. 목록 그림은 그림 표에 순번 -1로 둔다.
 function article(value) {
   if (!value || typeof value !== "object") return null;
-  const { id, round, indices, tickers, title, subheads, headline, html, images = [], charts = [], terms = [], sources, previous = null, moves = {} } = value;
+  const { id, round, indices, tickers, title, subheads, headline, html, images = [], cover = null, charts = [], terms = [], sources, previous = null, moves = {} } = value;
   const when = started(round);
   const valid = text(id) && ID.test(id) && when
     && Array.isArray(indices) && indices.length && indices.every((name) => INDICES.has(name))
@@ -62,6 +63,7 @@ function article(value) {
     && text(title) && title.trim() && text(headline) && text(html)
     && Array.isArray(subheads) && subheads.length >= 1 && subheads.length <= SUBHEADS && subheads.every((line) => text(line) && line.trim())
     && Array.isArray(images) && images.every((image) => image && text(image.name) && NAME.test(image.name) && (image.caption === undefined || text(image.caption)))
+    && (cover === null || (typeof cover === "object" && text(cover.name) && NAME.test(cover.name)))
     && Array.isArray(sources) && sources.every((source) => source && text(source.url) && /^https?:\/\//.test(source.url) && text(source.time))
     && (previous === null || (text(previous) && ID.test(previous)))
     && moves && typeof moves === "object" && !Array.isArray(moves)
@@ -70,7 +72,7 @@ function article(value) {
   return {
     id, round, start: when.start, title, headline,
     indices: [...new Set(indices)], tickers: [...new Set(tickers)],
-    images: images.map(({ name, caption = "" }) => ({ name, caption })),
+    images: [...(cover ? [{ name: cover.name, caption: "", position: -1 }] : []), ...images.map(({ name, caption = "" }, position) => ({ name, caption, position }))],
     body: { subheads, html, charts, terms, sources: sources.map(({ url, time }) => ({ url, time })), previous, moves },
   };
 }
@@ -120,7 +122,7 @@ export class News extends DurableObject {
         item.id, item.round, item.start, item.title, item.headline, JSON.stringify(item.tickers), JSON.stringify(item.indices), JSON.stringify(item.body));
       for (const name of item.indices) sql.exec("INSERT INTO article_indices (name, article) VALUES (?, ?)", name, item.id);
       for (const ticker of item.tickers) sql.exec("INSERT INTO article_tickers (ticker, article) VALUES (?, ?)", ticker, item.id);
-      item.images.forEach(({ name, caption }, position) =>
+      item.images.forEach(({ name, caption, position }) =>
         sql.exec("INSERT INTO article_images (article, position, name, caption) VALUES (?, ?, ?, ?)", item.id, position, name, caption));
       return replaced;
     });
@@ -160,7 +162,7 @@ export class News extends DurableObject {
     const sql = this.ctx.storage.sql;
     const [row] = sql.exec("SELECT id, round, title, headline, tickers, indices, body FROM articles WHERE id = ?", id).toArray();
     if (!row) return null;
-    return { ...row, images: sql.exec("SELECT name, caption FROM article_images WHERE article = ? ORDER BY position", id).toArray() };
+    return { ...row, images: sql.exec("SELECT name, caption FROM article_images WHERE article = ? AND position >= 0 ORDER BY position", id).toArray() };
   }
 
   // 그림 이름의 달을 `month`로 적고, 앞서 다른 달에 올린 같은 이름이 있으면 그 달을 돌려준다.
@@ -240,7 +242,7 @@ function tail(path, prefix) {
   }
 }
 const address = (origin, name) => `${origin}/images/${encodeURIComponent(name)}`;
-// 목록 블록에 쓰는 값. 그림은 첫 그림의 주소다.
+// 목록 블록에 쓰는 값. 그림은 목록 그림의 주소이고, 목록 그림이 없으면 첫 본문 그림의 주소다.
 const entry = (origin, row) => ({
   id: row.id, round: row.round, time: started(row.round).time, tickers: JSON.parse(row.tickers),
   title: row.title, headline: row.headline, image: row.image === null ? null : address(origin, row.image), move: row.move ?? null,
