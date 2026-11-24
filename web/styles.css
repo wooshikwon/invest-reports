@@ -42,7 +42,7 @@ body {
    문서 끝에는 화면 아래 안전 영역만큼 여백을 더해, 문서 끝까지 내리면 마지막 줄이 바로가기 알약 위로 20px 넘게 떨어진다. */
 main { position: relative; max-width: 720px; margin: 0 auto; padding: calc(16px + var(--top-edge)) var(--gutter) calc(64px + env(safe-area-inset-bottom) + var(--offscreen, 0px)); }
 /* 문서 맨 위에는 머리 상자(`#masthead`)를 둔다. 본문이 화면 위로 지나가면 머리 상자는 화면 맨 위에 붙어 남는다.
-   머리 상자는 36px 높이의 한 줄(`header`)이고, 오른쪽 끝의 세로 가운데에 지수 단추를 쓴다. 왼쪽에는 문서 맨 위에서 바로가기 알약에서 연 페이지의 이름(`#page-name`)을 크고 굵게 쓴다.
+   머리 상자는 36px 높이의 한 줄(`header`)이고, 오른쪽 끝의 세로 가운데에 지수 단추를 쓴다. 텔레그램 앱 안에서는 지수 단추 오른쪽에 알림 단추를 쓴다. 왼쪽에는 문서 맨 위에서 바로가기 알약에서 연 페이지의 이름(`#page-name`)을 크고 굵게 쓴다.
    지수 페이지는 페이지 이름 자리에 리포트의 지수 이름(나스닥, 바이오)을 쓴다.
    머리 상자가 화면 위에 붙으면(`stuck`) 같은 자리에 페이지 이름 대신 시세(`#ticker`)를 쓰고, 둘은 0.15초 동안 겹쳐 바뀐다. 모든 페이지가 같은 시세를 쓴다.
    시세는 "나스닥 선물시장 $27,760 −0.64%"처럼 지수색 그라데이션 글씨의 지수 이름, 회색 글씨의 세션 이름(휴장이면 "휴장"), 값, 등락률을 쓴다. 주가 카드처럼 정규장 값이면 값은 흰색, 등락률은 오르면 빨강·내리면 파랑이고, 애프터장·선물 시간대·프리장 값이면 값과 등락률을 회색으로 쓴다. 등락률은 다른 글씨보다 조금 작고 굵지 않게 쓴다.
@@ -145,6 +145,27 @@ main.unveil { animation: unveil .2s ease-out; }
                    transition: transform .28s ease-in-out; }
 .index-pick.right .fill { clip-path: inset(0); }
 .index-pick.right .bar { transform: translateX(21px); }
+/* 텔레그램 앱 안에서 연 리포트 화면은 지수 단추 오른쪽에 알림 단추(`.alert-bell`)를 두고, 지수 단추와 머리 줄을 그만큼 왼쪽으로 옮긴다. */
+#masthead.belled header { right: 94px; }
+#masthead.belled .index-pick { right: 38px; }
+.alert-bell { position: absolute; top: 50%; right: -6px; display: grid; place-items: center; width: 36px; height: 36px; margin-top: -18px; padding: 0; border: 0;
+              background: none; color: var(--hint); cursor: pointer; }
+.alert-bell svg { width: 21px; height: 21px; }
+/* 알림 설정 화면은 알림 종류마다 한 줄에 이름과 설명, 오른쪽 끝의 켜고 끄는 단추를 둔다. 켠 단추는 지수 단추와 같은 크기에 지수색을 칠한다. */
+.alerts-page .lead { color: var(--hint); font-size: 14px; }
+.alerts-page .row { display: flex; align-items: center; gap: 16px; padding: 15px 0; border-bottom: 1px solid var(--line); }
+.alerts-page .row > div { flex: 1; min-width: 0; }
+.alerts-page .row b { display: block; font-size: 15.5px; color: var(--text); }
+.alerts-page .row span { display: block; margin-top: 3px; font-size: 13px; line-height: 1.45; color: var(--hint); }
+.alerts-page .note { margin-top: 14px; font-size: 13px; color: var(--hint); }
+.alerts-page .note:empty { display: none; }
+.switch { position: relative; flex: 0 0 auto; width: 47px; height: 26px; padding: 0; border: 0; border-radius: 13px; background: rgba(255, 255, 255, .14);
+          cursor: pointer; transition: background .2s; }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; border-radius: 50%; background: #fff;
+                 box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: transform .2s ease-in-out; }
+.switch[aria-checked="true"] { background: var(--index-ink); }
+.switch[aria-checked="true"]::after { transform: translateX(21px); }
+.switch:disabled { cursor: default; }
 h2 { font-size: 15.5px; font-weight: 700; color: var(--dim); margin: 46px 0 10px; }
 :is(#report, #report > .page) > h2:first-child { margin-top: 18px; }
 /* 절과 절 사이에는 화면 폭 전체에 바탕보다 짙은 띠를 두어 절을 나눈다. 띠 위아래는 같은 폭으로 띄운다. */

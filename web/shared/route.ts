@@ -1,4 +1,5 @@
 // @ts-nocheck
+import * as alertsScreen from "../pages/alerts";
 import * as newsScreen from "../pages/news";
 import * as reportScreen from "../pages/report";
 import * as stockScreen from "../pages/stock";
@@ -20,6 +21,8 @@ export let query = new URLSearchParams(location.search);
 // 주소에 `news`가 있으면 같은 틀에 그 ID의 종목 뉴스 기사를 그린다. `ticker`가 있으면 종목 상세에서 연 기사이고, 이전·다음 기사를 그 종목의 기사 목록에서 고른다.
 // 주소에 `trades`가 있거나 집행 알림의 단추가 `start_param`으로 `trades-{지수}`를 주면 같은 틀에 그 지수의 거래 내역 화면을 그린다.
 // 알림 단추로 연 화면은 그 지수의 최신 리포트 키를 `r`에, 지수를 `trades`에 적은 주소로 기록을 바꾼다.
+// 봇 대화창 알림의 단추가 `start_param`으로 지수 키(`nasdaq`, `biotech`)를 주면 그 지수의 가장 늦은 리포트를 연다.
+// 주소에 `alerts`가 있으면 같은 틀에 알림 설정 화면을 그린다.
 export const opened = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || query.get("tgWebAppStartParam") || "";
 export const trades = ["nasdaq", "biotech"].find((index) => query.get("trades") === index || (!query.get("r") && opened === `trades-${index}`)) || "";
 export let key = query.get("r") || (trades ? "" : opened);
@@ -39,7 +42,7 @@ export function initHistory() {
 // 옮기기 직전의 화면 위치(`y`)도 자기 기록에 적는다. 브라우저는 리포트를 받아 그리기 전에 화면 위치를 되돌리려다 실패하므로, 되돌리기는 페이지가 맡는다.
   history.scrollRestoration = "manual";
 }
-// 이슈 화면(`issue`, `at`)과 종목 상세(`stock`, `session`), 거래 내역 화면(`trades`), 뉴스 상세(`news`, `ticker`)는 `more`로 줄 때만 주소에 적고, 다른 리포트로 옮길 때는 지운다.
+// 이슈 화면(`issue`, `at`)과 종목 상세(`stock`, `session`), 거래 내역 화면(`trades`), 뉴스 상세(`news`, `ticker`), 알림 설정 화면(`alerts`)은 `more`로 줄 때만 주소에 적고, 다른 리포트로 옮길 때는 지운다.
 export const visit = (target, more = {}) => {
   history.replaceState({ ...history.state, y: scrollY }, "");
   sessionStorage.setItem("depth", depth + 1);
@@ -52,6 +55,7 @@ export const visit = (target, more = {}) => {
   params.delete("trades");
   params.delete("news");
   params.delete("ticker");
+  params.delete("alerts");
   params.set("r", target);
   Object.entries(more).forEach(([name, value]) => params.set(name, value));
   location.search = params.toString();
@@ -70,10 +74,10 @@ export const leave = () => {
   forget();
   unglos();
   unpress();
-  document.querySelectorAll(".index-pick, .back-edge, .back-ring, nav.jump, body > .bubble").forEach((node) => node.remove());
+  document.querySelectorAll(".index-pick, .alert-bell, .back-edge, .back-ring, nav.jump, body > .bubble").forEach((node) => node.remove());
   document.getElementById("index-ink")?.ownerSVGElement.remove();
   document.documentElement.classList.remove("past", "edging");
-  masthead.classList.remove("stuck");
+  masthead.classList.remove("stuck", "belled");
   topGlass.classList.remove("off");
   report.classList.remove("flow");
   document.getElementById("past").textContent = "";
@@ -104,9 +108,9 @@ export function present() {
     screen = null;
     leave();
     paint();
-    if (depth > 0 && !query.get("issue") && !query.get("news") && !symbol && !trades) backEdge();
+    if (depth > 0 && !query.get("issue") && !query.get("news") && !query.get("alerts") && !symbol && !trades) backEdge();
   };
-  (/^\d{8}-[a-z]+$/.test(key) ? Promise.resolve(key) : listed.then((listing) => latest(listing, trades || (INDEX[kept("index")] ? kept("index") : "nasdaq")))).then((found) => {
+  (/^\d{8}-[a-z]+$/.test(key) ? Promise.resolve(key) : listed.then((listing) => latest(listing, trades || (INDEX[key] ? key : INDEX[kept("index")] ? kept("index") : "nasdaq")))).then((found) => {
     if (!found) throw new Error("no report");
     key = found;
     if (trades) {
@@ -114,6 +118,11 @@ export function present() {
       if (!query.get("trades")) history.replaceState(history.state, "", `?r=${key}&trades=${trades}`);
       backward(["trades"], ASSET);
       return mount(tradesScreen, { index: trades });
+    }
+    if (query.get("alerts")) {
+      arrive();
+      backward(["alerts"], "지수");
+      return mount(alertsScreen, {});
     }
     // 뉴스 상세는 리포트 대신 뉴스 Worker의 기사를 받아 그린다(`pages/news.ts`).
     if (query.get("news")) {
@@ -151,7 +160,7 @@ export function present() {
   }).finally(() => landed());
 }
 export function initRoute() {
-  if (query.get("issue") || query.get("stock") || query.get("news") || trades) document.documentElement.classList.add("issue");
+  if (query.get("issue") || query.get("stock") || query.get("news") || query.get("alerts") || trades) document.documentElement.classList.add("issue");
 }
 export function initPopstate() {
   addEventListener("popstate", () => reshow(true));

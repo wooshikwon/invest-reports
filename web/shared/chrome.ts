@@ -2,8 +2,8 @@
 import { reportText } from "./data";
 import { keep } from "./keep";
 import { motion } from "./motion";
-import { depth, key, life, reshow } from "./route";
-import { feelPress } from "./telegram";
+import { depth, key, life, reshow, visit } from "./route";
+import { feelPress, tg } from "./telegram";
 // 머리 상자가 화면 위에 붙어 있으면 `stuck`을 달고, 위쪽 높이의 유리(`#top-glass`)에 `off`를 달아 감춘다. 문서 맨 위에서는 달지 않는다.
 // 붙었는지는 머리 상자 바로 위의 빈 띠(`#berth`)의 아래 끝이 머리 상자가 붙는 높이보다 위로 올라갔는지로 정한다. iOS는 코드가 화면을 옮긴 직후 붙는 상자의 위치를 옮기기 전 화면 기준으로 알려 주므로 머리 상자의 위치로 정하지 않는다.
 export const masthead = document.getElementById("masthead");
@@ -107,4 +107,17 @@ export function indexPick(listing) {
     });
   });
   setTimeout(() => signal.aborted || reportText(target).catch(() => {}), 1500);
+}
+// 텔레그램 앱 안에서 연 리포트 화면은 머리 상자 오른쪽 끝, 지수 단추 오른쪽에 알림 단추를 단다. 누르면 알림 설정 화면(`?alerts=1`, `pages/alerts.ts`)을 연다.
+// 알림은 사람마다 봇 대화창으로 오므로 브라우저로 연 화면에는 단추를 달지 않는다.
+export function alertBell() {
+  if (!(tg && tg.initData)) return;
+  const bell = masthead.appendChild(Object.assign(document.createElement("button"), { type: "button", className: "alert-bell",
+    innerHTML: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.6a5 5 0 0 0-5 5v3.2L3.6 13.6h12.8L15 10.8V7.6a5 5 0 0 0-5-5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8 16.2a2.1 2.1 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>' }));
+  bell.setAttribute("aria-label", "알림 설정");
+  masthead.classList.add("belled");
+  bell.addEventListener("click", () => {
+    feelPress();
+    visit(key, { alerts: "1" });
+  });
 }

@@ -8,7 +8,7 @@ import { slider } from "../shared/motion";
 import { roll } from "../shared/roll";
 import { SESSION_NAME, closeAt, closedTag, sessionAt, sessionTag, stale } from "../shared/session";
 import { keep, kept } from "../shared/keep";
-import { key, visit } from "../shared/route";
+import { key, life, visit } from "../shared/route";
 import { DIMS, PRICE, nearest, nowMark, onTap, shape } from "../shared/svg";
 import { feelPress, feelSlide, tg } from "../shared/telegram";
 // 내 자산 조각. 내 자산 페이지와 거래 내역 화면의 글씨와 그림은 모두 이 파일에 있고, 공개 화면(`asset.ts`, `trades.ts`)은 Worker가 계좌 요약을 건넨 뒤에만
@@ -22,11 +22,12 @@ export const assetRow = (name, sub, value, tail) => `<div class="asset-item"><di
   + `<div><strong>${value}</strong>${tail ? `<small>${tail}</small>` : ""}</div></div>`;
 export const assetDay = (date) => `${+date.slice(5, 7)}.${+date.slice(8, 10)}`;
 // 내 자산 페이지와 거래 내역 화면의 고른 상태. 금액 단위(`unit`), 총 자산 단추를 켰는지(`whole`), 판단 선을 보이는지(`judge`), 수익률 카드를 금액가중으로 그리는지(`money`),
-// 거래 내역의 출처 필터(`filter`)와 조회 기간(`period`, 최근 3개월이면 `null`)을 기기의 `asset-view`에 남긴다(`keep.ts`). 두 화면은 같은 금액 단위를 쓴다.
+// 수익률 카드의 기준일(`since`, 첫날이면 `null`), 거래 내역의 출처 필터(`filter`)와 조회 기간(`period`, 최근 3개월이면 `null`)을 기기의 `asset-view`에 남긴다(`keep.ts`). 두 화면은 같은 금액 단위를 쓴다.
 // 상태를 바꾼 화면은 바꾼 값(`change`)만 넘기고, 남기는 쪽이 기기에 적힌 값을 다시 읽어 그 값만 바꿔 적는다.
 export const assetView = () => {
   const saved = kept("asset-view") || {};
   return { unit: saved.unit === "USD" ? "USD" : "KRW", whole: saved.whole === true, judge: saved.judge !== false, money: saved.money === true,
+           since: /^\d{4}-\d{2}-\d{2}$/.test(saved.since) ? saved.since : null,
            filter: TRADE_SOURCE[saved.filter] ? saved.filter : "all", period: saved.period?.start && saved.period?.end ? saved.period : null };
 };
 export const assetRemember = (change) => keep("asset-view", { ...assetView(), ...change });
@@ -116,11 +117,14 @@ const stamp = (time, futures) => {
 // 카드는 요약 절의 그림 카드처럼 맨 위 줄에 값의 기준 시각을, 그 아래 이름 줄 왼쪽에 "나스닥 100"처럼 지수 이름을 쓴다. 이름 줄 오른쪽에는 수익률 카드면 판단 보기·금액가중 체크 단추를
 // 그 순서로, 배율 카드면 목표 배율을 흐린 글씨로 둔다. 판단 보기 체크 단추는 두 수익률 카드에서 판단 선(지수색)을 함께 보이거나 감추고,
 // 그 상태(`view.judge`)를 기기에 남긴다(`remember`).
-// 금액가중 체크 단추는 계좌 요약에 금액가중 누적 수익률(`returns.mwr`)이 있을 때만 둔다. 켜면 두 수익률 카드의 집행 선과 큰 값을 시간가중 대신 금액가중
+// 금액가중 체크 단추는 계좌 요약에 금액가중 누적 수익률과 날짜 점마다의 평가액(`returns.mwr.values`)이 있을 때만 둔다. 켜면 두 수익률 카드의 집행 선과 큰 값을 시간가중 대신 금액가중
 // 누적 수익률로 그리고, 그 상태(`view.money`)를 기기에 남긴다. 고정 배율·판단 선은 돈을 처음 규모 그대로 둔 계좌의 값이라 그대로 두므로, 초과 수익률은
 // 배율 판단의 효과와 돈을 넣고 뺀 시점의 효과를 함께 보인다.
-// 카드 순서는 누적 수익률, 초과 수익률, 배율이다. 누적 수익률 카드는 첫날 대비 고정 배율·판단·집행 누적 수익률을,
+// 카드 순서는 누적 수익률, 초과 수익률, 배율이다. 누적 수익률 카드는 기준일 대비 고정 배율·판단·집행 누적 수익률을,
 // 초과 수익률 카드는 판단과 집행의 누적 수익률에서 고정 배율 누적 수익률을 뺀 값을 날짜 지점 축에 그린다. 큰 값은 집행 선의 값이다.
+// 기준일은 첫날이고, 사용자가 고른 기준일(`view.since`)이 있으면 그날(그날이 거래일이 아니면 그 앞 거래일) 종가부터 그린다. 시간가중 선은 첫날 대비 누적값을
+// 기준일 값으로 나눠 다시 잇고, 금액가중 집행 선은 날짜 점마다의 집행 계좌 평가액(`mwr.values`, 날짜 점은 `mwr.value`)과 들어온 돈(`mwr.flows`)으로 기준일부터 다시 셈한다.
+// 날짜 점이 둘 넘게 남도록 기준일은 마지막 날짜 점 바로 앞까지만 옮긴다.
 // 축은 정산한 거래일마다 한 점이고, Worker가 1분마다 다시 셈한 최신 날짜 지점의 값(`returns.now`)이 있으면 그 날짜 점을 하나 더 둔다.
 // 정산 전에 정규장이 끝난 세션은 Worker가 그 세션의 공식 종가로 확정한 점(`returns.closed`)을 그 세션 자리에 두고, 최신 날짜 점은 다음 세션 자리에 둔다.
 // 그래서 주가 카드처럼 정규장이 끝난 뒤의 애프터마켓·주간거래·프리마켓 값은 다음 세션 자리에 그린다.
@@ -134,7 +138,18 @@ const stamp = (time, futures) => {
 // 기준 시각을 그날 정규장 종가 시각으로 바꾼다. 선은 줄이지 않는다. 고른 점이 첫날이면 큰 값에 "기록 없음"을 쓰고, 가장 늦은 점을 누르면 처음 상태로 돌아간다.
 // 두 카드는 같은 날짜를 함께 고르고, 고른 날짜(`pin.day`)는 호출하는 쪽이 들고 있어 카드를 다시 만들어도 이어진다. 가장 늦은 점을 고르면 `pin.day`를 비워 새 최신 점을 따른다.
 // 배율 카드는 시간 축이 없어 누르기 동작이 없다.
-export function assetCards(perf, index, times = {}, pin = { day: null }, view = { judge: true, money: false }, remember = () => {}) {
+// 시작 평가액 `book[0]`부터 날마다의 금액가중 누적 수익률(Modified Dietz). `flows[k]`는 k번째 날 종가에 들어온 돈이고, 그 돈은 그날 수익에 들지 않는다.
+// `exec_figures.py`의 `money_weighted`와 같은 식이다.
+const dietz = (book, flows) => {
+  let total = 0, timed = 0;
+  return book.map((value, k) => {
+    total += flows[k];
+    timed += k * flows[k];
+    const base = k ? book[0] + total - timed / k : book[0];
+    return base > 0 ? (value - book[0] - total) / base : 0;
+  });
+};
+export function assetCards(perf, index, times = {}, pin = { day: null }, view = { judge: true, money: false, since: null }, remember = () => {}) {
   const W = 320, H = 236, B = 212, L = 6, R = W - 6, T = 22, color = indexInk(W), NOW = PRICE, BASE = "#A7ABB0";
   const big = (text, unit) => [text, Object.assign(document.createElement("small"), { textContent: unit })];
   // 카드 틀에 이름 줄을 더한다. 이름 줄이 같은 높이를 차지해 카드를 넘겨도 값과 그림이 같은 높이에 있다.
@@ -207,7 +222,7 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
     c.head("", v == null ? "기록 없음" : big(signed(v * 100, 2), unit), at);
   };
   if (ret?.days?.length > 1) {
-    const money = !!ret.mwr, check = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.6"/><path d="M5.2 8.2l1.9 1.9 3.7-3.9"/></svg>';
+    const money = !!ret.mwr?.values, check = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.6"/><path d="M5.2 8.2l1.9 1.9 3.7-3.9"/></svg>';
     const toggle = (label, flip) => {
       const button = Object.assign(document.createElement("button"), { type: "button", className: "check", innerHTML: `${check}<span>${label}</span>` });
       button.addEventListener("click", () => { feelPress(); flip(); remember(); paint(); });
@@ -234,8 +249,16 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
       }
       const target = [...ret.target];
       for (const [point] of extra) { if (point.target == null) break; target.push(point.target); }
-      return { days: [...ret.days, ...extra.map(([point]) => point.day)], anchor: [...ret.anchor, ...extra.map(([point]) => point.anchor)],
-               realized: [...(weighed ? ret.mwr.realized : ret.realized), ...extra.map(([, realized]) => realized)], target, now: extra.at(-1)?.[0] === now ? now : null };
+      const days = [...ret.days, ...extra.map(([point]) => point.day)], anchor = [...ret.anchor, ...extra.map(([point]) => point.anchor)];
+      const realized = [...(weighed ? ret.mwr.realized : ret.realized), ...extra.map(([, value]) => value)];
+      const s = view.since ? Math.min(days.length - 2, Math.max(0, days.filter((day) => day <= view.since).length - 1)) : 0;
+      const again = (values) => values.slice(s).map((v) => (1 + v) / (1 + values[s]) - 1);
+      const from = (values) => (s ? again(values) : values);
+      // 금액가중 집행 선은 기준일 평가액에서 시작해, 기준일 뒤 들어온 돈으로 같은 Modified Dietz 식을 다시 셈한다. 날짜 점 뒤로는 들어온 돈이 없다.
+      const book = weighed && s ? [...ret.mwr.values, ...extra.map(([point]) => point.mwr.value)].slice(s) : null;
+      const flows = book && [0, ...[...ret.mwr.flows, ...extra.map(() => 0)].slice(s + 1)];
+      return { days: days.slice(s), anchor: from(anchor), target: from(target), realized: book ? dietz(book, flows) : from(realized),
+               now: extra.at(-1)?.[0] === now ? now : null };
     };
     const paint = () => {
       const { days, anchor, realized, target, now } = pick(money && view.money), gap = (values) => values.map((v, i) => v - anchor[i]);
@@ -263,13 +286,13 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
 // 내 자산 페이지(`page`)를 그리는 함수를 돌려준다. 공개 화면 `asset.ts`가 Worker가 건넨 계좌 요약(`data`)마다 이 함수를 부른다.
 export function assetPage(page) {
   // 보고 있는 그림 카드(`card`)는 기기에 남기지 않고, 페이지를 1분마다 다시 그리는 동안만 쓴다. 처음 항목으로 돌리는 규칙은 `motion.ts` `homing`이 정한다.
-  const view = { ...assetView(), card: 0 }, remember = () => assetRemember({ unit: view.unit, whole: view.whole, judge: view.judge, money: view.money });
+  const view = { ...assetView(), card: 0 }, remember = () => assetRemember({ unit: view.unit, whole: view.whole, judge: view.judge, money: view.money, since: view.since });
   const chevron = '<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // 평가 금액의 가림을 벗겼는지(`bare`)는 미니 앱을 닫을 때까지만 기억하고 기기에는 적지 않으므로, 미니 앱을 열 때마다 보이는 채로 시작한다. 평가 금액을 누르면 가리고 다시 누르면 보인다.
   let last = null, bare = true;
-  // 첫 절 내 투자는 보고 있는 리포트 지수의 종목(`sector`)만 모아 평가금 합계와 수익·수익률을 쓰고, 그 아래 알림 카드 묶음(주문 요청과 집행 신호등)과 그림 카드를 둔다.
-  // 제목 오른쪽 금액 단위 단추 옆의 총 자산 단추를 켜면(`whole`), 합계 자리에 두 지수 종목과 그 밖의 종목, 대기자금, 원화·달러 현금을 모두 더한 총 자산을 쓰고,
-  // 수익·수익률은 모든 보유 종목의 수익과 매입액으로 쓴다. 값은 계좌 요약을 새로 받을 때(1분마다)마다 다시 쓴다.
+  // 첫 절 내 투자는 보고 있는 리포트 지수의 종목(`sector`)만 모아 평가금 합계를 쓰고, 그 아래 회색 글씨로 그 합계가 총 자산에서 차지하는 비중을 "전체 투자 대비 N%"로 쓴다.
+  // 총 자산은 두 지수 종목과 그 밖의 종목, 대기자금, 원화·달러 현금을 모두 더한 값이다. 그 아래에는 알림 카드 묶음(주문 요청과 집행 신호등)과 그림 카드를 둔다.
+  // 제목 오른쪽 금액 단위 단추 옆의 총 자산 단추를 켜면(`whole`), 합계 자리에 총 자산을 쓰고 비중은 100%다. 값은 계좌 요약을 새로 받을 때(1분마다)마다 다시 쓴다.
   // 둘째 절 상세 보유 종목은 그 종목들의 종목 줄을 쓰고, 그 아래 거래 내역 단추를 둔다.
   // 맨 아래 절 내 계좌는 원화·달러 주문 가능 현금을 그 통화로, 대기자금(SGOV)을 고른 단위로 쓴다. SGOV를 들고 있지 않으면 대기자금 줄을 두지 않는다.
   // 그림 카드에서 고른 날짜는 화면을 닫을 때까지 기억해, 새 계좌 요약을 받아 다시 그려도 그 날짜로 그린다.
@@ -279,15 +302,15 @@ export function assetPage(page) {
     const index = key.split("-")[1], { rate, accounts } = data, unit = view.unit;
     // 금액은 고른 단위로 바꿔 쓴다. 다른 통화 금액은 요약을 만든 시각의 환율로 바꾼다.
     const into = (v, currency) => (currency === unit ? v : unit === "KRW" ? v * rate : v / rate);
-    const change = (v, r, bare) => `<span class="${tone(v)}">${assetSign(v)}${assetMoney(v, unit, bare)} (${Math.abs(r * 100).toFixed(1)}%)</span>`;
-    const held = data.items.map((item) => ({ ...item, value: into(item.value, item.currency), profit: into(item.profit, item.currency), purchase: into(item.purchase, item.currency) }));
+    const change = (v, r) => `<span class="${tone(v)}">${assetSign(v)}${assetMoney(v, unit, true)} (${Math.abs(r * 100).toFixed(1)}%)</span>`;
+    const held = data.items.map((item) => ({ ...item, value: into(item.value, item.currency), profit: into(item.profit, item.currency) }));
     const mine = held.filter((item) => item.sector === index), waiting = held.find((item) => item.sector === "sgov");
-    const total = (field) => (view.whole ? held : mine).reduce((sum, item) => sum + item[field], 0), profit = total("profit"), purchase = total("purchase");
-    const cash = Object.entries(accounts).reduce((sum, [currency, summed]) => sum + into(summed.cash, currency), 0), value = total("value") + (view.whole ? cash : 0);
-    const item = (it, sub) => assetRow(assetText(it.name), sub, assetMoney(it.value, unit), change(it.profit, it.rate, true));
+    const cash = Object.entries(accounts).reduce((sum, [currency, summed]) => sum + into(summed.cash, currency), 0);
+    const whole = held.reduce((sum, item) => sum + item.value, 0) + cash, value = view.whole ? whole : mine.reduce((sum, item) => sum + item.value, 0);
+    const item = (it, sub) => assetRow(assetText(it.name), sub, assetMoney(it.value, unit), change(it.profit, it.rate));
     const toggle = `<button type="button" class="whole${view.whole ? " on" : ""}" aria-pressed="${view.whole}">총 자산</button>`;
     page.innerHTML = `<h2 class="asset-head">내 투자<span class="tools">${toggle}${assetUnits(unit)}</span></h2><div class="asset-sum${bare ? "" : " veil"}" role="button" tabindex="0"><b class="veiled">평가 금액 보기</b>`
-      + `<b>${assetMoney(value, unit)}</b>${change(profit, purchase ? profit / purchase : 0)}</div>${assetAsks(data, index, unit)}`
+      + `<b>${assetMoney(value, unit)}</b><span class="share">전체 투자 대비 ${+(whole > 0 ? value / whole * 100 : 0).toFixed(1)}%</span></div>${assetAsks(data, index, unit)}`
       + `<h2>상세 보유 종목</h2>`
       + (mine.length ? mine.map((it) => item(it, assetShares(it.quantity))).join("") : `<p class="status">${INDEX_NAME[index]} 종목을 들고 있지 않다.</p>`)
       + `<button type="button" class="asset-trades">거래 내역${chevron}</button><h2>내 계좌</h2>` + assetRow("원화", "주문 가능", assetMoney(accounts.KRW.cash, "KRW")) + assetRow("달러", "주문 가능", assetMoney(accounts.USD.cash, "USD"))
@@ -303,7 +326,22 @@ export function assetPage(page) {
       button.addEventListener("click", () => box.go(i));
       bar.appendChild(button);
     });
-    const pick = (i) => { [...bar.children].forEach((button, j) => button.classList.toggle("on", i === j)); view.card = i; };
+    // 탭 줄 오른쪽 끝의 기준일 단추는 수익률 카드의 기준일을 고르는 달력 상자(`dateSheet`)를 띄운다. 첫날부터 마지막 정산일까지의 거래일만 고를 수 있고,
+    // 고른 기준일은 기기에 남아 두 지수 화면이 함께 쓰고, 다음에 열어도 이어진다. 처음부터 단추는 기준일을 첫날로 되돌린다.
+    const days = perf?.returns?.days || [];
+    if (days.length > 1) {
+      const base = view.since ? days.filter((day) => day <= view.since).at(-1) || days[0] : days[0];
+      const since = Object.assign(document.createElement("button"), { type: "button", className: `since${view.since ? " on" : ""}`, innerHTML: `${CALENDAR}<span>${assetDay(base)}~</span>` });
+      since.setAttribute("aria-label", "수익률 기준일 바꾸기");
+      since.addEventListener("click", () => {
+        feelPress();
+        dateSheet({ title: "수익률 기준일", first: days[0], start: base, single: true, can: (day) => days.includes(day),
+                    hint: ({ start }) => `${assetDay(start)} 종가부터 누적 수익률을 그린다`, reset: ["처음부터", () => ({ start: days[0], end: days[0] })],
+                    done: ({ start }) => { view.since = start === days[0] ? null : start; pin.day = null; remember(); fill(last); } }, life.signal);
+      });
+      bar.append(since);
+    }
+    const pick = (i) => { [...bar.querySelectorAll("button:not(.since)")].forEach((button, j) => button.classList.toggle("on", i === j)); view.card = i; };
     const box = slider(cards.map(([, card]) => [card]), above, { start: Math.min(view.card, cards.length - 1), change: pick, name: "asset-cards", feel: true, home: 0 });
     box.prepend(bar);
   };
@@ -327,18 +365,101 @@ export const TRADE_SOURCE = { llm: "LLM 매수", manual: "일반 매수" };
 // 거래 내역 절 제목 오른쪽에 출처 필터 드롭다운과 금액 단위 단추를 둔다. 드롭다운은 고른 필터 이름과 아래 꺽쇠를 쓰고, 누르면 그 아래에 필터 목록을 펼친다.
 // 목록에서 필터를 고르거나 목록 밖을 누르면 목록을 접는다. 체결 금액은 달러로만 받으므로, 원 단위에서는 계좌 요약을 만든 시각의 환율로 바꿔 쓴다.
 // 거래 내역은 조회 기간 안의 블록만 쓰고, 기간 투자액도 그 블록만 더한다. 조회 기간은 처음에 오늘(서울 날짜)까지 최근 3개월이다.
-// 기간 투자액 아래 줄 오른쪽 끝의 기간 단추를 누르면 달력 상자를 띄운다. 달력은 가장 오래된 거래가 있는 달, 조회 시작 달, 최근 3개월의 시작 달 가운데 가장 이른 달부터 이번 달까지를 한 달씩 옆으로 놓고, 조회 끝 날짜의 달을 보이며 연다.
-// 달은 좌우로 밀거나 달 이름 양옆의 꺽쇠를 눌러 넘기고, 날짜 판의 높이는 보이는 달의 줄 수에 맞춘다. 날짜를 처음 누르면 시작 날짜로 두고, 다음에 누른 날짜가 시작 날짜와 같거나 뒤면 끝 날짜로 둔다. 시작 날짜보다 앞을 누르면 시작 날짜를 다시 고른다.
-// 최근 3개월 단추는 고른 기간을 최근 3개월로 바꾼다. 고른 기간은 끝 날짜까지 고른 뒤 아래 확인 단추를 눌러야 조회 기간이 되고, 닫기 단추나 상자 밖을 누르면 버린다.
+// 달력 아이콘. 거래 내역의 기간 단추와 내 자산 그림 카드의 기준일 단추가 쓴다.
+const CALENDAR = '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>'
+  + '<path d="M2 6.5h12M5.5 1.8v2.6M10.5 1.8v2.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+const WEEK = "일월화수목금토";
+const CARET = '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6l4.5 4.5L12.5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// 날짜를 고르는 달력 상자. 날짜(`first`)의 달부터 이번 달(서울 날짜)까지를 한 달씩 옆으로 놓고, 고른 끝 날짜(없으면 시작 날짜)의 달을 보이며 연다.
+// 달은 좌우로 밀거나 달 이름 양옆의 꺽쇠를 눌러 넘기고, 날짜 판의 높이는 보이는 달의 줄 수에 맞춘다. 오늘 뒤의 날짜와 `can`이 거짓인 날짜는 누르지 못한다.
+// `single`이면 날짜 하나를 고르고, 아니면 기간을 고른다. 기간은 날짜를 처음 누르면 시작 날짜로 두고, 다음에 누른 날짜가 시작 날짜와 같거나 뒤면 끝 날짜로 둔다.
+// 시작 날짜보다 앞을 누르면 시작 날짜를 다시 고른다. 제목(`title`) 옆의 되돌리기 단추(`reset`: [이름, 되돌릴 {start, end}])는 고른 값을 그 값으로 바꾸고,
+// 제목 아래 줄에는 고른 값의 글씨(`hint`)를 쓴다. 고른 값은 아래 확인 단추를 눌러야 `done({start, end})`로 넘어가고, 닫기 단추나 상자 밖을 누르거나 `signal`이 끊기면 버린다.
+function dateSheet({ title, first, start, end = null, single = false, can = () => true, hint, reset, done }, signal) {
+  const today = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);
+  if (single) end = start;
+  const months = [], names = [];
+  for (let y = +first.slice(0, 4), m = +first.slice(5, 7); `${y}-${String(m).padStart(2, "0")}` <= today.slice(0, 7); m === 12 ? (y++, m = 1) : m++) {
+    const lead = new Date(Date.UTC(y, m - 1, 1)).getUTCDay(), days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    names.push(`${y}년 ${m}월`);
+    months.push(`<section data-month="${y}-${String(m).padStart(2, "0")}"><div class="grid">${"<i></i>".repeat(lead)}` + Array.from({ length: days }, (_, i) => {
+      const day = `${y}-${String(m).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`;
+      return `<button type="button" data-day="${day}"${day > today || !can(day) ? " disabled" : ""}${day === today ? ' class="today"' : ""}><span>${i + 1}</span></button>`;
+    }).join("") + "</div></section>");
+  }
+  const box = document.createElement("div"), shut = () => box.remove();
+  signal.addEventListener("abort", shut, { once: true });
+  box.className = "help-card period-card";
+  box.innerHTML = `<div class="card"><h3>${title}<span><button type="button" class="reset">${reset[0]}</button><button type="button" class="close" aria-label="닫기">✕</button></span></h3>`
+    + `<p class="hint"></p><div class="month"><button type="button" class="prev" aria-label="앞 달">${CARET}</button><h4></h4><button type="button" class="next" aria-label="다음 달">${CARET}</button></div>`
+    + `<div class="week">${[...WEEK].map((d) => `<i>${d}</i>`).join("")}</div><div class="months">${months.join("")}</div><button type="button" class="ok">확인</button></div>`;
+  const track = box.querySelector(".months"), at = () => Math.round(track.scrollLeft / track.clientWidth);
+  const turn = () => {
+    const i = at();
+    box.querySelector(".month h4").textContent = names[i];
+    box.querySelector(".prev").disabled = i === 0;
+    box.querySelector(".next").disabled = i === names.length - 1;
+    track.style.height = `${track.children[i].offsetHeight}px`;
+  };
+  const go = (month, smooth) => {
+    const i = Math.max(0, [...track.children].findIndex((s) => s.dataset.month === month));
+    track.scrollTo({ left: i * track.clientWidth, behavior: smooth ? "smooth" : "instant" });
+    turn();
+  };
+  const paint = () => {
+    box.querySelector(".hint").textContent = hint({ start, end });
+    box.querySelector(".ok").disabled = !end;
+    box.querySelector(".months").classList.toggle("ranged", !!end && end > start);
+    box.querySelectorAll("[data-day]").forEach((cell) => {
+      const day = cell.dataset.day;
+      cell.classList.toggle("start", day === start);
+      cell.classList.toggle("end", day === end);
+      cell.classList.toggle("in", !!end && day > start && day < end);
+    });
+  };
+  box.addEventListener("click", (event) => {
+    if (event.target === box || event.target.closest(".close")) return shut();
+    const step = event.target.closest(".prev, .next");
+    if (step) {
+      feelSlide();
+      return track.scrollTo({ left: (at() + (step.classList.contains("next") ? 1 : -1)) * track.clientWidth, behavior: "smooth" });
+    }
+    if (event.target.closest(".ok")) {
+      feelPress();
+      done({ start, end });
+      return shut();
+    }
+    if (event.target.closest(".reset")) {
+      feelSlide();
+      ({ start, end } = reset[1]());
+      go((end || start).slice(0, 7), true);
+      return paint();
+    }
+    const cell = event.target.closest("[data-day]:not(:disabled)");
+    if (!cell) return;
+    feelSlide();
+    const day = cell.dataset.day;
+    if (single) start = end = day;
+    else if (end || day < start) [start, end] = [day, null];
+    else end = day;
+    paint();
+  });
+  track.addEventListener("scroll", turn, { passive: true });
+  paint();
+  document.body.append(box);
+  go((end || start).slice(0, 7), false);
+}
+
+// 기간 투자액 아래 줄 오른쪽 끝의 기간 단추를 누르면 조회 기간을 고르는 달력 상자(`dateSheet`)를 띄운다. 최근 3개월 단추는 고른 기간을 최근 3개월로 바꾼다.
 export function tradesView(page, index) {
-  const WEEK = "일월화수목금토", clock = (runAt) => runAt.slice(11, 16), due = (runAt) => Date.parse(`${runAt}:00+09:00`);
+  const clock = (runAt) => runAt.slice(11, 16), due = (runAt) => Date.parse(`${runAt}:00+09:00`);
   const side = (value) => (value === "BUY" ? '<span class="side up">매수</span>' : '<span class="side down">매도</span>');
   const view = assetView(), filters = { all: "전체", ...TRADE_SOURCE }, closer = new AbortController();
   const today = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10), recent = () => {
     const [y, m, d] = today.split("-").map(Number), end = new Date(Date.UTC(y, m - 3, 0)).getUTCDate();
     return { start: new Date(Date.UTC(y, m - 4, Math.min(d, end))).toISOString().slice(0, 10), end: today };
   };
-  let last = null, timer = null, filter = view.filter, period = view.period || recent(), sheet = null;
+  let last = null, timer = null, filter = view.filter, period = view.period || recent();
   // 최근 3개월과 같은 조회 기간은 `null`로 적어 다음에 열 때 그날의 최근 3개월을 쓴다.
   const rememberTrades = () => {
     const fresh = recent();
@@ -346,84 +467,13 @@ export function tradesView(page, index) {
   };
   const gap = (v) => `${assetSign(v)}${Math.abs(v).toFixed(3)}배`;
   const span = ({ start, end }) => `${start.slice(0, 4) === end.slice(0, 4) ? "" : `${start.slice(2, 4)}.`}${assetDay(start)} ~ ${assetDay(end)}`;
-  const icon = '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/>'
-    + '<path d="M2 6.5h12M5.5 1.8v2.6M10.5 1.8v2.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
-  const shut = () => { sheet?.remove(); sheet = null; };
+  // 달력은 가장 오래된 거래가 있는 달, 조회 시작 달, 최근 3개월의 시작 달 가운데 가장 이른 달부터 연다.
   const calendar = () => {
-    const blocks = last?.trades?.sectors?.[index] || [], first = [period.start, recent().start, ...blocks.map((b) => b.date)].sort()[0];
-    let start = period.start, end = period.end;
-    const months = [], names = [];
-    for (let y = +first.slice(0, 4), m = +first.slice(5, 7); `${y}-${String(m).padStart(2, "0")}` <= today.slice(0, 7); m === 12 ? (y++, m = 1) : m++) {
-      const lead = new Date(Date.UTC(y, m - 1, 1)).getUTCDay(), days = new Date(Date.UTC(y, m, 0)).getUTCDate();
-      names.push(`${y}년 ${m}월`);
-      months.push(`<section data-month="${y}-${String(m).padStart(2, "0")}"><div class="grid">${"<i></i>".repeat(lead)}` + Array.from({ length: days }, (_, i) => {
-        const day = `${y}-${String(m).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`;
-        return `<button type="button" data-day="${day}"${day > today ? " disabled" : ""}${day === today ? ' class="today"' : ""}><span>${i + 1}</span></button>`;
-      }).join("") + "</div></section>");
-    }
-    const box = sheet = document.createElement("div");
-    box.className = "help-card period-card";
-    box.innerHTML = `<div class="card"><h3>조회 기간<span><button type="button" class="reset">최근 3개월</button><button type="button" class="close" aria-label="닫기">✕</button></span></h3>`
-      + `<p class="hint"></p><div class="month"><button type="button" class="prev" aria-label="앞 달">${caret}</button><h4></h4><button type="button" class="next" aria-label="다음 달">${caret}</button></div>`
-      + `<div class="week">${[...WEEK].map((d) => `<i>${d}</i>`).join("")}</div><div class="months">${months.join("")}</div><button type="button" class="ok">확인</button></div>`;
-    const track = box.querySelector(".months"), at = () => Math.round(track.scrollLeft / track.clientWidth);
-    const turn = () => {
-      const i = at();
-      box.querySelector(".month h4").textContent = names[i];
-      box.querySelector(".prev").disabled = i === 0;
-      box.querySelector(".next").disabled = i === names.length - 1;
-      track.style.height = `${track.children[i].offsetHeight}px`;
-    };
-    const go = (month, smooth) => {
-      const i = Math.max(0, [...track.children].findIndex((s) => s.dataset.month === month));
-      track.scrollTo({ left: i * track.clientWidth, behavior: smooth ? "smooth" : "instant" });
-      turn();
-    };
-    const paint = () => {
-      box.querySelector(".hint").textContent = end ? span({ start, end }) : "끝 날짜를 눌러요";
-      box.querySelector(".ok").disabled = !end;
-      box.querySelector(".months").classList.toggle("ranged", !!end && end > start);
-      box.querySelectorAll("[data-day]").forEach((cell) => {
-        const day = cell.dataset.day;
-        cell.classList.toggle("start", day === start);
-        cell.classList.toggle("end", day === end);
-        cell.classList.toggle("in", !!end && day > start && day < end);
-      });
-    };
-    box.addEventListener("click", (event) => {
-      if (event.target === box || event.target.closest(".close")) return shut();
-      const step = event.target.closest(".prev, .next");
-      if (step) {
-        feelSlide();
-        return track.scrollTo({ left: (at() + (step.classList.contains("next") ? 1 : -1)) * track.clientWidth, behavior: "smooth" });
-      }
-      if (event.target.closest(".ok")) {
-        feelPress();
-        period = { start, end };
-        rememberTrades();
-        render(last);
-        return shut();
-      }
-      if (event.target.closest(".reset")) {
-        feelSlide();
-        ({ start, end } = recent());
-        go(end.slice(0, 7), true);
-        return paint();
-      }
-      const cell = event.target.closest("[data-day]:not(:disabled)");
-      if (!cell) return;
-      feelSlide();
-      const day = cell.dataset.day;
-      if (end || day < start) [start, end] = [day, null];
-      else end = day;
-      paint();
-    });
-    track.addEventListener("scroll", turn, { passive: true });
-    paint();
-    document.body.append(box);
-    go(end.slice(0, 7), false);
+    const blocks = last?.trades?.sectors?.[index] || [];
+    dateSheet({ title: "조회 기간", first: [period.start, recent().start, ...blocks.map((b) => b.date)].sort()[0], start: period.start, end: period.end,
+                hint: ({ start, end }) => (end ? span({ start, end }) : "끝 날짜를 눌러요"), reset: ["최근 3개월", recent],
+                done: (picked) => { period = picked; rememberTrades(); render(last); } }, closer.signal);
   };
-  const caret = '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6l4.5 4.5L12.5 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const menu = (open) => {
     page.querySelector(".pick")?.classList.toggle("open", open);
     page.querySelector(".pick > button")?.setAttribute("aria-expanded", String(open));
@@ -488,11 +538,11 @@ export function tradesView(page, index) {
     const gate = gateCard();
     page.innerHTML = (gate || open || forced || instructed
       ? `<h2>주문 요청</h2>${gate}${open ? block(open, true) : ""}${forced ? block(forced, true) : ""}${instructed ? block(instructed, true) : ""}` : "")
-      + `<h2 class="trade-head">거래 내역<div class="tools"><div class="pick"><button type="button" aria-haspopup="listbox" aria-expanded="false">${filters[filter]}${caret}</button>`
+      + `<h2 class="trade-head">거래 내역<div class="tools"><div class="pick"><button type="button" aria-haspopup="listbox" aria-expanded="false">${filters[filter]}${CARET}</button>`
       + `<div class="menu" role="listbox">` + Object.entries(filters).map(([name, label]) =>
         `<button type="button" role="option" data-filter="${name}"${name === filter ? ' class="on" aria-selected="true"' : ""}>${label}</button>`).join("") + "</div></div>"
       + `${assetUnits(unit)}</div></h2><div class="asset-sum trade-sum"><b>${assetSign(invested)}${money(invested)}</b>`
-      + `<button type="button" class="period" aria-label="조회 기간 바꾸기">${icon}${span(period)}</button></div>`
+      + `<button type="button" class="period" aria-label="조회 기간 바꾸기">${CALENDAR}${span(period)}</button></div>`
       + (past.length ? past.map((b) => block(b)).join("") : '<p class="status">거래 내역이 없다.</p>');
     roll(page.querySelector(".trade-sum b"), `${index}-trade-${filter}-${unit}-${period.start}-${period.end}`);
     if (open || offer || instructed) timer = setTimeout(() => render(last), due(asked.run_at) - now + 1000);
@@ -539,5 +589,5 @@ export function tradesView(page, index) {
     render(last);
     page.querySelector(`.trade[data-date="${card.dataset.date}"][data-sector="${card.dataset.sector}"] .note`)?.replaceChildren(error);
   });
-  return { render, stop: () => { clearTimeout(timer); closer.abort(); shut(); } };
+  return { render, stop: () => { clearTimeout(timer); closer.abort(); } };
 }

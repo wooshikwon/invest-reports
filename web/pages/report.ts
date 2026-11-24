@@ -6,7 +6,7 @@ import { indicators } from "./macro";
 import { indexMap } from "./market";
 import { newsTab } from "./news";
 import { figures } from "./outlook";
-import { INDEX_NAME, indexPick, latest, pageName } from "../shared/chrome";
+import { INDEX_NAME, alertBell, indexPick, latest, pageName } from "../shared/chrome";
 import { marketed, relist } from "../shared/data";
 import { help } from "../shared/help";
 import { keep, kept } from "../shared/keep";
@@ -94,6 +94,7 @@ function reportPage(body, listing, cards, history, given) {
   // 리포트의 "1개월 지수 방향 예측" 절은 "지수와 예측"이라는 제목으로 보인다. 제목으로 절을 찾는 코드는 이 제목을 쓴다.
   if (outlook) outlook.textContent = "지수와 예측";
   indexPick(listing);
+  alertBell();
   const focus = +query.get("issue") || 0;
   // 시장 페이지 첫 절인 한 눈에 보기 절의 제목을 미국 거시 지표 절 제목 앞에 둔다. 미국 거시 지표 절이 없으면 문서 끝에 둔다.
   const glance = focus ? null : Object.assign(document.createElement("h2"), { textContent: "한 눈에 보기" });
