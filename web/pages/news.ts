@@ -47,7 +47,7 @@ const empty = (text) => Object.assign(document.createElement("p"), { className: 
 // 고른 탭은 `history.state`의 `tab`에 적어, 이슈 화면이나 뉴스 상세에서 뒤로 돌아오면 떠나기 전 탭으로 연다. 처음 항목으로 돌릴 때(`motion.ts` `homing`)는 처음 탭으로 돌아간다.
 // 다른 화면을 열면 문서가 숨겨지면서 처음 항목으로 돌리므로, 숨겨진 동안 돌린 탭은 적지 않고 화면이 다시 보일 때 적는다.
 // 종목 뉴스 탭의 마지막 업데이트 시각은 최신 회차의 시작 시각이다. 목록은 상세 이슈 해설 목록과 같은 모양이다. 작은 블록은 제목과 머리 줄(요약), 회차 시각을 쓰고,
-// 큰 블록은 제목, 목록 그림, 머리 줄, 회차 시각을 위에서 아래로 쓴다. 그림이 없는 기사의 큰 블록은 그림 자리를 두지 않는다. 회차 시각 오른쪽에는 기사가 다룬 종목마다 티커 스티커를 붙인다.
+// 큰 블록은 제목, 머리 줄, 목록 그림, 회차 시각을 위에서 아래로 쓴다. 그림이 없는 기사의 큰 블록은 그림 자리를 두지 않는다. 회차 시각 오른쪽에는 기사가 다룬 종목마다 티커 스티커를 붙인다.
 export function newsTab(index, written) {
   const { signal } = life;
   const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "상세 이슈 해설");
@@ -131,9 +131,9 @@ export function newsTab(index, written) {
     const text = lead.appendChild(Object.assign(document.createElement("div"), { className: "text" }));
     const age = Object.assign(document.createElement("div"), { className: "age" });
     age.append(clock(item.time), ...(item.tickers || []).map((ticker) => Object.assign(document.createElement("span"), { className: "ticker", textContent: ticker })));
-    text.append(Object.assign(document.createElement("h3"), { textContent: item.title }));
+    text.append(Object.assign(document.createElement("h3"), { textContent: item.title }), Object.assign(document.createElement("p"), { textContent: item.headline }));
     if (big && item.image) text.append(Object.assign(document.createElement("img"), { className: "cover", src: item.image, alt: "", loading: "lazy" }));
-    text.append(Object.assign(document.createElement("p"), { textContent: item.headline }), age);
+    text.append(age);
     node.addEventListener("click", () => {
       feelPress();
       visit(key, { news: item.id });

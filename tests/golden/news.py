@@ -108,8 +108,8 @@ def main() -> int:
         check("나스닥 리포트는 최신 회차의 나스닥 기사만 첫 종목의 변동률 순서로 보이고, 변동률이 없는 기사는 맨 뒤다", shown == NASDAQ_LATEST, " | ".join(shown))
         check("나스닥 리포트에서 바이오 종목 기사가 보이지 않는다", not set(shown) & set(BIOTECH_TITLES))
         blocks = page.evaluate(BLOCKS)
-        check("변동률 상위 세 종목의 기사는 제목, 그림, 머리 줄, 회차 시각 차례의 큰 블록이다",
-              blocks[:BIG] == [[True, ["title", "image", "headline", "age"]]] * BIG, str(blocks[:BIG]))
+        check("변동률 상위 세 종목의 기사는 제목, 머리 줄, 그림, 회차 시각 차례의 큰 블록이다",
+              blocks[:BIG] == [[True, ["title", "headline", "image", "age"]]] * BIG, str(blocks[:BIG]))
         check("나머지 기사는 제목, 머리 줄, 회차 시각 차례의 작은 블록이다", blocks[BIG:] == [[False, ["title", "headline", "age"]]] * (len(shown) - BIG), str(blocks[BIG:]))
         parts = page.evaluate("() => ['.news-box .pick', '.news-box .pick code', '.news-box .pick .thumb', '.news-box .pick .age'].map((q) => document.querySelectorAll(q).length)")
         stickers = page.evaluate("() => [...document.querySelectorAll('.news-box .pick .age')].map((age) => [age.firstChild.textContent, [...age.querySelectorAll('.ticker')].map((t) => t.textContent)])")
