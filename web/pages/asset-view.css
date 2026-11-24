@@ -109,6 +109,8 @@
 .period-card h3 span { display: flex; align-items: center; gap: 4px; }
 .period-card h3 .reset { margin: 0; padding: 4px 9px; border-radius: 8px; background: rgba(255, 255, 255, .06); color: var(--text); font: inherit; font-size: 12px; font-weight: 700; }
 .period-card .hint { margin: 0 0 10px; font-size: 13px; color: var(--dim); }
+/* 설명 줄이 없는 달력(수익률 기준일)은 제목과 달 이름 사이를 설명 줄 자리만큼 띄우지 않고 조금만 띄운다. */
+.period-card h3 + .month { margin-top: 10px; }
 .period-card .week, .period-card .grid { display: grid; grid-template-columns: repeat(7, 1fr); }
 .period-card .week i { padding-bottom: 6px; border-bottom: 1px solid rgba(255, 255, 255, .06); font-size: 12px; font-style: normal; font-weight: 600; color: var(--dim); text-align: center; }
 .period-card .month { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }

@@ -95,6 +95,9 @@ main.unveil { animation: unveil .2s ease-out; }
 #ticker b.up { color: #ff5c5c; }
 #ticker b.down { color: #5b9bff; }
 #ticker b.late { color: var(--hint); }
+/* 정규장이 아닌 세션 값의 등락률은 주가 카드(`.gauge.ext .state`)처럼 등락 색에 회색을 섞어 쓴다. */
+#ticker b.late.up { color: color-mix(in srgb, #ff5c5c 45%, var(--hint)); }
+#ticker b.late.down { color: color-mix(in srgb, #5b9bff 45%, var(--hint)); }
 #masthead::before { content: ""; position: absolute; inset: calc(-5px - var(--top-edge)) calc(-1 * var(--gutter)) -9px; z-index: -1;
                 background: color-mix(in srgb, var(--bg) 40%, transparent);
                 border-bottom: 1px solid rgba(255, 255, 255, .06);

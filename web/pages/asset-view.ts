@@ -337,7 +337,7 @@ export function assetPage(page) {
       since.addEventListener("click", () => {
         feelPress();
         dateSheet({ title: "수익률 기준일", first: days[0], start: base, single: true, can: (day) => days.includes(day),
-                    hint: ({ start }) => `${assetDay(start)} 종가부터 누적 수익률을 그린다`, reset: ["처음부터", () => ({ start: days[0], end: days[0] })],
+                    reset: ["처음부터", () => ({ start: days[0], end: days[0] })],
                     done: ({ start }) => { view.since = start === days[0] ? null : start; pin.day = null; remember(); fill(last); } }, life.signal);
       });
       row.append(since);
@@ -380,8 +380,8 @@ const CARET = '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true
 // 달은 좌우로 밀거나 달 이름 양옆의 꺽쇠를 눌러 넘기고, 날짜 판의 높이는 보이는 달의 줄 수에 맞춘다. 오늘 뒤의 날짜와 `can`이 거짓인 날짜는 누르지 못한다.
 // `single`이면 날짜 하나를 고르고, 아니면 기간을 고른다. 기간은 날짜를 처음 누르면 시작 날짜로 두고, 다음에 누른 날짜가 시작 날짜와 같거나 뒤면 끝 날짜로 둔다.
 // 시작 날짜보다 앞을 누르면 시작 날짜를 다시 고른다. 제목(`title`) 옆의 되돌리기 단추(`reset`: [이름, 되돌릴 {start, end}])는 고른 값을 그 값으로 바꾸고,
-// 제목 아래 줄에는 고른 값의 글씨(`hint`)를 쓴다. 고른 값은 아래 확인 단추를 눌러야 `done({start, end})`로 넘어가고, 닫기 단추나 상자 밖을 누르거나 `signal`이 끊기면 버린다.
-function dateSheet({ title, first, start, end = null, single = false, can = () => true, hint, reset, done }, signal) {
+// `hint`를 주면 제목 아래 줄에 고른 값의 글씨를 쓴다. 고른 값은 아래 확인 단추를 눌러야 `done({start, end})`로 넘어가고, 닫기 단추나 상자 밖을 누르거나 `signal`이 끊기면 버린다.
+function dateSheet({ title, first, start, end = null, single = false, can = () => true, hint = null, reset, done }, signal) {
   const today = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);
   if (single) end = start;
   const months = [], names = [];
@@ -397,7 +397,7 @@ function dateSheet({ title, first, start, end = null, single = false, can = () =
   signal.addEventListener("abort", shut, { once: true });
   box.className = "help-card period-card";
   box.innerHTML = `<div class="card"><h3>${title}<span><button type="button" class="reset">${reset[0]}</button><button type="button" class="close" aria-label="닫기">✕</button></span></h3>`
-    + `<p class="hint"></p><div class="month"><button type="button" class="prev" aria-label="앞 달">${CARET}</button><h4></h4><button type="button" class="next" aria-label="다음 달">${CARET}</button></div>`
+    + `${hint ? '<p class="hint"></p>' : ""}<div class="month"><button type="button" class="prev" aria-label="앞 달">${CARET}</button><h4></h4><button type="button" class="next" aria-label="다음 달">${CARET}</button></div>`
     + `<div class="week">${[...WEEK].map((d) => `<i>${d}</i>`).join("")}</div><div class="months">${months.join("")}</div><button type="button" class="ok">확인</button></div>`;
   const track = box.querySelector(".months"), at = () => Math.round(track.scrollLeft / track.clientWidth);
   const turn = () => {
@@ -413,7 +413,7 @@ function dateSheet({ title, first, start, end = null, single = false, can = () =
     turn();
   };
   const paint = () => {
-    box.querySelector(".hint").textContent = hint({ start, end });
+    if (hint) box.querySelector(".hint").textContent = hint({ start, end });
     box.querySelector(".ok").disabled = !end;
     box.querySelector(".months").classList.toggle("ranged", !!end && end > start);
     box.querySelectorAll("[data-day]").forEach((cell) => {
