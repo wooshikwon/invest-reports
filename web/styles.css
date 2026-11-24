@@ -615,6 +615,9 @@ table.judged tbody tr.more button svg { color: var(--dim); }
 .gauge .top .check.on circle { fill: currentColor; }
 .gauge .top .check.on path { stroke: var(--bg); }
 .gauge.ext .val b, .gauge.ext .state { color: var(--hint); }
+/* 정규장이 아닌 세션 값의 등락률은 등락 색에 회색을 섞어 흐리게 쓴다. 값은 회색 그대로다. */
+.gauge.ext .state.up { color: color-mix(in srgb, #ff5c5c 45%, var(--hint)); }
+.gauge.ext .state.down { color: color-mix(in srgb, #5b9bff 45%, var(--hint)); }
 .indexmap .board > button { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
                           overflow: hidden; padding: 2px; border: 0; border-radius: 5px; color: #fff; font: inherit; line-height: 1.2; text-align: center;
                           cursor: pointer; }

@@ -3,7 +3,7 @@ import { headlines } from "./news";
 import { backward } from "../shared/back";
 import { INDEX_NAME } from "../shared/chrome";
 import { marketed } from "../shared/data";
-import { price, signed } from "../shared/format";
+import { price, signed, tone } from "../shared/format";
 import { GAUGES, dailyTaps, gauge } from "../shared/gauge";
 import { question } from "../shared/help";
 import { chain, subscribe } from "../shared/live";
@@ -142,6 +142,7 @@ function stockDetail(data) {
       card.classList.toggle("ext", !!on && !open);
       state.lastChild.textContent = `${signed(move)}%`;
       state.style.color = on && !open ? "" : move > 0 ? "#ff5c5c" : move < 0 ? "#5b9bff" : DIMS;
+      state.className = `state ${on && !open ? tone(move) : ""}`;
       // 기간을 옮기는 도중이면 다음 장면이 바뀐 값으로 그린다.
       if (!raf) draw();
     };
