@@ -144,6 +144,8 @@
 .trade .asset-item.miss > :last-child strong { color: var(--hint); }
 .trade .note { margin: 8px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--dim); }
 .trade .act { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 10px; }
+/* 게이트 카드의 [수기 요청] 단추는 하나라 폭을 다 쓴다. */
+.trade .act.one { grid-template-columns: 1fr; margin-bottom: 0; }
 .trade .act button { height: 44px; border: 0; border-radius: 10px; background: rgba(255, 255, 255, .08); font: inherit; font-size: 15px; font-weight: 700;
                      color: var(--text); cursor: pointer; }
 .trade .act button.on { background: var(--index-ink); color: var(--bg); }
