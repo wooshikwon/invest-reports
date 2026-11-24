@@ -105,9 +105,13 @@ def main() -> int:
         check("나스닥 리포트는 3일 안의 나스닥 기사만 최신순으로 보인다", shown == NASDAQ_3, " | ".join(shown))
         check("나스닥 리포트에서 바이오 종목 기사가 보이지 않는다", not set(shown) & set(BIOTECH_7))
         parts = page.evaluate("() => ['.news-box .pick', '.news-box .pick code', '.news-box .pick .thumb', '.news-box .pick .age'].map((q) => document.querySelectorAll(q).length)")
+        stickers = page.evaluate("() => [...document.querySelectorAll('.news-box .pick .age')].map((age) => [age.firstChild.textContent, [...age.querySelectorAll('.ticker')].map((t) => t.textContent)])")
+        expected = [list(tickers) for _, _, tickers, _, _ in fixtures.NEWS[0:6]]
         lead = page.evaluate("() => document.querySelector('.news-box .pick .text > p')?.textContent")
         check("목록 블록의 머리 줄은 첫 소제목이다", lead == fixtures.NEWS_SUBHEADS[0], str(lead))
-        check("기사 블록마다 회차 시각이 있고 종목 스티커와 썸네일은 없다", parts[1] == parts[2] == 0 and parts[3] == parts[0] > 0, str(parts))
+        check("기사 블록마다 회차 시각이 있고 제목 스티커와 썸네일은 없다", parts[1] == parts[2] == 0 and parts[3] == parts[0] > 0, str(parts))
+        check("회차 시각 오른쪽에 기사가 다룬 종목마다 티커 스티커가 있다",
+              [found for _, found in stickers] == expected and all(re.fullmatch(r"\d{1,2}/\d{1,2} \d\d:\d\d", clock) for clock, _ in stickers), str(stickers))
         stamp = page.evaluate("() => document.querySelector('.news-box > .issue-asof')?.textContent")
         check("종목 뉴스 탭 첫 줄에 가장 최근 회차의 마지막 업데이트 시각이 있다", bool(stamp and re.fullmatch(r"마지막 업데이트 \d{1,2}/\d{1,2} \d\d:\d\d KST", stamp)), str(stamp))
         page.evaluate("scrollTo(0, 0)")

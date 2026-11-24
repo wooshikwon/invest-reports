@@ -39,7 +39,7 @@ const empty = (text) => Object.assign(document.createElement("p"), { className: 
 // 처음 탭을 종목 뉴스로 바꾸고 그 탭으로 넘긴다. 목록을 받기 전에 탭을 누르면 넘기지 않는다. 지난 리포트는 상세 이슈 해설 탭으로 연다.
 // 고른 탭은 `history.state`의 `tab`에 적어, 이슈 화면이나 뉴스 상세에서 뒤로 돌아오면 떠나기 전 탭으로 연다. 처음 항목으로 돌릴 때(`motion.ts` `homing`)는 처음 탭으로 돌아간다.
 // 다른 화면을 열면 문서가 숨겨지면서 처음 항목으로 돌리므로, 숨겨진 동안 돌린 탭은 적지 않고 화면이 다시 보일 때 적는다.
-// 종목 뉴스 탭의 마지막 업데이트 시각은 받은 기사 가운데 가장 최근 회차의 시작 시각이다. 목록 블록은 이슈 목록 상자와 같은 모양으로 제목과 머리 줄(첫 소제목), 회차 시각을 쓴다.
+// 종목 뉴스 탭의 마지막 업데이트 시각은 받은 기사 가운데 가장 최근 회차의 시작 시각이다. 목록 블록은 이슈 목록 상자와 같은 모양으로 제목과 머리 줄(첫 소제목), 회차 시각을 쓰고, 회차 시각 오른쪽에 기사가 다룬 종목마다 티커 스티커를 붙인다.
 export function newsTab(index, written) {
   const { signal } = life;
   const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "상세 이슈 해설");
@@ -134,8 +134,9 @@ export function newsTab(index, written) {
     const node = Object.assign(document.createElement("div"), { className: "pick" });
     const lead = node.appendChild(Object.assign(document.createElement("div"), { className: "lead" }));
     const text = lead.appendChild(Object.assign(document.createElement("div"), { className: "text" }));
-    text.append(Object.assign(document.createElement("h3"), { textContent: item.title }), Object.assign(document.createElement("p"), { textContent: item.headline }),
-                Object.assign(document.createElement("div"), { className: "age", textContent: clock(item.time) }));
+    const age = Object.assign(document.createElement("div"), { className: "age" });
+    age.append(clock(item.time), ...(item.tickers || []).map((ticker) => Object.assign(document.createElement("span"), { className: "ticker", textContent: ticker })));
+    text.append(Object.assign(document.createElement("h3"), { textContent: item.title }), Object.assign(document.createElement("p"), { textContent: item.headline }), age);
     node.addEventListener("click", () => {
       feelPress();
       visit(key, { news: item.id });
