@@ -331,7 +331,7 @@ export function assetPage(page) {
     const days = perf?.returns?.days || [];
     if (days.length > 1) {
       const base = view.since ? days.filter((day) => day <= view.since).at(-1) || days[0] : days[0];
-      const since = Object.assign(document.createElement("button"), { type: "button", className: `since${view.since ? " on" : ""}`, innerHTML: `${CALENDAR}<span>${assetDay(base)}~</span>` });
+      const since = Object.assign(document.createElement("button"), { type: "button", className: `since${view.since ? " on" : ""}`, innerHTML: `${CALENDAR}<span>${assetDay(base)}</span>` });
       since.setAttribute("aria-label", "수익률 기준일 바꾸기");
       since.addEventListener("click", () => {
         feelPress();
