@@ -75,8 +75,9 @@ export function indexMap(head, map, date, watch) {
       const time = next?.time ?? afterEnd(map.dates[n]);
       return label.replaceChildren(stale(time) ? closedTag() : sessionTag(kind, sessionAt(SESSION_NAME[kind], time)));
     }
+    // 정규장 값이 사슬의 가장 늦은 값일 때만 휴장을 가린다. 그 뒤 값이 있으면 이미 끝난 정규장이라 그 시각 그대로 쓴다.
     label.replaceChildren(!regular.live ? sessionTag("regular", sessionAt("정규장", closeAt(regular.date)))
-      : stale(regular.time) ? closedTag() : sessionTag("regular", sessionAt("정규장", regular.time)));
+      : !next && stale(regular.time) ? closedTag() : sessionTag("regular", sessionAt("정규장", regular.time)));
   };
   const draw = () => {
     untip();

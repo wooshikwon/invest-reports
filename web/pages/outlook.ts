@@ -372,9 +372,10 @@ export function summaryCards(data, view) {
           c.box.querySelector(".state").className = `state ${tone(move)}`;
           return c.head(`${signed(move, 2)}%`, fmt(hist[i]), sessionTag("regular", sessionAt("정규장", closeAt(dates[i]))));
         }
-        const move = rate(tip[0], tip[6]);
+        // 휴장 판정은 지금 보이는 값이 사슬의 가장 늦은 값일 때만 한다. 정규장 단추로 고른 지난 정규장 값은 그 시각 그대로 쓴다.
+        const move = rate(tip[0], tip[6]), { latest } = sessions(), front = tip[2] === latest[2] && tip[3] === latest[3];
         c.box.querySelector(".state").className = `state ${tip[2] === "regular" ? tone(move) : ""}`;
-        c.head(`${signed(move, 2)}%`, fmt(tip[0]), stale(tip[3], tip[2]) ? closedTag() : sessionTag(tip[2], tip[1]));
+        c.head(`${signed(move, 2)}%`, fmt(tip[0]), front && stale(tip[3], tip[2]) ? closedTag() : sessionTag(tip[2], tip[1]));
       };
       head();
     };
