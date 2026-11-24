@@ -411,6 +411,10 @@ h2.tabbed + .issue-asof { margin-top: 14px; }
 /* 종목 뉴스 목록 블록은 회차 시각 오른쪽에 기사가 다룬 종목마다 티커 스티커를 붙인다. 스티커는 지수색 글자에 지수색을 옅게 깐 바탕이다. */
 .news-box .pick .age { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .news-box .pick .age .ticker { padding: 1px 6px; border-radius: 6px; background: color-mix(in srgb, var(--index) 16%, transparent); color: var(--index); }
+/* 종목 뉴스 목록은 기사를 바탕 상자에 넣지 않고 본문 폭에 그대로 쓰며, 기사 사이를 본문 폭만큼의 가는 선으로 가른다. 선은 화면 좌우 끝까지 닿지 않는다. */
+.news-box .issue-list .pick { padding: 20px 0; border-radius: 0; background: none; }
+.news-box .issue-list .pick:first-child { padding-top: 8px; }
+.news-box .issue-list .pick + .pick { margin-top: 0; border-top: 1px solid rgba(255, 255, 255, .14); }
 /* 회차 구간 변동률 상위 세 종목의 기사는 큰 블록으로 제목, 첫 그림, 머리 줄, 회차 시각을 위에서 아래로 쓴다. 그림은 블록 너비에 맞추고 본래 비율대로 자르지 않으며, 모서리를 둥글리지 않는다. */
 .news-box .pick.big .cover { display: block; width: 100%; height: auto; margin: 12px 0 0; border-radius: 0; cursor: inherit; }
 /* 이벤트 캘린더는 발표일마다 한 장이고, 위 날짜 띠의 날짜마다 별·날짜·요일을 테두리 없는 둥근 회색 상자에 담는다. 보고 있는 날짜는 상자를
