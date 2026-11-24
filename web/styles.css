@@ -365,6 +365,7 @@ details.fold > .body > * { margin-top: 0; }
 .issue-list .pick .age { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0 0; color: var(--hint); font-size: 10px; font-weight: 700; line-height: 14px; letter-spacing: .02em; }
 .issue-list .pick .age .new { color: #ff5c5c; font-weight: 800; }
 .issue-list .pick .age :is(.ticker, .event) { padding: 1px 6px; border-radius: 6px; background: color-mix(in srgb, var(--index) 16%, transparent); color: var(--index); }
+.issue-list .pick .age .move { margin-left: auto; color: var(--hint); }
 .issue-list .pick .age .event.low { background: color-mix(in srgb, var(--hint) 16%, transparent); color: var(--hint); }
 /* 이슈 해설 말머리 아래, 본문 앞에 해설을 쓴 날짜를 흐린 글씨로 쓴다. */
 .issue-page .written { margin: -4px 0 10px; color: var(--hint); font-size: 12px; font-weight: 600; letter-spacing: .02em; }

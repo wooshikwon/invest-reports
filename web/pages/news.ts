@@ -44,7 +44,8 @@ const empty = (text) => Object.assign(document.createElement("p"), { className: 
 // 고른 탭은 `history.state`의 `tab`에 적어, 이슈 화면이나 뉴스 상세에서 뒤로 돌아오면 떠나기 전 탭으로 연다. 처음 항목으로 돌릴 때(`motion.ts` `homing`)는 처음 탭으로 돌아간다.
 // 다른 화면을 열면 문서가 숨겨지면서 처음 항목으로 돌리므로, 숨겨진 동안 돌린 탭은 적지 않고 화면이 다시 보일 때 적는다.
 // 종목 뉴스 탭의 마지막 업데이트 시각은 최신 회차의 시작 시각이다. 목록은 상세 이슈 해설 목록과 같은 모양이되 그림을 싣지 않고, 기사마다 제목, 머리 줄(요약),
-// 회차 시각을 위에서 아래로 쓴다. 회차 시각 오른쪽에는 기사가 다룬 종목마다 티커 스티커를 붙인다.
+// 회차 시각을 위에서 아래로 쓴다. 회차 시각 오른쪽에는 기사가 다룬 종목마다 티커 스티커를 붙이고, 같은 줄 오른쪽 끝에 목록 순서를 정한 첫 종목의 회차 구간 변동률을
+// "변동률 지수 : N%"로 회색 글씨로 쓴다. 변동률이 없는 기사는 쓰지 않는다.
 export function newsTab(index, written) {
   const { signal } = life;
   const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "상세 이슈 해설");
@@ -126,6 +127,7 @@ export function newsTab(index, written) {
     const text = lead.appendChild(Object.assign(document.createElement("div"), { className: "text" }));
     const age = Object.assign(document.createElement("div"), { className: "age" });
     age.append(clock(item.time), ...(item.tickers || []).map((ticker) => Object.assign(document.createElement("span"), { className: "ticker", textContent: ticker })));
+    if (item.move !== null && item.move !== undefined) age.append(Object.assign(document.createElement("span"), { className: "move", textContent: `변동률 지수 : ${item.move.toFixed(2)}%` }));
     text.append(Object.assign(document.createElement("h3"), { textContent: item.title }), Object.assign(document.createElement("p"), { textContent: item.headline }), age);
     node.addEventListener("click", () => {
       feelPress();

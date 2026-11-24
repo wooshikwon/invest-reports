@@ -108,6 +108,12 @@ def main() -> int:
         check("나스닥 리포트에서 바이오 종목 기사가 보이지 않는다", not set(shown) & set(BIOTECH_TITLES))
         blocks = page.evaluate(BLOCKS)
         check("기사 블록은 그림 없이 제목, 머리 줄, 회차 시각 차례다", blocks == [[False, ["title", "headline", "age"]]] * len(shown), str(blocks))
+        moves = page.evaluate("""() => [...document.querySelectorAll('.news-box .pick')].filter((pick) => pick.offsetParent).map((pick) => {
+          const age = pick.querySelector('.age'), move = age.querySelector('.move');
+          return move ? [move.textContent, Math.round(age.getBoundingClientRect().right - move.getBoundingClientRect().right), getComputedStyle(move).color] : null; })""")
+        check("기사 아래 줄 오른쪽 끝에 첫 종목의 변동률을 회색 '변동률 지수 : N%'로 쓰고, 변동률이 없는 기사는 쓰지 않는다",
+              [m and m[0] for m in moves] == ["변동률 지수 : 6.50%", "변동률 지수 : 4.10%", "변동률 지수 : 3.00%", "변동률 지수 : 3.00%", "변동률 지수 : 1.20%",
+                                             "변동률 지수 : 0.80%", None] and all(m[1] == 0 for m in moves if m), str(moves))
         parts = page.evaluate("() => ['.news-box .pick', '.news-box .pick code', '.news-box .pick .thumb', '.news-box .pick .age'].map((q) => document.querySelectorAll(q).length)")
         stickers = page.evaluate("() => [...document.querySelectorAll('.news-box .pick .age')].map((age) => [age.firstChild.textContent, [...age.querySelectorAll('.ticker')].map((t) => t.textContent)])")
         expected = [next(list(tickers) for _, _, tickers, title, _ in fixtures.NEWS if title == shown_title) for shown_title in shown]
