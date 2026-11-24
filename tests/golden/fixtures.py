@@ -177,7 +177,7 @@ def live(data_root: Path, moment: str = "regular") -> dict:
 
 NEWS_URL = "https://invest-news.wonwooshik.workers.dev"
 # 종목 뉴스 SAMPLE 기사. (회차, 지수, 종목, 제목, 머리 줄)이고 값은 모두 지어낸 값이다. 회차 시작 시각은 `NOW`(11/19 23:45 KST) 앞이다.
-# 나스닥 기사는 3일 안에 여섯 편, 3~7일 사이에 세 편, 7일 밖에 여섯 편이고, NVDA를 단 기사는 열한 편이다. 바이오 기사는 3일 안에 세 편이다.
+# 최신 회차(11/19 18:00)에는 나스닥 기사가 일곱 편이고 바이오 기사는 없다. NVDA를 단 기사는 열한 편이다.
 NEWS = [
     ("2026-11-19-18", "nasdaq", ["NVDA"], "엔비디아, 차세대 AI 칩 출하를 한 분기 앞당겨", "공급망 점검에서 첫 물량이 12월에 나간다고 확인…데이터센터 주문 늘어"),
     ("2026-11-19-18", "nasdaq", ["AAPL", "MSFT"], "애플과 마이크로소프트, 기업용 AI 비서 제휴 넓혀", "두 회사가 업무용 서비스에서 같은 모델을 쓴다"),
@@ -197,7 +197,16 @@ NEWS = [
     ("2026-11-19-06", "biotech", ["AMGN"], "암젠, 비만 치료제 3상 결과 발표일 확정", "다음 달 학회에서 결과를 낸다"),
     ("2026-11-18-18", "biotech", ["GILD", "VRTX"], "길리어드와 버텍스, 약가 협상 대상에 올라", "두 회사의 대표 약이 내년 협상 목록에 들었다"),
     ("2026-11-17-18", "biotech", ["REGN"], "리제네론, 안과 치료제 처방 줄어", "경쟁 약이 나온 뒤 석 달째 처방이 줄었다"),
+    ("2026-11-19-18", "nasdaq", ["TSLA"], "테슬라, 자율주행 택시 운행 지역을 두 도시 늘려", "새 지역은 다음 달부터 유료로 운행한다"),
+    ("2026-11-19-18", "nasdaq", ["AMD"], "AMD, 새 AI 가속기 출하 시작", "첫 물량은 클라우드 기업 두 곳에 간다"),
+    ("2026-11-19-18", "nasdaq", ["AMD"], "AMD, 서버 칩 가격을 올려", "내년 1분기 주문부터 새 가격을 쓴다"),
+    ("2026-11-19-18", "nasdaq", ["META"], "메타, 스마트 안경 새 모델 공개", "카메라와 화면을 넣은 모델이 내년에 나온다"),
+    ("2026-11-19-18", "nasdaq", ["INTC"], "인텔, 파운드리 고객 한 곳 더 확보", "2나노급 공정으로 칩을 만든다"),
 ]
+# 최신 회차의 종목별 회차 구간 변동률(%). INTC는 값을 받지 못한 종목이다.
+NEWS_MOVES = {"NVDA": 4.1, "AAPL": 1.2, "MSFT": 0.9, "TSLA": 6.5, "AMD": 3.0, "META": 0.8}
+# 뉴스 Worker에 등록한 최신 회차. SAMPLE 기사의 가장 늦은 회차다.
+NEWS_ROUND = max(name for name, *_ in NEWS)
 NEWS_CARD = {"issue": 1, "after": 2, "name": "차세대 칩 분기 출하 물량", "asof": "SAMPLE · 11/19", "value": "55", "unit": "만 개",
              "figure": {"type": "bars", "items": [], "groups": [["2분기", [[30, "30만 개"]]], ["3분기", [[42, "42만 개"]]], ["4분기 예상", [[55, "55만 개"]]]],
                         "min": 0, "max": 55},
@@ -239,7 +248,8 @@ def news() -> list[dict]:
         seen[(name, index)] = seen.get((name, index), 0) + 1
         time = f"{name[:10]}T{name[11:]}:00:00+09:00"
         images = [{"url": f"{NEWS_URL}/images/sample-{tickers[0]}-{k}.webp", "caption": f"{title} 관련 SAMPLE 그림 {k}"} for k in range(1, 3 if n == 0 else 2)]
-        out.append({"id": f"{name}-{index}-1-{seen[(name, index)]}", "round": name, "time": time, "start": dt.datetime.fromisoformat(time),
+        moves = {ticker: NEWS_MOVES[ticker] for ticker in tickers if ticker in NEWS_MOVES} if name == NEWS_ROUND else {}
+        out.append({"id": f"{name}-{index}-1-{seen[(name, index)]}", "round": name, "time": time, "start": dt.datetime.fromisoformat(time), "moves": moves,
                     "indices": [index], "tickers": tickers, "title": title, "subheads": NEWS_SUBHEADS if n == 0 else [], "headline": headline,
                     "html": _news_body(title, n == 0),
                     "images": images, "charts": [NEWS_CARD] if n == 0 else [], "terms": [NEWS_TERM] if n == 0 else [], "sources": [{"url": f"https://example.com/news/{n}", "time": time}],
@@ -248,20 +258,22 @@ def news() -> list[dict]:
 
 
 def news_answer(data_root: Path, path: str, params: dict) -> tuple[int, bytes, str]:
-    """뉴스 Worker 공개 읽기의 (응답 코드, 본문, 형식). 목록은 `worker/news.js`처럼 회차 시작 시각이 `NOW`부터 `days`일 안인 지수 기사나
-    그 종목을 단 최신 기사 `limit`편을 회차 시작 시각이 늦은 기사부터, 같으면 ID 순으로 준다."""
+    """뉴스 Worker 공개 읽기의 (응답 코드, 본문, 형식). 지수 목록은 `worker/news.js`처럼 최신 회차(`NEWS_ROUND`)의 지수 기사를 첫 종목의
+    변동률이 큰 기사부터, 같으면 ID 순으로, 변동률이 없는 기사는 맨 뒤에 준다. 종목 목록은 그 종목을 단 최신 기사 `limit`편을
+    회차 시작 시각이 늦은 기사부터, 같으면 ID 순으로 준다."""
     articles = sorted(news(), key=lambda a: (-a["start"].timestamp(), a["id"]))
     reply = lambda value: (200, json.dumps(value, ensure_ascii=False).encode(), "application/json")
     entry = lambda a: {"id": a["id"], "round": a["round"], "time": a["time"], "tickers": a["tickers"], "title": a["title"],
-                       "headline": a["headline"], "image": a["images"][0]["url"] if a["images"] else None}
+                       "headline": a["headline"], "image": a["images"][0]["url"] if a["images"] else None, "move": a["moves"].get(a["tickers"][0])}
     if path == "list" and "index" in params:
-        since = NOW - dt.timedelta(days=int(params["days"][0]))
-        return reply({"articles": [entry(a) for a in articles if params["index"][0] in a["indices"] and a["start"] >= since]})
+        found = sorted((a for a in articles if a["round"] == NEWS_ROUND and params["index"][0] in a["indices"]),
+                       key=lambda a: (-a["moves"].get(a["tickers"][0], -1), a["id"]))
+        return reply({"round": NEWS_ROUND, "time": f"{NEWS_ROUND[:10]}T{NEWS_ROUND[11:]}:00:00+09:00", "articles": [entry(a) for a in found]})
     if path == "list" and "ticker" in params:
         return reply({"articles": [entry(a) for a in articles if params["ticker"][0] in a["tickers"]][:int(params["limit"][0])]})
     if path.startswith("articles/"):
         found = next((a for a in articles if a["id"] == path[len("articles/"):]), None)
-        return reply({k: v for k, v in found.items() if k != "start"}) if found else (404, b"", "application/json")
+        return reply({k: v for k, v in found.items() if k not in ("start", "moves")}) if found else (404, b"", "application/json")
     image = re.fullmatch(r"images/sample-([A-Z.]+)-(\d+)\.webp", path)
     source = data_root / "r" / "stocks" / f"{image.group(1)}-{image.group(2)}.webp" if image else None
     if source and source.is_file():

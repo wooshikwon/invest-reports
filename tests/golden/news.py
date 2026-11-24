@@ -20,15 +20,18 @@ import fixtures
 NASDAQ = "20261119-nasdaq"
 BIOTECH = "20261119-biotech"
 TITLES = [title for _, _, _, title, _ in fixtures.NEWS]
-# 나스닥 리포트의 종목 뉴스 탭이 처음 보이는 3일 치(11/16 23:45 KST 뒤 회차)와 더 보기 뒤 7일 치(11/12 23:45 KST 뒤 회차) 기사 제목.
-NASDAQ_3 = TITLES[0:6]
-NASDAQ_7 = TITLES[0:9]
-BIOTECH_7 = TITLES[15:18]
+# 나스닥 리포트의 종목 뉴스 탭이 보이는 최신 회차(11/19 18:00) 기사 제목을 첫 종목의 변동률 순서로 적는다. 앞 네 편이 변동률 상위 세 종목(TSLA·NVDA·AMD)의 기사다.
+NASDAQ_LATEST = [TITLES[k] for k in (18, 0, 19, 20, 1, 21, 22)]
+BIG = 4
+BIOTECH_TITLES = [title for name, index, _, title, _ in fixtures.NEWS if index == "biotech"]
 # NVDA를 단 기사 제목을 최신순으로 열 편까지 적는다.
 NVDA = [TITLES[k] for k in (0, 2, 4, 6, 8, 9, 10, 11, 12, 13)]
 FAILS = []
 
 LIST = "() => [...document.querySelectorAll('.news-box .pick h3')].filter((h) => h.offsetParent).map((h) => h.firstChild.textContent.trim())"
+# 목록 블록마다 큰 블록인지와 글 칸의 자식 차례.
+BLOCKS = """() => [...document.querySelectorAll('.news-box .pick')].filter((pick) => pick.offsetParent).map((pick) => [pick.classList.contains('big'),
+  [...pick.querySelector('.text').children].map((n) => n.matches('img.cover') ? 'image' : n.matches('h3') ? 'title' : n.matches('p') ? 'headline' : n.matches('.age') ? 'age' : n.tagName)])"""
 ROWS = "() => [...document.querySelectorAll('.headlines .entry')].filter((row) => row.offsetParent).map((row) => row.querySelector('.title').textContent.trim())"
 BAR = """() => { const bar = document.querySelector('h2.tabbed .bar').getBoundingClientRect(), on = document.querySelector('h2.tabbed .tabline > button.on');
   const box = on.getBoundingClientRect(); return { tab: on.textContent, bar: [bar.left, bar.width, bar.bottom], on: [box.left, box.width, box.bottom] }; }"""
@@ -89,7 +92,7 @@ def main() -> int:
         browser = capture.launch(p)
         run = capture.Run(browser, server)
 
-        # 탭 줄과 막대, 지수별 목록, 더 보기
+        # 탭 줄과 막대, 지수별 목록, 큰 블록
         page = run.open(f"?r={NASDAQ}")
         capture.turn(page, "이슈")
         before = page.evaluate(BAR)
@@ -102,12 +105,16 @@ def main() -> int:
         hidden = page.evaluate("() => [document.querySelector('.issue-box').hidden, document.querySelector('.news-box').hidden]")
         check("종목 뉴스 탭은 이슈 목록을 감추고 기사 목록을 보인다", hidden == [True, False], str(hidden))
         shown = page.evaluate(LIST)
-        check("나스닥 리포트는 3일 안의 나스닥 기사만 최신순으로 보인다", shown == NASDAQ_3, " | ".join(shown))
-        check("나스닥 리포트에서 바이오 종목 기사가 보이지 않는다", not set(shown) & set(BIOTECH_7))
+        check("나스닥 리포트는 최신 회차의 나스닥 기사만 첫 종목의 변동률 순서로 보이고, 변동률이 없는 기사는 맨 뒤다", shown == NASDAQ_LATEST, " | ".join(shown))
+        check("나스닥 리포트에서 바이오 종목 기사가 보이지 않는다", not set(shown) & set(BIOTECH_TITLES))
+        blocks = page.evaluate(BLOCKS)
+        check("변동률 상위 세 종목의 기사는 제목, 그림, 머리 줄, 회차 시각 차례의 큰 블록이다",
+              blocks[:BIG] == [[True, ["title", "image", "headline", "age"]]] * BIG, str(blocks[:BIG]))
+        check("나머지 기사는 제목, 머리 줄, 회차 시각 차례의 작은 블록이다", blocks[BIG:] == [[False, ["title", "headline", "age"]]] * (len(shown) - BIG), str(blocks[BIG:]))
         parts = page.evaluate("() => ['.news-box .pick', '.news-box .pick code', '.news-box .pick .thumb', '.news-box .pick .age'].map((q) => document.querySelectorAll(q).length)")
         stickers = page.evaluate("() => [...document.querySelectorAll('.news-box .pick .age')].map((age) => [age.firstChild.textContent, [...age.querySelectorAll('.ticker')].map((t) => t.textContent)])")
-        expected = [list(tickers) for _, _, tickers, _, _ in fixtures.NEWS[0:6]]
-        lead = page.evaluate("() => document.querySelector('.news-box .pick .text > p')?.textContent")
+        expected = [next(list(tickers) for _, _, tickers, title, _ in fixtures.NEWS if title == shown_title) for shown_title in shown]
+        lead = page.locator(".news-box .pick", has_text=TITLES[0]).locator(".text > p").text_content()
         check("목록 블록의 머리 줄은 첫 소제목이다", lead == fixtures.NEWS_SUBHEADS[0], str(lead))
         check("기사 블록마다 회차 시각이 있고 제목 스티커와 썸네일은 없다", parts[1] == parts[2] == 0 and parts[3] == parts[0] > 0, str(parts))
         check("회차 시각 오른쪽에 기사가 다룬 종목마다 티커 스티커가 있다",
@@ -117,10 +124,6 @@ def main() -> int:
         page.evaluate("scrollTo(0, 0)")
         capture.settle(page, 300)
         page.screenshot(path=str(shots / "news-tab.png"))
-        page.locator(".news-box button.more").click()
-        capture.settle(page, 600)
-        shown = page.evaluate(LIST)
-        check("더 보기를 누르면 7일 치 기사가 보이고 더 보기 단추가 사라진다", shown == NASDAQ_7 and not page.locator(".news-box button.more").is_visible(), " | ".join(shown))
         page.locator("h2.tabbed .tabline > button", has_text="상세 이슈 해설").click()
         capture.settle(page, 600)
         back = page.evaluate(BAR)
@@ -159,16 +162,19 @@ def main() -> int:
         run.close()
 
         page = open_news(run, BIOTECH)
-        shown = page.evaluate(LIST)
-        check("바이오 리포트는 바이오 기사만 보인다", shown == BIOTECH_7, " | ".join(shown))
+        found = page.evaluate("""() => { const box = [...document.querySelectorAll('.news-box')].find((node) => node.offsetParent);
+          return [box.querySelectorAll('.pick').length, box.querySelector('.empty')?.textContent, box.querySelector(':scope > .issue-asof')?.textContent]; }""")
+        check("최신 회차에 바이오 기사가 없으면 바이오 리포트의 목록은 비고 마지막 업데이트는 최신 회차 시각이다",
+              found == [0, "이번 회차에 올라온 종목 뉴스가 없다.", "마지막 업데이트 11/19 18:00 KST"], str(found))
         run.close()
 
         # 종목 뉴스 탭에서 연 뉴스 상세
         page = open_news(run, NASDAQ)
-        page.locator(".news-box .pick", has_text=TITLES[2]).click()
+        page.locator(".news-box .pick", has_text=NASDAQ_LATEST[2]).click()
         capture.settle(page)
         found = page.evaluate(PAGE)
-        check("종목 뉴스 탭에서 연 뉴스 상세의 앞뒤 기사는 지수 목록의 앞뒤 기사다", found["title"] == TITLES[2] and found["prev"] == TITLES[1] and found["next"] == TITLES[3], str(found))
+        check("종목 뉴스 탭에서 연 뉴스 상세의 앞뒤 기사는 지수 목록의 앞뒤 기사다",
+              found["title"] == NASDAQ_LATEST[2] and found["prev"] == NASDAQ_LATEST[1] and found["next"] == NASDAQ_LATEST[3], str(found))
         check("소제목 줄 없이 올린 기사의 뉴스 상세에는 소제목 목록이 없다", found["subheads"] == [] and found["order"] == ["h3", "image", "h4"], str(found["order"]))
         page.locator("button.back").click()
         capture.settle(page)
@@ -182,7 +188,7 @@ def main() -> int:
         check("뉴스 상세는 제목, 그림, 이슈 해설 말머리, 소제목, 그래프 카드, 용어 밑줄을 그리고 종목 스티커와 머리 줄은 그리지 않는다",
               found["title"] == TITLES[0] and found["tickers"] == [] and found["bar"] == TITLES[0] and found["photos"] == 2
               and found["mark"] == "이슈 해설" and found["headline"] == "" and found["h5"] == ["공급사 수율이 오른 덕분", "주가는 장 마감 뒤 올라"]
-              and found["charts"] == 1 and found["terms"] == 1 and found["prev"] is None and found["next"] == TITLES[1], str(found))
+              and found["charts"] == 1 and found["terms"] == 1 and found["prev"] == NASDAQ_LATEST[0] and found["next"] == NASDAQ_LATEST[2], str(found))
         check("뉴스 상세는 제목 아래, 그림 위에 소제목 세 줄을 굵지 않은 불릿으로 그린다",
               found["subheads"] == fixtures.NEWS_SUBHEADS and found["order"] == ["h3", "subheads", "image", "h4"]
               and all(int(weight) < 600 for weight in found["weights"]), f"{found['order']} {found['weights']}")

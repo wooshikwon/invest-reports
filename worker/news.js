@@ -1,16 +1,19 @@
 // invest-news — invest-reports 미니 앱에 종목 뉴스 기사와 그림을 건네는 Cloudflare Worker.
 //
-// 종목 뉴스 배치는 회차를 마치면 `PUT /images/{이름}`으로 그림을, `POST /articles`로 기사를 올린다.
+// 종목 뉴스 배치는 회차를 마치면 `PUT /images/{이름}`으로 그림을, `POST /articles`로 기사를 올리고, 마지막에 `POST /rounds`로 회차를 등록한다.
+// 기사가 0편인 회차도 등록하므로, 등록한 회차 가운데 시작 시각이 가장 늦은 회차가 최신 회차다. 등록하기 전의 회차는 지수 목록에 보이지 않는다.
 // 기사와 목록 정보는 SQLite Durable Object `News`의 객체 하나(`news`)에 둔다. 그림은 `Images`에 두고, 그림을 올린 달(서울 시각)마다 객체 하나(`images-{YYYY-MM}`)를 쓴다.
 // `News`는 그림 이름마다 올린 달을 적어 두고, `GET /images/{이름}`은 그 달의 객체에서 그림을 읽는다.
 //
-// 공개 읽기는 네 경로다. 목록은 회차 시작 시각(`{날짜}-06`은 그날 06:00 KST)이 늦은 기사부터 돌려준다.
-// - `GET /list?index={nasdaq|biotech}&days={1~7}`: 회차 시작 시각이 지금부터 그 일수 안인 지수의 기사
-// - `GET /list?ticker={티커}&limit={1~10}`: 그 종목을 단 최신 기사
+// 공개 읽기는 네 경로다. 회차 시작 시각은 회차 이름으로 정한다(`{날짜}-06`은 그날 06:00 KST).
+// - `GET /list?index={nasdaq|biotech}`: 최신 회차의 이름·시작 시각과 그 회차의 지수 기사. 기사는 첫 종목(기사를 맡은 종목)의 회차 구간 변동률(`move`)이
+//   큰 기사부터 놓고, 변동률이 같으면 ID 순이며, 변동률이 없는 기사는 맨 뒤에 놓는다
+// - `GET /list?ticker={티커}&limit={1~10}`: 그 종목을 단 최신 기사. 회차 시작 시각이 늦은 기사부터 놓는다
 // - `GET /articles/{ID}`: 기사 한 편. 소제목 줄(`subheads`)이 없이 올린 기사는 빈 목록을 돌려준다
 // - `GET /images/{이름}`: 그림
 // 쓰기와 관리 요청은 비밀 헤더 `X-News-Secret`이 비밀 값 `NEWS_SECRET`과 같을 때만 받고, 다르면 401이다.
 // - `POST /articles`: 기사 한 편을 올린다. 같은 ID를 다시 올리면 덮어쓴다
+// - `POST /rounds`: 본문 `{"round": 회차}`의 회차를 등록한다
 // - `PUT /images/{이름}`: 그림을 그달 객체에 올린다
 // - `GET /admin/articles?round={회차}`: 회차의 기사 목록
 // - `DELETE /articles/{ID}`: 기사 한 편을 지운다
@@ -29,7 +32,6 @@ const INDICES = new Set(["nasdaq", "biotech"]);
 const SUBHEADS = 3;
 // SQLite Durable Object는 값 하나와 행 하나를 2MB까지 받는다. 기사 요청 본문과 그림 본문을 이 크기로 막는다.
 const LIMIT = 2_000_000;
-const DAY = 86400000;
 const HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET",
@@ -49,9 +51,10 @@ function started(round) {
 const text = (value) => typeof value === "string";
 
 // `POST /articles` 본문을 저장할 기사로 고른다. 항목이 하나라도 형식에 맞지 않으면 null이다.
+// `moves`는 기사의 종목마다 회차 구간의 변동률(시작가 대비 최고가와 최저가의 차이, %)이고, 값을 받지 못한 종목은 빠진다.
 function article(value) {
   if (!value || typeof value !== "object") return null;
-  const { id, round, indices, tickers, title, subheads, headline, html, images = [], charts = [], terms = [], sources, previous = null } = value;
+  const { id, round, indices, tickers, title, subheads, headline, html, images = [], charts = [], terms = [], sources, previous = null, moves = {} } = value;
   const when = started(round);
   const valid = text(id) && ID.test(id) && when
     && Array.isArray(indices) && indices.length && indices.every((name) => INDICES.has(name))
@@ -60,18 +63,21 @@ function article(value) {
     && Array.isArray(subheads) && subheads.length >= 1 && subheads.length <= SUBHEADS && subheads.every((line) => text(line) && line.trim())
     && Array.isArray(images) && images.every((image) => image && text(image.name) && NAME.test(image.name) && (image.caption === undefined || text(image.caption)))
     && Array.isArray(sources) && sources.every((source) => source && text(source.url) && /^https?:\/\//.test(source.url) && text(source.time))
-    && (previous === null || (text(previous) && ID.test(previous)));
+    && (previous === null || (text(previous) && ID.test(previous)))
+    && moves && typeof moves === "object" && !Array.isArray(moves)
+    && Object.entries(moves).every(([ticker, move]) => tickers.includes(ticker) && Number.isFinite(move) && move >= 0);
   if (!valid) return null;
   return {
     id, round, start: when.start, title, headline,
     indices: [...new Set(indices)], tickers: [...new Set(tickers)],
     images: images.map(({ name, caption = "" }) => ({ name, caption })),
-    body: { subheads, html, charts, terms, sources: sources.map(({ url, time }) => ({ url, time })), previous },
+    body: { subheads, html, charts, terms, sources: sources.map(({ url, time }) => ({ url, time })), previous, moves },
   };
 }
 
 // 기사와 목록 정보. 목록과 관리 요청에 쓰는 제목·머리 줄·종목·지수는 열로, 소제목 줄·본문 HTML·이슈 그래프 카드·단어표 용어·근거 기사·앞 기사는 `body` JSON으로 둔다.
-// 지수와 종목으로 기사를 찾는 표, 기사에 단 그림의 순서와 사진 설명을 적는 표, 그림 이름마다 올린 달을 적는 표를 따로 둔다.
+// 지수와 종목으로 기사를 찾는 표, 기사에 단 그림의 순서와 사진 설명을 적는 표, 그림 이름마다 올린 달을 적는 표, 등록한 회차의 표를 따로 둔다.
+// 회차 표가 비어 있으면 기사가 있는 회차를 모두 등록해 둔다.
 export class News extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -86,6 +92,14 @@ export class News extends DurableObject {
       caption TEXT NOT NULL, PRIMARY KEY (article, position))`);
     sql.exec("CREATE INDEX IF NOT EXISTS article_images_name ON article_images (name)");
     sql.exec("CREATE TABLE IF NOT EXISTS images (name TEXT PRIMARY KEY, month TEXT NOT NULL)");
+    sql.exec("CREATE TABLE IF NOT EXISTS rounds (round TEXT PRIMARY KEY, start INTEGER NOT NULL)");
+    if (!sql.exec("SELECT round FROM rounds LIMIT 1").toArray().length) {
+      sql.exec("INSERT INTO rounds (round, start) SELECT round, MIN(start) FROM articles GROUP BY round");
+    }
+  }
+
+  enroll(round, start) {
+    this.ctx.storage.sql.exec("INSERT INTO rounds (round, start) VALUES (?, ?) ON CONFLICT(round) DO NOTHING", round, start);
   }
 
   // 기사 한 편의 행을 모두 지운다. 지울 기사가 있었으면 true다.
@@ -118,12 +132,18 @@ export class News extends DurableObject {
 
   #rows(where, ...bindings) {
     return this.ctx.storage.sql.exec(`SELECT a.id, a.round, a.title, a.headline, a.tickers,
+        json_extract(a.body, '$.moves.' || json_quote(json_extract(a.tickers, '$[0]'))) AS move,
         (SELECT name FROM article_images WHERE article = a.id ORDER BY position LIMIT 1) AS image
       FROM articles a ${where}`, ...bindings).toArray();
   }
 
-  byIndex(name, since) {
-    return this.#rows("JOIN article_indices i ON i.article = a.id WHERE i.name = ? AND a.start >= ? ORDER BY a.start DESC, a.id", name, since);
+  // 최신 회차와 그 회차의 지수 기사. 등록한 회차가 없으면 회차가 null이고 기사가 없다.
+  latest(name) {
+    const [round] = this.ctx.storage.sql.exec("SELECT round FROM rounds ORDER BY start DESC LIMIT 1").toArray();
+    if (!round) return { round: null, rows: [] };
+    const rows = this.#rows("JOIN article_indices i ON i.article = a.id WHERE i.name = ? AND a.round = ? ORDER BY a.id", name, round.round);
+    rows.sort((a, b) => (b.move ?? -1) - (a.move ?? -1));
+    return { round: round.round, rows };
   }
 
   byTicker(ticker, limit) {
@@ -223,7 +243,7 @@ const address = (origin, name) => `${origin}/images/${encodeURIComponent(name)}`
 // 목록 블록에 쓰는 값. 그림은 첫 그림의 주소다.
 const entry = (origin, row) => ({
   id: row.id, round: row.round, time: started(row.round).time, tickers: JSON.parse(row.tickers),
-  title: row.title, headline: row.headline, image: row.image === null ? null : address(origin, row.image),
+  title: row.title, headline: row.headline, image: row.image === null ? null : address(origin, row.image), move: row.move ?? null,
 });
 
 // 비밀 헤더가 맞는 쓰기와 관리 요청.
@@ -238,6 +258,16 @@ async function guarded(request, env, url, path) {
     } catch {}
     if (!item) return status(400);
     return reply({ id: item.id, replaced: await newsStore(env).save(item) });
+  }
+  if (method === "POST" && path === "rounds") {
+    let round = null;
+    try {
+      ({ round } = JSON.parse(await request.text()));
+    } catch {}
+    const when = started(round);
+    if (!when) return status(400);
+    await newsStore(env).enroll(round, when.start);
+    return reply({ round });
   }
   if (method === "PUT" && path.startsWith("images/")) {
     const name = tail(path, "images/");
@@ -282,10 +312,9 @@ async function open(request, env, url, path) {
   if (path === "list") {
     const index = query.get("index"), ticker = query.get("ticker");
     if (index !== null && ticker === null) {
-      const days = Number(query.get("days"));
-      if (!INDICES.has(index) || !Number.isInteger(days) || days < 1 || days > 7) return status(400, HEADERS);
-      const rows = await newsStore(env).byIndex(index, Date.now() - days * DAY);
-      return reply({ articles: rows.map((row) => entry(url.origin, row)) }, 200, fresh);
+      if (!INDICES.has(index)) return status(400, HEADERS);
+      const { round, rows } = await newsStore(env).latest(index);
+      return reply({ round, time: round && started(round).time, articles: rows.map((row) => entry(url.origin, row)) }, 200, fresh);
     }
     if (ticker !== null && index === null) {
       const limit = Number(query.get("limit"));
