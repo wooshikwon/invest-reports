@@ -243,18 +243,17 @@ def news() -> list[dict]:
     """SAMPLE 기사마다 뉴스 Worker `GET /articles/{ID}`가 돌려주는 값과 회차 시작 시각(`start`). ID는 `{회차}-{지수}-1-{회차 안 순번}`이다.
     첫 기사만 소제목 세 줄(`NEWS_SUBHEADS`)이 있다.
     그림 이름은 `sample-{첫 종목}-{순번}.webp`이고, `news_answer`가 리포트 자료의 `r/stocks/{종목}-{순번}.webp`로 답한다.
-    기사마다 본문 그림이 한 장이고, 첫 기사만 목록 그림(`cover`, 순번 2)이 따로 있다."""
+    기사마다 그림이 한 장이다."""
     out, seen = [], {}
     for n, (name, index, tickers, title, headline) in enumerate(NEWS):
         seen[(name, index)] = seen.get((name, index), 0) + 1
         time = f"{name[:10]}T{name[11:]}:00:00+09:00"
         images = [{"url": f"{NEWS_URL}/images/sample-{tickers[0]}-1.webp", "caption": f"{title} 관련 SAMPLE 그림"}]
-        cover = f"{NEWS_URL}/images/sample-{tickers[0]}-2.webp" if n == 0 else None
         moves = {ticker: NEWS_MOVES[ticker] for ticker in tickers if ticker in NEWS_MOVES} if name == NEWS_ROUND else {}
         out.append({"id": f"{name}-{index}-1-{seen[(name, index)]}", "round": name, "time": time, "start": dt.datetime.fromisoformat(time), "moves": moves,
                     "indices": [index], "tickers": tickers, "title": title, "subheads": NEWS_SUBHEADS if n == 0 else [], "headline": headline,
                     "html": _news_body(title, n == 0),
-                    "images": images, "cover": cover, "charts": [NEWS_CARD] if n == 0 else [], "terms": [NEWS_TERM] if n == 0 else [], "sources": [{"url": f"https://example.com/news/{n}", "time": time}],
+                    "images": images, "charts": [NEWS_CARD] if n == 0 else [], "terms": [NEWS_TERM] if n == 0 else [], "sources": [{"url": f"https://example.com/news/{n}", "time": time}],
                     "previous": None})
     return out
 
@@ -266,7 +265,7 @@ def news_answer(data_root: Path, path: str, params: dict) -> tuple[int, bytes, s
     articles = sorted(news(), key=lambda a: (-a["start"].timestamp(), a["id"]))
     reply = lambda value: (200, json.dumps(value, ensure_ascii=False).encode(), "application/json")
     entry = lambda a: {"id": a["id"], "round": a["round"], "time": a["time"], "tickers": a["tickers"], "title": a["title"],
-                       "headline": a["headline"], "image": a["cover"] or (a["images"][0]["url"] if a["images"] else None), "move": a["moves"].get(a["tickers"][0])}
+                       "headline": a["headline"], "image": a["images"][0]["url"] if a["images"] else None, "move": a["moves"].get(a["tickers"][0])}
     if path == "list" and "index" in params:
         found = sorted((a for a in articles if a["round"] == NEWS_ROUND and params["index"][0] in a["indices"]),
                        key=lambda a: (-a["moves"].get(a["tickers"][0], -1), a["id"]))
@@ -275,7 +274,7 @@ def news_answer(data_root: Path, path: str, params: dict) -> tuple[int, bytes, s
         return reply({"articles": [entry(a) for a in articles if params["ticker"][0] in a["tickers"]][:int(params["limit"][0])]})
     if path.startswith("articles/"):
         found = next((a for a in articles if a["id"] == path[len("articles/"):]), None)
-        return reply({k: v for k, v in found.items() if k not in ("start", "moves", "cover")}) if found else (404, b"", "application/json")
+        return reply({k: v for k, v in found.items() if k not in ("start", "moves")}) if found else (404, b"", "application/json")
     image = re.fullmatch(r"images/sample-([A-Z.]+)-(\d+)\.webp", path)
     source = data_root / "r" / "stocks" / f"{image.group(1)}-{image.group(2)}.webp" if image else None
     if source and source.is_file():

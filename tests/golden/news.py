@@ -20,17 +20,16 @@ import fixtures
 NASDAQ = "20261119-nasdaq"
 BIOTECH = "20261119-biotech"
 TITLES = [title for _, _, _, title, _ in fixtures.NEWS]
-# 나스닥 리포트의 종목 뉴스 탭이 보이는 최신 회차(11/19 18:00) 기사 제목을 첫 종목의 변동률 순서로 적는다. 앞 네 편이 변동률 상위 세 종목(TSLA·NVDA·AMD)의 기사다.
+# 나스닥 리포트의 종목 뉴스 탭이 보이는 최신 회차(11/19 18:00) 기사 제목을 첫 종목의 변동률 순서로 적는다.
 NASDAQ_LATEST = [TITLES[k] for k in (18, 0, 19, 20, 1, 21, 22)]
-BIG = 4
 BIOTECH_TITLES = [title for name, index, _, title, _ in fixtures.NEWS if index == "biotech"]
 # NVDA를 단 기사 제목을 최신순으로 열 편까지 적는다.
 NVDA = [TITLES[k] for k in (0, 2, 4, 6, 8, 9, 10, 11, 12, 13)]
 FAILS = []
 
 LIST = "() => [...document.querySelectorAll('.news-box .pick h3')].filter((h) => h.offsetParent).map((h) => h.firstChild.textContent.trim())"
-# 목록 블록마다 큰 블록인지와 글 칸의 자식 차례.
-BLOCKS = """() => [...document.querySelectorAll('.news-box .pick')].filter((pick) => pick.offsetParent).map((pick) => [pick.classList.contains('big'),
+# 목록 블록마다 그림이 있는지와 글 칸의 자식 차례.
+BLOCKS = """() => [...document.querySelectorAll('.news-box .pick')].filter((pick) => pick.offsetParent).map((pick) => [!!pick.querySelector('img'),
   [...pick.querySelector('.text').children].map((n) => n.matches('img.cover') ? 'image' : n.matches('h3') ? 'title' : n.matches('p') ? 'headline' : n.matches('.age') ? 'age' : n.tagName)])"""
 ROWS = "() => [...document.querySelectorAll('.headlines .entry')].filter((row) => row.offsetParent).map((row) => row.querySelector('.title').textContent.trim())"
 BAR = """() => { const bar = document.querySelector('h2.tabbed .bar').getBoundingClientRect(), on = document.querySelector('h2.tabbed .tabline > button.on');
@@ -108,17 +107,13 @@ def main() -> int:
         check("나스닥 리포트는 최신 회차의 나스닥 기사만 첫 종목의 변동률 순서로 보이고, 변동률이 없는 기사는 맨 뒤다", shown == NASDAQ_LATEST, " | ".join(shown))
         check("나스닥 리포트에서 바이오 종목 기사가 보이지 않는다", not set(shown) & set(BIOTECH_TITLES))
         blocks = page.evaluate(BLOCKS)
-        check("변동률 상위 세 종목의 기사는 제목, 머리 줄, 그림, 회차 시각 차례의 큰 블록이다",
-              blocks[:BIG] == [[True, ["title", "headline", "image", "age"]]] * BIG, str(blocks[:BIG]))
-        check("나머지 기사는 제목, 머리 줄, 회차 시각 차례의 작은 블록이다", blocks[BIG:] == [[False, ["title", "headline", "age"]]] * (len(shown) - BIG), str(blocks[BIG:]))
+        check("기사 블록은 그림 없이 제목, 머리 줄, 회차 시각 차례다", blocks == [[False, ["title", "headline", "age"]]] * len(shown), str(blocks))
         parts = page.evaluate("() => ['.news-box .pick', '.news-box .pick code', '.news-box .pick .thumb', '.news-box .pick .age'].map((q) => document.querySelectorAll(q).length)")
         stickers = page.evaluate("() => [...document.querySelectorAll('.news-box .pick .age')].map((age) => [age.firstChild.textContent, [...age.querySelectorAll('.ticker')].map((t) => t.textContent)])")
         expected = [next(list(tickers) for _, _, tickers, title, _ in fixtures.NEWS if title == shown_title) for shown_title in shown]
         lead = page.locator(".news-box .pick", has_text=TITLES[0]).locator(".text > p").text_content()
         check("목록 블록의 머리 줄은 첫 소제목이다", lead == fixtures.NEWS_SUBHEADS[0], str(lead))
         check("기사 블록마다 회차 시각이 있고 제목 스티커와 썸네일은 없다", parts[1] == parts[2] == 0 and parts[3] == parts[0] > 0, str(parts))
-        cover = page.locator(".news-box .pick", has_text=TITLES[0]).locator("img.cover").get_attribute("src")
-        check("목록 그림이 있는 기사의 큰 블록에는 목록 그림을 쓴다", cover.endswith("sample-NVDA-2.webp"), str(cover))
         check("회차 시각 오른쪽에 기사가 다룬 종목마다 티커 스티커가 있다",
               [found for _, found in stickers] == expected and all(re.fullmatch(r"\d{1,2}/\d{1,2} \d\d:\d\d", clock) for clock, _ in stickers), str(stickers))
         stamp = page.evaluate("() => document.querySelector('.news-box > .issue-asof')?.textContent")
