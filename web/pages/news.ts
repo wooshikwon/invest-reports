@@ -9,7 +9,7 @@ import { NEWS_HELP, question } from "../shared/help";
 import { marketed } from "../shared/data";
 import { linkStocks, stockNames } from "../shared/stocklink";
 // 종목 뉴스를 그린다. 기사는 종목 뉴스 배치가 뉴스 Worker(`NEWS_URL`, `worker/news.js`)에 올린 것이고, 앱은 공개 읽기 세 경로만 쓴다.
-// `GET /list?index={지수}&days={일수}`와 `GET /list?ticker={티커}&limit={편수}`는 기사마다 ID, 회차 시작 시각(`time`), 종목, 제목, 머리 줄, 첫 그림 주소(`image`)를 최신순으로 주고,
+// `GET /list?index={지수}`와 `GET /list?ticker={티커}&limit={편수}`는 기사마다 ID, 회차 시작 시각(`time`), 종목, 제목, 머리 줄, 첫 그림 주소(`image`), 첫 종목의 회차 구간 변동률(`move`)을 주고,
 // `GET /articles/{ID}`는 기사 한 편의 소제목 세 줄(`subheads`), 본문 HTML(`html`), 그림 주소와 사진 설명(`images`)을 더 준다. 목록의 머리 줄은 첫 소제목이다. 본문 HTML은 build.py `issue_articles`가 만든 이슈 본문과 같은 조각이라
 // 본문 소제목(`h5`), 이슈 그래프 카드(`figure.issue-chart`), 단어표 용어 단추(`button.term`)가 들어 있다.
 // 리포트 화면의 상세 이슈 해설 절은 "상세 이슈 해설"과 "종목 뉴스" 두 탭을 두고(`newsTab`), 종목 상세는 공시 상세 위에 주요 뉴스 절을 둔다(`headlines`).
@@ -241,9 +241,11 @@ function newsDetail(data, ticker) {
       const list = node.appendChild(Object.assign(document.createElement("ul"), { className: "subheads" }));
       list.append(...article.subheads.map((line) => Object.assign(document.createElement("li"), { textContent: line })));
     }
-    if (article.images.length) {
+    // 기사 그림이 두 장 이상이면 첫 그림은 목록의 큰 블록에 쓰므로, 뉴스 상세에는 둘째 그림 한 장만 싣는다. 한 장이면 그 그림을 싣는다.
+    const shown = article.images.length > 1 ? [article.images[1]] : article.images;
+    if (shown.length) {
       const figure = node.appendChild(Object.assign(document.createElement("figure"), { className: "issue-image" }));
-      for (const { url, caption } of article.images) {
+      for (const { url, caption } of shown) {
         const photo = figure.appendChild(Object.assign(document.createElement("figure"), { className: "photo" }));
         const frame = photo.appendChild(Object.assign(document.createElement("div"), { className: "frame" }));
         frame.append(Object.assign(document.createElement("img"), { src: url, alt: "" }),

@@ -43,7 +43,7 @@ PAGE = """() => { const page = document.querySelector('.issue-page.on'), h3 = pa
   const order = [...page.children].map((n) => n.matches('h3') ? 'h3' : n.matches('ul.subheads') ? 'subheads' : n.matches('figure.issue-image') ? 'image' : n.matches('h4') ? 'h4' : null).filter(Boolean);
   return { title: h3.firstChild.textContent.trim(), tickers: [...h3.querySelectorAll('code')].map((c) => c.textContent), bar: document.getElementById('issue-bar').textContent,
     subheads: lines.map((li) => li.textContent), weights: lines.map((li) => getComputedStyle(li).fontWeight), order,
-    photos: page.querySelectorAll(':scope > figure.issue-image figure.photo').length, mark: lead?.querySelector('mark')?.textContent,
+    photos: page.querySelectorAll(':scope > figure.issue-image figure.photo').length, photo: page.querySelector(':scope > figure.issue-image img')?.getAttribute('src'), mark: lead?.querySelector('mark')?.textContent,
     headline: lead ? [...lead.childNodes].filter((n) => n.nodeName !== 'MARK').map((n) => n.textContent).join('').trim() : null,
     h5: [...page.querySelectorAll(':scope > h5')].map((h) => h.textContent.trim()), charts: page.querySelectorAll(':scope > figure.issue-chart svg').length,
     terms: page.querySelectorAll('button.term').length, prev: cell('prev'), next: cell('next'), search: location.search }; }"""
@@ -117,6 +117,8 @@ def main() -> int:
         lead = page.locator(".news-box .pick", has_text=TITLES[0]).locator(".text > p").text_content()
         check("목록 블록의 머리 줄은 첫 소제목이다", lead == fixtures.NEWS_SUBHEADS[0], str(lead))
         check("기사 블록마다 회차 시각이 있고 제목 스티커와 썸네일은 없다", parts[1] == parts[2] == 0 and parts[3] == parts[0] > 0, str(parts))
+        cover = page.locator(".news-box .pick", has_text=TITLES[0]).locator("img.cover").get_attribute("src")
+        check("그림이 두 장인 기사의 큰 블록에는 첫 그림을 쓴다", cover.endswith("sample-NVDA-1.webp"), str(cover))
         check("회차 시각 오른쪽에 기사가 다룬 종목마다 티커 스티커가 있다",
               [found for _, found in stickers] == expected and all(re.fullmatch(r"\d{1,2}/\d{1,2} \d\d:\d\d", clock) for clock, _ in stickers), str(stickers))
         stamp = page.evaluate("() => document.querySelector('.news-box > .issue-asof')?.textContent")
@@ -185,8 +187,8 @@ def main() -> int:
         # 뉴스 상세의 모양
         page = run.open(f"?r={NASDAQ}&news={fixtures.news()[0]['id']}")
         found = page.evaluate(PAGE)
-        check("뉴스 상세는 제목, 그림, 이슈 해설 말머리, 소제목, 그래프 카드, 용어 밑줄을 그리고 종목 스티커와 머리 줄은 그리지 않는다",
-              found["title"] == TITLES[0] and found["tickers"] == [] and found["bar"] == TITLES[0] and found["photos"] == 2
+        check("뉴스 상세는 제목, 둘째 그림 한 장, 이슈 해설 말머리, 소제목, 그래프 카드, 용어 밑줄을 그리고 종목 스티커와 머리 줄은 그리지 않는다",
+              found["title"] == TITLES[0] and found["tickers"] == [] and found["bar"] == TITLES[0] and found["photos"] == 1 and found["photo"].endswith("sample-NVDA-2.webp")
               and found["mark"] == "이슈 해설" and found["headline"] == "" and found["h5"] == ["공급사 수율이 오른 덕분", "주가는 장 마감 뒤 올라"]
               and found["charts"] == 1 and found["terms"] == 1 and found["prev"] == NASDAQ_LATEST[0] and found["next"] == NASDAQ_LATEST[2], str(found))
         check("뉴스 상세는 제목 아래, 그림 위에 소제목 세 줄을 굵지 않은 불릿으로 그린다",
