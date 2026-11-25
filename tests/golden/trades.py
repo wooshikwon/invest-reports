@@ -1,13 +1,13 @@
-"""거래 내역 화면(T1~T4)의 동작 시험. 출처 스티커, 목표 배율 갭, 출처 필터 드롭다운, 금액 단위 단추, 기간 투자액, 조회 기간 달력을 연다.
+"""거래 내역 화면(T1~T4)의 동작 시험. 출처 스티커, 출처 필터 드롭다운, 금액 단위 단추, 기간 투자액, 조회 기간 달력을 연다.
 
     python3 tests/golden/trades.py --data /tmp/dp-u4/out --shots /tmp/at-u2
 
 `--data`는 리포트 자료 `r/`가 있는 폴더이고 앱 코드는 저장소 루트의 빌드(`app.html`)를 쓴다. 거래는 모두 지어낸 SAMPLE 값이다.
-SAMPLE 거래 내역(나스닥, 목표 배율과 거래 직후 배율은 블록마다 적는다):
-    11/18 LLM  QLD 매수 $700.00   목표 1.9, 직후 1.6  -> 갭 +0.300배
-    11/18 일반 TQQQ 매수 $300.00  목표 1.9, 직후 1.75 -> 갭 +0.150배 (같은 날 두 출처라 카드가 둘)
-    11/17 LLM  QQQ 매도 $400.00   목표 1.5, 직후 1.62 -> 갭 −0.120배
-    11/14 일반 QLD 매도 $140.00   목표 1.55, 직후 1.5 -> 갭 +0.050배
+SAMPLE 거래 내역(나스닥):
+    11/18 LLM  QLD 매수 $700.00
+    11/18 일반 TQQQ 매수 $300.00 (같은 날 두 출처라 카드가 둘)
+    11/17 LLM  QQQ 매도 $400.00
+    11/14 일반 QLD 매도 $140.00
 기대 기간 투자액: 전체 $460.00(카드 4), LLM 매수 $300.00(카드 2), 일반 매수 $160.00(카드 2).
 필터 시험은 기기에 달러 단위를 적어 두고 연다. 원 단위의 기대값은 SAMPLE 계좌 요약의 환율 1,330.5원으로 바꾼 값이다.
 조회 기간은 처음에 8/19~11/19(최근 3개월)이다. 달력에서 11/16~11/18을 고르고 확인을 누르면 카드 3개, 기간 투자액 $600.00이다.
@@ -54,7 +54,7 @@ OPEN = {"date": fixtures.TODAY, "sector": "nasdaq", "source": "llm", "state": "p
         "executions": [], "after": None}
 EXPECT = {"all": (4, "$460.00"), "llm": (2, "$300.00"), "manual": (2, "$160.00")}
 KRW = {"sum": "612,030원", "row": "931,350원", "order": ("1,000,000원", "약 $750.00")}
-GAPS = [("2026-11-18", "일반 매수", "+0.150배"), ("2026-11-18", "LLM 매수", "+0.300배"), ("2026-11-17", "LLM 매수", "−0.120배"), ("2026-11-14", "일반 매수", "+0.050배")]
+STICKERS = [("2026-11-18", "일반 매수"), ("2026-11-18", "LLM 매수"), ("2026-11-17", "LLM 매수"), ("2026-11-14", "일반 매수")]
 
 
 def account(blocks, with_open=True) -> dict:
@@ -86,8 +86,8 @@ def open_page(p, data: Path, kept: dict, unit="USD"):
 
 
 def cards(page):
-    return page.evaluate("""() => [...document.querySelectorAll('.trade:not(:has(.act))')].map((c) => ({
-      date: c.dataset.date, sticker: c.querySelector('.badge')?.textContent ?? null, lev: c.querySelector('.lev')?.textContent ?? null,
+    return page.evaluate("""() => [...document.querySelectorAll('.trade:not(:has(.act)):not(.gate)')].map((c) => ({
+      date: c.dataset.date, sticker: c.querySelector('.badge')?.textContent ?? null,
       rows: [...c.querySelectorAll('.asset-item')].map((r) => r.innerText.replace(/\\s+/g, ' '))}))""")
 
 
@@ -138,12 +138,13 @@ def main():
         box = page.evaluate("""() => { const [row, value, period] = ['.trade-sum', '.trade-sum b', '.trade-sum .period'].map((q) => document.querySelector(q).getBoundingClientRect());
           return { below: period.top - value.bottom, right: Math.round(row.right - period.right), left: Math.round(value.left - row.left) }; }""")
         check("a 기간 단추는 기간 투자액 아래 줄 오른쪽 끝에 있다", box["below"] >= 0 and box["right"] == 0 and box["left"] == 0, box)
-        check("a 카드 스티커와 갭이 SAMPLE 기대값", [(c["date"], c["sticker"], c["lev"]) for c in s["cards"]] == [(d, k, f"목표 배율 갭 {g}") for d, k, g in GAPS],
-              [(c["date"], c["sticker"], c["lev"]) for c in s["cards"]])
+        check("a 카드 스티커가 SAMPLE 기대값", [(c["date"], c["sticker"]) for c in s["cards"]] == STICKERS, [(c["date"], c["sticker"]) for c in s["cards"]])
+        check("a 목표 배율 갭 줄이 없음", "배율 갭" not in s["text"], s["text"][:120])
         check("a 체결·미체결 글씨가 없음", "체결" not in s["text"], s["text"][:120])
         check("a 행 오른쪽에 시각만", all(r.endswith(("23:31", "23:40", "23:35")) for c in s["cards"] for r in c["rows"]), [c["rows"] for c in s["cards"]])
         check("a 현재 → 목표 줄이 없음", "→" not in s["text"])
-        check("a 집행 요청 카드(승인 단추)와 LLM 스티커", s["open"] == 1 and page.locator(".trade:has(.act) .badge").inner_text() == "LLM 매수")
+        check("a 집행 요청 카드(승인 단추)는 신호등 머리에 리밸런싱 주문 요청을 쓴다", s["open"] == 1 and page.locator(".trade:has(.act) .top.ask b").inner_text().endswith(" 리밸런싱 주문 요청"),
+              page.locator(".trade:has(.act) .top").inner_text())
         for name, label in (("all", "전체"), ("llm", "LLM 매수"), ("manual", "일반 매수"), ("all", "전체")):
             pick(page, label)
             s = state(page)
@@ -167,8 +168,8 @@ def main():
         order = page.locator(".trade:has(.act) .asset-item").inner_text()
         check("e 원 단위: 보낼 주문은 원화 금액 아래 달러 어림값", all(v in order for v in KRW["order"]) and order.index("원") < order.index("$"), order)
         kept = page.evaluate("JSON.parse(localStorage.getItem('asset-view'))")
-        check("e 단위를 기기에 적고 총 자산·판단 보기 단추, 필터와 조회 기간은 지킨다",
-              kept == {"unit": "KRW", "whole": False, "judge": True, "filter": "all", "period": None}, kept)
+        check("e 단위를 기기에 적고 총 자산·판단 보기·금액가중 단추, 수익률 기준일, 필터와 조회 기간은 지킨다",
+              kept == {"unit": "KRW", "whole": False, "judge": True, "money": False, "since": None, "filter": "all", "period": None}, kept)
         page.screenshot(path=str(shots / "trades-krw.png"))
         page.locator(".trade-head [data-unit='USD']").click()
         capture.settle(page, 300)
@@ -240,7 +241,7 @@ def main():
         server, browser, page = open_page(p, data, account(old, with_open=False), unit=None)
         check("d 기기에 적은 단위가 없으면 원 단위로 연다", state(page)["unit"] == "원" and KRW["sum"] in state(page)["sum"], state(page)["sum"])
         s = state(page)
-        check("d 옛 블록: 카드 4개, 스티커와 갭 줄 없음", len(s["cards"]) == 4 and all(c["sticker"] is None and c["lev"] is None for c in s["cards"]), s["cards"][:1])
+        check("d 옛 블록: 카드 4개, 스티커 없음", len(s["cards"]) == 4 and all(c["sticker"] is None for c in s["cards"]), s["cards"][:1])
         pick(page, "LLM 매수")
         check("d 옛 블록: LLM 매수 필터는 비어 있음", state(page)["cards"] == [] and "거래 내역이 없다" in state(page)["text"])
         check("d 오류 0건", not server.errors, server.errors)

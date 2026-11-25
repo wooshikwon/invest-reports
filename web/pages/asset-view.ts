@@ -525,7 +525,6 @@ export function tradesView(page, index) {
     const fresh = recent();
     assetRemember({ filter, period: period.start === fresh.start && period.end === fresh.end ? null : period });
   };
-  const gap = (v) => `${assetSign(v)}${Math.abs(v).toFixed(3)}배`;
   const span = ({ start, end }) => `${start.slice(0, 4) === end.slice(0, 4) ? "" : `${start.slice(2, 4)}.`}${assetDay(start)} ~ ${assetDay(end)}`;
   // 달력은 가장 오래된 거래가 있는 달, 조회 시작 달, 최근 3개월의 시작 달 가운데 가장 이른 달부터 연다.
   const calendar = () => {
@@ -589,7 +588,6 @@ export function tradesView(page, index) {
       const top = live ? head(b.date, "green", `${clock(asked.run_at)} ${{ instructed: "수기", forced: "수기 리밸런싱" }[b.source] ?? "리밸런싱"} 주문 요청`)
         : `<div class="top"><b>${day(b.date)}</b>` + (TRADE_SOURCE[b.source] ? `<span class="badge ${b.source}">${TRADE_SOURCE[b.source]}</span>` : "") + "</div>";
       return `<div class="trade" data-date="${b.date}" data-sector="${key}">${top}`
-        + (b.target != null && b.after != null ? `<div class="lev">목표 배율 갭 ${gap(b.target - b.after)}</div>` : "")
         + (b.reason ? `<p class="why">${assetText(b.reason)}</p>` : "") + (rows.length ? `<div class="rows">${rows.join("")}</div>` : "") + act + "</div>";
     };
     const past = blocks.filter((b) => b !== open && (filter === "all" || b.source === filter) && b.date >= period.start && b.date <= period.end);
