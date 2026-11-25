@@ -6,8 +6,9 @@
 // `News`는 그림 이름마다 올린 달을 적어 두고, `GET /images/{이름}`은 그 달의 객체에서 그림을 읽는다.
 //
 // 공개 읽기는 네 경로다. 회차 시작 시각은 회차 이름으로 정한다(`{날짜}-06`은 그날 06:00 KST).
-// - `GET /list?index={nasdaq|biotech}`: 최신 회차의 이름·시작 시각과 그 회차의 지수 기사. 기사는 첫 종목(기사를 맡은 종목)의 회차 구간 변동률(`move`)이
-//   큰 기사부터 놓고, 변동률이 같으면 ID 순이며, 변동률이 없는 기사는 맨 뒤에 놓는다
+// - `GET /list?index={nasdaq|biotech}&page={1~}`: 최신 회차의 이름·시작 시각, 등록한 회차의 지수 기사 수(`total`), 그 기사를 `PAGE_SIZE`편씩 나눈
+//   `page`번째 장(없으면 첫 장)의 기사. 기사는 회차 시작 시각이 늦은 회차부터 놓고, 같은 회차 안에서는 첫 종목(기사를 맡은 종목)의 회차 구간 변동률(`move`)이
+//   큰 기사부터, 변동률이 같으면 ID 순으로 놓으며, 변동률이 없는 기사는 그 회차의 맨 뒤에 놓는다
 // - `GET /list?ticker={티커}&limit={1~50}`: 그 종목을 단 최신 기사. 회차 시작 시각이 늦은 기사부터 놓는다
 // - `GET /articles/{ID}`: 기사 한 편. 소제목 줄(`subheads`)이 없이 올린 기사는 빈 목록을 돌려준다
 // - `GET /images/{이름}`: 그림
@@ -30,6 +31,8 @@ const TYPE = /^image\/[a-z0-9.+-]+$/;
 const INDICES = new Set(["nasdaq", "biotech"]);
 // 기사 제목 아래 소제목 줄 수의 상한.
 const SUBHEADS = 3;
+// 지수 목록 한 장의 기사 수.
+const PAGE_SIZE = 10;
 // SQLite Durable Object는 값 하나와 행 하나를 2MB까지 받는다. 기사 요청 본문과 그림 본문을 이 크기로 막는다.
 const LIMIT = 2_000_000;
 const HEADERS = {
@@ -137,13 +140,15 @@ export class News extends DurableObject {
       FROM articles a ${where}`, ...bindings).toArray();
   }
 
-  // 최신 회차와 그 회차의 지수 기사. 등록한 회차가 없으면 회차가 null이고 기사가 없다.
-  latest(name) {
-    const [round] = this.ctx.storage.sql.exec("SELECT round FROM rounds ORDER BY start DESC LIMIT 1").toArray();
-    if (!round) return { round: null, rows: [] };
-    const rows = this.#rows("JOIN article_indices i ON i.article = a.id WHERE i.name = ? AND a.round = ? ORDER BY a.id", name, round.round);
-    rows.sort((a, b) => (b.move ?? -1) - (a.move ?? -1));
-    return { round: round.round, rows };
+  // 최신 회차, 등록한 회차의 지수 기사 수, `page`번째 장의 지수 기사. 등록한 회차가 없으면 회차가 null이다.
+  byIndex(name, page) {
+    const sql = this.ctx.storage.sql;
+    const [round] = sql.exec("SELECT round FROM rounds ORDER BY start DESC LIMIT 1").toArray();
+    const where = "JOIN article_indices i ON i.article = a.id WHERE i.name = ? AND a.round IN (SELECT round FROM rounds)";
+    const [{ total }] = sql.exec(`SELECT COUNT(*) AS total FROM articles a ${where}`, name).toArray();
+    const rows = this.#rows(`${where} ORDER BY a.start DESC, COALESCE(json_extract(a.body, '$.moves.' || json_quote(json_extract(a.tickers, '$[0]'))), -1) DESC, a.id
+      LIMIT ? OFFSET ?`, name, PAGE_SIZE, (page - 1) * PAGE_SIZE);
+    return { round: round?.round ?? null, total, rows };
   }
 
   byTicker(ticker, limit) {
@@ -312,9 +317,10 @@ async function open(request, env, url, path) {
   if (path === "list") {
     const index = query.get("index"), ticker = query.get("ticker");
     if (index !== null && ticker === null) {
-      if (!INDICES.has(index)) return status(400, HEADERS);
-      const { round, rows } = await newsStore(env).latest(index);
-      return reply({ round, time: round && started(round).time, articles: rows.map((row) => entry(url.origin, row)) }, 200, fresh);
+      const page = Number(query.get("page") ?? 1);
+      if (!INDICES.has(index) || !Number.isInteger(page) || page < 1) return status(400, HEADERS);
+      const { round, total, rows } = await newsStore(env).byIndex(index, page);
+      return reply({ round, time: round && started(round).time, total, page, size: PAGE_SIZE, articles: rows.map((row) => entry(url.origin, row)) }, 200, fresh);
     }
     if (ticker !== null && index === null) {
       const limit = Number(query.get("limit"));

@@ -20,8 +20,13 @@ import fixtures
 NASDAQ = "20261119-nasdaq"
 BIOTECH = "20261119-biotech"
 TITLES = [title for _, _, _, title, _ in fixtures.NEWS]
-# 나스닥 리포트의 종목 뉴스 탭이 보이는 최신 회차(11/19 18:00) 기사 제목을 첫 종목의 변동률 순서로 적는다.
+# 나스닥 리포트의 종목별 뉴스 목록에 오는 최신 회차(11/19 18:00) 기사 제목을 첫 종목의 변동률 순서로 적는다.
 NASDAQ_LATEST = [TITLES[k] for k in (18, 0, 19, 20, 1, 21, 22)]
+# 나스닥 기사 전체를 늦은 회차부터 적는다. 최신 회차 뒤의 회차는 회차마다 기사가 한 편이다.
+NASDAQ_ALL = NASDAQ_LATEST + [title for _, _, title in sorted(((name, k, title) for k, (name, index, _, title, _) in enumerate(fixtures.NEWS)
+                                                                     if index == "nasdaq" and name != fixtures.NEWS_ROUND), key=lambda row: (row[0], -row[1]), reverse=True)]
+NEWS_PAGER = """(box) => { const pager = box.querySelector('.pager'); return pager && { numbers: [...pager.querySelectorAll('.numbers button')].map((b) => b.textContent),
+  on: pager.querySelector('.numbers button.on')?.textContent, prev: !pager.querySelector('.prev').disabled, next: !pager.querySelector('.next').disabled }; }"""
 BIOTECH_TITLES = [title for name, index, _, title, _ in fixtures.NEWS if index == "biotech"]
 # NVDA를 단 기사 제목을 최신순으로 적는다. 11월 기사 열한 편 뒤에 10월 기사 스무 편이 온다.
 NVDA = [TITLES[k] for k in (0, 2, 4, 6, 8, 9, 10, 11, 12, 13, 14)] + [f"엔비디아 10월 {day}일 SAMPLE 기사" for day in range(20, 0, -1)]
@@ -107,7 +112,7 @@ def main() -> int:
         hidden = page.evaluate("() => [document.querySelector('.issue-box').hidden, document.querySelector('.news-box').hidden]")
         check("종목 뉴스 탭은 이슈 목록을 감추고 기사 목록을 보인다", hidden == [True, False], str(hidden))
         shown = page.evaluate(LIST)
-        check("나스닥 리포트는 최신 회차의 나스닥 기사만 첫 종목의 변동률 순서로 보이고, 변동률이 없는 기사는 맨 뒤다", shown == NASDAQ_LATEST, " | ".join(shown))
+        check("나스닥 리포트는 첫 장에 나스닥 기사 열 편을 늦은 회차부터, 같은 회차 안에서는 첫 종목의 변동률 순서로 보인다", shown == NASDAQ_ALL[:10], " | ".join(shown))
         check("나스닥 리포트에서 바이오 종목 기사가 보이지 않는다", not set(shown) & set(BIOTECH_TITLES))
         blocks = page.evaluate(BLOCKS)
         check("기사 블록은 그림 없이 제목, 머리 줄, 회차 시각 차례다", blocks == [[False, ["title", "headline", "age"]]] * len(shown), str(blocks))
@@ -116,7 +121,7 @@ def main() -> int:
           return move ? [move.textContent, Math.round(age.getBoundingClientRect().right - move.getBoundingClientRect().right), getComputedStyle(move).color] : null; })""")
         check("기사 아래 줄 오른쪽 끝에 첫 종목의 변동률을 회색 '변동률 지수 : N%'로 쓰고, 변동률이 없는 기사는 쓰지 않는다",
               [m and m[0] for m in moves] == ["변동률 지수 : 6.50%", "변동률 지수 : 4.10%", "변동률 지수 : 3.00%", "변동률 지수 : 3.00%", "변동률 지수 : 1.20%",
-                                             "변동률 지수 : 0.80%", None] and all(m[1] == 0 for m in moves if m), str(moves))
+                                             "변동률 지수 : 0.80%", None, None, None, None] and all(m[1] == 0 for m in moves if m), str(moves))
         parts = page.evaluate("() => ['.news-box .pick', '.news-box .pick code', '.news-box .pick .thumb', '.news-box .pick .age'].map((q) => document.querySelectorAll(q).length)")
         stickers = page.evaluate("() => [...document.querySelectorAll('.news-box .pick .age')].map((age) => [age.firstChild.textContent, [...age.querySelectorAll('.ticker')].map((t) => t.textContent)])")
         expected = [next(list(tickers) for _, _, tickers, title, _ in fixtures.NEWS if title == shown_title) for shown_title in shown]
@@ -127,9 +132,33 @@ def main() -> int:
               [found for _, found in stickers] == expected and all(re.fullmatch(r"\d{1,2}/\d{1,2} \d\d:\d\d", clock) for clock, _ in stickers), str(stickers))
         stamp = page.evaluate("() => document.querySelector('.news-box > .issue-asof')?.textContent")
         check("종목 뉴스 탭 첫 줄에 가장 최근 회차의 마지막 업데이트 시각이 있다", bool(stamp and re.fullmatch(r"마지막 업데이트 \d{1,2}/\d{1,2} \d\d:\d\d KST", stamp)), str(stamp))
+        news = page.locator(".news-box").filter(visible=True).first
+        pager = news.evaluate(NEWS_PAGER)
+        check("종목별 뉴스 목록 아래 번호 줄은 1~4를 보이고 1을 고른다", pager == {"numbers": ["1", "2", "3", "4"], "on": "1", "prev": False, "next": True}, str(pager))
         page.evaluate("scrollTo(0, 0)")
         capture.settle(page, 300)
         page.screenshot(path=str(shots / "news-tab.png"))
+        news.locator(".pager .next").click()
+        capture.settle(page, 800)
+        shown, pager = page.evaluate(LIST), news.evaluate(NEWS_PAGER)
+        check("다음 꺾쇠를 누르면 다음 열 편을 받아 보이고 번호 줄이 따라간다", shown == NASDAQ_ALL[10:20] and pager["on"] == "2", f"{' | '.join(shown)} {pager}")
+        news.locator(".pager .numbers button", has_text="4").click()
+        capture.settle(page, 800)
+        shown, pager = page.evaluate(LIST), news.evaluate(NEWS_PAGER)
+        check("마지막 장 번호를 누르면 남은 기사를 보이고 다음 꺾쇠는 누를 수 없다", shown == NASDAQ_ALL[30:] and pager["on"] == "4" and not pager["next"], f"{' | '.join(shown)} {pager}")
+        news.locator(".pager .numbers button", has_text="2").click()
+        capture.settle(page, 800)
+        page.locator(".news-box .pick", has_text=NASDAQ_ALL[12]).click()
+        capture.settle(page)
+        found = page.evaluate(PAGE)
+        check("둘째 장에서 연 뉴스 상세의 앞뒤 기사는 그 장의 앞뒤 기사다", found["prev"] == NASDAQ_ALL[11] and found["next"] == NASDAQ_ALL[13], str(found))
+        page.locator("button.back").click()
+        capture.settle(page)
+        page.locator("h2.tabbed .tabline > button", has_text="종목별 뉴스").click()
+        capture.settle(page, 800)
+        check("뉴스 상세에서 돌아와 종목별 뉴스 탭을 열면 떠나기 전 장을 보인다", page.evaluate(LIST) == NASDAQ_ALL[10:20], " | ".join(page.evaluate(LIST)))
+        news.locator(".pager .numbers button", has_text="1").click()
+        capture.settle(page, 800)
         page.locator("h2.tabbed .tabline > button", has_text="주요 이슈 해설").click()
         capture.settle(page, 600)
         back = page.evaluate(BAR)
@@ -169,9 +198,9 @@ def main() -> int:
 
         page = open_news(run, BIOTECH)
         found = page.evaluate("""() => { const box = [...document.querySelectorAll('.news-box')].find((node) => node.offsetParent);
-          return [box.querySelectorAll('.pick').length, box.querySelector('.empty')?.textContent, box.querySelector(':scope > .issue-asof')?.textContent]; }""")
-        check("최신 회차에 바이오 기사가 없으면 바이오 리포트의 목록은 비고 마지막 업데이트는 최신 회차 시각이다",
-              found == [0, "이번 회차에 올라온 종목 뉴스가 없다.", "마지막 업데이트 11/19 18:00 KST"], str(found))
+          return [[...box.querySelectorAll('.pick h3')].map((h) => h.textContent), !!box.querySelector('.pager'), box.querySelector(':scope > .issue-asof')?.textContent]; }""")
+        check("바이오 리포트는 지난 회차의 바이오 기사도 늦은 회차부터 보이고, 한 장뿐이면 번호 줄이 없으며, 마지막 업데이트는 최신 회차 시각이다",
+              found == [BIOTECH_TITLES, False, "마지막 업데이트 11/19 18:00 KST"], str(found))
         run.close()
 
         # 종목 뉴스 탭에서 연 뉴스 상세

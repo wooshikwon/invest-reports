@@ -117,7 +117,7 @@ test("비밀 헤더가 없거나 다른 쓰기와 관리 요청은 401이고 아
   const unset = await worker.fetch(new Request(`${ORIGIN}/articles`, { method: "POST", body: JSON.stringify(sample("a1", "2026-11-20-06")), headers: secret }), { ...env, NEWS_SECRET: undefined });
   assert.equal(unset.status, 401);
   assert.equal((await call("GET", "/articles/a1")).status, 404);
-  assert.deepEqual(await get("/list?index=nasdaq"), { round: null, time: null, articles: [] });
+  assert.deepEqual(await get("/list?index=nasdaq"), { round: null, time: null, total: 0, page: 1, size: 10, articles: [] });
   assert.equal((await call("GET", "/images/a1-1.webp")).status, 404);
 });
 
@@ -128,7 +128,7 @@ test("올린 기사는 지수 목록, 종목 목록, 기사 읽기에 보인다"
   assert.deepEqual(await posted.json(), { id: "a1", replaced: false });
   assert.equal((await enroll("2026-11-20-06")).status, 200);
   const listed = await get("/list?index=nasdaq");
-  assert.deepEqual(listed, { round: "2026-11-20-06", time: "2026-11-20T06:00:00+09:00", articles: [{
+  assert.deepEqual(listed, { round: "2026-11-20-06", time: "2026-11-20T06:00:00+09:00", total: 1, page: 1, size: 10, articles: [{
     id: "a1", round: "2026-11-20-06", time: "2026-11-20T06:00:00+09:00", tickers: ["SAMPA"],
     title: item.title, headline: item.headline, image: null, move: null,
   }] });
@@ -138,7 +138,7 @@ test("올린 기사는 지수 목록, 종목 목록, 기사 읽기에 보인다"
     title: item.title, subheads: item.subheads, headline: item.headline, html: item.html, images: [],
     charts: item.charts, terms: item.terms, sources: item.sources, previous: "a0",
   });
-  assert.deepEqual(await get("/list?index=biotech"), { round: "2026-11-20-06", time: "2026-11-20T06:00:00+09:00", articles: [] });
+  assert.deepEqual(await get("/list?index=biotech"), { round: "2026-11-20-06", time: "2026-11-20T06:00:00+09:00", total: 0, page: 1, size: 10, articles: [] });
   assert.deepEqual(await get("/list?ticker=SAMPB&limit=10"), { articles: [] });
   assert.equal((await post(sample("a2", "2026-11-20-06", { subheads: ["SAMPLE 소제목 한 줄이다"] }))).status, 200);
   assert.deepEqual((await get("/articles/a2")).subheads, ["SAMPLE 소제목 한 줄이다"]);
@@ -151,18 +151,23 @@ test("소제목 줄 없이 저장된 기사는 기사 읽기에서 빈 소제목
   assert.deepEqual([read.subheads, read.headline, read.html], [[], item.headline, html]);
 });
 
-test("지수 목록은 등록한 최신 회차의 기사만 돌려주고, 기사가 0편인 회차를 등록하면 빈 목록이다", async () => {
+test("지수 목록은 등록한 회차의 기사를 모두 늦은 회차부터 열 편씩 장으로 나눠 돌려주고, 등록하기 전 회차의 기사는 빼며, 최신 회차는 기사가 0편이어도 등록한 회차다", async () => {
   await post(sample("old", "2026-11-19-18"));
   await enroll("2026-11-19-18");
   await post(sample("new", "2026-11-20-06"));
   assert.deepEqual(ids(await get("/list?index=nasdaq")), ["old"]);
   await enroll("2026-11-20-06");
-  assert.deepEqual(ids(await get("/list?index=nasdaq")), ["new"]);
-  await enroll("2026-11-19-06");
-  assert.equal((await get("/list?index=nasdaq")).round, "2026-11-20-06");
+  assert.deepEqual(ids(await get("/list?index=nasdaq")), ["new", "old"]);
   await enroll("2026-11-20-18");
-  assert.deepEqual(await get("/list?index=nasdaq"), { round: "2026-11-20-18", time: "2026-11-20T18:00:00+09:00", articles: [] });
-  assert.deepEqual(ids(await get("/list?ticker=SAMPA&limit=10")), ["new", "old"]);
+  const listed = await get("/list?index=nasdaq");
+  assert.deepEqual([listed.round, listed.time, listed.total, ids(listed)], ["2026-11-20-18", "2026-11-20T18:00:00+09:00", 2, ["new", "old"]]);
+  for (let day = 1; day <= 11; day += 1) await post(sample(`o${day}`, `2026-10-${String(day).padStart(2, "0")}-06`));
+  for (let day = 1; day <= 11; day += 1) await enroll(`2026-10-${String(day).padStart(2, "0")}-06`);
+  const first = await get("/list?index=nasdaq"), second = await get("/list?index=nasdaq&page=2"), past = await get("/list?index=nasdaq&page=3");
+  assert.deepEqual([first.total, ids(first).length, first.page, second.page], [13, 10, 1, 2]);
+  assert.deepEqual(ids(second), ["o3", "o2", "o1"]);
+  assert.deepEqual(ids(past), []);
+  assert.deepEqual(ids(await get("/list?ticker=SAMPA&limit=10")).slice(0, 2), ["new", "old"]);
 });
 
 test("회차 표가 비어 있으면 객체를 만들 때 기사가 있는 회차를 모두 등록한다", async () => {
@@ -172,19 +177,21 @@ test("회차 표가 비어 있으면 객체를 만들 때 기사가 있는 회�
     const { subheads, html, charts, terms, sources, previous, ...item } = sample(id, round);
     first.save({ ...item, start: Date.parse(`${round.slice(0, 10)}T${round.slice(11)}:00:00+09:00`), images: [], body: { subheads, html, charts, terms, sources, previous, moves: {} } });
   }
-  assert.equal(first.latest("nasdaq").round, null);
-  assert.deepEqual(new News(ctx, env).latest("nasdaq").rows.map((row) => row.id), ["a2"]);
+  assert.equal(first.byIndex("nasdaq", 1).round, null);
+  assert.deepEqual(new News(ctx, env).byIndex("nasdaq", 1).rows.map((row) => row.id), ["a2", "a1"]);
 });
 
-test("지수 목록은 첫 종목의 변동률이 큰 기사부터 놓고, 변동률이 없는 기사는 맨 뒤에 놓는다", async () => {
+test("지수 목록은 같은 회차 안에서 첫 종목의 변동률이 큰 기사부터 놓고, 변동률이 없는 기사는 그 회차의 맨 뒤에 놓는다", async () => {
   await post(sample("a1", "2026-11-20-06", { tickers: ["SAMPA"], moves: { SAMPA: 1.5 } }));
   await post(sample("a2", "2026-11-20-06", { tickers: ["SAMPB", "SAMPA"], moves: { SAMPB: 4.2, SAMPA: 1.5 } }));
   await post(sample("a3", "2026-11-20-06", { tickers: ["SAMPC"] }));
   await post(sample("a4", "2026-11-20-06", { tickers: ["SAMPA"], moves: { SAMPA: 1.5 } }));
   await post(sample("a5", "2026-11-20-06", { tickers: ["BRK.B"], moves: { "BRK.B": 2 } }));
+  await post(sample("z0", "2026-11-19-18", { tickers: ["SAMPA"], moves: { SAMPA: 9 } }));
   await enroll("2026-11-20-06");
+  await enroll("2026-11-19-18");
   const listed = await get("/list?index=nasdaq");
-  assert.deepEqual(listed.articles.map((article) => [article.id, article.move]), [["a2", 4.2], ["a5", 2], ["a1", 1.5], ["a4", 1.5], ["a3", null]]);
+  assert.deepEqual(listed.articles.map((article) => [article.id, article.move]), [["a2", 4.2], ["a5", 2], ["a1", 1.5], ["a4", 1.5], ["a3", null], ["z0", 9]]);
   assert.equal((await get("/list?ticker=SAMPA&limit=10")).articles.find((article) => article.id === "a2").move, 4.2);
 });
 
@@ -318,10 +325,10 @@ test("형식에 맞지 않는 기사, 그림, 목록 요청은 400이고 너무 
   for (const body of ["{", JSON.stringify({ round: "2026-11-20-12" }), JSON.stringify({})]) {
     assert.equal((await call("POST", "/rounds", { body, headers: secret })).status, 400, body);
   }
-  for (const path of ["/list", "/list?index=kospi", "/list?ticker=SAMPA&limit=51", "/list?ticker=SAMPA", "/list?index=nasdaq&ticker=SAMPA&limit=3"]) {
+  for (const path of ["/list", "/list?index=kospi", "/list?index=nasdaq&page=0", "/list?index=nasdaq&page=x", "/list?ticker=SAMPA&limit=51", "/list?ticker=SAMPA", "/list?index=nasdaq&ticker=SAMPA&limit=3"]) {
     assert.equal((await call("GET", path)).status, 400, path);
   }
-  assert.deepEqual(await get("/list?index=nasdaq"), { round: null, time: null, articles: [] });
+  assert.deepEqual(await get("/list?index=nasdaq"), { round: null, time: null, total: 0, page: 1, size: 10, articles: [] });
 });
 
 test("공개 응답에는 CORS 헤더가 있고, 없는 경로는 404다", async () => {

@@ -207,6 +207,8 @@ NEWS = [
 NEWS += [(f"2026-10-{day:02d}-06", "nasdaq", ["NVDA"], f"엔비디아 10월 {day}일 SAMPLE 기사", f"10월 {day}일 SAMPLE 요약이다") for day in range(20, 0, -1)]
 # 최신 회차의 종목별 회차 구간 변동률(%). INTC는 값을 받지 못한 종목이다.
 NEWS_MOVES = {"NVDA": 4.1, "AAPL": 1.2, "MSFT": 0.9, "TSLA": 6.5, "AMD": 3.0, "META": 0.8}
+# 뉴스 Worker 지수 목록 한 장의 기사 수.
+NEWS_PAGE = 10
 # 뉴스 Worker에 등록한 최신 회차. SAMPLE 기사의 가장 늦은 회차다.
 NEWS_ROUND = max(name for name, *_ in NEWS)
 NEWS_CARD = {"issue": 1, "after": 2, "name": "차세대 칩 분기 출하 물량", "asof": "SAMPLE · 11/19", "value": "55", "unit": "만 개",
@@ -261,17 +263,19 @@ def news() -> list[dict]:
 
 
 def news_answer(data_root: Path, path: str, params: dict) -> tuple[int, bytes, str]:
-    """뉴스 Worker 공개 읽기의 (응답 코드, 본문, 형식). 지수 목록은 `worker/news.js`처럼 최신 회차(`NEWS_ROUND`)의 지수 기사를 첫 종목의
-    변동률이 큰 기사부터, 같으면 ID 순으로, 변동률이 없는 기사는 맨 뒤에 준다. 종목 목록은 그 종목을 단 최신 기사 `limit`편을
+    """뉴스 Worker 공개 읽기의 (응답 코드, 본문, 형식). 지수 목록은 `worker/news.js`처럼 모든 회차의 지수 기사를 늦은 회차부터, 같은 회차 안에서는
+    첫 종목의 변동률이 큰 기사부터, 같으면 ID 순으로, 변동률이 없는 기사는 그 회차의 맨 뒤에 놓고 `page`번째 장의 `NEWS_PAGE`편을 준다. 종목 목록은 그 종목을 단 최신 기사 `limit`편을
     회차 시작 시각이 늦은 기사부터, 같으면 ID 순으로 준다."""
     articles = sorted(news(), key=lambda a: (-a["start"].timestamp(), a["id"]))
     reply = lambda value: (200, json.dumps(value, ensure_ascii=False).encode(), "application/json")
     entry = lambda a: {"id": a["id"], "round": a["round"], "time": a["time"], "tickers": a["tickers"], "title": a["title"],
                        "headline": a["headline"], "image": a["images"][0]["url"] if a["images"] else None, "move": a["moves"].get(a["tickers"][0])}
     if path == "list" and "index" in params:
-        found = sorted((a for a in articles if a["round"] == NEWS_ROUND and params["index"][0] in a["indices"]),
-                       key=lambda a: (-a["moves"].get(a["tickers"][0], -1), a["id"]))
-        return reply({"round": NEWS_ROUND, "time": f"{NEWS_ROUND[:10]}T{NEWS_ROUND[11:]}:00:00+09:00", "articles": [entry(a) for a in found]})
+        page = int(params.get("page", ["1"])[0])
+        found = sorted((a for a in articles if params["index"][0] in a["indices"]),
+                       key=lambda a: (-a["start"].timestamp(), -a["moves"].get(a["tickers"][0], -1), a["id"]))
+        return reply({"round": NEWS_ROUND, "time": f"{NEWS_ROUND[:10]}T{NEWS_ROUND[11:]}:00:00+09:00", "total": len(found), "page": page, "size": NEWS_PAGE,
+                      "articles": [entry(a) for a in found[(page - 1) * NEWS_PAGE:page * NEWS_PAGE]]})
     if path == "list" and "ticker" in params:
         return reply({"articles": [entry(a) for a in articles if params["ticker"][0] in a["tickers"]][:int(params["limit"][0])]})
     if path.startswith("articles/"):

@@ -55,6 +55,7 @@ export const visit = (target, more = {}) => {
   params.delete("trades");
   params.delete("news");
   params.delete("ticker");
+  params.delete("page");
   params.delete("alerts");
   params.set("r", target);
   Object.entries(more).forEach(([name, value]) => params.set(name, value));

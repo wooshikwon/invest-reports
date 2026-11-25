@@ -280,15 +280,16 @@ h3 code.tone-both { background: #6f7984; }
    주요 뉴스의 제목은 이슈 문단 색으로, 날짜는 흐린 글씨로 쓴다. */
 :is(.issue-page, #report) > div.history { margin-top: 8px; padding: 4px calc(18px - var(--inset)); border-radius: 16px; background: rgba(255, 255, 255, .035); overflow: hidden; }
 .issue-page > div.history + h4 { margin-top: 28px; }
-/* 종목 상세 주요 뉴스 절은 종목별 뉴스 목록과 같은 블록을 다섯 편씩 한 장에 담아 좌우로 넘기고, 아래 가운데에 앞 장 꺾쇠, 장 번호, 다음 장 꺾쇠를 둔다.
-   보고 있는 장 번호는 흰 굵은 글씨에 옅은 바탕을, 나머지 번호와 꺾쇠는 흐린 글씨를 쓰고, 넘길 장이 없는 꺾쇠는 더 흐리게 둔다. */
+/* 종목 상세 주요 뉴스 절은 종목별 뉴스 목록과 같은 블록을 다섯 편씩 한 장에 담아 좌우로 넘긴다. 이 절과 종목별 뉴스 목록은 아래 가운데에
+   앞 장 꺾쇠, 장 번호, 다음 장 꺾쇠를 둔다. 보고 있는 장 번호는 흰 굵은 글씨에 옅은 바탕을, 나머지 번호와 꺾쇠는 흐린 글씨를 쓰고,
+   넘길 장이 없는 꺾쇠는 더 흐리게 둔다. */
 #report > div.headlines { margin-top: 4px; }
-.headlines .pager { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 6px; }
-.headlines .pager .numbers { display: flex; gap: 4px; }
-.headlines .pager button { display: flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 6px; border: 0; border-radius: 8px;
+.pager { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 6px; }
+.pager .numbers { display: flex; gap: 4px; }
+.pager button { display: flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 6px; border: 0; border-radius: 8px;
                            background: none; color: var(--hint); font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; cursor: pointer; }
-.headlines .pager button.on { background: rgba(255, 255, 255, .06); color: var(--text); font-weight: 700; }
-.headlines .pager button:disabled { opacity: .3; cursor: default; }
+.pager button.on { background: rgba(255, 255, 255, .06); color: var(--text); font-weight: 700; }
+.pager button:disabled { opacity: .3; cursor: default; }
 .history .rows { position: relative; overflow: hidden; }
 .history .rows.open.long { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
 .history .rows.open::-webkit-scrollbar { display: none; }
