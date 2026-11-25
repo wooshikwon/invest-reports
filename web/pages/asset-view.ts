@@ -117,11 +117,14 @@ const stamp = (time, futures) => {
   return sessionTag(kind, sessionAt(SESSION_NAME[kind], time));
 };
 // 내 자산 페이지의 그림 카드. 값(`perf`)은 계좌 요약의 `performance.sectors.{지수}`이고, 값이 없는 카드는 뺀다. 지수(`index`)는 이름 줄과 큰 값을 굴리는 자리 이름에 쓴다.
-// `times`는 최신 날짜 점과 현재 배율을 셈한 체결가의 시각(`live`)과, 그 체결가가 선물 시간대의 주간거래 값이면 그 체결가로 대신한 애프터장의 세션 날짜(`futures`)다.
+// `times`는 최신 날짜 점과 현재 배율을 셈한 체결가의 시각(`live`)과, 그 체결가가 선물 시간대의 주간거래 값이면 그 체결가로 대신한 애프터장의 세션 날짜(`futures`),
+// 계좌 요약의 원/달러 환율(`rate`)이다.
 // 실시간 체결가가 없으면 Worker가 최신 날짜 점을 요약의 가격으로 셈하므로, 그때 `live`는 요약 시각이다. 카드 이름과 상자 목록(`cards`)과 다시 그리는 함수(`show`)를 돌려준다.
 // 카드는 요약 절의 그림 카드처럼 맨 위 줄에 값의 기준 시각을, 그 아래 이름 줄 왼쪽에 "나스닥 100"처럼 지수 이름을 쓴다. 이름 줄 오른쪽에는 수익률 카드면 판단 보기·금액가중 체크 단추를
 // 그 순서로, 배율 카드면 목표 배율을 흐린 글씨로 둔다. 판단 보기 체크 단추는 두 수익률 카드에서 판단 선(지수색)을 함께 보이거나 감추고,
 // 그 상태(`view.judge`)를 기기에 남긴다(`remember`).
+// 원화 단위(`view.unit`)이고 계좌 요약에 날마다의 원/달러 종가(`returns.fx`)가 있으면 세 선을 원화 누적 수익률로 그린다. 누적 수익률은 그날 환율 ÷ 첫날 환율을 곱해
+// 원화로 옮기고, 금액가중 계산의 평가액과 들어온 돈은 그날 환율로 원화로 바꾼다. 최신 날짜 점에는 계좌 요약의 환율(`times.rate`)을 쓴다.
 // 금액가중 체크 단추는 계좌 요약에 금액가중 누적 수익률과 날짜 점마다의 평가액(`returns.mwr.values`)이 있을 때만 둔다. 켜면 두 수익률 카드의 세 선과 큰 값을 시간가중 대신 금액가중
 // 누적 수익률로 그리고, 그 상태(`view.money`)를 기기에 남긴다. 고정 배율·판단 선은 집행 계좌와 같은 날 같은 돈을 넣고 뺀 계좌의 금액가중 누적 수익률이라,
 // 초과 수익률에는 돈을 넣고 뺀 시점의 효과가 빠지고 배율 판단과 집행의 효과만 남는다.
@@ -255,22 +258,26 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
       const target = [...ret.target];
       for (const [point] of extra) { if (point.target == null) break; target.push(point.target); }
       const days = [...ret.days, ...extra.map(([point]) => point.day)], anchor = [...ret.anchor, ...extra.map(([point]) => point.anchor)];
+      const fx = view.unit === "KRW" && ret.fx?.length === ret.days.length ? [...ret.fx, ...extra.map(() => times.rate ?? ret.fx.at(-1))] : null;
+      const won = (values) => (fx ? values.map((v, i) => (1 + v) * fx[i] / fx[0] - 1) : values);
+      const inWon = (amounts) => (fx ? amounts.map((v, i) => v * fx[i]) : amounts);
       const s = view.since ? Math.min(days.length - 2, Math.max(0, days.filter((day) => day <= view.since).length - 1)) : 0;
       const latest = extra.at(-1)?.[0] === now ? now : null;
       if (!weighed) {
         const from = (values) => values.slice(s).map((v) => (1 + v) / (1 + values[s]) - 1);
-        return { days: days.slice(s), anchor: from(anchor), target: from(target), realized: from([...ret.realized, ...extra.map(([, value]) => value)]), now: latest };
+        return { days: days.slice(s), anchor: from(won(anchor)), target: from(won(target)),
+                 realized: from(won([...ret.realized, ...extra.map(([, value]) => value)])), now: latest };
       }
       // 금액가중 집행 선은 기준일 평가액에서 시작해, 기준일 뒤 들어온 돈으로 Modified Dietz 식을 다시 셈한다. 날짜 점 뒤로는 들어온 돈이 없다.
       // 고정 배율·판단 선은 기준일 평가액을 그 선대로 굴리고 같은 날 같은 돈을 더한 계좌로 같은 식을 셈한다.
-      const book = [...ret.mwr.values, ...extra.map(([point]) => point.mwr.value)].slice(s);
-      const flows = [0, ...[...ret.mwr.flows, ...extra.map(() => 0)].slice(s + 1)];
+      const book = inWon([...ret.mwr.values, ...extra.map(([point]) => point.mwr.value)]).slice(s);
+      const flows = [0, ...inWon([...ret.mwr.flows, ...extra.map(() => 0)]).slice(s + 1)];
       const funded = (values) => {
         const held = [book[0]];
         for (let k = 1; k < values.length; k++) held.push(held[k - 1] * (1 + values[k]) / (1 + values[k - 1]) + flows[k]);
         return dietz(held, flows);
       };
-      return { days: days.slice(s), anchor: funded(anchor.slice(s)), target: funded(target.slice(s)), realized: dietz(book, flows), now: latest };
+      return { days: days.slice(s), anchor: funded(won(anchor).slice(s)), target: funded(won(target).slice(s)), realized: dietz(book, flows), now: latest };
     };
     const paint = () => {
       const { days, anchor, realized, target, now } = pick(money && view.money), gap = (values) => values.map((v, i) => v - anchor[i]);
@@ -315,7 +322,12 @@ export function assetPage(page) {
     // 금액은 고른 단위로 바꿔 쓴다. 다른 통화 금액은 요약을 만든 시각의 환율로 바꾼다.
     const into = (v, currency) => (currency === unit ? v : unit === "KRW" ? v * rate : v / rate);
     const change = (v, r) => `<span class="${tone(v)}">${assetSign(v)}${assetMoney(v, unit, true)} (${Math.abs(r * 100).toFixed(1)}%)</span>`;
-    const held = data.items.map((item) => ({ ...item, value: into(item.value, item.currency), profit: into(item.profit, item.currency) }));
+    // 원화 단위에서 원화 취득가(`purchaseKrw`, 매수일 환율로 쌓은 값)가 있는 달러 종목은 평가액 − 원화 취득가로 환차손익을 넣은 손익과 손익률을 쓴다.
+    const held = data.items.map((item) => {
+      const value = into(item.value, item.currency);
+      if (unit === "KRW" && item.currency === "USD" && item.purchaseKrw > 0) return { ...item, value, profit: value - item.purchaseKrw, rate: value / item.purchaseKrw - 1 };
+      return { ...item, value, profit: into(item.profit, item.currency) };
+    });
     const mine = held.filter((item) => item.sector === index), waiting = held.find((item) => item.sector === "sgov");
     const cash = Object.entries(accounts).reduce((sum, [currency, summed]) => sum + into(summed.cash, currency), 0);
     const whole = held.reduce((sum, item) => sum + item.value, 0) + cash, value = view.whole ? whole : mine.reduce((sum, item) => sum + item.value, 0);
@@ -332,7 +344,7 @@ export function assetPage(page) {
     const sector = data.items.filter((item) => item.sector === index), capital = sector.reduce((sum, item) => sum + item.value, 0);
     const current = capital > 0 && sector.every((item) => Number.isFinite(item.multiple)) ? sector.reduce((sum, item) => sum + item.value * item.multiple, 0) / capital : null;
     const base = data.performance?.sectors?.[index], perf = base?.leverage ? { ...base, leverage: { ...base.leverage, current } } : base;
-    const cards = assetCards(perf, index, { live: data.live?.time || data.time, futures: data.live?.futures }, pin, view, remember);
+    const cards = assetCards(perf, index, { live: data.live?.time || data.time, futures: data.live?.futures, rate }, pin, view, remember);
     const above = page.querySelector(".asks") || page.querySelector(".asset-sum");
     if (!cards.length) return above.insertAdjacentHTML("afterend", '<p class="status">그림 값이 아직 없다.</p>');
     const bar = document.createElement("div");
