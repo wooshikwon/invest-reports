@@ -8,7 +8,7 @@ import { gallery, viewer } from "../shared/viewer";
 import { NEWS_HELP, question } from "../shared/help";
 import { marketed } from "../shared/data";
 import { linkStocks, stockNames } from "../shared/stocklink";
-import { updated, weekday } from "../shared/format";
+import { ago, updated, weekday } from "../shared/format";
 import { keep as store, kept } from "../shared/keep";
 // 종목 뉴스를 그린다. 기사는 종목 뉴스 배치가 뉴스 Worker(`NEWS_URL`, `worker/news.js`)에 올린 것이고, 앱은 공개 읽기 세 경로만 쓴다.
 // `GET /list?index={지수}`와 `GET /list?ticker={티커}&limit={편수}`는 기사마다 ID, 회차 시작 시각(`time`), 종목, 제목, 머리 줄(요약), 첫 그림 주소(`image`), 첫 종목의 회차 구간 변동률(`move`)을 주고,
@@ -33,8 +33,6 @@ export const newsList = (query) => ask(`/list?${query}`).then((value) => value.a
 // 기사는 늦은 회차부터, 같은 회차 안에서는 첫 종목의 회차 구간 변동률(`move`)이 큰 기사부터 온다.
 export const newsPage = (index, page = 1) => ask(`/list?index=${index}&page=${page}`);
 export const newsArticle = (id) => ask(`/articles/${encodeURIComponent(id)}`);
-// 회차 시작 시각 "2026-11-19T18:00:00+09:00"을 "11/19 18:00"으로 쓴다. 시각은 서울 시각 그대로다.
-const clock = (time) => `${+time.slice(5, 7)}/${+time.slice(8, 10)} ${time.slice(11, 16)}`;
 const empty = (text) => Object.assign(document.createElement("p"), { className: "empty", textContent: text });
 
 // 목록의 날짜 줄. "11월 19일 (목)"처럼 회차 날짜를 쓴다. `day`는 서울 시각의 "YYYY-MM-DD"다.
@@ -78,7 +76,8 @@ function pager(count, go) {
   return nav;
 }
 
-// 종목 뉴스 목록 블록. 종목별 뉴스 목록(`full`)은 제목, 머리 줄(요약), 회차 시각을 위에서 아래로 쓰고, 회차 시각 오른쪽에 기사가 다룬 종목마다 티커 스티커를 붙이며,
+// 종목 뉴스 목록 블록. 회차 시각은 "5시간 전"처럼 회차 시작 뒤 지난 시간으로 쓰고(`ago`), 목록을 그릴 때의 시각으로 센다.
+// 종목별 뉴스 목록(`full`)은 제목, 머리 줄(요약), 회차 시각을 위에서 아래로 쓰고, 회차 시각 오른쪽에 기사가 다룬 종목마다 티커 스티커를 붙이며,
 // 같은 줄 오른쪽 끝에 첫 종목의 회차 구간 변동률을 "변동률 지수 : N%"로 회색 글씨로 쓴다. 변동률이 없는 기사는 변동률을 쓰지 않는다.
 // 종목 상세 주요 뉴스 절은 제목과 회차 시각만 쓴다. 블록을 누르면 진동을 내고 `open`을 부른다.
 function newsBlock(item, open, full) {
@@ -86,7 +85,7 @@ function newsBlock(item, open, full) {
   const lead = node.appendChild(Object.assign(document.createElement("div"), { className: "lead" }));
   const text = lead.appendChild(Object.assign(document.createElement("div"), { className: "text" }));
   const age = Object.assign(document.createElement("div"), { className: "age" });
-  age.append(clock(item.time));
+  age.append(ago(item.time));
   text.append(Object.assign(document.createElement("h3"), { textContent: item.title }));
   if (full) {
     age.append(...(item.tickers || []).map((ticker) => Object.assign(document.createElement("span"), { className: "ticker", textContent: ticker })));

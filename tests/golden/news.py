@@ -55,6 +55,9 @@ def expected_order(titles: list[str]) -> list[str]:
 BIOTECH_TITLES = [title for name, index, _, title, _ in fixtures.NEWS if index == "biotech"]
 # NVDA를 단 기사 제목을 최신순으로 적는다. 11월 기사 열한 편 뒤에 10월 기사 스무 편이 온다.
 NVDA = [TITLES[k] for k in (0, 2, 4, 6, 8, 9, 10, 11, 12, 13, 14)] + [f"엔비디아 10월 {day}일 SAMPLE 기사" for day in range(20, 0, -1)]
+# NVDA 기사마다 화면 시각(11/19 23:45 KST)에 회차 시작부터 지난 시간. 10/20 06:00은 30일이 지났지만 지난달 같은 날짜가 지나지 않아 "4주 전"이고, 10/19 06:00부터 "1개월 전"이다.
+NVDA_AGES = (["5시간 전", "17시간 전", "1일 전", "3일 전", "6일 전", "1주 전", "1주 전", "1주 전", "1주 전", "2주 전", "2주 전", "4주 전"]
+             + ["1개월 전"] * 19)
 FAILS = []
 
 LIST = "() => [...document.querySelectorAll('.news-box .pick h3')].filter((h) => h.offsetParent).map((h) => h.firstChild.textContent.trim())"
@@ -176,7 +179,9 @@ def main() -> int:
         check("목록 블록의 머리 줄은 첫 소제목이다", lead == fixtures.NEWS_SUBHEADS[0], str(lead))
         check("기사 블록마다 회차 시각이 있고 제목 스티커와 썸네일은 없다", parts[1] == parts[2] == 0 and parts[3] == parts[0] > 0, str(parts))
         check("회차 시각 오른쪽에 기사가 다룬 종목마다 티커 스티커가 있다",
-              [found for _, found in stickers] == expected and all(re.fullmatch(r"\d{1,2}/\d{1,2} \d\d:\d\d", clock) for clock, _ in stickers), str(stickers))
+              [found for _, found in stickers] == expected, str(stickers))
+        check("회차 시각은 회차 시작 뒤 지난 시간이다. 11/19 18:00 회차는 5시간 전, 11/19 06:00 회차는 17시간 전, 11/18 두 회차는 1일 전이다",
+              [age for age, _ in stickers] == ["5시간 전"] * 7 + ["17시간 전", "1일 전", "1일 전"], str(stickers))
         asof = page.evaluate("() => document.querySelector('h2.tabbed + .issue-asof')?.textContent.trim()")
         found = re.fullmatch(r"마지막 업데이트 (\d{1,2})/(\d{1,2}) \((.)\) \d\d:\d\d KST", asof or "")
         check("주요 이슈 해설 탭 첫 줄의 마지막 업데이트 시각에 그 날짜의 요일이 붙는다",
@@ -323,6 +328,8 @@ def main() -> int:
           [...document.querySelector('.headlines .pick .text').children].map((n) => n.tagName), document.querySelectorAll('.headlines .move, .headlines .ticker').length]""")
         check("주요 뉴스 절은 상자와 펼치기 없이 제목과 회차 시각만 쓴 블록을 첫 장에 다섯 편 쓴다",
               rows == NVDA[:5] and blocks == [0, ["H3", "DIV"], 0], f"{' | '.join(rows)} {blocks}")
+        ages = page.evaluate("() => [...document.querySelectorAll('.headlines .pick .age')].map((age) => age.textContent)")
+        check("주요 뉴스의 회차 시각은 시간·일·주·개월 단위로 회차 시작 뒤 지난 시간을 쓴다", ages == NVDA_AGES, str(ages))
         check("번호 줄은 1~5를 보이고 1을 고르며 앞 꺾쇠는 누를 수 없다",
               page.evaluate(PAGER) == {"numbers": ["1", "2", "3", "4", "5"], "on": "1", "prev": False, "next": True}, str(page.evaluate(PAGER)))
         capture.top(page, page.locator("#report > h2", has_text="주요 뉴스"), 60)
