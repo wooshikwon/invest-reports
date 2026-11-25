@@ -3,7 +3,7 @@ import "./asset-view.css";
 import { ASSET_URL } from "../shared/account";
 import { gaugeCard, indexInk } from "../shared/card";
 import { INDEX_NAME, INDEX_TITLE } from "../shared/chrome";
-import { figure, signed, tone } from "../shared/format";
+import { figure, signed, tone, weekday } from "../shared/format";
 import { slider } from "../shared/motion";
 import { roll } from "../shared/roll";
 import { SESSION_NAME, closeAt, closedTag, sessionAt, sessionTag, stale } from "../shared/session";
@@ -343,8 +343,8 @@ export function assetPage(page) {
       bar.appendChild(button);
     });
     // 그림 카드 아래 가운데의 기준일 단추는 수익률 카드의 기준일을 고르는 달력 상자(`dateSheet`)를 띄운다. 첫날부터 마지막 정산일까지의 거래일만 고를 수 있고,
-    // 고른 기준일은 기기에 남아 두 지수 화면이 함께 쓰고, 다음에 열어도 이어진다. 최고점·최저점 단추는 기준일을 첫날 뒤 지수(`returns.index`, 기초 ETF 1배 누적 수익률)의
-    // 종가가 가장 높은 날과 가장 낮은 날로 옮긴다. 지수 값이 없으면 두 단추를 두지 않는다.
+    // 고른 기준일은 기기에 남아 두 지수 화면이 함께 쓰고, 다음에 열어도 이어진다. 기준점 메뉴의 최고점·최저점은 기준일을 첫날 뒤 지수(`returns.index`, 기초 ETF 1배
+    // 누적 수익률)의 종가가 가장 높은 날과 가장 낮은 날로, 시작점은 첫날로 옮긴다. 지수 값이 없으면 메뉴에 시작점만 둔다.
     // 배율 카드를 보는 동안에는 단추를 감추고 그 자리 높이만 남긴다.
     const days = perf?.returns?.days || [], row = Object.assign(document.createElement("div"), { className: "since-row" });
     if (days.length > 1) {
@@ -358,7 +358,8 @@ export function assetPage(page) {
           return () => ({ start: days[at], end: days[at] });
         };
         dateSheet({ title: "수익률 기준일", first: days[0], start: base, single: true, can: (day) => days.includes(day),
-                    resets: index.length === days.length ? [["최고점", extreme((a, b) => a > b)], ["최저점", extreme((a, b) => a < b)]] : [],
+                    menu: "기준점", resets: [...(index.length === days.length ? [["최고점", extreme((a, b) => a > b)], ["최저점", extreme((a, b) => a < b)]] : []),
+                                             ["시작점", () => ({ start: days[0], end: days[0] })]],
                     done: ({ start }) => { view.since = start === days[0] ? null : start; pin.day = null; remember(); fill(last); } }, life.signal);
       });
       row.append(since);
@@ -400,9 +401,11 @@ const CARET = '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true
 // 날짜를 고르는 달력 상자. 날짜(`first`)의 달부터 이번 달(서울 날짜)까지를 한 달씩 옆으로 놓고, 고른 끝 날짜(없으면 시작 날짜)의 달을 보이며 연다.
 // 달은 좌우로 밀거나 달 이름 양옆의 꺽쇠를 눌러 넘기고, 날짜 판의 높이는 보이는 달의 줄 수에 맞춘다. 오늘 뒤의 날짜와 `can`이 거짓인 날짜는 누르지 못한다.
 // `single`이면 날짜 하나를 고르고, 아니면 기간을 고른다. 기간은 날짜를 처음 누르면 시작 날짜로 두고, 다음에 누른 날짜가 시작 날짜와 같거나 뒤면 끝 날짜로 둔다.
-// 시작 날짜보다 앞을 누르면 시작 날짜를 다시 고른다. 제목(`title`) 옆의 되돌리기 단추(`resets`: [이름, 되돌릴 {start, end}] 목록)는 고른 값을 그 값으로 바꾸고,
+// 시작 날짜보다 앞을 누르면 시작 날짜를 다시 고른다. 제목(`title`) 옆의 되돌리기 단추(`resets`: [이름, 되돌릴 {start, end}] 목록)는 고른 값을 그 값으로 바꾼다.
+// `menu`를 주면 되돌리기 단추를 그 이름의 알약 단추 하나로 묶고, 누르면 아래로 펼치는 메뉴에 항목마다 이름과 되돌릴 날짜·요일을 쓴다. 고른 값과 같은 날짜의 항목에는 체크를 단다.
+// 항목을 누르거나 메뉴 밖을 누르면 메뉴를 닫는다.
 // `hint`를 주면 제목 아래 줄에 고른 값의 글씨를 쓴다. 고른 값은 아래 확인 단추를 눌러야 `done({start, end})`로 넘어가고, 닫기 단추나 상자 밖을 누르거나 `signal`이 끊기면 버린다.
-function dateSheet({ title, first, start, end = null, single = false, can = () => true, hint = null, resets, done }, signal) {
+function dateSheet({ title, first, start, end = null, single = false, can = () => true, hint = null, menu = null, resets, done }, signal) {
   const today = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);
   if (single) end = start;
   const months = [], names = [];
@@ -417,7 +420,15 @@ function dateSheet({ title, first, start, end = null, single = false, can = () =
   const box = document.createElement("div"), shut = () => box.remove();
   signal.addEventListener("abort", shut, { once: true });
   box.className = "help-card period-card";
-  box.innerHTML = `<div class="card"><h3>${title}<span>${resets.map(([name], i) => `<button type="button" class="reset" data-reset="${i}">${name}</button>`).join("")}<button type="button" class="close" aria-label="닫기">✕</button></span></h3>`
+  const check = '<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const presets = menu
+    ? `<span class="presets"><button type="button" class="preset" aria-haspopup="menu">${menu}${CARET}</button><span class="index-menu preset-menu" role="menu" hidden>`
+      + resets.map(([name, at], i) => {
+        const day = at().start;
+        return `<button type="button" class="item" role="menuitem" data-reset="${i}" data-at="${day}"><span class="name">${name}</span><span class="sub">${assetDay(day)} (${weekday(day)})</span><span class="check">${check}</span></button>`;
+      }).join("") + "</span></span>"
+    : resets.map(([name], i) => `<button type="button" class="reset" data-reset="${i}">${name}</button>`).join("");
+  box.innerHTML = `<div class="card"><h3>${title}<span>${presets}<button type="button" class="close" aria-label="닫기">✕</button></span></h3>`
     + `${hint ? '<p class="hint"></p>' : ""}<div class="month"><button type="button" class="prev" aria-label="앞 달">${CARET}</button><h4></h4><button type="button" class="next" aria-label="다음 달">${CARET}</button></div>`
     + `<div class="week">${[...WEEK].map((d) => `<i>${d}</i>`).join("")}</div><div class="months">${months.join("")}</div><button type="button" class="ok">확인</button></div>`;
   const track = box.querySelector(".months"), at = () => Math.round(track.scrollLeft / track.clientWidth);
@@ -435,6 +446,7 @@ function dateSheet({ title, first, start, end = null, single = false, can = () =
   };
   const paint = () => {
     if (hint) box.querySelector(".hint").textContent = hint({ start, end });
+    box.querySelectorAll(".preset-menu .item").forEach((item) => item.classList.toggle("on", !!end && item.dataset.at === start && start === end));
     box.querySelector(".ok").disabled = !end;
     box.querySelector(".months").classList.toggle("ranged", !!end && end > start);
     box.querySelectorAll("[data-day]").forEach((cell) => {
@@ -444,7 +456,14 @@ function dateSheet({ title, first, start, end = null, single = false, can = () =
       cell.classList.toggle("in", !!end && day > start && day < end);
     });
   };
+  const list = box.querySelector(".preset-menu");
   box.addEventListener("click", (event) => {
+    if (list && !event.target.closest(".presets")) list.hidden = true;
+    if (event.target.closest(".preset")) {
+      feelPress();
+      list.hidden = !list.hidden;
+      return;
+    }
     if (event.target === box || event.target.closest(".close")) return shut();
     const step = event.target.closest(".prev, .next");
     if (step) {
@@ -456,9 +475,10 @@ function dateSheet({ title, first, start, end = null, single = false, can = () =
       done({ start, end });
       return shut();
     }
-    const reset = event.target.closest(".reset");
+    const reset = event.target.closest("[data-reset]");
     if (reset) {
       feelSlide();
+      if (list) list.hidden = true;
       ({ start, end } = resets[+reset.dataset.reset][1]());
       go((end || start).slice(0, 7), true);
       return paint();

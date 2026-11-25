@@ -108,6 +108,20 @@
 .period-card h3 { margin-bottom: 4px; }
 .period-card h3 span { display: flex; align-items: center; gap: 4px; }
 .period-card h3 .reset { margin: 0; padding: 4px 9px; border-radius: 8px; background: rgba(255, 255, 255, .06); color: var(--text); font: inherit; font-size: 12px; font-weight: 700; }
+/* 수익률 기준일 달력의 기준점 단추는 머리 상자의 지수 단추와 같은 알약 모양이고, 메뉴도 지수 메뉴(`.index-menu`)와 같은 모양으로 단추 아래 오른쪽 끝에 맞춰 펼친다.
+   체크는 고른 날짜와 같은 항목에만 보인다. */
+.period-card .presets { position: relative; }
+.period-card .preset { display: flex; align-items: center; gap: 5px; height: 28px; margin: 0; padding: 0 9px 0 11px; border: 0; border-radius: 14px;
+                       background: rgba(255, 255, 255, .08); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); color: var(--text);
+                       font: inherit; font-size: 12.5px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.period-card .preset svg { color: var(--hint); }
+.period-card .preset-menu { display: block; top: calc(100% + 6px); min-width: 190px; }
+.period-card .preset-menu[hidden] { display: none; }
+.period-card .preset-menu .item span { display: block; }
+.period-card .preset-menu .item { font-weight: 500; }
+.period-card .preset-menu .item.on { font-weight: 700; }
+.period-card .preset-menu .item .check { visibility: hidden; }
+.period-card .preset-menu .item.on .check { visibility: visible; }
 .period-card .hint { margin: 0 0 10px; font-size: 13px; color: var(--dim); }
 /* 설명 줄이 없는 달력(수익률 기준일)은 제목과 달 이름 사이를 설명 줄 자리만큼 띄우지 않고 조금만 띄운다. */
 .period-card h3 + .month { margin-top: 10px; }
