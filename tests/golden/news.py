@@ -40,11 +40,11 @@ def day_label(title: str) -> str:
 
 
 def expected_order(titles: list[str]) -> list[str]:
-    """제목 차례대로 놓은 목록의 칸 차례. 날짜가 바뀌는 자리에 날짜 구분선이 오고, 구분선 바로 아래 기사는 위 선이 없다."""
+    """제목 차례대로 놓은 목록의 칸 차례. 첫 날짜 뒤 날짜가 바뀌는 자리에 날짜 구분선이 오고, 첫 기사와 구분선 바로 아래 기사는 위 선이 없다."""
     out, last = [], None
     for title in titles:
         day = day_label(title)
-        if day != last:
+        if last and day != last:
             out.append(f"day:{day}")
         out.append(f"pick:{title}:{'0px' if day != last else '1px'}")
         last = day
@@ -152,11 +152,15 @@ def main() -> int:
         check("기사 블록마다 회차 시각이 있고 제목 스티커와 썸네일은 없다", parts[1] == parts[2] == 0 and parts[3] == parts[0] > 0, str(parts))
         check("회차 시각 오른쪽에 기사가 다룬 종목마다 티커 스티커가 있다",
               [found for _, found in stickers] == expected and all(re.fullmatch(r"\d{1,2}/\d{1,2} \d\d:\d\d", clock) for clock, _ in stickers), str(stickers))
+        asof = page.evaluate("() => document.querySelector('h2.tabbed + .issue-asof')?.textContent.trim()")
+        found = re.fullmatch(r"마지막 업데이트 (\d{1,2})/(\d{1,2}) \((.)\) \d\d:\d\d KST", asof or "")
+        check("주요 이슈 해설 탭 첫 줄의 마지막 업데이트 시각에 그 날짜의 요일이 붙는다",
+              bool(found) and "월화수목금토일"[dt.date(2026, int(found.group(1)), int(found.group(2))).weekday()] == found.group(3), str(asof))
         stamp = page.evaluate("() => document.querySelector('.news-box > .issue-asof')?.textContent")
-        check("종목 뉴스 탭 첫 줄에 가장 최근 회차의 마지막 업데이트 시각이 있다", bool(stamp and re.fullmatch(r"마지막 업데이트 \d{1,2}/\d{1,2} \d\d:\d\d KST", stamp)), str(stamp))
+        check("종목 뉴스 탭 첫 줄에 가장 최근 회차의 요일을 붙인 마지막 업데이트 시각이 있다", stamp == "마지막 업데이트 11/19 (목) 18:00 KST", str(stamp))
         news = page.locator(".news-box").filter(visible=True).first
         order = news.evaluate(ORDER)
-        check("목록은 회차 날짜가 바뀌는 자리와 맨 위에 날짜 구분선을 두고, 구분선 바로 아래 기사에는 위 선이 없다",
+        check("목록은 맨 위가 아닌, 회차 날짜가 바뀌는 자리에만 날짜 구분선을 두고, 구분선 바로 아래 기사에는 위 선이 없다",
               order == expected_order(NASDAQ_ALL[:10]), " | ".join(order))
         check("첫 장 열 편 아래에 더 보기 단추가 있다", news.locator(".more").is_visible())
         page.evaluate("scrollTo(0, 0)")
@@ -222,7 +226,7 @@ def main() -> int:
         found = page.evaluate("""() => { const box = [...document.querySelectorAll('.news-box')].find((node) => node.offsetParent);
           return [[...box.querySelectorAll('.pick h3')].map((h) => h.textContent), !!box.querySelector('.more:not([hidden])'), box.querySelector(':scope > .issue-asof')?.textContent]; }""")
         check("바이오 리포트는 지난 회차의 바이오 기사도 늦은 회차부터 보이고, 남은 기사가 없으면 더 보기 단추가 없으며, 마지막 업데이트는 최신 회차 시각이다",
-              found == [BIOTECH_TITLES, False, "마지막 업데이트 11/19 18:00 KST"], str(found))
+              found == [BIOTECH_TITLES, False, "마지막 업데이트 11/19 (목) 18:00 KST"], str(found))
         run.close()
 
         # 종목 뉴스 탭에서 연 뉴스 상세

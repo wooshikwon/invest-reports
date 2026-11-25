@@ -8,6 +8,7 @@ import { gallery, viewer } from "../shared/viewer";
 import { NEWS_HELP, question } from "../shared/help";
 import { marketed } from "../shared/data";
 import { linkStocks, stockNames } from "../shared/stocklink";
+import { updated, weekday } from "../shared/format";
 // 종목 뉴스를 그린다. 기사는 종목 뉴스 배치가 뉴스 Worker(`NEWS_URL`, `worker/news.js`)에 올린 것이고, 앱은 공개 읽기 세 경로만 쓴다.
 // `GET /list?index={지수}`와 `GET /list?ticker={티커}&limit={편수}`는 기사마다 ID, 회차 시작 시각(`time`), 종목, 제목, 머리 줄(요약), 첫 그림 주소(`image`), 첫 종목의 회차 구간 변동률(`move`)을 주고,
 // `GET /articles/{ID}`는 기사 한 편의 소제목 세 줄(`subheads`), 본문 HTML(`html`), 그림 주소와 사진 설명(`images`)을 더 준다. 목록의 머리 줄은 기사의 요약이고, 요약 없이 올린 기사는 첫 소제목이다. 본문 HTML은 build.py `issue_articles`가 만든 이슈 본문과 같은 조각이라
@@ -36,10 +37,8 @@ const clock = (time) => `${+time.slice(5, 7)}/${+time.slice(8, 10)} ${time.slice
 const empty = (text) => Object.assign(document.createElement("p"), { className: "empty", textContent: text });
 
 // 목록의 날짜 구분선. "11월 19일 (목)"처럼 회차 날짜를 쓴다. `day`는 서울 시각의 "YYYY-MM-DD"다.
-const WEEKDAYS = "일월화수목금토";
 function dayLine(day) {
-  const date = new Date(`${day}T12:00:00+09:00`);
-  return Object.assign(document.createElement("div"), { className: "day-line", textContent: `${+day.slice(5, 7)}월 ${+day.slice(8, 10)}일 (${WEEKDAYS[date.getUTCDay()]})` });
+  return Object.assign(document.createElement("div"), { className: "day-line", textContent: `${+day.slice(5, 7)}월 ${+day.slice(8, 10)}일 (${weekday(day)})` });
 }
 
 // 장 번호 줄. 가운데에 장 번호를 보고 있는 장을 가운데에 두어 `NUMBERS`개까지, 양옆에 앞 장과 다음 장으로 가는 꺾쇠를 둔다.
@@ -96,7 +95,7 @@ function newsBlock(item, open, full) {
   return node;
 }
 
-// 리포트 화면의 상세 이슈 해설 절 제목을 "주요 이슈 해설 | 종목별 뉴스" 탭 줄로 바꾼다. 탭 줄 아래 줄에는 왼쪽에 "마지막 업데이트 MM/DD HH:MM KST"를,
+// 리포트 화면의 상세 이슈 해설 절 제목을 "주요 이슈 해설 | 종목별 뉴스" 탭 줄로 바꾼다. 탭 줄 아래 줄에는 왼쪽에 "마지막 업데이트 MM/DD (요일) HH:MM KST"를,
 // 상세 이슈 해설 탭이면 오른쪽에 절 제목의 물음표 단추를 둔다. 상세 이슈 해설 탭은 분석 완료 시각과 이슈 목록을, 종목 뉴스 탭은 보고 있는 리포트 지수(`index`)의 종목 기사 목록을 보인다. 고른 탭 아래 막대는 다른 탭을 고르면 그 탭 아래로 옮겨 간다.
 // 기사 목록은 종목 뉴스 탭을 처음 고를 때 지금까지 올라온 지수 기사의 첫 장(Worker가 정한 열 편)을 받아 보이고, "더 보기"를 누를 때마다 다음 장을 아래에 잇는다.
 // 기사는 Worker가 준 순서(늦은 회차부터, 같은 회차 안에서는 첫 종목의 회차 구간 변동률이 큰 순서)로 놓는다.
@@ -171,7 +170,7 @@ export function newsTab(index, written) {
     if (i && !filled) fill();
   };
   // 지수 기사를 Worker의 장(열 편)마다 받아 목록 아래에 이어 붙인다. 처음에는 첫 장을 받고, 받지 않은 기사가 남았으면 목록 아래에 "더 보기" 단추를 둔다.
-  // 회차 날짜(서울 시각)가 바뀌는 자리에는 기사 사이 구분선 대신 날짜 구분선을 둔다. 목록 맨 위에도 첫 기사의 날짜 구분선을 둔다.
+  // 회차 날짜(서울 시각)가 바뀌는 자리에는 기사 사이 구분선 대신 날짜 구분선을 둔다. 목록 맨 위 첫 날짜의 기사들은 첫 줄의 마지막 업데이트 날짜로 알 수 있으므로 구분선을 두지 않는다.
   // 받은 장 수는 `history.state`의 `newsPages`에 적어, 뉴스 상세에서 뒤로 돌아와도 그만큼 받아 보인다.
   const list = Object.assign(document.createElement("div"), { className: "issue-list" });
   const more = Object.assign(document.createElement("button"), { type: "button", className: "more", textContent: "더 보기" });
@@ -180,14 +179,14 @@ export function newsTab(index, written) {
   const append = (articles, page) => {
     for (const item of articles) {
       const day = item.time.slice(0, 10);
-      if (day !== lastDay) list.append(dayLine(day));
+      if (lastDay && day !== lastDay) list.append(dayLine(day));
       lastDay = day;
       list.append(newsBlock(item, () => visit(key, { news: item.id, page }), true));
     }
   };
   const load = (page, until) => newsPage(index, page).then(({ time, total, size, articles }) => {
     if (signal.aborted) return;
-    if (time) stamp.textContent = `마지막 업데이트 ${clock(time)} KST`;
+    if (time) stamp.textContent = updated(time.slice(0, 10), time.slice(11, 16));
     if (!total) return body.replaceChildren(empty("올라온 종목 뉴스가 없다."));
     append(articles, page);
     loaded = page;

@@ -6,6 +6,7 @@ import { key, life, report, visit } from "../shared/route";
 import { toneTags, trail } from "../shared/sections";
 import { feelPress } from "../shared/telegram";
 import { gallery, viewer } from "../shared/viewer";
+import { updated } from "../shared/format";
 // 상세 이슈 해설을 이슈 목록으로 바꾼다. 이슈는 `###` 제목부터 다음 `###`·`##` 앞까지다.
 // 템플릿이 검토했지만 비중을 낮춘 이슈를 번호 이슈 뒤에 두므로, 그 항목은 목록 끝의 "비중이 낮은 이슈 N건" 항목이 된다.
 // 목록은 종목 뉴스 목록과 같은 모양이다. 이슈마다 제목, 요약, 목록 그림, NEW·N일 전과 이벤트 결과 스티커를 위에서 아래로 쓰고,
@@ -17,7 +18,7 @@ import { gallery, viewer } from "../shared/viewer";
 // 왼쪽 아래의 뒤로가기 단추를 누르면 앞 페이지로 돌아가고, 앞 페이지가 없으면 같은 리포트의 리포트 화면을 연다.
 // `at`이 있으면 히스토리에서 그 날짜 항목을 고른 채로 연다.
 // 이슈 화면의 절 제목은 보고 있는 이슈의 번호로 "이슈 N위"라고 쓰고, 검토했지만 비중을 낮춘 이슈를 보는 동안에는 "검토했지만 비중을 낮춘 이슈"로 쓴다.
-// `analyzed`가 있으면 리포트 화면의 절 제목과 이슈 목록 사이에 "11/17 11:43 KST"처럼 그 시각을 쓴다. 값은 `r/index.json`의 `written`과 같은 서울 시각이다.
+// `analyzed`가 있으면 리포트 화면의 절 제목과 이슈 목록 사이에 "마지막 업데이트 11/17 (월) 11:43 KST"처럼 그 시각을 쓴다. 값은 `r/index.json`의 `written`과 같은 서울 시각이다.
 // `pasts`는 `r/{키}/history.json`의 값이나 그 값을 줄 약속이다. 이슈 `id`마다 앞 날짜 이슈 조각과 오늘 항목을 날짜(`day`), 이슈 해설 소제목(`title`), 조각(`html`)으로 담는다.
 // 값이면 이슈 문단을 만들 때 `issue-history` 템플릿으로 바꿔 넣고, 약속이면 받은 뒤 이슈 문단 끝의 이웃 이슈 칸 앞에 넣는다. 템플릿이 이미 든 지난 리포트의 이슈는 그 템플릿을 쓴다.
 export function section(title, focus = 0, at = null, analyzed = "", pasts = null) {
@@ -296,7 +297,7 @@ export function section(title, focus = 0, at = null, analyzed = "", pasts = null
   head.classList.add("issues");
   head.after(box);
   if (analyzed) box.before(Object.assign(document.createElement("p"), { className: "issue-asof",
-    textContent: `마지막 업데이트 ${analyzed.slice(5, 7)}/${analyzed.slice(8, 10)} ${analyzed.slice(11, 16)} KST` }));
+    textContent: updated(analyzed.slice(0, 10), analyzed.slice(11, 16)) }));
   if (!focus) return;
   const shown = numbers.indexOf(focus);
   if (shown < 0) {
