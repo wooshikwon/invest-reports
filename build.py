@@ -6,8 +6,7 @@
 `r/{YYYYMMDD}-{지수}/`에 `report.html`과 그림, 이슈 과거 맥락 `history.json`, 요약 카드 값 `cards.json`, 1개월 예측 설명 `outlook.json`을 쓰고 `r/index.json`의 목록을 갱신한다. `invest-reports` 미니 앱은
 `start_param`으로 받은 `{YYYYMMDD}-{지수}`를 열어 그 조각을 그리고, 키 없이 열리면 목록에서 가장 늦은 나스닥 리포트를 연다.
 
-공개본이 끝나는 자리와 공개본에 남으면 안 되는 말은 invest-report `report_pdf.py`의 값을 그대로 쓴다.
-PDF와 `invest-reports` 미니 앱이 같은 자리에서 자르므로, 공개 채널로 나가는 두 판본의 내용이 같다.
+공개본에 남으면 안 되는 말(`PUBLIC_FORBIDDEN`)이 리포트에 있으면 공개본을 만들지 않고 멈춘다.
 
 `이벤트 캘린더` 표는 분기·확률·전개 예상 세 열이다. 휴대폰 폭에서 분기 이름이 접히지 않게 열마다
 폭과 정렬을 정하는 이름표를 단다.
@@ -243,12 +242,7 @@ RATE_MOVE_BP = 12.5  # 다음 회의까지 누적 변화가 이 bp 이상이면 
 RATE_STEP_BP = 25  # 연준이 기준금리를 한 번에 바꾸는 폭. 금리 경로 그림은 이 폭의 위아래 높이에 점선 가로선을 긋는다
 RATE_RANGE_BP = 100  # 금리 경로 그림의 세로축 상한. 회의 세 번의 누적 변화는 보통 ±1%p 안에 들고, 넘는 막대는 축 끝에서 자른다
 LIVE_URL = "https://invest-live.wonwooshik.workers.dev"  # 실시간 값 Worker 주소. `GET /`가 DO의 네 값을 돌려준다
-
-
-def report_pdf(vault: Path):
-    sys.path.insert(0, str(vault / "agent/skills/tool/invest-report/scripts"))
-    import report_pdf as module
-    return module
+PUBLIC_FORBIDDEN = ("집행", "계좌", "주문", "배율")  # 공개본에 남으면 안 되는 말. invest-report `report-template.md`가 정한다
 
 
 def glossary(vault: Path):
@@ -745,9 +739,10 @@ def public_markdown(text: str, vault: Path, out_dir: Path, base: str) -> str:
 
     경로 뒤에 그림 내용의 해시를 붙인다. 같은 이름으로 다시 그린 그림을 텔레그램이 캐시에서 꺼내지 않게 하기 위해서다.
     """
-    pdf = report_pdf(vault)
-    text = pdf.PUBLIC_CUT_RE.split(plain_markdown(text), maxsplit=1)[0]
-    pdf.check_public(text)
+    text = plain_markdown(text)
+    hits = [word for word in PUBLIC_FORBIDDEN if word in text]
+    if hits:
+        raise SystemExit(f"공개본에 실을 수 없는 말이 남아 있다: {', '.join(hits)}")
 
     def embed(match: re.Match) -> str:
         source = vault / match.group(1).strip()

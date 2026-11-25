@@ -122,13 +122,13 @@ const stamp = (time, futures) => {
 // 카드는 요약 절의 그림 카드처럼 맨 위 줄에 값의 기준 시각을, 그 아래 이름 줄 왼쪽에 "나스닥 100"처럼 지수 이름을 쓴다. 이름 줄 오른쪽에는 수익률 카드면 판단 보기·금액가중 체크 단추를
 // 그 순서로, 배율 카드면 목표 배율을 흐린 글씨로 둔다. 판단 보기 체크 단추는 두 수익률 카드에서 판단 선(지수색)을 함께 보이거나 감추고,
 // 그 상태(`view.judge`)를 기기에 남긴다(`remember`).
-// 금액가중 체크 단추는 계좌 요약에 금액가중 누적 수익률과 날짜 점마다의 평가액(`returns.mwr.values`)이 있을 때만 둔다. 켜면 두 수익률 카드의 집행 선과 큰 값을 시간가중 대신 금액가중
-// 누적 수익률로 그리고, 그 상태(`view.money`)를 기기에 남긴다. 고정 배율·판단 선은 돈을 처음 규모 그대로 둔 계좌의 값이라 그대로 두므로, 초과 수익률은
-// 배율 판단의 효과와 돈을 넣고 뺀 시점의 효과를 함께 보인다.
+// 금액가중 체크 단추는 계좌 요약에 금액가중 누적 수익률과 날짜 점마다의 평가액(`returns.mwr.values`)이 있을 때만 둔다. 켜면 두 수익률 카드의 세 선과 큰 값을 시간가중 대신 금액가중
+// 누적 수익률로 그리고, 그 상태(`view.money`)를 기기에 남긴다. 고정 배율·판단 선은 집행 계좌와 같은 날 같은 돈을 넣고 뺀 계좌의 금액가중 누적 수익률이라,
+// 초과 수익률에는 돈을 넣고 뺀 시점의 효과가 빠지고 배율 판단과 집행의 효과만 남는다.
 // 카드 순서는 누적 수익률, 초과 수익률, 배율이다. 누적 수익률 카드는 기준일 대비 고정 배율·판단·집행 누적 수익률을,
 // 초과 수익률 카드는 판단과 집행의 누적 수익률에서 고정 배율 누적 수익률을 뺀 값을 날짜 지점 축에 그린다. 큰 값은 집행 선의 값이다.
 // 기준일은 첫날이고, 사용자가 고른 기준일(`view.since`)이 있으면 그날(그날이 거래일이 아니면 그 앞 거래일) 종가부터 그린다. 시간가중 선은 첫날 대비 누적값을
-// 기준일 값으로 나눠 다시 잇고, 금액가중 집행 선은 날짜 점마다의 집행 계좌 평가액(`mwr.values`, 날짜 점은 `mwr.value`)과 들어온 돈(`mwr.flows`)으로 기준일부터 다시 셈한다.
+// 기준일 값으로 나눠 다시 잇고, 금액가중 선은 날짜 점마다의 집행 계좌 평가액(`mwr.values`, 날짜 점은 `mwr.value`)과 들어온 돈(`mwr.flows`)으로 기준일부터 다시 셈한다.
 // 날짜 점이 둘 넘게 남도록 기준일은 마지막 날짜 점 바로 앞까지만 옮긴다.
 // 축은 정산한 거래일마다 한 점이고, Worker가 1분마다 다시 셈한 최신 날짜 지점의 값(`returns.now`)이 있으면 그 날짜 점을 하나 더 둔다.
 // 정산 전에 정규장이 끝난 세션은 Worker가 그 세션의 공식 종가로 확정한 점(`returns.closed`)을 그 세션 자리에 두고, 최신 날짜 점은 다음 세션 자리에 둔다.
@@ -244,8 +244,7 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
     });
     const closed = ret.closed && ret.closed.day > ret.days.at(-1) ? ret.closed : null;
     const now = ret.now && ret.now.day > (closed?.day ?? ret.days.at(-1)) ? ret.now : null;
-    // 선 값. 금액가중이면 집행 선만 `returns.mwr.realized`와 날짜 점마다의 `mwr.realized`를 쓰고, 금액가중 값이 없는 날짜 점부터는 그리지 않는다.
-    // 고정 배율·판단 선의 비교 기준은 돈을 처음 규모 그대로 둔 계좌라, 그 금액가중 수익률은 시간가중 수익률과 같다.
+    // 선 값. 금액가중이면 날짜 점의 집행 계좌 평가액(`mwr.value`)이 없는 날짜 점부터는 그리지 않는다.
     const pick = (weighed) => {
       const extra = [];
       for (const point of [closed, now].filter(Boolean)) {
@@ -256,15 +255,22 @@ export function assetCards(perf, index, times = {}, pin = { day: null }, view = 
       const target = [...ret.target];
       for (const [point] of extra) { if (point.target == null) break; target.push(point.target); }
       const days = [...ret.days, ...extra.map(([point]) => point.day)], anchor = [...ret.anchor, ...extra.map(([point]) => point.anchor)];
-      const realized = [...(weighed ? ret.mwr.realized : ret.realized), ...extra.map(([, value]) => value)];
       const s = view.since ? Math.min(days.length - 2, Math.max(0, days.filter((day) => day <= view.since).length - 1)) : 0;
-      const again = (values) => values.slice(s).map((v) => (1 + v) / (1 + values[s]) - 1);
-      const from = (values) => (s ? again(values) : values);
-      // 금액가중 집행 선은 기준일 평가액에서 시작해, 기준일 뒤 들어온 돈으로 같은 Modified Dietz 식을 다시 셈한다. 날짜 점 뒤로는 들어온 돈이 없다.
-      const book = weighed && s ? [...ret.mwr.values, ...extra.map(([point]) => point.mwr.value)].slice(s) : null;
-      const flows = book && [0, ...[...ret.mwr.flows, ...extra.map(() => 0)].slice(s + 1)];
-      return { days: days.slice(s), anchor: from(anchor), target: from(target), realized: book ? dietz(book, flows) : from(realized),
-               now: extra.at(-1)?.[0] === now ? now : null };
+      const latest = extra.at(-1)?.[0] === now ? now : null;
+      if (!weighed) {
+        const from = (values) => values.slice(s).map((v) => (1 + v) / (1 + values[s]) - 1);
+        return { days: days.slice(s), anchor: from(anchor), target: from(target), realized: from([...ret.realized, ...extra.map(([, value]) => value)]), now: latest };
+      }
+      // 금액가중 집행 선은 기준일 평가액에서 시작해, 기준일 뒤 들어온 돈으로 Modified Dietz 식을 다시 셈한다. 날짜 점 뒤로는 들어온 돈이 없다.
+      // 고정 배율·판단 선은 기준일 평가액을 그 선대로 굴리고 같은 날 같은 돈을 더한 계좌로 같은 식을 셈한다.
+      const book = [...ret.mwr.values, ...extra.map(([point]) => point.mwr.value)].slice(s);
+      const flows = [0, ...[...ret.mwr.flows, ...extra.map(() => 0)].slice(s + 1)];
+      const funded = (values) => {
+        const held = [book[0]];
+        for (let k = 1; k < values.length; k++) held.push(held[k - 1] * (1 + values[k]) / (1 + values[k - 1]) + flows[k]);
+        return dietz(held, flows);
+      };
+      return { days: days.slice(s), anchor: funded(anchor.slice(s)), target: funded(target.slice(s)), realized: dietz(book, flows), now: latest };
     };
     const paint = () => {
       const { days, anchor, realized, target, now } = pick(money && view.money), gap = (values) => values.map((v, i) => v - anchor[i]);
