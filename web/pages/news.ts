@@ -37,8 +37,8 @@ export const newsArticle = (id) => ask(`/articles/${encodeURIComponent(id)}`);
 const clock = (time) => `${+time.slice(5, 7)}/${+time.slice(8, 10)} ${time.slice(11, 16)}`;
 const empty = (text) => Object.assign(document.createElement("p"), { className: "empty", textContent: text });
 
-// 목록의 날짜 구분선. "11월 19일 (목)"처럼 회차 날짜를 쓴다. `day`는 서울 시각의 "YYYY-MM-DD"다.
-// 목록 맨 위 날짜(`first`)의 구분선은 높이 없이 두고 글자를 안쪽 칸(`.inner`)에 담아, 머리 상자 아래에 붙을 때만 보인다.
+// 목록의 날짜 줄. "11월 19일 (목)"처럼 회차 날짜를 쓴다. `day`는 서울 시각의 "YYYY-MM-DD"다.
+// 목록 맨 위 날짜(`first`)의 줄은 높이 없이 두고 글자를 안쪽 칸(`.inner`)에 담아, 머리 상자 아래에 붙을 때만 보인다.
 function dayLine(day, first) {
   const text = `${+day.slice(5, 7)}월 ${+day.slice(8, 10)}일 (${weekday(day)})`;
   const line = Object.assign(document.createElement("div"), { className: first ? "day-line first" : "day-line" });
