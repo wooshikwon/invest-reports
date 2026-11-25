@@ -337,7 +337,8 @@ export function assetPage(page) {
       bar.appendChild(button);
     });
     // 그림 카드 아래 가운데의 기준일 단추는 수익률 카드의 기준일을 고르는 달력 상자(`dateSheet`)를 띄운다. 첫날부터 마지막 정산일까지의 거래일만 고를 수 있고,
-    // 고른 기준일은 기기에 남아 두 지수 화면이 함께 쓰고, 다음에 열어도 이어진다. 처음부터 단추는 기준일을 첫날로 되돌린다.
+    // 고른 기준일은 기기에 남아 두 지수 화면이 함께 쓰고, 다음에 열어도 이어진다. 최고점·최저점 단추는 기준일을 첫날 뒤 지수(`returns.index`, 기초 ETF 1배 누적 수익률)의
+    // 종가가 가장 높은 날과 가장 낮은 날로 옮긴다. 지수 값이 없으면 두 단추를 두지 않는다.
     // 배율 카드를 보는 동안에는 단추를 감추고 그 자리 높이만 남긴다.
     const days = perf?.returns?.days || [], row = Object.assign(document.createElement("div"), { className: "since-row" });
     if (days.length > 1) {
@@ -346,8 +347,12 @@ export function assetPage(page) {
       since.setAttribute("aria-label", "수익률 기준일 바꾸기");
       since.addEventListener("click", () => {
         feelPress();
+        const index = perf.returns.index || [], extreme = (better) => {
+          const at = index.reduce((best, value, i) => (better(value, index[best]) ? i : best), 0);
+          return () => ({ start: days[at], end: days[at] });
+        };
         dateSheet({ title: "수익률 기준일", first: days[0], start: base, single: true, can: (day) => days.includes(day),
-                    reset: ["처음부터", () => ({ start: days[0], end: days[0] })],
+                    resets: index.length === days.length ? [["최고점", extreme((a, b) => a > b)], ["최저점", extreme((a, b) => a < b)]] : [],
                     done: ({ start }) => { view.since = start === days[0] ? null : start; pin.day = null; remember(); fill(last); } }, life.signal);
       });
       row.append(since);
@@ -389,9 +394,9 @@ const CARET = '<svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true
 // 날짜를 고르는 달력 상자. 날짜(`first`)의 달부터 이번 달(서울 날짜)까지를 한 달씩 옆으로 놓고, 고른 끝 날짜(없으면 시작 날짜)의 달을 보이며 연다.
 // 달은 좌우로 밀거나 달 이름 양옆의 꺽쇠를 눌러 넘기고, 날짜 판의 높이는 보이는 달의 줄 수에 맞춘다. 오늘 뒤의 날짜와 `can`이 거짓인 날짜는 누르지 못한다.
 // `single`이면 날짜 하나를 고르고, 아니면 기간을 고른다. 기간은 날짜를 처음 누르면 시작 날짜로 두고, 다음에 누른 날짜가 시작 날짜와 같거나 뒤면 끝 날짜로 둔다.
-// 시작 날짜보다 앞을 누르면 시작 날짜를 다시 고른다. 제목(`title`) 옆의 되돌리기 단추(`reset`: [이름, 되돌릴 {start, end}])는 고른 값을 그 값으로 바꾸고,
+// 시작 날짜보다 앞을 누르면 시작 날짜를 다시 고른다. 제목(`title`) 옆의 되돌리기 단추(`resets`: [이름, 되돌릴 {start, end}] 목록)는 고른 값을 그 값으로 바꾸고,
 // `hint`를 주면 제목 아래 줄에 고른 값의 글씨를 쓴다. 고른 값은 아래 확인 단추를 눌러야 `done({start, end})`로 넘어가고, 닫기 단추나 상자 밖을 누르거나 `signal`이 끊기면 버린다.
-function dateSheet({ title, first, start, end = null, single = false, can = () => true, hint = null, reset, done }, signal) {
+function dateSheet({ title, first, start, end = null, single = false, can = () => true, hint = null, resets, done }, signal) {
   const today = new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);
   if (single) end = start;
   const months = [], names = [];
@@ -406,7 +411,7 @@ function dateSheet({ title, first, start, end = null, single = false, can = () =
   const box = document.createElement("div"), shut = () => box.remove();
   signal.addEventListener("abort", shut, { once: true });
   box.className = "help-card period-card";
-  box.innerHTML = `<div class="card"><h3>${title}<span><button type="button" class="reset">${reset[0]}</button><button type="button" class="close" aria-label="닫기">✕</button></span></h3>`
+  box.innerHTML = `<div class="card"><h3>${title}<span>${resets.map(([name], i) => `<button type="button" class="reset" data-reset="${i}">${name}</button>`).join("")}<button type="button" class="close" aria-label="닫기">✕</button></span></h3>`
     + `${hint ? '<p class="hint"></p>' : ""}<div class="month"><button type="button" class="prev" aria-label="앞 달">${CARET}</button><h4></h4><button type="button" class="next" aria-label="다음 달">${CARET}</button></div>`
     + `<div class="week">${[...WEEK].map((d) => `<i>${d}</i>`).join("")}</div><div class="months">${months.join("")}</div><button type="button" class="ok">확인</button></div>`;
   const track = box.querySelector(".months"), at = () => Math.round(track.scrollLeft / track.clientWidth);
@@ -445,9 +450,10 @@ function dateSheet({ title, first, start, end = null, single = false, can = () =
       done({ start, end });
       return shut();
     }
-    if (event.target.closest(".reset")) {
+    const reset = event.target.closest(".reset");
+    if (reset) {
       feelSlide();
-      ({ start, end } = reset[1]());
+      ({ start, end } = resets[+reset.dataset.reset][1]());
       go((end || start).slice(0, 7), true);
       return paint();
     }
@@ -487,7 +493,7 @@ export function tradesView(page, index) {
   const calendar = () => {
     const blocks = last?.trades?.sectors?.[index] || [];
     dateSheet({ title: "조회 기간", first: [period.start, recent().start, ...blocks.map((b) => b.date)].sort()[0], start: period.start, end: period.end,
-                hint: ({ start, end }) => (end ? span({ start, end }) : "끝 날짜를 눌러요"), reset: ["최근 3개월", recent],
+                hint: ({ start, end }) => (end ? span({ start, end }) : "끝 날짜를 눌러요"), resets: [["최근 3개월", recent]],
                 done: (picked) => { period = picked; rememberTrades(); render(last); } }, closer.signal);
   };
   const menu = (open) => {
