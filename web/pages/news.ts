@@ -17,8 +17,6 @@ import { linkStocks, stockNames } from "../shared/stocklink";
 // 뉴스 상세 본문은 종목마다 처음 나오는 이름을 종목 상세로 가는 단추로 감싼다(`shared/stocklink.ts`). 이름은 `r/market.json` 지도 종목의 부르는 이름과 별칭이다.
 // Worker가 답하지 않으면 종목 뉴스 탭과 주요 뉴스 절에 빈 상태 문구를 쓰고, 상세 이슈 해설 탭은 그대로 둔다.
 export const NEWS_URL = "https://invest-news.wonwooshik.workers.dev";
-// 다른 장으로 넘긴 뒤 목록 머리를 둘 화면 위쪽 여백(px). 머리 상자에 가리지 않는 높이다.
-const TOP = 120;
 // 종목 상세 주요 뉴스 절이 받는 기사 수, 한 장에 담는 기사 수, 번호 줄에 한 번에 보이는 번호 수.
 const STOCK_NEWS = 50, PAGE = 5, NUMBERS = 5;
 // Worker를 기다리는 시간. 넘기면 답하지 않은 것으로 본다.
@@ -36,6 +34,13 @@ export const newsArticle = (id) => ask(`/articles/${encodeURIComponent(id)}`);
 // 회차 시작 시각 "2026-11-19T18:00:00+09:00"을 "11/19 18:00"으로 쓴다. 시각은 서울 시각 그대로다.
 const clock = (time) => `${+time.slice(5, 7)}/${+time.slice(8, 10)} ${time.slice(11, 16)}`;
 const empty = (text) => Object.assign(document.createElement("p"), { className: "empty", textContent: text });
+
+// 목록의 날짜 구분선. "11월 19일 (목)"처럼 회차 날짜를 쓴다. `day`는 서울 시각의 "YYYY-MM-DD"다.
+const WEEKDAYS = "일월화수목금토";
+function dayLine(day) {
+  const date = new Date(`${day}T12:00:00+09:00`);
+  return Object.assign(document.createElement("div"), { className: "day-line", textContent: `${+day.slice(5, 7)}월 ${+day.slice(8, 10)}일 (${WEEKDAYS[date.getUTCDay()]})` });
+}
 
 // 장 번호 줄. 가운데에 장 번호를 보고 있는 장을 가운데에 두어 `NUMBERS`개까지, 양옆에 앞 장과 다음 장으로 가는 꺾쇠를 둔다.
 // 번호나 꺾쇠를 누르면 진동을 내고 그 장 번호(0부터)로 `go`를 부른다. 돌려준 줄의 `draw(at)`는 `at`번 장을 고른 모양으로 다시 그린다.
@@ -93,8 +98,8 @@ function newsBlock(item, open, full) {
 
 // 리포트 화면의 상세 이슈 해설 절 제목을 "주요 이슈 해설 | 종목별 뉴스" 탭 줄로 바꾼다. 탭 줄 아래 줄에는 왼쪽에 "마지막 업데이트 MM/DD HH:MM KST"를,
 // 상세 이슈 해설 탭이면 오른쪽에 절 제목의 물음표 단추를 둔다. 상세 이슈 해설 탭은 분석 완료 시각과 이슈 목록을, 종목 뉴스 탭은 보고 있는 리포트 지수(`index`)의 종목 기사 목록을 보인다. 고른 탭 아래 막대는 다른 탭을 고르면 그 탭 아래로 옮겨 간다.
-// 기사 목록은 종목 뉴스 탭을 처음 고를 때 지금까지 올라온 지수 기사의 첫 장을 받아 보인다. 한 장은 Worker가 정한 열 편이고, 장이 둘 이상이면 아래에 장 번호 줄을 둔다.
-// 기사는 Worker가 준 순서(늦은 회차부터, 같은 회차 안에서는 첫 종목의 회차 구간 변동률이 큰 순서)로 놓는다. 이 절에서 좌우로 밀면 탭을 넘기므로 장은 번호 줄로만 넘긴다.
+// 기사 목록은 종목 뉴스 탭을 처음 고를 때 지금까지 올라온 지수 기사의 첫 장(Worker가 정한 열 편)을 받아 보이고, "더 보기"를 누를 때마다 다음 장을 아래에 잇는다.
+// 기사는 Worker가 준 순서(늦은 회차부터, 같은 회차 안에서는 첫 종목의 회차 구간 변동률이 큰 순서)로 놓는다.
 // 날짜 슬라이드로 지난 리포트를 열어도 지금 기준 기사를 보인다.
 // 절 제목부터 다음 절 제목 앞까지(마지막 절이면 문서 끝까지)에서 가로로 40px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 민 방향의 탭으로 넘긴다.
 // 왼쪽으로 밀면 종목 뉴스, 오른쪽으로 밀면 상세 이슈 해설이다. 화면 좌우 끝 띠(`atEdge`)에서 시작한 밀기, 넘기기 묶음과 그림 화면, 설명 상자 안에서 민 것,
@@ -165,27 +170,41 @@ export function newsTab(index, written) {
     box.hidden = i === 0;
     if (i && !filled) fill();
   };
-  // `page`번 장(1부터)을 받아 기사 목록과 장 번호 줄을 그린다. 고른 장은 `history.state`의 `newsPage`에 적어, 뉴스 상세에서 뒤로 돌아와도 그 장을 연다.
-  // 다른 장으로 넘기면 목록 머리가 화면 위에 가려져 있을 때 목록 머리까지 화면을 올린다.
-  const fill = (page = history.state?.newsPage || 1, move = false) => {
+  // 지수 기사를 Worker의 장(열 편)마다 받아 목록 아래에 이어 붙인다. 처음에는 첫 장을 받고, 받지 않은 기사가 남았으면 목록 아래에 "더 보기" 단추를 둔다.
+  // 회차 날짜(서울 시각)가 바뀌는 자리에는 기사 사이 구분선 대신 날짜 구분선을 둔다. 목록 맨 위에도 첫 기사의 날짜 구분선을 둔다.
+  // 받은 장 수는 `history.state`의 `newsPages`에 적어, 뉴스 상세에서 뒤로 돌아와도 그만큼 받아 보인다.
+  const list = Object.assign(document.createElement("div"), { className: "issue-list" });
+  const more = Object.assign(document.createElement("button"), { type: "button", className: "more", textContent: "더 보기" });
+  more.insertAdjacentHTML("beforeend", '<svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+  let loaded = 0, lastDay = "";
+  const append = (articles, page) => {
+    for (const item of articles) {
+      const day = item.time.slice(0, 10);
+      if (day !== lastDay) list.append(dayLine(day));
+      lastDay = day;
+      list.append(newsBlock(item, () => visit(key, { news: item.id, page }), true));
+    }
+  };
+  const load = (page, until) => newsPage(index, page).then(({ time, total, size, articles }) => {
+    if (signal.aborted) return;
+    if (time) stamp.textContent = `마지막 업데이트 ${clock(time)} KST`;
+    if (!total) return body.replaceChildren(empty("올라온 종목 뉴스가 없다."));
+    append(articles, page);
+    loaded = page;
+    history.replaceState({ ...history.state, newsPages: loaded }, "");
+    more.hidden = loaded * size >= total;
+    if (!list.isConnected) body.replaceChildren(list, more);
+    if (page < until && !more.hidden) return load(page + 1, until);
+  });
+  more.addEventListener("click", () => {
+    feelPress();
+    more.disabled = true;
+    load(loaded + 1, loaded + 1).finally(() => { more.disabled = false; });
+  });
+  const fill = () => {
     filled = true;
-    if (!body.childElementCount) body.replaceChildren(Object.assign(document.createElement("p"), { className: "status", textContent: "종목 뉴스를 불러오는 중이다." }));
-    newsPage(index, page).then(({ time, total, size, articles }) => {
-      if (signal.aborted) return;
-      if (time) stamp.textContent = `마지막 업데이트 ${clock(time)} KST`;
-      if (!total) return body.replaceChildren(empty("올라온 종목 뉴스가 없다."));
-      if (!articles.length) return fill(1);
-      history.replaceState({ ...history.state, newsPage: page }, "");
-      const list = Object.assign(document.createElement("div"), { className: "issue-list" });
-      list.append(...articles.map((item) => newsBlock(item, () => visit(key, { news: item.id, page }), true)));
-      const count = Math.ceil(total / size);
-      if (count < 2) return body.replaceChildren(list);
-      const nav = pager(count, (next) => fill(next + 1, true));
-      nav.draw(page - 1);
-      body.replaceChildren(list, nav);
-      const top = box.getBoundingClientRect().top;
-      if (move && top < TOP) scrollBy(0, top - TOP);
-    }, () => {
+    body.replaceChildren(Object.assign(document.createElement("p"), { className: "status", textContent: "종목 뉴스를 불러오는 중이다." }));
+    load(1, history.state?.newsPages || 1).catch(() => {
       if (signal.aborted) return;
       filled = false;
       body.replaceChildren(empty("종목 뉴스를 불러오지 못했다."));

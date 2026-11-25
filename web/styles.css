@@ -342,6 +342,15 @@ details.fold > .body > * { margin-top: 0; }
 .issue-list .pick { display: flex; padding: 20px 0; cursor: pointer; }
 .issue-list .pick:first-child { padding-top: 8px; }
 .issue-list .pick + .pick { border-top: 1px solid rgba(255, 255, 255, .14); }
+/* 종목별 뉴스 목록은 회차 날짜가 바뀌는 자리에 기사 사이 구분선 대신 날짜 구분선을 둔다. 날짜를 흐린 굵은 작은 글씨로 가운데에 쓰고, 양옆으로 기사 사이 구분선보다 진한 선을 긋는다.
+   날짜 구분선 위아래 기사에는 기사 사이 구분선을 긋지 않는다. */
+.issue-list .day-line { display: flex; align-items: center; gap: 10px; padding: 18px 0 2px; color: var(--dim); font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+.issue-list .day-line:first-child { padding-top: 4px; }
+.issue-list .day-line::before, .issue-list .day-line::after { content: ""; flex: 1; height: 1px; background: rgba(255, 255, 255, .3); }
+/* 목록 아래 "더 보기" 단추는 연한 둥근 상자에 흐린 글씨와 아래 꺾쇠를 쓴다. */
+.news-box .more { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; padding: 14px 0; border: 0; border-radius: 16px;
+                  background: rgba(255, 255, 255, .035); color: var(--dim); font: inherit; font-size: 13px; cursor: pointer; }
+.news-box .more[hidden] { display: none; }
 /* 지난 리포트의 이벤트 캘린더 절은 절 제목부터 절 끝까지를 회색 막으로 덮고 색을 빼서 흐리게 보이고, 막이 누르기와 밀기를 받아 아래 날짜 띠와 묶음이 움직이지 않는다.
    화면 위아래 스크롤은 막 위에서도 그대로 된다. 막 한가운데에는 가장 늦은 리포트로 가는 단추를 흰 글자와 오른쪽 꺽쇠로 띄운다.
    단추 상자는 머리 상자·페이지 바로가기 알약과 같은 색·흐림의 유리 알약에 알약과 같은 1px 빛줄기를 두르고 그림자는 두지 않아, 아래 표 글자와 겹쳐도 읽힌다.
