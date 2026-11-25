@@ -75,7 +75,7 @@ export const leave = () => {
   forget();
   unglos();
   unpress();
-  document.querySelectorAll(".index-pick, .alert-bell, .back-edge, .back-ring, nav.jump, body > .bubble").forEach((node) => node.remove());
+  document.querySelectorAll(".index-pick, .index-menu, .alert-bell, .back-edge, .back-ring, nav.jump, body > .bubble").forEach((node) => node.remove());
   document.getElementById("index-ink")?.ownerSVGElement.remove();
   document.documentElement.classList.remove("past", "edging");
   masthead.classList.remove("stuck", "belled");

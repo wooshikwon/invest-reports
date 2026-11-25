@@ -219,6 +219,7 @@ def main():
         page = w.open()
         check("e 다시 열면 예측 단추를 켠 채로 연다", state(page)["aim"]["on"], state(page)["aim"])
         page.locator(".index-pick").click()
+        page.locator(".index-menu .item", has_text="바이오").click()
         capture.settle(page, 800)
         check("e 지수 단추로 고른 지수를 기기에 남긴다", page.evaluate("localStorage.getItem('index')") == '"biotech"')
         page = w.open()

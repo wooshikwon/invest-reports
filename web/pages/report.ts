@@ -6,7 +6,7 @@ import { indicators } from "./macro";
 import { indexMap } from "./market";
 import { newsTab } from "./news";
 import { figures } from "./outlook";
-import { INDEX_NAME, alertBell, indexPick, latest, pageName } from "../shared/chrome";
+import { alertBell, indexPick, latest, pageName } from "../shared/chrome";
 import { marketed, relist } from "../shared/data";
 import { help } from "../shared/help";
 import { keep, kept } from "../shared/keep";
@@ -292,8 +292,7 @@ export function jump(pages, names) {
       lever.style.transition = "";
       if (page >= 0) wave(i);
       page = i;
-      // 지수 페이지는 페이지 이름 자리에 보고 있는 리포트의 지수 이름(나스닥, 바이오)을 쓴다.
-      pageName.textContent = names[i] === "지수" ? INDEX_NAME[key.split("-")[1]] : names[i];
+      pageName.textContent = names[i];
       history.replaceState({ ...history.state, page: names[i] }, "");
     }
     let top = 0;

@@ -121,6 +121,28 @@ def main() -> int:
         browser = capture.launch(p)
         run = capture.Run(browser, server)
 
+        # 머리 상자의 지수 드롭다운과 지수 페이지 이름
+        page = run.open(f"?r={NASDAQ}")
+        capture.turn(page, "지수")
+        head = page.evaluate("() => [document.getElementById('page-name').textContent, document.querySelector('.index-pick').textContent, document.querySelector('.index-menu').hidden]")
+        check("지수 페이지의 이름은 지수이고, 지수 단추는 지금 지수 이름을 쓴 알약이며 메뉴는 닫혀 있다", head == ["지수", "나스닥", True], str(head))
+        page.locator(".index-pick").click()
+        menu = page.evaluate("() => [...document.querySelectorAll('.index-menu .item')].map((item) => [item.querySelector('.name').textContent, item.querySelector('.sub').textContent, !!item.querySelector('.check')])")
+        check("지수 단추를 누르면 지수마다 이름과 전체 이름을 쓴 메뉴를 펼치고 지금 지수에 체크를 단다",
+              menu == [["나스닥", "나스닥 100", True], ["바이오", "나스닥 바이오테크", False]] and page.locator(".index-menu").is_visible(), str(menu))
+        lefts = page.evaluate("() => [...document.querySelectorAll('.index-menu .item')].map((item) => ['.name', '.sub'].map((q) => Math.round(item.querySelector(q).getBoundingClientRect().left)))")
+        check("메뉴 줄마다 지수 이름끼리, 지수 전체 이름끼리 왼쪽 끝이 같다", len(lefts) == 2 and lefts[0] == lefts[1], str(lefts))
+        page.screenshot(path=str(shots / "index-menu.png"))
+        page.mouse.click(30, 500)
+        capture.settle(page, 300)
+        check("메뉴 밖을 누르면 메뉴를 닫는다", not page.locator(".index-menu").is_visible())
+        page.locator(".index-pick").click()
+        page.locator(".index-menu .item", has_text="바이오").click()
+        capture.settle(page, 1200)
+        moved = page.evaluate("() => [location.search, document.querySelector('.index-pick').textContent]")
+        check("메뉴에서 다른 지수를 고르면 그 지수의 리포트를 연다", "biotech" in moved[0] and moved[1] == "바이오", str(moved))
+        run.close()
+
         # 탭 줄과 막대, 지수별 목록, 큰 블록
         page = run.open(f"?r={NASDAQ}")
         capture.turn(page, "이슈")

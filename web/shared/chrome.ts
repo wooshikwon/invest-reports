@@ -13,9 +13,9 @@ export const pageName = document.getElementById("page-name");
 export const berth = document.getElementById("berth");
 export const topGlass = document.getElementById("top-glass");
 export const stick = () => topGlass.classList.toggle("off", masthead.classList.toggle("stuck", scrollY > 0 && berth.getBoundingClientRect().bottom <= parseFloat(getComputedStyle(masthead).top) + .5));
-// 붙어 있는 머리 상자에서 지수 단추 밖을 누르면 문서 맨 위로 올라간다.
+// 붙어 있는 머리 상자에서 지수 단추와 지수 메뉴 밖을 누르면 문서 맨 위로 올라간다.
 const onMast = (event) => {
-  if (!masthead.classList.contains("stuck") || event.target.closest(".index-pick")) return;
+  if (!masthead.classList.contains("stuck") || event.target.closest(".index-pick, .index-menu")) return;
   feelPress();
   scrollTo({ top: 0, behavior: motion.matches ? "instant" : "smooth" });
 };
@@ -78,34 +78,60 @@ export const paint = () => {
 // `listing`은 `r/index.json`이다. `index` 지수의 리포트 가운데 날짜가 가장 늦은 리포트의 키를 돌려주고, 그 지수의 리포트가 없으면 빈 글자를 돌려준다.
 export const latest = (listing, index) => Object.keys(listing).filter((name) => listing[name].index === index)
   .sort((a, b) => listing[b].date.localeCompare(listing[a].date))[0] || "";
-// 머리 상자 오른쪽 끝에 지수 단추를 단다. `listing`은 `r/index.json`이다. 단추를 누르면 고른 지수를 기기의 `index`에 남기고(`keep.ts`), 세로선을 반대쪽 끝으로 옮긴 뒤 다른 지수의 가장 늦은 리포트를
-// 보던 페이지로 연다. 기록을 하나 더해 그 기록에 다음 깊이와 보던 페이지를 적고 그 자리에서 다시 그린다. 다른 지수의 리포트 본문은 단추를 단 1.5초 뒤 미리 받아 둔다.
+// 머리 상자 오른쪽 끝에 지수 단추를 단다. `listing`은 `r/index.json`이다. 단추는 보고 있는 리포트 지수의 지수색 점, 지수 이름, 아래 꺾쇠를 담은 알약이고,
+// 누르면 단추 아래에 지수 메뉴를 펼친다. 메뉴는 리포트가 있는 지수마다 지수색 점, 지수 이름, 지수 전체 이름을 한 줄에 쓰고, 보고 있는 지수 줄에 체크를 단다.
+// 다른 지수 줄을 누르면 고른 지수를 기기의 `index`에 남기고(`keep.ts`) 그 지수의 가장 늦은 리포트를 보던 페이지로 연다. 기록을 하나 더해 그 기록에 다음 깊이와
+// 보던 페이지를 적고 그 자리에서 다시 그린다. 보고 있는 지수 줄이나 메뉴 밖을 누르면 메뉴를 닫는다. 다른 지수의 리포트 본문은 단추를 단 1.5초 뒤 미리 받아 둔다.
 // 리포트가 있는 지수가 하나뿐이면 단추를 달지 않는다.
+const CHEVRON = '<svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CHECK = '<svg class="check" width="14" height="11" viewBox="0 0 14 11" aria-hidden="true"><path d="M1.5 5.5l4 4 7-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const dot = (name) => Object.assign(document.createElement("span"), { className: "dot", style: `background: linear-gradient(135deg, ${INDEX[name][0]}, ${INDEX[name][1]})` });
 export function indexPick(listing) {
   const index = key.split("-")[1];
   const order = Object.keys(INDEX).filter((name) => latest(listing, name));
   if (order.length !== 2 || !order.includes(index)) return;
   const other = order.find((name) => name !== index);
-  const pick = masthead.appendChild(Object.assign(document.createElement("button"), {
-    type: "button", className: `index-pick${index === order[1] ? " right" : ""}`, innerHTML: '<i class="fill"></i><i class="bar"></i>' }));
-  pick.setAttribute("aria-label", `${INDEX_NAME[other]} 리포트 보기`);
-  pick.style.cssText = `--left: ${INDEX[order[0]][0]}; --left-to: ${INDEX[order[0]][1]}; --right: ${INDEX[order[1]][0]}; --right-to: ${INDEX[order[1]][1]}`;
+  const pick = masthead.appendChild(Object.assign(document.createElement("button"), { type: "button", className: "index-pick" }));
+  pick.append(dot(index), Object.assign(document.createElement("span"), { textContent: INDEX_NAME[index] }));
+  pick.insertAdjacentHTML("beforeend", CHEVRON);
+  pick.setAttribute("aria-haspopup", "menu");
+  pick.setAttribute("aria-expanded", "false");
+  pick.setAttribute("aria-label", `지수 고르기, 지금 ${INDEX_NAME[index]}`);
+  const menu = masthead.appendChild(Object.assign(document.createElement("div"), { className: "index-menu", hidden: true }));
+  menu.setAttribute("role", "menu");
   const { signal } = life, target = latest(listing, other);
+  const close = () => { menu.hidden = true; pick.setAttribute("aria-expanded", "false"); };
+  for (const name of order) {
+    const item = menu.appendChild(Object.assign(document.createElement("button"), { type: "button", className: name === index ? "item on" : "item" }));
+    item.setAttribute("role", "menuitem");
+    item.append(dot(name), Object.assign(document.createElement("span"), { className: "name", textContent: INDEX_NAME[name] }),
+                Object.assign(document.createElement("span"), { className: "sub", textContent: INDEX_TITLE[name] }));
+    if (name === index) item.insertAdjacentHTML("beforeend", CHECK);
+    item.addEventListener("click", () => {
+      feelPress();
+      if (name === index) return close();
+      if (pick.disabled) return;
+      pick.disabled = true;
+      keep("index", other);
+      close();
+      reportText(target).catch(() => {}).then(() => {
+        if (signal.aborted) return;
+        history.replaceState({ ...history.state, y: scrollY }, "");
+        const params = new URLSearchParams(location.search);
+        params.set("r", target);
+        history.pushState({ depth: depth + 1, from: key, page: history.state?.page }, "", `?${params}`);
+        reshow(false);
+      });
+    });
+  }
   pick.addEventListener("click", () => {
     if (pick.disabled) return;
-    pick.disabled = true;
     feelPress();
-    keep("index", other);
-    pick.classList.toggle("right", other === order[1]);
-    Promise.all([reportText(target).catch(() => {}), new Promise((done) => setTimeout(done, motion.matches ? 0 : 280))]).then(() => {
-      if (signal.aborted) return;
-      history.replaceState({ ...history.state, y: scrollY }, "");
-      const params = new URLSearchParams(location.search);
-      params.set("r", target);
-      history.pushState({ depth: depth + 1, from: key, page: history.state?.page }, "", `?${params}`);
-      reshow(false);
-    });
+    menu.hidden = !menu.hidden;
+    pick.setAttribute("aria-expanded", String(!menu.hidden));
   });
+  document.addEventListener("pointerdown", (event) => { if (!menu.hidden && !event.target.closest(".index-pick, .index-menu")) close(); }, { capture: true, signal });
+  addEventListener("scroll", () => menu.hidden || close(), { passive: true, signal });
   setTimeout(() => signal.aborted || reportText(target).catch(() => {}), 1500);
 }
 // 텔레그램 앱 안에서 연 리포트 화면은 머리 상자 오른쪽 끝, 지수 단추 오른쪽에 알림 단추를 단다. 누르면 알림 설정 화면(`?alerts=1`, `pages/alerts.ts`)을 연다.

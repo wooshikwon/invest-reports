@@ -136,21 +136,30 @@ main.unveil { animation: unveil .2s ease-out; }
 /* 이슈 화면의 새로고침 표시는 맨 위 유리 띠 아래에 벌어지는 틈에 나타난다. */
 :root.issue #pull { top: calc(var(--top-edge) + var(--issue-bar) - 50px); }
 :root.issue #pull.hold { top: calc(var(--top-edge) + var(--issue-bar) + 10px); }
-/* 지수 단추는 머리 상자 오른쪽 끝, 머리 상자 높이의 가운데에 두는 토글 스위치다. 예측 단추와 같은 가로 47px, 세로 26px의 알약 모양 바탕 위에 지름 22px의 흰 원 손잡이를 둔다.
-   바탕은 보고 있는 리포트 지수의 지수색 그라데이션으로 칠한다. 그라데이션은 손잡이 쪽 끝에 지수색을, 반대쪽 끝에 `INDEX`의 둘째 색(나스닥은 연보라, 바이오는 분홍)을 둔다.
-   나스닥 리포트는 손잡이를 왼쪽에 두고, 바이오 리포트는 손잡이를 오른쪽에 둔다. 두 그라데이션은 서로 좌우를 뒤집은 모양이다.
-   누르면 손잡이가 반대쪽 끝으로 0.28초에 걸쳐 옮겨 가고, 손잡이가 지나간 칸이 손잡이를 따라 바뀐 지수의 그라데이션으로 칠해진다. */
-.index-pick { position: absolute; top: 50%; right: 0; width: 47px; height: 26px; margin-top: -13px; padding: 0; overflow: hidden; border: 0; border-radius: 13px;
-              background: linear-gradient(to right, var(--left), var(--left-to)); cursor: pointer; }
-.index-pick i { position: absolute; }
-.index-pick .fill { inset: 0; background: linear-gradient(to left, var(--right), var(--right-to)); clip-path: inset(0 100% 0 0); transition: clip-path .28s ease-in-out; }
-.index-pick .bar { top: 2px; left: 2px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3);
-                   transition: transform .28s ease-in-out; }
-.index-pick.right .fill { clip-path: inset(0); }
-.index-pick.right .bar { transform: translateX(21px); }
-/* 텔레그램 앱 안에서 연 리포트 화면은 지수 단추 오른쪽에 알림 단추(`.alert-bell`)를 두고, 지수 단추와 머리 줄을 그만큼 왼쪽으로 옮긴다. */
-#masthead.belled header { right: 94px; }
-#masthead.belled .index-pick { right: 38px; }
+/* 지수 단추는 머리 상자 오른쪽 끝, 머리 상자 높이의 가운데에 두는 알약이다. 연한 회색 바탕과 1px 빛줄기 안에 보고 있는 리포트 지수의 지수색 그라데이션 점,
+   굵은 지수 이름, 흐린 아래 꺾쇠를 둔다. 누르면 단추 아래 오른쪽 끝에 맞춰 지수 메뉴를 펼친다. 메뉴는 반투명 유리 상자에 지수마다 한 줄씩 지수색 점,
+   지수 이름, 흐린 작은 글씨의 지수 전체 이름을 쓰고, 보고 있는 지수 줄은 옅은 바탕에 굵은 흰 글씨와 오른쪽 끝의 지수색 체크를 단다.
+   지수 이름 칸은 같은 폭으로 두어, 줄마다 지수 이름과 지수 전체 이름이 각각 같은 왼쪽 끝에서 시작한다. */
+#masthead:has(.index-pick) header { right: 108px; }
+.index-pick { position: absolute; top: 50%; right: 0; display: flex; align-items: center; gap: 7px; height: 32px; margin-top: -16px; padding: 0 11px 0 12px; border: 0;
+              border-radius: 16px; background: rgba(255, 255, 255, .08); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); color: var(--text);
+              font: inherit; font-size: 14px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.index-pick .dot, .index-menu .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.index-pick svg { color: var(--hint); }
+.index-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 5; min-width: 178px; padding: 6px; border-radius: 16px;
+              background: rgba(40, 42, 48, .82); -webkit-backdrop-filter: blur(16px) saturate(150%); backdrop-filter: blur(16px) saturate(150%);
+              box-shadow: 0 10px 30px rgba(0, 0, 0, .45), inset 0 0 0 1px rgba(255, 255, 255, .08); }
+.index-menu[hidden] { display: none; }
+.index-menu .item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 12px; border: 0; border-radius: 11px; background: none;
+                    color: var(--dim); font: inherit; font-size: 15px; white-space: nowrap; cursor: pointer; }
+.index-menu .item.on { background: rgba(255, 255, 255, .07); color: var(--text); font-weight: 700; }
+.index-menu .item .name { flex: none; width: 3.6em; text-align: left; }
+.index-menu .item .sub { color: var(--hint); font-size: 12px; font-weight: 600; text-align: left; }
+.index-menu .item .check { flex: none; margin-left: auto; padding-left: 10px; color: var(--index); box-sizing: content-box; }
+/* 텔레그램 앱 안에서 연 리포트 화면은 지수 단추 오른쪽에 알림 단추(`.alert-bell`)를 두고, 지수 단추와 지수 메뉴, 머리 줄을 그만큼 왼쪽으로 옮긴다. */
+#masthead.belled header { right: 44px; }
+#masthead.belled:has(.index-pick) header { right: 146px; }
+#masthead.belled :is(.index-pick, .index-menu) { right: 38px; }
 .alert-bell { position: absolute; top: 50%; right: -6px; display: grid; place-items: center; width: 36px; height: 36px; margin-top: -18px; padding: 0; border: 0;
               background: none; color: var(--hint); cursor: pointer; }
 .alert-bell svg { width: 21px; height: 21px; }
