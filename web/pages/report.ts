@@ -141,7 +141,7 @@ function reportPage(body, listing, cards, history, given) {
     if (document.documentElement.classList.contains("past")) freeze("이벤트 캘린더", latest(listing, key.split("-")[1]));
     events(date, listing);
     help();
-    newsTab(index, entry?.written);
+    newsTab(index);
     const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "이벤트 캘린더");
     // `place`는 페이지와 바로가기 단추를 새로 묶고 `name` 페이지를 연다. 이름이 없거나 묶음에 없는 페이지면 첫 페이지를 연다.
     const place = (shown, names, name, still) => {

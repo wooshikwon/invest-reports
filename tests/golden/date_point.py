@@ -227,7 +227,8 @@ def main():
         check("e 리포트 키 없이 다시 열면 마지막에 고른 지수의 리포트를 연다", tint == "#AE9CE6" and state(page)["aim"]["on"], (tint, state(page)["aim"]))
         w.close()
 
-        # (f) 나란한 항목 묶음(그림 카드, 캘린더 날짜, 이슈 탭, 거시 지표)은 바로가기 탭을 옮기거나 화면이 가려지면 처음 항목으로 돌아간다.
+        # (f) 나란한 항목 묶음(그림 카드, 캘린더 날짜, 거시 지표)은 바로가기 탭을 옮기거나 화면이 가려지면 처음 항목으로 돌아간다.
+        #     이슈 페이지의 주요 이슈 해설·종목별 뉴스 탭은 고른 탭을 기기에 남겨 그대로 둔다.
         w = World(p, after, {})
         page = w.open()
         chosen = lambda: page.evaluate("""() => {
@@ -249,20 +250,24 @@ def main():
             moved = chosen()
             return moved["cards"] == 2 and moved["day"] != first["day"] and moved["news"] != first["news"] and (first["macro"] < 0 or moved["macro"] == 1), moved
 
+        def returned(moved):
+            now = chosen()
+            return {k: v for k, v in now.items() if k != "news"} == {k: v for k, v in first.items() if k != "news"} and now["news"] == moved[1]["news"], now
+
         moved = move_all()
         check("f 묶음마다 다른 항목을 고른다", *moved)
         capture.turn(page, "이슈")
         capture.turn(page, "예측")
-        check("f 바로가기 탭을 옮기고 돌아오면 처음 항목으로 돌아간다", chosen() == first, chosen())
+        check("f 바로가기 탭을 옮기고 돌아오면 처음 항목으로 돌아가고 이슈 탭은 고른 탭 그대로다", *returned(moved))
         moved = move_all()
         page.evaluate("Object.defineProperty(document, 'hidden', { value: true, configurable: true }); document.dispatchEvent(new Event('visibilitychange'));"
                       "Object.defineProperty(document, 'hidden', { value: false, configurable: true }); document.dispatchEvent(new Event('visibilitychange'));")
         capture.settle(page, 400)
-        check("f 화면이 가려졌다 돌아오면(상세 화면, 앱 밖) 처음 항목으로 돌아간다", moved[0] and chosen() == first, (moved, chosen()))
+        check("f 화면이 가려졌다 돌아오면(상세 화면, 앱 밖) 처음 항목으로 돌아가고 이슈 탭은 고른 탭 그대로다", moved[0] and returned(moved)[0], (moved, chosen()))
         moved = move_all()
         page.reload(wait_until="networkidle")
         capture.settle(page)
-        check("f 다시 열면 처음 항목으로 연다", moved[0] and chosen() == first, (moved, chosen()))
+        check("f 다시 열면 처음 항목으로 열고 이슈 탭은 마지막에 고른 탭으로 연다", moved[0] and returned(moved)[0], (moved, chosen()))
         check("f 오류 0건", not w.server.errors, w.server.errors)
         w.close()
         print("서버 오류", w.server.errors, "외부 요청", w.server.escaped)

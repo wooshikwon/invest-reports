@@ -27,8 +27,11 @@ NASDAQ_LATEST = [TITLES[k] for k in (18, 0, 19, 20, 1, 21, 22)]
 NASDAQ_ALL = NASDAQ_LATEST + [title for _, _, title in sorted(((name, k, title) for k, (name, index, _, title, _) in enumerate(fixtures.NEWS)
                                                                      if index == "nasdaq" and name != fixtures.NEWS_ROUND), key=lambda row: (row[0], -row[1]), reverse=True)]
 # 종목별 뉴스 목록 칸의 차례. 날짜 구분선은 "day:{날짜}", 기사는 "pick:{제목}:{위 선 두께}"다.
-ORDER = """(box) => [...box.querySelector('.issue-list').children].map((n) => n.matches('.day-line') ? `day:${n.textContent}`
+ORDER = """(box) => [...box.querySelectorAll('.issue-list .day-line:not(.first), .issue-list .pick')].map((n) => n.matches('.day-line') ? `day:${n.textContent}`
   : `pick:${n.querySelector('h3').textContent}:${getComputedStyle(n).borderTopWidth}`)"""
+# 종목별 뉴스 목록의 날짜 구분선마다 (날짜, 화면 위에서 잰 글자 칸의 위쪽, 보이는지).
+PINS = """() => [...document.querySelectorAll('.news-box .day-line')].filter((line) => line.closest('.news-box').offsetParent).map((line) => {
+  const label = line.querySelector('.inner') || line; return [label.textContent, Math.round(label.getBoundingClientRect().top), getComputedStyle(label).visibility === 'visible']; })"""
 WEEKDAY = "월화수목금토일"
 
 
@@ -191,12 +194,30 @@ def main() -> int:
         news.locator(".more").click()
         capture.settle(page, 800)
         shown = page.evaluate(LIST)
+        page.evaluate("scrollTo(0, 0)")
+        capture.settle(page, 400)
+        top = page.evaluate(PINS)
+        check("맨 위 날짜 구분선은 처음에는 보이지 않는다", top[0][0] == "11월 19일 (목)" and not top[0][2], str(top))
+        page.evaluate("scrollTo(0, 400)")
+        capture.settle(page, 400)
+        pinned = page.evaluate(PINS)
+        check("화면을 내리면 맨 위 날짜 구분선이 머리 상자 아래에 붙어 보인다", pinned[0][2] and pinned[0][1] < 100, str(pinned))
+        page.evaluate("scrollTo(0, 0)")
+        capture.settle(page, 300)
         check("더 보기를 누르면 다음 열 편이 목록 아래에 이어 붙는다", shown == NASDAQ_ALL[:20] and news.evaluate(ORDER) == expected_order(NASDAQ_ALL[:20]), " | ".join(shown))
         news.locator(".more").click()
         capture.settle(page, 800)
         news.locator(".more").click()
         capture.settle(page, 800)
         shown = page.evaluate(LIST)
+        y = page.evaluate("() => [...document.querySelectorAll('.news-box .day-line')].find((line) => line.textContent.includes('18일')).getBoundingClientRect().top + scrollY")
+        page.evaluate(f"scrollTo(0, {y} - 40)")
+        capture.settle(page, 400)
+        swapped = page.evaluate(PINS)
+        check("다음 날짜 구분선이 올라오면 앞 날짜를 밀어내고 그 자리에 붙는다",
+              swapped[1][0] == "11월 18일 (수)" and swapped[0][1] < swapped[1][1] < swapped[2][1] and 30 < swapped[1][1] < 100, str(swapped[:3]))
+        page.evaluate("scrollTo(0, 0)")
+        capture.settle(page, 300)
         check("기사를 모두 받으면 더 보기 단추가 사라진다", shown == NASDAQ_ALL and not news.locator(".more").is_visible(), f"{len(shown)}편")
         page.locator(".news-box .pick", has_text=NASDAQ_ALL[12]).click()
         capture.settle(page)
@@ -225,23 +246,28 @@ def main() -> int:
         check("왼쪽 끝에서 오른쪽으로 밀면 앞 바로가기 탭(이슈)으로 돌아온다", on == "이슈" and page.evaluate(BAR)["tab"] == "주요 이슈 해설", on)
         run.close()
 
-        # 적힌 탭이 없는 가장 늦은 리포트는 분석 완료 시각과 가장 최근 회차 시각 가운데 늦은 쪽의 탭으로 연다.
+        # 고른 탭은 기기에 남아, 다른 바로가기 탭에 갔다 오거나 미니 앱을 다시 열어도 그 탭으로 연다. 남긴 탭이 없으면 주요 이슈 해설 탭이다.
         listing = json.loads((Path(args.data) / "r" / "index.json").read_text(encoding="utf-8"))
         latest = max(key for key, entry in listing.items() if key.endswith("-nasdaq") and isinstance(entry, dict))
         page = run.open(f"?r={latest}")
         capture.turn(page, "이슈")
         capture.settle(page, 600)
-        check("분석 완료 시각이 최근 회차보다 늦으면 상세 이슈 해설 탭으로 연다", page.evaluate(BAR)["tab"] == "주요 이슈 해설", listing[latest]["written"])
-        # 분석 완료 시각을 SAMPLE 기사의 가장 최근 회차(11/19 18:00 KST)보다 이르게 바꾼 목록으로 다시 연다.
-        earlier = {**listing, latest: {**listing[latest], "written": "2026-11-19 10:00"}}
-        page.route("**/r/index.json*", lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps(earlier)))
-        page.evaluate("history.replaceState(null, '')")  # 미니 앱을 새로 연 것처럼 적힌 탭을 지운다
+        check("남긴 탭이 없으면 가장 늦은 리포트도 최근 회차 시각과 관계없이 주요 이슈 해설 탭으로 연다", page.evaluate(BAR)["tab"] == "주요 이슈 해설", str(page.evaluate(BAR)))
+        page.locator("h2.tabbed .tabline > button", has_text="종목별 뉴스").click()
+        capture.settle(page, 600)
+        capture.turn(page, "시장")
+        capture.settle(page, 400)
+        capture.turn(page, "이슈")
+        capture.settle(page, 600)
+        check("종목별 뉴스 탭을 고른 뒤 다른 바로가기 탭에 갔다 와도 종목별 뉴스 탭이다", page.evaluate(BAR)["tab"] == "종목별 뉴스", str(page.evaluate(BAR)))
+        check("고른 탭을 기기에 남긴다", page.evaluate("localStorage.getItem('issue-tab')") == "1")
+        page.evaluate("history.replaceState(null, '')")  # 미니 앱을 새로 연 것처럼 기록의 상태를 지운다
         page.reload(wait_until="networkidle")
         capture.settle(page)
         capture.turn(page, "이슈")
         capture.settle(page, 600)
         auto = page.evaluate(BAR)
-        check("최근 회차가 분석 완료 시각보다 늦으면 종목 뉴스 탭으로 연다", auto["tab"] == "종목별 뉴스" and near(auto["bar"][:2], auto["on"][:2]), str(auto))
+        check("미니 앱을 다시 열어도 마지막에 고른 종목별 뉴스 탭으로 연다", auto["tab"] == "종목별 뉴스" and near(auto["bar"][:2], auto["on"][:2]), str(auto))
         run.close()
 
         page = open_news(run, BIOTECH)
@@ -262,7 +288,7 @@ def main() -> int:
         page.locator("button.back").click()
         capture.settle(page)
         state = page.evaluate("() => [document.querySelector('h2.tabbed .tabline > button.on')?.textContent, location.search]")
-        check("뉴스 상세에서 뒤로 가면 리포트 화면의 처음 탭(상세 이슈 해설)으로 돌아온다", state == ["주요 이슈 해설", f"?r={NASDAQ}"], str(state))
+        check("뉴스 상세에서 뒤로 가면 리포트 화면의 떠나기 전 탭(종목별 뉴스)으로 돌아온다", state == ["종목별 뉴스", f"?r={NASDAQ}"], str(state))
         run.close()
 
         # 뉴스 상세의 모양

@@ -351,10 +351,19 @@ details.fold > .body > * { margin-top: 0; }
 .issue-list .pick { display: flex; padding: 20px 0; cursor: pointer; }
 .issue-list .pick:first-child { padding-top: 8px; }
 .issue-list .pick + .pick { border-top: 1px solid rgba(255, 255, 255, .14); }
-/* 종목별 뉴스 목록은 회차 날짜가 바뀌는 자리에 기사 사이 구분선 대신 날짜 구분선을 둔다. 날짜를 흐린 굵은 작은 글씨로 가운데에 쓰고, 양옆으로 기사 사이 구분선보다 진한 선을 긋는다.
-   날짜 구분선 위아래 기사에는 기사 사이 구분선을 긋지 않는다. */
-.issue-list .day-line { display: flex; align-items: center; gap: 10px; padding: 18px 0 2px; color: var(--dim); font-size: 12px; font-weight: 700; letter-spacing: .02em; }
-.issue-list .day-line::before, .issue-list .day-line::after { content: ""; flex: 1; height: 1px; background: rgba(255, 255, 255, .3); }
+/* 종목별 뉴스 목록은 회차 날짜마다 기사를 한 묶음에 담고, 묶음 머리에 기사 사이 구분선 대신 날짜 구분선을 둔다. 날짜를 흐린 굵은 작은 글씨로 가운데에 쓰고,
+   양옆으로 기사 사이 구분선보다 진한 선을 긋는다. 날짜 구분선 위아래 기사에는 기사 사이 구분선을 긋지 않는다.
+   날짜 구분선은 화면 폭 전체의 바탕색 띠로 두고, 화면을 내리면 머리 상자 유리 띠 바로 아래에 붙는다. 붙은 띠의 위 여백은 머리 상자 유리 띠 밑에 들어간다.
+   목록 맨 위 날짜의 구분선은 높이 없이 두고 안쪽 칸만 같은 띠로 그려, 머리 상자 아래에 붙을 때(`on`)만 보인다. */
+.issue-list .day-line, .issue-list .day-line.first .inner { display: flex; align-items: center; gap: 10px; padding: 18px var(--gutter) 8px; background: var(--bg);
+  color: var(--dim); font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+.issue-list .day-line { position: sticky; top: calc(36px + var(--top-edge)); z-index: 3; margin: 0 calc(-1 * var(--gutter)); }
+.issue-list .day-line:not(.first)::before, .issue-list .day-line:not(.first)::after,
+.issue-list .day-line.first .inner::before, .issue-list .day-line.first .inner::after { content: ""; flex: 1; height: 1px; background: rgba(255, 255, 255, .3); }
+.issue-list .day-line.first { height: 0; padding: 0; background: none; }
+.issue-list .day-line.first .inner { position: absolute; top: 0; left: 0; right: 0; visibility: hidden; }
+.issue-list .day-line.first.on .inner { visibility: visible; }
+.issue-list .day-line.first + .pick { padding-top: 8px; }
 /* 목록 아래 "더 보기" 단추는 연한 둥근 상자에 흐린 글씨와 아래 꺾쇠를 쓴다. */
 .news-box .more { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; padding: 14px 0; border: 0; border-radius: 16px;
                   background: rgba(255, 255, 255, .035); color: var(--dim); font: inherit; font-size: 13px; cursor: pointer; }

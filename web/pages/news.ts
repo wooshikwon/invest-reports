@@ -1,14 +1,15 @@
 // @ts-nocheck
 import { backward } from "../shared/back";
 import { issueChart } from "../shared/gauge";
-import { EASE, GLIDE, atEdge, glide, homing, motion, slider } from "../shared/motion";
-import { key, life, query, report, returned, visit } from "../shared/route";
+import { EASE, GLIDE, atEdge, glide, motion, slider } from "../shared/motion";
+import { key, life, query, report, visit } from "../shared/route";
 import { feelPress, feelSlide } from "../shared/telegram";
 import { gallery, viewer } from "../shared/viewer";
 import { NEWS_HELP, question } from "../shared/help";
 import { marketed } from "../shared/data";
 import { linkStocks, stockNames } from "../shared/stocklink";
 import { updated, weekday } from "../shared/format";
+import { keep as store, kept } from "../shared/keep";
 // 종목 뉴스를 그린다. 기사는 종목 뉴스 배치가 뉴스 Worker(`NEWS_URL`, `worker/news.js`)에 올린 것이고, 앱은 공개 읽기 세 경로만 쓴다.
 // `GET /list?index={지수}`와 `GET /list?ticker={티커}&limit={편수}`는 기사마다 ID, 회차 시작 시각(`time`), 종목, 제목, 머리 줄(요약), 첫 그림 주소(`image`), 첫 종목의 회차 구간 변동률(`move`)을 주고,
 // `GET /articles/{ID}`는 기사 한 편의 소제목 세 줄(`subheads`), 본문 HTML(`html`), 그림 주소와 사진 설명(`images`)을 더 준다. 목록의 머리 줄은 기사의 요약이고, 요약 없이 올린 기사는 첫 소제목이다. 본문 HTML은 build.py `issue_articles`가 만든 이슈 본문과 같은 조각이라
@@ -37,8 +38,13 @@ const clock = (time) => `${+time.slice(5, 7)}/${+time.slice(8, 10)} ${time.slice
 const empty = (text) => Object.assign(document.createElement("p"), { className: "empty", textContent: text });
 
 // 목록의 날짜 구분선. "11월 19일 (목)"처럼 회차 날짜를 쓴다. `day`는 서울 시각의 "YYYY-MM-DD"다.
-function dayLine(day) {
-  return Object.assign(document.createElement("div"), { className: "day-line", textContent: `${+day.slice(5, 7)}월 ${+day.slice(8, 10)}일 (${weekday(day)})` });
+// 목록 맨 위 날짜(`first`)의 구분선은 높이 없이 두고 글자를 안쪽 칸(`.inner`)에 담아, 머리 상자 아래에 붙을 때만 보인다.
+function dayLine(day, first) {
+  const text = `${+day.slice(5, 7)}월 ${+day.slice(8, 10)}일 (${weekday(day)})`;
+  const line = Object.assign(document.createElement("div"), { className: first ? "day-line first" : "day-line" });
+  if (first) line.append(Object.assign(document.createElement("div"), { className: "inner", textContent: text }));
+  else line.textContent = text;
+  return line;
 }
 
 // 장 번호 줄. 가운데에 장 번호를 보고 있는 장을 가운데에 두어 `NUMBERS`개까지, 양옆에 앞 장과 다음 장으로 가는 꺾쇠를 둔다.
@@ -103,14 +109,12 @@ function newsBlock(item, open, full) {
 // 절 제목부터 다음 절 제목 앞까지(마지막 절이면 문서 끝까지)에서 가로로 40px 넘게, 세로 이동의 1.5배 넘게 밀고 손을 떼면 민 방향의 탭으로 넘긴다.
 // 왼쪽으로 밀면 종목 뉴스, 오른쪽으로 밀면 상세 이슈 해설이다. 화면 좌우 끝 띠(`atEdge`)에서 시작한 밀기, 넘기기 묶음과 그림 화면, 설명 상자 안에서 민 것,
 // 절이 가린 페이지에 있을 때는 넘기지 않는다.
-// 처음 탭(`first`)은 상세 이슈 해설이다. 가장 늦은 리포트는 기사 목록을 바로 받아, 최신 회차에 그 지수 기사가 있고 그 회차의 시작 시각이 리포트의 분석 완료 시각(`written`, "2026-11-20 11:43" 같은 서울 시각)보다 늦으면
-// 처음 탭을 종목 뉴스로 바꾸고 그 탭으로 넘긴다. 목록을 받기 전에 탭을 누르면 넘기지 않는다. 지난 리포트는 상세 이슈 해설 탭으로 연다.
-// 고른 탭은 `history.state`의 `tab`에 적어, 이슈 화면이나 뉴스 상세에서 뒤로 돌아오면 떠나기 전 탭으로 연다. 처음 항목으로 돌릴 때(`motion.ts` `homing`)는 처음 탭으로 돌아간다.
-// 다른 화면을 열면 문서가 숨겨지면서 처음 항목으로 돌리므로, 숨겨진 동안 돌린 탭은 적지 않고 화면이 다시 보일 때 적는다.
+// 사용자가 누르거나 밀어서 고른 탭은 기기의 `issue-tab`에 남기고(`keep.ts`), 다른 페이지나 화면으로 갔다 오거나 미니 앱을 다시 열어도 그 탭으로 연다.
+// 남긴 탭이 없으면 주요 이슈 해설 탭으로 연다. 바로가기 탭을 옮기거나 화면이 가려져도 처음 탭으로 돌리지 않는다.
 // 종목 뉴스 탭의 마지막 업데이트 시각은 최신 회차의 시작 시각이다. 목록은 상세 이슈 해설 목록과 같은 모양이되 그림을 싣지 않고, 기사마다 제목, 머리 줄(요약),
 // 회차 시각을 위에서 아래로 쓴다. 회차 시각 오른쪽에는 기사가 다룬 종목마다 티커 스티커를 붙이고, 같은 줄 오른쪽 끝에 목록 순서를 정한 첫 종목의 회차 구간 변동률을
 // "변동률 지수 : N%"로 회색 글씨로 쓴다. 변동률이 없는 기사는 쓰지 않는다.
-export function newsTab(index, written) {
+export function newsTab(index) {
   const { signal } = life;
   const head = [...report.querySelectorAll("h2")].find((h) => h.textContent.trim() === "상세 이슈 해설");
   if (!head) return;
@@ -135,7 +139,7 @@ export function newsTab(index, written) {
   const line = Object.assign(document.createElement("span"), { className: "tabline" });
   const tabs = ["주요 이슈 해설", "종목별 뉴스"].map((name, i) => {
     const tab = Object.assign(document.createElement("button"), { type: "button", textContent: name });
-    tab.addEventListener("click", () => { touched = true; if (i !== shown) { feelPress(); pick(i, true); } });
+    tab.addEventListener("click", () => { if (i !== shown) { feelPress(); store("issue-tab", i); pick(i, true); } });
     return tab;
   });
   const bar = Object.assign(document.createElement("i"), { className: "bar" });
@@ -153,12 +157,9 @@ export function newsTab(index, written) {
   }
   head.replaceChildren(line);
   head.classList.add("tabbed");
-  const kept = returned ? history.state?.tab : undefined;
-  let shown = -1, first = 0, filled = false, touched = kept === 0 || kept === 1;
-  const keep = () => history.replaceState({ ...history.state, tab: shown }, "");
+  let shown = -1, filled = false;
   const pick = (i, move) => {
     shown = i;
-    if (!document.hidden) keep();
     tabs.forEach((tab, j) => tab.classList.toggle("on", i === j));
     if (!move) bar.style.transition = "none";
     bar.style.width = `${tabs[i].offsetWidth}px`;
@@ -170,20 +171,31 @@ export function newsTab(index, written) {
     if (i && !filled) fill();
   };
   // 지수 기사를 Worker의 장(열 편)마다 받아 목록 아래에 이어 붙인다. 처음에는 첫 장을 받고, 받지 않은 기사가 남았으면 목록 아래에 "더 보기" 단추를 둔다.
-  // 회차 날짜(서울 시각)가 바뀌는 자리에는 기사 사이 구분선 대신 날짜 구분선을 둔다. 목록 맨 위 첫 날짜의 기사들은 첫 줄의 마지막 업데이트 날짜로 알 수 있으므로 구분선을 두지 않는다.
+  // 기사는 회차 날짜(서울 시각)마다 한 묶음(`.day-group`)에 담고, 묶음 머리에 날짜 구분선을 둔다. 날짜 구분선은 기사 사이 구분선을 대신한다.
+  // 날짜 구분선은 화면을 내리면 머리 상자 바로 아래에 붙어 있다가, 다음 묶음의 날짜 구분선이 올라오면 함께 밀려 올라가 다음 날짜로 바뀐다.
+  // 목록 맨 위 날짜의 구분선은 평소에는 그리지 않고, 그 묶음의 머리가 머리 상자 아래로 들어가 구분선이 붙을 때만 보인다(`on`).
   // 받은 장 수는 `history.state`의 `newsPages`에 적어, 뉴스 상세에서 뒤로 돌아와도 그만큼 받아 보인다.
   const list = Object.assign(document.createElement("div"), { className: "issue-list" });
   const more = Object.assign(document.createElement("button"), { type: "button", className: "more", textContent: "더 보기" });
   more.insertAdjacentHTML("beforeend", '<svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>');
-  let loaded = 0, lastDay = "";
+  let loaded = 0, lastDay = "", group = null, topGroup = null;
   const append = (articles, page) => {
     for (const item of articles) {
       const day = item.time.slice(0, 10);
-      if (lastDay && day !== lastDay) list.append(dayLine(day));
+      if (day !== lastDay) {
+        group = list.appendChild(Object.assign(document.createElement("div"), { className: "day-group" }));
+        group.append(dayLine(day, !lastDay));
+        topGroup ??= group;
+      }
       lastDay = day;
-      list.append(newsBlock(item, () => visit(key, { news: item.id, page }), true));
+      group.append(newsBlock(item, () => visit(key, { news: item.id, page }), true));
     }
   };
+  const pin = () => {
+    const line = topGroup?.firstElementChild;
+    if (line) line.classList.toggle("on", !box.hidden && topGroup.getBoundingClientRect().top < line.getBoundingClientRect().top - 0.5);
+  };
+  addEventListener("scroll", pin, { passive: true, signal });
   const load = (page, until) => newsPage(index, page).then(({ time, total, size, articles }) => {
     if (signal.aborted) return;
     if (time) stamp.textContent = updated(time.slice(0, 10), time.slice(11, 16));
@@ -225,19 +237,11 @@ export function newsTab(index, written) {
     const touch = event.changedTouches[0], dx = touch.clientX - begin.x, dy = touch.clientY - begin.y, to = dx < 0 ? 1 : 0;
     begin = null;
     if (Math.abs(dx) <= 40 || Math.abs(dx) <= 1.5 * Math.abs(dy) || to === shown) return;
-    touched = true;
     feelSlide();
+    store("issue-tab", to);
     pick(to, true);
   }, { passive: true, signal });
-  pick(touched ? kept : first, false);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) keep(); }, { signal });
-  homing(head, () => { touched = false; if (shown !== first) pick(first, false); });
-  if (document.documentElement.classList.contains("past")) return;
-  newsPage(index).then(({ round, time, articles }) => {
-    if (signal.aborted || articles[0]?.round !== round || Date.parse(time) <= (written ? Date.parse(`${written.replace(" ", "T")}:00+09:00`) : 0)) return;
-    first = 1;
-    if (!touched) pick(1, false);
-  }, () => {});
+  pick(kept("issue-tab") === 1 ? 1 : 0, false);
 }
 
 // 종목 상세에서 `after` 바로 뒤에 주요 뉴스 절을 두고, 절의 마지막 노드를 돌려준다. 절은 `symbol` 종목을 단 최신 기사 `STOCK_NEWS`편까지 받아
