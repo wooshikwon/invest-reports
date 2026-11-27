@@ -28,13 +28,13 @@ class Answer:
 
 class Market:
     """가짜 토스·야후. `prices`는 토스 시세 응답의 심볼마다 (가격, 시각), `closes`는 (심볼, 세션 날짜)마다 토스 일봉 종가(없으면 `BASE`), `spark`는 야후 봉,
-    `meta`는 야후 응답의 앞 세션 종가(`chartPreviousClose`)다.
+    `meta`는 야후 응답의 앞 세션 종가(`chartPreviousClose`), `last`는 야후 응답 `meta`의 마지막 체결 (시각, 가격)이다.
 
     지수 묶음 요청은 `yahoo`에 넣지 않고 그 요청의 `range`를 `indexes`에 넣는다.
     """
 
     def __init__(self):
-        self.prices, self.closes, self.spark, self.meta, self.toss_down = {}, {}, {}, {}, False
+        self.prices, self.closes, self.spark, self.meta, self.last, self.toss_down = {}, {}, {}, {}, {}, False
         self.toss, self.yahoo, self.indexes = [], [], []
 
     def toss_get(self, url, params, timeout, headers):
@@ -59,6 +59,8 @@ class Market:
         for symbol in asked:
             bars = self.spark.get(symbol, [])
             meta = {"chartPreviousClose": self.meta[symbol]} if symbol in self.meta else {}
+            if symbol in self.last:
+                meta.update(regularMarketTime=int(self.last[symbol][0].timestamp()), regularMarketPrice=self.last[symbol][1])
             result.append({"symbol": symbol, "response": [{"meta": meta, "timestamp": [int(moment.timestamp()) for moment, _ in bars],
                                                            "indicators": {"quote": [{"close": [price for _, price in bars]}]}}]})
         return Answer({"spark": {"result": result}})
@@ -346,6 +348,23 @@ def test_futures_value_rides_on_nasdaq_after_value(market):
     assert live.tick(at("2026-11-22", "19:00:35")) == {}  # 같은 봉이면 다시 쓰지 않는다
     assert market.accounts == []  # 보유 종목이 없다
     assert market.indexes[-4:] == ["5d", "5d", "1d", "1d"]  # 기준을 잡기 전 회차만 닷새치를 받는다
+
+
+def test_futures_value_on_holiday_without_minute_bars(market):
+    """휴장일에는 야후가 선물 1분봉을 주지 않으므로 `meta`의 마지막 체결로 선물 시간대 값을 쓴다."""
+    traded(market, "2026-11-25", "15:59:30")
+    live.tick(at("2026-11-25", "16:05:05"))
+    traded(market, "2026-11-25", "19:59:50", 1.01)
+    nasdaq = dict(live.tick(at("2026-11-25", "20:00:10"))["afterhours"]["nasdaq"]["2026-11-25"])
+    market.spark = {"NQ=F": [(at("2026-11-25", "19:58"), 1000.0), (at("2026-11-25", "23:58"), 1010.0)]}
+    market.last = {"NQ=F": (at("2026-11-25", "23:59:40"), 1011.0)}
+    live.tick(at("2026-11-25", "23:59:45"))
+    market.last = {"NQ=F": (at("2026-11-26", "20:55:30"), 1020.0)}  # 추수감사절 밤. 봉은 11/25 23:58에서 멈췄다
+    moved = live.tick(at("2026-11-26", "21:05:05"))["afterhours"]["nasdaq"]["2026-11-25"]
+    assert moved["futures"] == {"time": "2026-11-26T20:55:30-05:00", "ratio": round(nasdaq["ratio"] * 1020.0 / 1000.0, 6)}
+    assert live.tick(at("2026-11-26", "21:05:35")) == {}  # 같은 체결이면 다시 쓰지 않는다
+    market.last = {"NQ=F": (at("2026-11-26", "20:53:00"), 1015.0)}
+    assert live.tick(at("2026-11-26", "21:06:05")) == {}  # 야후가 앞선 체결을 답하면 쓰지 않는다
 
 
 def test_futures_between_weekday_sessions(market):

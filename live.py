@@ -16,9 +16,10 @@ cron(`~/scripts/cron/invest-live-tick.sh`)이 1분마다 `tick()`을 부른다. 
 지수 값마다 날짜 지점(`point`)을 적는다. 날짜 지점은 뉴욕 세션 날짜이고, `premarket` 값은 그 세션, `afterhours` 값은 XNYS 달력의 다음 세션이다.
 
 앞 세션 `AFTER_CLOSE`부터 다음 세션 `PREMARKET_OPEN` 전까지가 선물 시간대(`futures`)다. 날짜 지점 하나는 애프터장, 선물 시간대, 프리장, 정규장 순서로 값을 받는다.
-선물 시간대 지수 값: 나스닥 선물(`FUTURES`)이 애프터장 마지막 체결 뒤 새 1분봉을 내면, 앞 세션의 나스닥 `afterhours` 값에
-선물 시간대 값 `futures`(`time`, `ratio`)를 붙인다. 비율은 애프터장 마지막 비율 × (선물 마지막 체결가 ÷ 애프터장 마지막 체결 시각까지 끝난 선물 1분봉 종가)이고,
-시각은 그 선물 1분봉이 끝난 시각이다. 선물 시장이 닫힌 주말에는 새 1분봉이 없으므로 쓰지 않는다.
+선물 시간대 지수 값: 나스닥 선물(`FUTURES`)이 애프터장 마지막 체결 뒤 새로 체결되면, 앞 세션의 나스닥 `afterhours` 값에
+선물 시간대 값 `futures`(`time`, `ratio`)를 붙인다. 비율은 애프터장 마지막 비율 × (선물 마지막 체결가 ÷ 애프터장 마지막 체결 시각까지 끝난 선물 1분봉 종가)이다.
+선물 마지막 체결은 끝난 마지막 1분봉의 종가(시각은 그 봉이 끝난 시각)와 야후 응답 `meta`의 마지막 체결(`regularMarketPrice`, `regularMarketTime`) 가운데 늦은 쪽이다.
+야후는 미국 휴장일에 선물 1분봉을 주지 않고 `meta`의 마지막 체결만 갈아 준다. 선물 시장이 닫힌 주말에는 새 체결이 없으므로 쓰지 않는다.
 애프터장 마지막 비율과 그 시각의 선물 종가는 선물 시간대 첫 회차에 `futures-{앞 세션}.json`에 둔다. 바이오에는 선물이 없어 `futures`를 붙이지 않는다.
 선물 시간대 종목 값: 같은 회차가 토스 시세를 한 번 불러 지도 종목과 보유 종목의 주간거래(블루오션) 체결가를 받는다. 앞 세션 `AFTER_CLOSE` 뒤 체결이 있는
 종목이 있으면 두 지수의 `afterhours` 값에 주간거래 값 `overnight`(`time`, `stocks`)를 붙인다. `stocks`는 종목마다 그 뒤 마지막 체결가이고, 체결이 없는
@@ -204,6 +205,18 @@ def ended(response: dict, moment: dt.datetime) -> tuple[int, float] | None:
     return found[-1] if found else None
 
 
+def traded_last(response: dict, moment: dt.datetime) -> tuple[int, float] | None:
+    """spark 응답에서 `moment`까지의 마지막 체결 (체결 시각 초, 체결가). 체결이 없으면 None.
+
+    끝난 마지막 1분봉의 (끝난 시각, 종가)와 `meta`의 마지막 체결(`regularMarketTime`, `regularMarketPrice`) 가운데 늦은 쪽이다.
+    """
+    meta = response.get("meta") or {}
+    found = [(bar[0] + 60, bar[1])] if (bar := ended(response, moment)) else []
+    if meta.get("regularMarketTime") and meta.get("regularMarketPrice") is not None and meta["regularMarketTime"] <= moment.timestamp():
+        found.append((meta["regularMarketTime"], meta["regularMarketPrice"]))
+    return max(found) if found else None
+
+
 def index_value(kept: dict, quotes: dict[str, dict], now: dt.datetime) -> dict | None:
     """`kept`의 `index` 값에서 마지막 1분봉 시각이 바뀐 지수만 갈아 새 값을 돌려준다. 바뀐 지수가 없으면 None."""
     value = dict(kept)
@@ -369,19 +382,19 @@ def futures_base(before: str, kept: dict, quotes: dict[str, dict]) -> dict:
 
 
 def futures_value(kept: dict, base: dict, quotes: dict[str, dict], end: dt.datetime, before: str) -> dict | None:
-    """선물 시간대의 `afterhours` 새 값. 선물이 `base` 뒤 새 1분봉을 낸 지수만 앞 세션 `before`의 값에 `futures`를 붙이거나 갈아 돌려준다.
+    """선물 시간대의 `afterhours` 새 값. 선물이 `base` 봉 뒤 새로 체결된 지수만 앞 세션 `before`의 값에 `futures`를 붙이거나 갈아 돌려준다.
 
-    `futures`의 `ratio`는 애프터장 마지막 비율 × (`end`까지 끝난 선물 1분봉 종가 ÷ 기준 종가)이고, `time`은 그 봉이 끝난 시각이다.
-    애프터장 값 자체는 바꾸지 않는다. 갈 지수가 없으면 None.
+    `futures`의 `ratio`는 애프터장 마지막 비율 × (`end`까지의 선물 마지막 체결가(`traded_last`) ÷ 기준 종가)이고, `time`은 그 체결 시각이다.
+    야후는 요청마다 앞선 체결을 답하기도 하므로, 이미 쓴 `futures`의 시각보다 늦은 체결만 쓴다. 애프터장 값 자체는 바꾸지 않는다. 갈 지수가 없으면 None.
     """
     changed = False
     for index, symbol in FUTURES.items():
         own = kept.get(index, {}).get(before)
-        last = ended(quotes.get(symbol) or {}, end)
-        if not (own and index in base and last and last[0] > base[index]["base"][0]):
+        last = traded_last(quotes.get(symbol) or {}, end)
+        if not (own and index in base and last and last[0] > base[index]["base"][0] + 60):
             continue
-        moved = dt.datetime.fromtimestamp(last[0] + 60, NEW_YORK).isoformat()
-        if own.get("futures", {}).get("time") != moved:
+        moved = dt.datetime.fromtimestamp(last[0], NEW_YORK).isoformat()
+        if (shown := own.get("futures", {}).get("time")) is None or dt.datetime.fromisoformat(shown).timestamp() < last[0]:
             own["futures"] = {"time": moved, "ratio": round(base[index]["ratio"] * last[1] / base[index]["base"][1], 6)}
             changed = True
     return kept if changed else None
