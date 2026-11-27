@@ -30,13 +30,14 @@ function reportPage(body, listing, cards, history, given) {
   carry = null;
   settleStart();
   const index = key.split("-")[1], entry = listing[key], isLatest = key === latest(listing, index);
-  // `due`는 가장 늦은 리포트의 판단 날짜 지점(`entry.point`)의 정규장이 시작했거나 그보다 늦은 날짜 지점의 실시간 값이 들어왔는지다.
+  // `due`는 가장 늦은 리포트의 판단 날짜 지점(`entry.point`)의 정규장이 끝났는지다. 그 정규장이 끝나면 다음 날짜 지점의 애프터장 값이 들어오므로,
+  // 판단 날짜 지점보다 늦은 날짜 지점의 실시간 값이 있는지로 가린다.
   // 그때부터 다음 판단이 올라올 때까지 화면의 예측은 업데이트를 기다리는 값이다.
   // 설명 세 절(`noted`)은 화면을 그릴 때 받은 가장 늦은 판단의 `outlook.json`(`given`)으로 채우고, 예측 단추(`aimed`)의 상태를 받지 않는다.
 // 예측 단추의 상태는 기기의 `aim`에 남겨 다른 리포트와 다음에 열 때도 쓴다(`keep.ts`).
   // 설명 절은 그 절에 맞는 그림 카드와 한 장에 넣어 카드와 함께 넘긴다(`NOTE_OF`). 주가 카드는 현재 상태, 예측과 일정 카드는 주요 분기와 예측, 권장 배율 카드는 종합 시나리오다.
-  // `due`인 동안(판단 배치가 도는 동안 포함)에는 설명 절의 제목과 내용을 회색으로 흐리게 보인다.
-  let due = false, cardSet = null, noted = null, aimed = kept("aim") === true;
+  // `due`이거나 판단 배치가 도는 동안(`waiting`)에는 설명 절의 제목과 내용을 회색으로 흐리게 보인다.
+  let due = false, waiting = false, cardSet = null, noted = null, aimed = kept("aim") === true;
   // 예측 단추의 글자는 판단 배치의 단계(`stage`)로 정하고, 단계 판정은 여기서 하며 `outlook.ts`는 받은 글자와 상태만 그린다.
   // 단계는 가장 늦은 리포트를 보는 동안만 정한다. 실시간 값의 `progress`가 보는 리포트의 날짜(`entry.date`)보다 늦은 날짜에 이 지수의 단계를 적었으면 판단 배치가 도는 중이라 "예측 중 N%"(`running`)이고,
   // 그렇지 않은데 `due`이면 배치가 시작하기 전이라 "예측 업데이트 전"(`pre`)이다. 그 밖에는 "예측"(`done`)이다.
@@ -68,10 +69,9 @@ function reportPage(body, listing, cards, history, given) {
     };
     subscribe((found) => {
       const points = found.points?.[index] || {};
-      due = !!(isLatest && entry.point && (points[entry.point]?.regular || Object.keys(points).some((point) => point > entry.point)));
-      noted?.fade(due);
-      const [now, waiting] = judge(found);
-      stage = now;
+      due = !!(isLatest && entry.point && Object.keys(points).some((point) => point > entry.point));
+      [stage, waiting] = judge(found);
+      noted?.fade(waiting);
       cardSet?.label?.();
       if (!waiting || asking) return;
       asking = true;
@@ -115,7 +115,7 @@ function reportPage(body, listing, cards, history, given) {
     if (cardSet?.box) {
       noted = notes(Object.fromEntries(Object.entries(cardSet.slides).map(([name, slide]) => [NOTE_OF[name], slide])));
       noted.set(given?.sections, given?.point ?? "");
-      noted.fade(due);
+      noted.fade(waiting);
     }
     indicators();
     marketed.then(({ map }) => {
